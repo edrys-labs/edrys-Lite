@@ -15,8 +15,6 @@ export default {
   props: ["id", "station", "hash"],
 
   data() {
-    alert("id" + this.id + " station" + this.station + " hash" + this.hash);
-
     const database = new Database();
 
     const configuration: DatabaseItem | null = null;
