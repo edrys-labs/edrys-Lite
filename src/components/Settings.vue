@@ -18,6 +18,11 @@ export default {
       type: Object,
       required: true,
     },
+
+    writeProtection: {
+      type: Boolean,
+      required: true,
+    },
   },
 
   emits: ["close", "saveClass", "deleteClass", "updateClass"],
@@ -105,29 +110,42 @@ export default {
     <v-card-text style="height: 565px">
       <v-window v-model="tab" class="pt-5">
         <v-window-item>
-          <Main :config="config"></Main>
+          <Main :config="config" :writeProtection="writeProtection"></Main>
         </v-window-item>
 
         <v-window-item>
-          <Members :members="config.members" @updateMembers="updateMembers"></Members>
+          <Members
+            :members="config.members"
+            @updateMembers="updateMembers"
+            :writeProtection="writeProtection"
+          ></Members>
         </v-window-item>
 
         <v-window-item>
-          <Modules :config="config" :scraped-modules="scrapedModules"></Modules>
+          <Modules
+            :config="config"
+            :scraped-modules="scrapedModules"
+            :writeProtection="writeProtection"
+          ></Modules>
         </v-window-item>
 
         <v-window-item>
-          <Stations :config="config"></Stations>
+          <Stations :config="config" :writeProtection="writeProtection"></Stations>
         </v-window-item>
 
         <v-window-item>
-          <Share :config="config"></Share>
+          <Share :config="config" :writeProtection="writeProtection"></Share>
         </v-window-item>
       </v-window>
     </v-card-text>
 
     <v-card-actions>
-      <v-btn @click="saveClass" color="primary" style="margin-top: 30px">
+      <v-btn
+        @click="saveClass"
+        color="primary"
+        style="margin-top: 30px"
+        :disabled="writeProtection"
+      >
         <v-icon left> mdi-upload </v-icon>
         Save
         <v-badge

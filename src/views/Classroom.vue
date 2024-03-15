@@ -12,9 +12,11 @@ import Peer from "../ts/Peer";
 import { copyToClipboard } from "../ts/Utils";
 
 export default {
-  props: ["id", "station"],
+  props: ["id", "station", "hash"],
 
   data() {
+    alert("id" + this.id + " station" + this.station + " hash" + this.hash);
+
     const database = new Database();
 
     const configuration: DatabaseItem | null = null;
@@ -475,6 +477,7 @@ export default {
         @saveClass="saveClass"
         @deleteClass="deleteClass"
         @updateClass="updateClass"
+        :writeProtection="!!hash"
       ></Settings>
     </v-dialog>
   </v-app>

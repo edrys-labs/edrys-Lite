@@ -384,3 +384,11 @@ export function deepEqual(object1, object2) {
 function isObject(object) {
   return object != null && typeof object === 'object'
 }
+
+export async function hashJsonObject(jsonObject: any) {
+  const msgUint8 = new TextEncoder().encode(JSON.stringify(jsonObject))
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+  return hashHex
+}

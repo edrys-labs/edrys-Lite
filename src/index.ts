@@ -58,8 +58,26 @@ export const navigateTo = (url: string, replace?: boolean) => {
 const router = async () => {
   const routes = [
     { path: '/', view: Index },
-    { path: '/classroom/:id', view: Classroom, params: { station: false } },
-    { path: '/station/:id', view: Classroom, params: { station: true } },
+    {
+      path: '/classroom/:id/:hash',
+      view: Classroom,
+      params: { station: false },
+    },
+    {
+      path: '/classroom/:id',
+      view: Classroom,
+      params: { station: false },
+    },
+    {
+      path: '/station/:id/:hash',
+      view: Classroom,
+      params: { station: true },
+    },
+    {
+      path: '/station/:id',
+      view: Classroom,
+      params: { station: true },
+    },
   ]
 
   const potentialMatches = routes.map((route) => {

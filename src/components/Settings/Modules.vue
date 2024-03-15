@@ -1,6 +1,12 @@
 <template>
   <v-list lines="three">
-    <draggable :list="config.modules" item-key="id" @end="move" class="list-group">
+    <draggable
+      :list="config.modules"
+      item-key="id"
+      @end="move"
+      class="list-group"
+      :disabled="writeProtection"
+    >
       <template #item="{ element, index }">
         <v-list-item :key="index" class="list-group-item">
           <template v-slot:prepend>
@@ -34,12 +40,18 @@
               <Module
                 v-model:module="config.modules[index]"
                 v-model:error="errors[index]"
+                :writeProtection="writeProtection"
               ></Module>
             </v-menu>
 
             <v-menu>
               <template v-slot:activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-delete" variant="text"></v-btn>
+                <v-btn
+                  v-bind="props"
+                  icon="mdi-delete"
+                  variant="text"
+                  :disabled="writeProtection"
+                ></v-btn>
               </template>
 
               <v-list>
@@ -64,7 +76,7 @@
         </v-list-item>
       </template>
     </draggable>
-    <v-list-item>
+    <v-list-item :disabled="writeProtection">
       <template v-slot:prepend>
         <v-icon icon="mdi-link"></v-icon>
       </template>
@@ -109,6 +121,11 @@ export default {
 
     scrapedModules: {
       type: Object,
+      required: true,
+    },
+
+    writeProtection: {
+      type: Boolean,
       required: true,
     },
   },
