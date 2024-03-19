@@ -9,6 +9,14 @@ export type DatabaseItem = {
   hash: string | null
 }
 
+function open(name: string, version?: number) {
+  console.warn('indexedDB is disabled')
+}
+
+function deleteDatabase(name: string) {
+  console.warn('indexedDB is disabled')
+}
+
 export class Database {
   private db: Dexie
   private observables: any = {}
@@ -29,6 +37,12 @@ export class Database {
       .then(function (db) {
         // Database opened successfully
         console.log('Database opened successfully')
+
+        // Disable indexedDB for others
+        // @ts-ignore
+        window.indexedDB.open = open
+        // @ts-ignore
+        window.indexedDB.deleteDatabase = deleteDatabase
       })
       .catch(function (err) {
         console.warn('Database error: ' + err.message)
