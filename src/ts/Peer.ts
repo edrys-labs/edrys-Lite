@@ -1,5 +1,5 @@
 import P2PT from 'p2pt'
-import { getPeerID, getShortPeerID } from './Utils'
+import { getPeerID, hashJsonObject } from './Utils'
 import State from './State'
 
 var trackersAnnounceURLs = [
@@ -15,6 +15,7 @@ export default class Peer {
   private state: State
 
   private id: string
+  private hash: string | null
   private data: any
   private connected: boolean = false
 
@@ -31,10 +32,11 @@ export default class Peer {
   private peerID: string
 
   constructor(
-    config: { id: string; data: any; timestamp: number },
+    config: { id: string; data: any; timestamp: number; hash: string | null },
     stationID?: string
   ) {
     this.id = config.id
+    this.hash = config.hash
     this.data = config.data
     this.timestamp.config = config.timestamp
 
@@ -45,7 +47,7 @@ export default class Peer {
 
     this.state = new State(this.peerID)
 
-    this.p2pt = new P2PT(trackersAnnounceURLs, this.id)
+    this.p2pt = new P2PT(trackersAnnounceURLs, this.id + (this.hash || ''))
 
     const self = this
     this.p2pt.on('trackerconnect', (tracker, stats) => {
@@ -73,30 +75,51 @@ export default class Peer {
     })
 
     this.p2pt.on('msg', (peer, msg) => {
-      // console.log(`Got message from ${peer.id} : ${JSON.stringify(msg)}`)
+      // console.log(`Got message from ${peer.id} : ${JSON.stringify(msg, null, 2)}`)
 
       switch (msg.topic) {
         case 'setup': {
           const { data, timestamp } = msg.data
 
-          if (timestamp < self.timestamp.config) {
-            self.broadcast({
-              topic: 'setup-update',
-              data: {
-                data: self.data,
-                timestamp: self.timestamp.config,
-              },
-            })
-          } else if (timestamp > self.timestamp.config) {
-            self.timestamp.config = timestamp
-            self.data = data
-            self.update('setup')
+          if (this.hash !== null) {
+            // answer with the current setup
+            if (data === null && self.data !== null) {
+              self.broadcast({
+                topic: 'setup-update',
+                data: {
+                  data: self.data,
+                  timestamp: self.timestamp.config,
+                },
+              })
+            } else if (data !== null && self.data === null) {
+              hashJsonObject(data).then((hash) => {
+                if (hash === self.hash) {
+                  self.timestamp.config = timestamp
+                  self.data = data
+                  self.update('setup')
+                }
+              })
+            }
+          } else {
+            if (timestamp < self.timestamp.config) {
+              self.broadcast({
+                topic: 'setup-update',
+                data: {
+                  data: self.data,
+                  timestamp: self.timestamp.config,
+                },
+              })
+            } else if (timestamp > self.timestamp.config) {
+              self.timestamp.config = timestamp
+              self.data = data
+              self.update('setup')
+            }
           }
           break
         }
         case 'setup-update': {
           const { data, timestamp } = msg.data
-          if (timestamp > self.timestamp.config) {
+          if (self.hash === null && timestamp > self.timestamp.config) {
             self.timestamp.config = timestamp
             self.data = data
             self.update('setup')
@@ -133,11 +156,24 @@ export default class Peer {
   }
 
   newSetup(config: { id: string; data: any; timestamp: number }) {
-    this.id = config.id
-    this.data = config.data
-    this.timestamp.config = config.timestamp
+    if (this.hash) {
+      const self = this
+      hashJsonObject(config.data).then((hash) => {
+        if (hash === self.hash) {
+          self.id = config.id
+          self.data = config.data
+          self.timestamp.config = config.timestamp
 
-    this.publishSetup()
+          self.publishSetup()
+        }
+      })
+    } else {
+      this.id = config.id
+      this.data = config.data
+      this.timestamp.config = config.timestamp
+
+      this.publishSetup()
+    }
   }
 
   update(
