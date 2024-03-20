@@ -1,5 +1,8 @@
 import * as YAML from 'js-yaml'
 
+import SecureLS from 'secure-ls'
+import { Device } from 'keyri-fingerprint'
+
 function loadResource(type, url, base) {
   if (url.match(/(https?)?:\/\//i)) {
     if (type === 'script') {
@@ -315,12 +318,15 @@ export function infoHash(length = 40) {
 }
 
 var SessionID: string | null = null
+const ls = new SecureLS({ encodingType: 'aes' })
+const device = new Device()
+const deviceID = device.createFingerprintHash().slice(0, 8)
 
 export function getPeerID(withSession = true) {
-  let peerID = localStorage.getItem('peerID')
-  if (!peerID) {
-    peerID = infoHash(12)
-    localStorage.setItem('peerID', peerID)
+  let peerID = ls.get('peerID_')
+  if (!peerID || !peerID.startsWith(deviceID)) {
+    peerID = deviceID + infoHash(6)
+    ls.set('peerID_', peerID)
   }
 
   if (!SessionID) {
@@ -335,7 +341,7 @@ export function getShortPeerID(id: string) {
 
   // peerID_sessionID
   if (ids.length == 2) {
-    return ids[0].slice(6)
+    return ids[0].slice(-6)
   }
 
   return id
