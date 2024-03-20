@@ -8,12 +8,12 @@ export default {
 </script>
 
 <template>
-  <v-footer color="surface-variant" app="true" elevation="15">
+  <v-footer color="surface-variant" :app="true" elevation="15">
     <v-row justify="center" no-gutters>
       <v-tooltip text="edrys-Lite on GitHub" location="top">
         <template v-slot:activator="{ props }">
           <v-btn
-            density="plain"
+            density="compact"
             icon="mdi-github"
             href="https://github.com/edrys-labs/edrys-Lite/"
             target="_"
@@ -27,7 +27,7 @@ export default {
       <v-tooltip text="View the Documentation" location="top">
         <template v-slot:activator="{ props }">
           <v-btn
-            density="plain"
+            density="compact"
             icon="mdi-information"
             href="https://github.com/edrys-labs/documentation"
             target="_"
@@ -41,7 +41,7 @@ export default {
       <v-tooltip text="Explore Classrooms" location="top">
         <template v-slot:activator="{ props }">
           <v-btn
-            density="plain"
+            density="compact"
             icon="mdi-share-circle"
             href="https://github.com/topics/edrys-classroom"
             target="_"

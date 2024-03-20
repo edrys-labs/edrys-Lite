@@ -12,7 +12,7 @@ import Peer from "../ts/Peer";
 import { copyToClipboard } from "../ts/Utils";
 
 export default {
-  props: ["id", "station"],
+  props: ["id", "station", "hash"],
 
   data() {
     const database = new Database();
@@ -96,12 +96,18 @@ export default {
       return getPeerID(false);
     },
     async init() {
+      await this.database.setProtection(this.id, !!this.hash);
+
       this.configuration = await this.database.get(this.id);
+
+      if (!!this.hash && this.configuration?.hash !== this.hash) {
+        this.configuration = null;
+      }
 
       this.communication = new Peer(
         this.configuration
           ? this.configuration
-          : { id: this.id, data: null, timestamp: 0 },
+          : { id: this.id, data: null, timestamp: 0, hash: this.hash },
         this.stationName
       );
 
@@ -475,6 +481,7 @@ export default {
         @saveClass="saveClass"
         @deleteClass="deleteClass"
         @updateClass="updateClass"
+        :writeProtection="!!hash"
       ></Settings>
     </v-dialog>
   </v-app>

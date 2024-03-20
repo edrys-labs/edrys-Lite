@@ -36,6 +36,10 @@ export default {
       copyToClipboard(this.peerID);
     },
 
+    switchClassroomProtection(id: string, on: boolean) {
+      this.database.setProtection(id, on);
+    },
+
     deleteClass(id: string) {
       this.database.drop(id);
     },
@@ -62,7 +66,7 @@ export default {
     },
 
     async createClass() {
-      const id = infoHash();
+      const id = infoHash(16);
 
       const data = {
         id,
@@ -140,6 +144,23 @@ export default {
             :key="classroom.id"
           >
             <v-card class="item" color="surface-variant" elevation="4">
+              <v-chip
+                :color="!!classroom.hash ? 'primary' : 'secondary'"
+                style="position: absolute; z-index: 100; right: 10px; top: 10px"
+                :disabled="
+                  classroom?.data.createdBy !== peerID &&
+                  !classroom?.data.members.teacher.includes(peerID)
+                "
+              >
+                Write Protection
+                <v-switch
+                  :model-value="!!classroom.hash"
+                  color="primary"
+                  :label="!!classroom.hash ? 'on' : 'off'"
+                  style="padding-top: 20px; z-index: 200"
+                  @change="switchClassroomProtection(classroom.id, !classroom.hash)"
+                ></v-switch>
+              </v-chip>
               <v-img
                 :src="
                   classroom?.data?.meta?.logo ||
@@ -169,6 +190,7 @@ export default {
                 <v-btn icon title="fork" @click="forkClass(classroom)">
                   <v-icon>mdi-source-fork</v-icon>
                 </v-btn>
+
                 <v-menu>
                   <template v-slot:activator="{ props }">
                     <v-btn color="" v-bind="props" icon="mdi-delete"> </v-btn>
@@ -194,7 +216,9 @@ export default {
                 <v-spacer></v-spacer>
                 <a
                   data-link="true"
-                  :href="`./?/classroom/${classroom.id}`"
+                  :href="`./?/classroom/${classroom.id}${
+                    !!classroom.hash ? `/${classroom.hash}` : ''
+                  }`"
                   style="color: white"
                 >
                   <v-btn icon title="open">

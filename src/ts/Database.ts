@@ -1,6 +1,21 @@
 import { Dexie, liveQuery } from 'dexie'
 
-export type DatabaseItem = { id: string; timestamp: number; data: any }
+import { hashJsonObject } from './Utils'
+
+export type DatabaseItem = {
+  id: string
+  timestamp: number
+  data: any
+  hash: string | null
+}
+
+function open(name: string, version?: number) {
+  console.warn('indexedDB is disabled')
+}
+
+function deleteDatabase(name: string) {
+  console.warn('indexedDB is disabled')
+}
 
 export class Database {
   private db: Dexie
@@ -9,11 +24,12 @@ export class Database {
   constructor() {
     this.db = new Dexie('EdrysLite')
 
-    this.db.version(1).stores({
+    this.db.version(2).stores({
       data: `
             &id,
             timestamp,
-            data`,
+            data,
+            hash`,
     })
 
     this.db
@@ -21,6 +37,12 @@ export class Database {
       .then(function (db) {
         // Database opened successfully
         console.log('Database opened successfully')
+
+        // Disable indexedDB for others
+        // @ts-ignore
+        window.indexedDB.open = open
+        // @ts-ignore
+        window.indexedDB.deleteDatabase = deleteDatabase
       })
       .catch(function (err) {
         console.warn('Database error: ' + err.message)
@@ -51,6 +73,16 @@ export class Database {
 
   drop(id: string) {
     this.db['data'].delete(id)
+  }
+
+  async setProtection(id: string, on: boolean = true) {
+    const classroom = await this.get(id)
+
+    if (classroom) {
+      classroom.hash = on ? await hashJsonObject(classroom.data) : null
+
+      this.update(classroom)
+    }
   }
 
   setObservable(id: string, callback: (result: any) => void) {

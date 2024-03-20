@@ -13,6 +13,7 @@
           variant="underlined"
           label="Module URL"
           v-model="module.url"
+          :disabled="writeProtection"
         ></v-text-field>
       </v-expansion-panel-text>
     </v-expansion-panel>
@@ -30,7 +31,7 @@
           <v-col cols="6">
             <v-container fluid>
               <p>Width</p>
-              <v-radio-group v-model="module.width">
+              <v-radio-group v-model="module.width" :disabled="writeProtection">
                 <v-radio label="Full (1000px)" value="full"></v-radio>
                 <v-radio label="Half (500px)" value="half"></v-radio>
                 <v-radio label="Quarter (250px)" value="third"></v-radio>
@@ -40,7 +41,7 @@
           <v-col cols="6">
             <v-container fluid>
               <p>Height</p>
-              <v-radio-group v-model="module.height">
+              <v-radio-group v-model="module.height" :disabled="writeProtection">
                 <v-radio label="HUGE (830px)" value="huge"></v-radio>
                 <v-radio label="Tall (720x)" value="tall"></v-radio>
                 <v-radio label="Medium (410px)" value="medium"></v-radio>
@@ -57,6 +58,7 @@
       icon="mdi-script-text"
       v-model:config="module.config"
       v-model:error="error.config"
+      :writeProtection="writeProtection"
     ></Editor>
 
     <Editor
@@ -64,6 +66,7 @@
       icon="mdi-account-circle-outline"
       v-model:config="module.studentConfig"
       v-model:error="error.studentConfig"
+      :writeProtection="writeProtection"
     ></Editor>
 
     <Editor
@@ -71,6 +74,7 @@
       icon="mdi-clipboard-account-outline"
       v-model:config="module.teacherConfig"
       v-model:error="error.teacherConfig"
+      :writeProtection="writeProtection"
     ></Editor>
 
     <Editor
@@ -78,6 +82,7 @@
       icon="mdi-router-wireless"
       v-model:config="module.stationConfig"
       v-model:error="error.stationConfig"
+      :writeProtection="writeProtection"
     ></Editor>
 
     <v-expansion-panel>
@@ -93,6 +98,7 @@
           variant="underlined"
           label="Comma separated list of rooms, or: lobby, * for all, teacher-only, station"
           v-model="module.showInCustom"
+          :disabled="writeProtection"
         ></v-text-field>
       </v-expansion-panel-text>
     </v-expansion-panel>
@@ -112,6 +118,11 @@ export default {
     },
     error: {
       type: Object,
+      required: true,
+    },
+
+    writeProtection: {
+      type: Boolean,
       required: true,
     },
   },

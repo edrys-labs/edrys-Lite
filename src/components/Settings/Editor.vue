@@ -16,7 +16,12 @@
       </div>
 
       <v-divider style="margin-bottom: 0.5rem"></v-divider>
-      <prism-editor v-model="code" :highlight="highlighter" line-numbers></prism-editor>
+      <prism-editor
+        v-model="code"
+        :highlight="highlighter"
+        line-numbers
+        :readonly="writeProtection"
+      ></prism-editor>
     </v-expansion-panel-text>
   </v-expansion-panel>
 </template>
@@ -59,10 +64,15 @@ export default {
       type: String,
       required: true,
     },
+
+    writeProtection: {
+      type: Boolean,
+      required: true,
+    },
   },
 
   data() {
-    let input = "" 
+    let input = "";
 
     if (typeof this.config === "string" && this.config.trim() !== "") {
       input = "|-\n  " + this.config.split("\n").join("\n  ");
