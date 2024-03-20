@@ -33,10 +33,10 @@
     "vuetify": "^3.3.16"
   },
   "dependencies": {
-    "keyri-fingerprint": "^1.0.31",
     "material-design-icons-iconfont": "^6.7.0",
     "muuri": "^0.9.5",
     "prismjs": "^1.29.0",
+    "sctk-new-get-browser-fingerprint": "^3.0.0",
     "secure-ls": "^1.2.6"
   },
   "browserslist": [

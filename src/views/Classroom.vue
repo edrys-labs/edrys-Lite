@@ -9,7 +9,7 @@ import { infoHash, scrapeModule, clone, getPeerID, getShortPeerID } from "../ts/
 import { onMounted } from "vue";
 import Peer from "../ts/Peer";
 
-import { copyToClipboard } from "../ts/Utils";
+import { copyToClipboard, deepEqual } from "../ts/Utils";
 
 export default {
   props: ["id", "station", "hash"],
@@ -92,7 +92,7 @@ export default {
     copyPeerID() {
       copyToClipboard(getPeerID(false));
     },
-    getPeerID() {
+    getPeer_ID() {
       return getPeerID(false);
     },
     async init() {
@@ -114,9 +114,16 @@ export default {
       const self = this;
 
       this.database.setObservable(this.id, (config: DatabaseItem) => {
-        if (config) {
-          self.configuration = config;
-          self.communication?.newSetup(config);
+        try {
+          if (config && !deepEqual(self.configuration.data, config.data)) {
+            self.configuration = config;
+            self.communication?.newSetup(config);
+          }
+        } catch (e) {
+          if (config) {
+            self.configuration = config;
+            self.communication?.newSetup(config);
+          }
         }
       });
 
@@ -129,9 +136,20 @@ export default {
       }
 
       this.communication.on("setup", (configuration: DatabaseItem) => {
-        if (configuration.timestamp && configuration) {
-          self.database.put(configuration);
-          self.init();
+        try {
+          if (
+            configuration.timestamp &&
+            configuration &&
+            !deepEqual(self.configuration.data, configuration.data)
+          ) {
+            self.database.put(configuration);
+            self.init();
+          }
+        } catch (e) {
+          if (configuration.timestamp && configuration) {
+            self.database.put(configuration);
+            self.init();
+          }
         }
       });
     },
@@ -314,7 +332,7 @@ export default {
             <v-list-item>
               <v-list-item-title> User ID: </v-list-item-title>
               <v-list-item-subtitle>
-                {{ getPeerID() }}
+                {{ getPeer_ID() }}
                 <v-btn
                   icon="mdi-content-copy"
                   size="small"

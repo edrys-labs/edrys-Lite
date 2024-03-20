@@ -66,8 +66,10 @@ export class Database {
     return this.db['data'].put(config)
   }
 
-  update(config: DatabaseItem) {
-    config.timestamp = Date.now()
+  update(config: DatabaseItem, withTimestamp: boolean = true) {
+    if (withTimestamp) {
+      config.timestamp = Date.now()
+    }
     return this.put(config)
   }
 
@@ -81,7 +83,7 @@ export class Database {
     if (classroom) {
       classroom.hash = on ? await hashJsonObject(classroom.data) : null
 
-      this.update(classroom)
+      this.update(classroom, false)
     }
   }
 

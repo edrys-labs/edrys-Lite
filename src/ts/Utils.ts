@@ -1,7 +1,7 @@
 import * as YAML from 'js-yaml'
 
 import SecureLS from 'secure-ls'
-import { Device } from 'keyri-fingerprint'
+import getBrowserFingerprint from 'sctk-new-get-browser-fingerprint'
 
 function loadResource(type, url, base) {
   if (url.match(/(https?)?:\/\//i)) {
@@ -319,11 +319,11 @@ export function infoHash(length = 40) {
 
 var SessionID: string | null = null
 const ls = new SecureLS({ encodingType: 'aes' })
-const device = new Device()
-const deviceID = device.createFingerprintHash().slice(0, 8)
+const deviceID = getBrowserFingerprint().toString(16)
 
 export function getPeerID(withSession = true) {
   let peerID = ls.get('peerID_')
+
   if (!peerID || !peerID.startsWith(deviceID)) {
     peerID = deviceID + infoHash(6)
     ls.set('peerID_', peerID)

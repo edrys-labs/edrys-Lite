@@ -81,7 +81,7 @@ export default class Peer {
         case 'setup': {
           const { data, timestamp } = msg.data
 
-          if (this.hash !== null) {
+          if (!!self.hash) {
             // answer with the current setup
             if (data === null && self.data !== null) {
               self.broadcast({
@@ -119,7 +119,8 @@ export default class Peer {
         }
         case 'setup-update': {
           const { data, timestamp } = msg.data
-          if (self.hash === null && timestamp > self.timestamp.config) {
+
+          if (!self.hash && timestamp > self.timestamp.config) {
             self.timestamp.config = timestamp
             self.data = data
             self.update('setup')
