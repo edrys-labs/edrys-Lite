@@ -46,6 +46,10 @@ Whether you're a student, educator, researcher, or enthusiast, edrys-Lite invite
 
 
 
+https://github.com/edrys-labs/edrys-Lite/assets/3089101/b7188ba0-b91e-469c-8a9f-413229683bcc
+
+
+
 ## 💡 Use cases
 
 - __Live online teaching:__
