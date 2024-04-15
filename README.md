@@ -1,21 +1,15 @@
+
 # edrys-Lite: Revolutionizing Remote Laboratories
 
+![overview](img/overview.png)
 
 Welcome to edrys-Lite, the cutting-edge open-source project designed to revolutionize how we create and share remote laboratories. In a world where education and research are increasingly moving online, edrys-Lite provides an intuitive and simplistic way for users to engage with laboratory environments directly from their browser -- no servers required.
 
-
-
-
 ## Introduction
 
-- Project name and a brief, compelling overview
-- Vision statement or inspirational quote that reflects the ethos of the project
-
-
-Inspired by @edrysorg, which is unfortunately not under active development, edrys-Lite aims to provide a serverless peer-to-peer approach for remote laboratories. By leveraging the latest web technologies, such as WebRTC for real-time, peer-to-peer connections, and CRDTs for collistion free state handling, edrys-Lite offers a seamless, serverless experience for users worldwide.
+Inspired by @edrysorg, which is unfortunately not under active development, edrys-Lite aims to provide a serverless peer-to-peer approach for remote laboratories. By leveraging the latest web technologies, such as WebRTC for real-time, peer-to-peer connections, and CRDTs for collision free state handling, edrys-Lite offers a seamless, serverless experience for users worldwide.
 
 Whether you're a student, educator, researcher, or enthusiast, edrys-Lite invites you to explore, contribute, and grow with us. Together, we can unlock new realms of possibility and innovation in the digital age.
-
 
 ## ✨ Features
 
@@ -40,15 +34,9 @@ Whether you're a student, educator, researcher, or enthusiast, edrys-Lite invite
 - __Free and Open Source, forever:__
   No paywall features or lock-in
 
-## 📸 Screenshots
-
-![overview](img/overview.png)
-
-
+## 📸 Demo
 
 https://github.com/edrys-labs/edrys-Lite/assets/3089101/b7188ba0-b91e-469c-8a9f-413229683bcc
-
-
 
 ## 💡 Use cases
 
