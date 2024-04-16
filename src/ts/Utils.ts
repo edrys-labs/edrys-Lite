@@ -319,7 +319,10 @@ export function infoHash(length = 40) {
 
 var SessionID: string | null = null
 const ls = new SecureLS({ encodingType: 'aes' })
-const deviceID = getBrowserFingerprint().toString(16)
+const deviceID = getBrowserFingerprint({
+  hardwareOnly: true,
+  enableScreen: false,
+}).toString(16)
 
 export function getPeerID(withSession = true) {
   let peerID = ls.get('peerID_')
