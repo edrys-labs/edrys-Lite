@@ -146,7 +146,13 @@ export default {
             <v-card class="item" color="surface-variant" elevation="4">
               <v-chip
                 :color="!!classroom.hash ? 'primary' : 'secondary'"
-                style="position: absolute; z-index: 100; right: 10px; top: 10px"
+                style="
+                  position: absolute;
+                  z-index: 100;
+                  right: 10px;
+                  top: 10px;
+                  background-color: white;
+                "
                 :disabled="
                   classroom?.data.createdBy !== peerID &&
                   !classroom?.data.members.teacher.includes(peerID)
