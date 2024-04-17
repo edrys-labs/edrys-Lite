@@ -1,7 +1,7 @@
 import * as YAML from 'js-yaml'
 
 import SecureLS from 'secure-ls'
-import getBrowserFingerprint from 'sctk-new-get-browser-fingerprint'
+import getBrowserFingerprint from './fingerprint'
 
 function loadResource(type, url, base) {
   if (url.match(/(https?)?:\/\//i)) {
@@ -322,7 +322,10 @@ const ls = new SecureLS({ encodingType: 'aes' })
 const deviceID = getBrowserFingerprint({
   hardwareOnly: true,
   enableScreen: false,
-}).toString(16)
+  debug: true,
+}).toString(32)
+
+console.warn('deviceID', deviceID)
 
 export function getPeerID(withSession = true) {
   let peerID = ls.get('peerID_')
