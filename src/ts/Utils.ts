@@ -325,8 +325,6 @@ const deviceID = getBrowserFingerprint({
   debug: true,
 }).toString(32)
 
-console.warn('deviceID', deviceID)
-
 export function getPeerID(withSession = true) {
   let peerID = ls.get('peerID_')
 
