@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import Index from './views/Index.vue'
 import Classroom from './views/Classroom.vue'
+import Deploy from './views/Deploy.vue'
 
 // Vuetify
 import 'vuetify/dist/vuetify.min.css'
@@ -77,6 +78,11 @@ const router = async () => {
       path: '/station/:id',
       view: Classroom,
       params: { station: true },
+    },
+    {
+      path: '/deploy/:url',
+      view: Deploy,
+      params: { station: false },
     },
   ]
 
