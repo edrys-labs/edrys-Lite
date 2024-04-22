@@ -1,8 +1,5 @@
 <template>
-  <div
-    style="height: 100%; width: 100%"
-    :key="scrapedModule.url"
-  >
+  <div style="height: 100%; width: 100%" :key="scrapedModule.url">
     <iframe
       style="height: 100%; width: 100%"
       :key="liveClassProxy.users[username].room"
@@ -20,7 +17,7 @@
           ? scrapedModule.url
           : null
       "
-      allow="camera; microphone; fullscreen; display-capture; accelerometer; autoplay; encrypted-media; geolocation; gyroscope; magnetometer; midi; serial; vr;"
+      allow="camera; microphone; fullscreen; display-capture; accelerometer; autoplay; encrypted-media; geolocation; gyroscope; magnetometer; midi; serial; vr; clipboard-read; clipboard-write"
       @load="updateIframe"
       ref="iframe"
       frameborder="0"
