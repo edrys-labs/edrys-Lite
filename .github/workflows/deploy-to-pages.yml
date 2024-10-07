@@ -3,7 +3,7 @@ name: Build and Deploy to GitHub Pages
 on:
   push:
     branches:
-      - feat/deploy-workflow
+      - main
 
 jobs:
   build:
@@ -34,7 +34,7 @@ jobs:
 
           
           # Clone the GitHub Pages repository
-          git clone https://x-access-token:${{ secrets.ORG_DEPLOY_TOKEN }}@github.com/jh-488/edrys-labs.github.io.git
+          git clone https://x-access-token:${{ secrets.ORG_DEPLOY_TOKEN }}@github.com/edrys-labs/edrys-labs.github.io.git
 
           # Copy new built files to the website repo
           cp -r ./dist/* edrys-labs.github.io/docs
