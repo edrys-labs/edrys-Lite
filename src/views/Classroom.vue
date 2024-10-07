@@ -86,7 +86,10 @@ export default {
       },
 
       stationNameInput: "",
-      stationNameRules: [(v: string) => !!v || "Name is required"],
+      stationNameRules: [
+        (v: string) => !!v || "Name is required",
+        (v: string) => !this.isNameTaken(v) || "Name is already taken",
+      ],
     };
   },
   watch: {
@@ -289,8 +292,18 @@ export default {
     },
 
     setStationName() {
+      const isValid = this.stationNameRules.every((rule) => rule(this.stationNameInput) === true);
+
+      if (!isValid) {
+        return;  // If validation fails, do not submit
+      }
+      
       localStorage.setItem(`station_${this.id}`, this.stationNameInput);
       window.location.reload();
+    },
+
+    isNameTaken(name: string) {
+      return Object.keys(this.liveClassProxy.rooms).includes("Station " + name);
     },
   },
 
