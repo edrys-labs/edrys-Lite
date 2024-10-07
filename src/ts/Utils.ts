@@ -1,7 +1,6 @@
 import * as YAML from 'js-yaml'
 
 import SecureLS from 'secure-ls'
-import getBrowserFingerprint from './fingerprint'
 
 function loadResource(type, url, base) {
   if (url.match(/(https?)?:\/\//i)) {
@@ -319,17 +318,12 @@ export function infoHash(length = 40) {
 
 var SessionID: string | null = null
 const ls = new SecureLS({ encodingType: 'aes' })
-const deviceID = getBrowserFingerprint({
-  hardwareOnly: true,
-  enableScreen: false,
-  debug: true,
-}).toString(32)
 
 export function getPeerID(withSession = true) {
   let peerID = ls.get('peerID_')
 
-  if (!peerID || !peerID.startsWith(deviceID)) {
-    peerID = deviceID + infoHash(6)
+  if (!peerID) {
+    peerID = infoHash(12)
     ls.set('peerID_', peerID)
   }
 
