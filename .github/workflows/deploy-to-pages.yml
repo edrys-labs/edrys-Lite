@@ -1,0 +1,47 @@
+name: Build and Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout app repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'  
+
+      - name: Install dependencies
+        run: npm install  
+
+      - name: Build the app
+        run: npm run build  
+      
+
+      # Deploy to the website repository
+      - name: Deploy to GitHub Pages repository
+        run: |
+          # Configure Git
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+
+          
+          # Clone the GitHub Pages repository
+          git clone https://x-access-token:${{ secrets.ORG_DEPLOY_TOKEN }}@github.com/edrys-labs/edrys-labs.github.io.git
+
+          # Copy new built files to the website repo
+          cp -r ./dist/* edrys-labs.github.io/docs
+          
+          cd edrys-labs.github.io
+          
+          # Add, commit and push changes to the GitHub Pages repo
+          git add .
+          git commit -m "Deploying updated site"
+          git push origin main  
