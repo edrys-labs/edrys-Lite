@@ -34,11 +34,17 @@ export default {
       this.init();
     });
 
-    let stationName = "";
+    let stationName: string | null = "";
     let peerID = getPeerID(true);
-
+    
     if (this.station) {
-      stationName = infoHash(6);
+      stationName = localStorage.getItem(`station_${this.id}`);
+
+      if (!stationName) {
+        stationName = infoHash(6);
+        localStorage.setItem(`station_${this.id}`, stationName);
+      }
+
       peerID = "Station " + stationName;
     }
 
@@ -78,6 +84,9 @@ export default {
         truncated: false,
         new: false,
       },
+
+      stationNameInput: "",
+      stationNameRules: [(v: string) => !!v || "Name is required"],
     };
   },
   watch: {
@@ -278,6 +287,11 @@ export default {
     sendMessage(message: string) {
       this.communication.sendMessage(message);
     },
+
+    setStationName() {
+      localStorage.setItem(`station_${this.id}`, this.stationNameInput);
+      window.location.reload();
+    },
   },
 
   components: {
@@ -366,14 +380,17 @@ export default {
             <v-divider></v-divider>
 
             <v-card-text>
-              <v-text-field
-                outlined
-                v-model="stationName"
-                active="false"
-                label="Station Name"
-                required
-                disabled="true"
-              ></v-text-field>
+              <v-form @submit.prevent="setStationName">
+                <v-text-field
+                  variant="solo"
+                  v-model="stationNameInput"
+                  :rules="stationNameRules"
+                  label="Station Name"
+                  required
+                  append-inner-icon="mdi-arrow-right"
+                  @click:append-inner="setStationName"
+                ></v-text-field>
+              </v-form>
 
               This browser is now running as a station and ready to serve students
             </v-card-text>
