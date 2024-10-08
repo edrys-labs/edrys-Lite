@@ -38,11 +38,11 @@ export default {
     let peerID = getPeerID(true);
     
     if (this.station) {
-      stationName = localStorage.getItem(`station_${this.id}`);
+      stationName = sessionStorage.getItem(`station_${this.id}`);
 
       if (!stationName) {
         stationName = infoHash(6);
-        localStorage.setItem(`station_${this.id}`, stationName);
+        sessionStorage.setItem(`station_${this.id}`, stationName);
       }
 
       peerID = "Station " + stationName;
@@ -298,7 +298,7 @@ export default {
         return;  // If validation fails, do not submit
       }
       
-      localStorage.setItem(`station_${this.id}`, this.stationNameInput);
+      sessionStorage.setItem(`station_${this.id}`, this.stationNameInput);
       window.location.reload();
     },
 
