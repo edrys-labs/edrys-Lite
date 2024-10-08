@@ -1,18 +1,19 @@
-import P2PT from 'p2pt'
 import { getPeerID, hashJsonObject } from './Utils'
 import State from './State'
+import { joinRoom, selfID } from '../../node_modules/trystero/src/torrent.js'
 
-var trackersAnnounceURLs = [
-  'wss://tracker.openwebtorrent.com',
-  'wss://tracker.webtorrent.dev',
-  'wss://tracker.files.fm:7073/announce',
-  'wss://tracker.openwebtorrent.com:443/announce',
-  'wss://tracker.files.fm:7073/announce',
-]
+import { Room } from 'trystero'
+import { send } from 'process'
+
+function LOG(...args: any[]) {
+  console.warn('Connection >>', ...args)
+}
 
 export default class Peer {
-  private p2pt: P2PT
+  private room: Room
   private state: State
+
+  private action: any
 
   private id: string
   private hash: string | null
@@ -32,128 +33,104 @@ export default class Peer {
   private peerID: string
 
   constructor(
-    config: { id: string; data: any; timestamp: number; hash: string | null },
+    setup: { id: string; data: any; timestamp: number; hash: string | null },
     stationID?: string
   ) {
-    this.id = config.id
-    this.hash = config.hash
-    this.data = config.data
-    this.timestamp.config = config.timestamp
+    this.id = setup.id
+    this.hash = setup.hash
+    this.data = setup.data
+
+    this.timestamp.config = setup.timestamp
 
     this.peerID = getPeerID()
+
     if (stationID) {
       this.peerID = 'Station ' + stationID
     }
 
     this.state = new State(this.peerID)
 
-    this.p2pt = new P2PT(trackersAnnounceURLs, this.id + (this.hash || ''))
-
     const self = this
-    this.p2pt.on('trackerconnect', (tracker, stats) => {
-      //console.log('Connected to tracker : ' + tracker.announceUrl)
-      //console.log('Tracker stats : ' + JSON.stringify(stats))
-      self.connected = true
-      self.update('connected')
+
+    this.room = joinRoom({ appId: 'edrys-Lite' }, this.id + (this.hash || ''))
+
+    const [sendSetup, getSetup] = this.room.makeAction('setup')
+    const [sendUpdate, getUpdate] = this.room.makeAction('update')
+    const [sendConfig, getConfig] = this.room.makeAction('config')
+    const [sendRoom, getRoom] = this.room.makeAction('room')
+
+    this.action = { sendSetup, sendUpdate, sendRoom, sendConfig }
+
+    this.room.onPeerJoin((peerId) => {
+      LOG('peer joined with id', peerId)
+
+      self.peers[peerId] = null
+
+      sendSetup(
+        {
+          data: self.data,
+          timestamp: self.timestamp.config,
+        },
+        peerId
+      )
     })
 
-    this.p2pt.on('peerconnect', (peer) => {
-      //console.warn('Peer connected : ' + peer.id, peer)
-      self.peers[peer.id] = { peer, id: null }
+    getUpdate((msg, peerID: string) => {
+      const { data, timestamp } = msg
 
-      self.publishSetup(peer.id)
-    })
+      if (!self.hash && timestamp > self.timestamp.config) {
+        LOG('applying update from', peerID)
 
-    this.p2pt.on('peerclose', (peer) => {
-      //console.warn('Peer disconnected : ' + peer)
-      const peerID = this.peers[peer.id]?.id
-
-      delete self.peers[peer.id]
-      if (peerID) {
-        self.state.removeUser(peerID, true)
+        self.timestamp.config = timestamp
+        self.data = data
+        self.update('setup')
+      } else {
+        LOG('ignoring update from', peerID)
       }
     })
 
-    this.p2pt.on('msg', (peer, msg) => {
-      // console.log(`Got message from ${peer.id} : ${JSON.stringify(msg, null, 2)}`)
+    getSetup((msg, peerID: string) => {
+      const { data, timestamp } = msg
 
-      switch (msg.topic) {
-        case 'setup': {
-          const { data, timestamp } = msg.data
+      LOG('received setup', data, timestamp)
 
-          if (!!self.hash) {
-            // answer with the current setup
-            if (data === null && self.data !== null) {
-              self.broadcast({
-                topic: 'setup-update',
-                data: {
-                  data: self.data,
-                  timestamp: self.timestamp.config,
-                },
-              })
-            } else if (data !== null && self.data === null) {
-              hashJsonObject(data).then((hash) => {
-                if (hash === self.hash) {
-                  self.timestamp.config = timestamp
-                  self.data = data
-                  self.update('setup')
-                }
-              })
-            }
-          } else {
-            if (timestamp < self.timestamp.config) {
-              self.broadcast({
-                topic: 'setup-update',
-                data: {
-                  data: self.data,
-                  timestamp: self.timestamp.config,
-                },
-              })
-            } else if (timestamp > self.timestamp.config) {
+      if (!!self.hash) {
+        // answer with the current setup
+        if (data === null && self.data !== null) {
+          sendUpdate({
+            data: self.data,
+            timestamp: self.timestamp.config,
+          })
+        } else if (data !== null && self.data === null) {
+          hashJsonObject(data).then((hash) => {
+            if (hash === self.hash) {
               self.timestamp.config = timestamp
               self.data = data
               self.update('setup')
             }
-          }
-          break
+          })
         }
-        case 'setup-update': {
-          const { data, timestamp } = msg.data
-
-          if (!self.hash && timestamp > self.timestamp.config) {
-            self.timestamp.config = timestamp
-            self.data = data
-            self.update('setup')
-          }
-
-          break
+      } else {
+        if (timestamp < self.timestamp.config) {
+          sendUpdate({
+            data: self.data,
+            timestamp: self.timestamp.config,
+          })
+        } else if (timestamp > self.timestamp.config) {
+          self.timestamp.config = timestamp
+          self.data = data
+          self.update('setup')
         }
-
-        case 'room': {
-          self.update('message', msg.data.msg)
-          break
-        }
-
-        case 'room-update':
-          if (msg.id === self.peerID) {
-            break
-          }
-
-          if (!self.peers[peer.id]) {
-            self.peers[peer.id] = { peer, id: msg.id }
-          } else {
-            self.peers[peer.id].id = msg.id
-          }
-
-          self.state.merge(msg.data)
-
-          break
-        default:
-          console.warn('unknown command', msg.topic)
       }
     })
 
-    this.p2pt.start()
+    this.room.onPeerLeave((peerId) => {
+      LOG(`${peerId} left`)
+      self.state.removeUser(peerId, true)
+    })
+
+    this.connected = true
+    this.update('connected')
   }
 
   newSetup(config: { id: string; data: any; timestamp: number }) {
@@ -251,17 +228,14 @@ export default class Peer {
     this.data = data
     this.timestamp.config = timestamp
 
-    this.broadcast({
-      topic: 'update-setup',
-      data: {
-        data,
-        timestamp,
-      },
+    this.action['sendSetup']({
+      data,
+      timestamp,
     })
   }
 
   broadcast(msg: { topic: string; data: any }) {
-    if (!this.p2pt) {
+    if (!this.connected) {
       return
     }
 
@@ -311,30 +285,24 @@ export default class Peer {
   }
 
   stop() {
-    this.p2pt?.destroy()
+    this.room.leave()
+    this.action = {}
     this.callback = {}
     this.callbackUpdate = {}
     this.peers = {}
   }
 
   publishSetup(peerID?: string) {
-    const message = {
-      topic: 'setup',
-      data: {
-        data: this.data,
-        timestamp: this.timestamp.config,
-      },
-    }
-
-    if (peerID && this.peers[peerID]) {
-      try {
-        this.p2pt.send(this.peers[peerID].peer, message)
-      } catch (e) {
-        console.warn('publishSetup', e.message)
-        // delete this.peers[peerID]
-      }
-    } else {
-      this.broadcast(message)
+    try {
+      this.action['sendSetup'](
+        {
+          data: this.data,
+          timestamp: this.timestamp.config,
+        },
+        peerID
+      )
+    } catch (e) {
+      console.warn('publishSetup', e.message)
     }
   }
 
