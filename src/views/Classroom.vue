@@ -85,7 +85,7 @@ export default {
         new: false,
       },
 
-      stationNameInput: "",
+      stationNameInput: stationName,
       stationNameRules: [
         (v: string) => !!v || "Name is required",
         (v: string) => !this.isNameTaken(v) || "Name is already taken",
