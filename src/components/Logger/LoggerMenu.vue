@@ -1,11 +1,11 @@
 <script lang="ts">
 
 export default {
-  name: "Logger",
+  name: "LoggerMenu",
 
   props: {
-    log: {
-      type: String,
+    showLogger: {
+      type: Boolean,
       required: true,
     },
   },
@@ -17,11 +17,9 @@ export default {
   },
   
   methods: {
-    logToConsole() {
-      console.log(this.log);
-    },
     startLogger() {
       console.log("Logger started");
+      this.$emit("update:showLogger", true);
     },
     stopLogger() {
       console.log("Logger stopped");

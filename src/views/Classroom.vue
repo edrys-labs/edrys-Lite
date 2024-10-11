@@ -3,7 +3,8 @@ import Settings from "../components/Settings.vue";
 import Chat from "../components/Chat";
 import Checks from "../components/Checks";
 import Modules from "../components/Modules.vue";
-import Logger from "../components/Logger.vue";
+import LoggerMenu from "../components/Logger/LoggerMenu.vue";
+import Logger from "../components/Logger/Logger.vue";
 
 import { Database, DatabaseItem } from "../ts/Database";
 import { infoHash, scrapeModule, clone, getPeerID, getShortPeerID } from "../ts/Utils";
@@ -98,6 +99,8 @@ export default {
         (v: string) => !!v || "Name is required",
         (v: string) => !this.isNameTaken(v) || "Name is already taken",
       ],
+
+      showLogger: false,
     };
   },
   watch: {
@@ -111,7 +114,8 @@ export default {
   methods: {
     copyPeerID() {
       copyToClipboard(getPeerID(false));
-      console.log(this.communication.peers);
+      
+      //console.log(this.communication.peers);
       
       /*for (const key in this.liveClassProxy.users) {
         const userRoom = this.liveClassProxy.users[key].room;
@@ -342,6 +346,7 @@ export default {
     Checks,
     Settings,
     Modules,
+    LoggerMenu,
     Logger,
   },
 };
@@ -368,11 +373,12 @@ export default {
 
         <v-spacer></v-spacer>
         
-        <Logger 
-          v-if="this.station"
-          :log="peerID"
+        <LoggerMenu 
+          v-if="isStation"
+          :showLogger="showLogger"
+          @update:showLogger="showLogger = $event"
         >
-        </Logger>
+        </LoggerMenu>
 
         <v-divider
           class="mx-3 align-self-center"
@@ -575,6 +581,18 @@ export default {
         @updateClass="updateClass"
         :writeProtection="!!hash"
       ></Settings>
+    </v-dialog>
+
+    <v-dialog 
+      v-model="showLogger" 
+      max-width="1200px" 
+      width="90%" 
+      :id="'logger' + componentKey"
+    >
+      <Logger 
+        @close="showLogger = false"
+      >
+      </Logger>
     </v-dialog>
   </v-app>
 </template>
