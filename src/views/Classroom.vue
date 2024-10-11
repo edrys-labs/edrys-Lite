@@ -3,8 +3,7 @@ import Settings from "../components/Settings.vue";
 import Chat from "../components/Chat";
 import Checks from "../components/Checks";
 import Modules from "../components/Modules.vue";
-import LoggerMenu from "../components/Logger/LoggerMenu.vue";
-import Logger from "../components/Logger/Logger.vue";
+import Logger from "../components/Logger.vue";
 
 import { Database, DatabaseItem } from "../ts/Database";
 import { infoHash, scrapeModule, clone, getPeerID, getShortPeerID } from "../ts/Utils";
@@ -346,7 +345,6 @@ export default {
     Checks,
     Settings,
     Modules,
-    LoggerMenu,
     Logger,
   },
 };
@@ -372,13 +370,18 @@ export default {
         </template>
 
         <v-spacer></v-spacer>
-        
-        <LoggerMenu 
-          v-if="isStation"
-          :showLogger="showLogger"
-          @update:showLogger="showLogger = $event"
-        >
-        </LoggerMenu>
+
+        <v-tooltip text="Open Logger" location="bottom">
+          <template v-slot:activator="{ props }">
+            <v-btn 
+              icon="mdi-console" 
+              v-bind="props"
+              v-if="isStation"
+              @click="showLogger = !showLogger"
+            >
+            </v-btn>
+          </template>
+        </v-tooltip>
 
         <v-divider
           class="mx-3 align-self-center"
