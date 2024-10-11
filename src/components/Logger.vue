@@ -10,6 +10,12 @@ declare global {
     }
 }
 
+interface ConsoleData {
+    date: Date;
+    message: string;
+    type: string;
+}
+
 export default {
     name: "Logger",
 
@@ -25,8 +31,14 @@ export default {
 
             intervalId: null as number | null,
 
+            consoleData: [] as ConsoleData[],
+
             tab: 'memory',
         };
+    },
+
+    created() {
+        this.overrideConsoleMethods();
     },
 
     methods: {
@@ -65,6 +77,22 @@ export default {
                 });
             } else
                 console.warn("Performance memory API is not supported in this browser.");
+        },
+        overrideConsoleMethods() {
+            const methodsToOverride = ["log", "warn", "error"];
+
+            methodsToOverride.forEach((method) => {
+                const originalMethod = console[method];
+
+                console[method] = (...args: any[]) => {
+                    originalMethod(...args);
+                    this.consoleData.push({
+                        date: new Date().toLocaleString(),
+                        message: args.join(" "),
+                        type: method,
+                    });
+                };
+            });
         },
     },
 };
@@ -114,11 +142,14 @@ export default {
             <v-tabs-window v-model="tab">
                 <v-tabs-window-item value="memory">
                     <div v-if="memoryData.length">
-                        <div v-for="(data, index) in memoryData" :key="index">
-                            <p><strong>Date:</strong> {{ data.date.toLocaleTimeString() }}</p>
-                            <p><strong>Used JS Heap Size:</strong> {{ data.usedJSHeapSize }} MB</p>
-                            <p><strong>Total JS Heap Size:</strong> {{ data.totalJSHeapSize }} MB</p>
-                            <p><strong>JS Heap Size Limit:</strong> {{ data.jsHeapSizeLimit }} MB</p>
+                        <div 
+                            v-for="(data, index) in memoryData" 
+                            :key="index"
+                        >
+                            <span id="log-date">{{ data.date.toLocaleTimeString() }}</span> 
+                            <span id="log-title"> - Used JS Heap Size:</span> {{ data.usedJSHeapSize }} MB
+                            <span id="log-title"> - Total JS Heap Size:</span> {{ data.totalJSHeapSize }} MB
+                            <span id="log-title"> - JS Heap Size Limit:</span> {{ data.jsHeapSizeLimit }} MB
                         </div>
                     </div>
                     <div v-else>
@@ -131,7 +162,24 @@ export default {
                 </v-tabs-window-item>
 
                 <v-tabs-window-item value="console">
-                    Console data
+                    <div v-if="consoleData.length">
+                        <div 
+                            v-for="(data, index) in consoleData" 
+                            :key="index"
+                        >
+                            <span id="log-date">{{ data.date }}</span> 
+                            <span 
+                                id="log-title"
+                                :style="{ color: data.type === 'log' ? '#0047AB' : data.type === 'warn' ? '#F4BB44' : data.type === 'error' ? 'red' : 'black' }"
+                            > 
+                                - {{ data.type.toLocaleUpperCase() }}:
+                            </span> 
+                                {{ data.message }}
+                        </div>
+                    </div>
+                    <div v-else>
+                        <p>Click Start to monitor console logs, or load existing logs.</p>
+                    </div>
                 </v-tabs-window-item>
             </v-tabs-window>
         </v-card-text>
@@ -147,5 +195,17 @@ export default {
 
 .btns-container > * {
     margin: 0 10px;
+}
+
+#log-date #log-title {
+    font-weight: 600;
+}
+
+#log-date {
+    color: #088F8F;
+}
+
+#log-title {
+    color: #0047AB;
 }
 </style>
