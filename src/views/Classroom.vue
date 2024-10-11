@@ -3,6 +3,7 @@ import Settings from "../components/Settings.vue";
 import Chat from "../components/Chat";
 import Checks from "../components/Checks";
 import Modules from "../components/Modules.vue";
+import Logger from "../components/Logger.vue";
 
 import { Database, DatabaseItem } from "../ts/Database";
 import { infoHash, scrapeModule, clone, getPeerID, getShortPeerID } from "../ts/Utils";
@@ -10,6 +11,11 @@ import { onMounted } from "vue";
 import Peer from "../ts/Peer";
 
 import { copyToClipboard, deepEqual } from "../ts/Utils";
+
+interface IUserInStation {
+  user: string;
+  station: string;
+}
 
 export default {
   props: ["id", "station", "hash"],
@@ -36,6 +42,7 @@ export default {
 
     let stationName: string | null = "";
     let peerID = getPeerID(true);
+    let usersInStations: IUserInStation[] = [];
     
     if (this.station) {
       stationName = sessionStorage.getItem(`station_${this.id}`);
@@ -75,6 +82,7 @@ export default {
       peerID,
       userName: getShortPeerID(peerID),
       stationName,
+      usersInStations,
 
       componentKey: 0,
 
@@ -103,6 +111,26 @@ export default {
   methods: {
     copyPeerID() {
       copyToClipboard(getPeerID(false));
+      console.log(this.communication.peers);
+      
+      /*for (const key in this.liveClassProxy.users) {
+        const userRoom = this.liveClassProxy.users[key].room;
+
+        if (userRoom.includes("Station")) {
+          const existingUser = this.usersInStations.find((u) => u.user === key);
+
+          if (!existingUser) {
+            this.usersInStations.push({ user: key, station: userRoom });
+            console.log(`${key} joined station ${userRoom}`);
+          }
+        } else {
+          const index = this.usersInStations.findIndex((u) => u.user === key);
+          if (index !== -1) {
+            console.log(`${key} left station ${this.usersInStations[index].station}`);
+            this.usersInStations.splice(index, 1); 
+          }
+        }
+      }*/
     },
     getPeer_ID() {
       return getPeerID(false);
@@ -267,6 +295,8 @@ export default {
         }
       }
 
+      //console.log("usersInRoom() called");
+
       return users;
     },
 
@@ -312,6 +342,7 @@ export default {
     Checks,
     Settings,
     Modules,
+    Logger,
   },
 };
 </script>
@@ -336,6 +367,19 @@ export default {
         </template>
 
         <v-spacer></v-spacer>
+        
+        <Logger 
+          v-if="this.station"
+          :log="peerID"
+        >
+        </Logger>
+
+        <v-divider
+          class="mx-3 align-self-center"
+          length="24"
+          thickness="2"
+          vertical
+        ></v-divider>
 
         <v-btn
           icon
