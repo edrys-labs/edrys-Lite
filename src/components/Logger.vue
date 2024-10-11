@@ -24,6 +24,8 @@ export default {
             }[],
 
             intervalId: null as number | null,
+
+            tab: 'memory',
         };
     },
 
@@ -99,18 +101,39 @@ export default {
             </v-btn>
         </div>
 
+        <v-tabs
+            align-tabs="center"
+            v-model="tab"
+        >
+            <v-tab value="memory">Memory Usage</v-tab>
+            <v-tab value="network">Network Data</v-tab>
+            <v-tab value="console">Console Logs</v-tab>
+        </v-tabs>
+
         <v-card-text>
-            <div v-if="memoryData.length">
-                <div v-for="(data, index) in memoryData" :key="index">
-                    <p><strong>Date:</strong> {{ data.date.toLocaleTimeString() }}</p>
-                    <p><strong>Used JS Heap Size:</strong> {{ data.usedJSHeapSize }} MB</p>
-                    <p><strong>Total JS Heap Size:</strong> {{ data.totalJSHeapSize }} MB</p>
-                    <p><strong>JS Heap Size Limit:</strong> {{ data.jsHeapSizeLimit }} MB</p>
-                </div>
-            </div>
-            <div v-else>
-                <p>Click Start to monitor memory usage, or load existing logs.</p>
-            </div>
+            <v-tabs-window v-model="tab">
+                <v-tabs-window-item value="memory">
+                    <div v-if="memoryData.length">
+                        <div v-for="(data, index) in memoryData" :key="index">
+                            <p><strong>Date:</strong> {{ data.date.toLocaleTimeString() }}</p>
+                            <p><strong>Used JS Heap Size:</strong> {{ data.usedJSHeapSize }} MB</p>
+                            <p><strong>Total JS Heap Size:</strong> {{ data.totalJSHeapSize }} MB</p>
+                            <p><strong>JS Heap Size Limit:</strong> {{ data.jsHeapSizeLimit }} MB</p>
+                        </div>
+                    </div>
+                    <div v-else>
+                        <p>Click Start to monitor memory usage, or load existing logs.</p>
+                    </div>
+                </v-tabs-window-item>
+
+                <v-tabs-window-item value="network">
+                    Network data
+                </v-tabs-window-item>
+
+                <v-tabs-window-item value="console">
+                    Console data
+                </v-tabs-window-item>
+            </v-tabs-window>
         </v-card-text>
     </v-card>
 </template>

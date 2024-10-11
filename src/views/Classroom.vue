@@ -590,6 +590,8 @@ export default {
       v-model="showLogger" 
       max-width="1200px" 
       width="90%" 
+      height="50%"
+      scrollable
       :id="'logger' + componentKey"
     >
       <Logger 
