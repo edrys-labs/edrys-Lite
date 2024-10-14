@@ -1,16 +1,47 @@
-import { getPeerID, hashJsonObject } from './Utils'
+import { clone, getPeerID, hashJsonObject } from './Utils'
 import State from './State'
-import { joinRoom, selfID } from '../../node_modules/trystero/src/torrent.js'
 
-import { Room } from 'trystero'
-import { send } from 'process'
+import * as Y from 'yjs'
+import { TrysteroProvider } from '../../node_modules/y-trystero/src/TrysteroProvider'
+import { joinRoom } from '../../node_modules/trystero/src/torrent'
+import { clone, deepEqual, getShortPeerID } from './Utils'
+import * as objectHash from 'object-hash'
 
 function LOG(...args: any[]) {
   console.warn('Connection >>', ...args)
 }
 
+const trackersAnnounceURLs = [
+  'wss://tracker.openwebtorrent.com',
+  'wss://tracker.webtorrent.dev',
+  'wss://tracker.files.fm:7073/announce',
+  'wss://tracker.openwebtorrent.com:443/announce',
+  'wss://tracker.files.fm:7073/announce',
+]
+
+const LOBBY = 'Lobby'
+const STATION = 'Station'
+
 export default class Peer {
-  private room: Room
+  private doc: Y.Doc
+
+  private isStation: boolean = false
+
+  private userSettings: any = {
+    displayName: '',
+    room: LOBBY,
+    role: 'student',
+    dateJoined: Date.now(),
+    handRaised: false,
+    connections: [
+      {
+        id: '',
+        target: {},
+      },
+    ],
+    timestamp: Date.now(),
+  }
+
   private state: State
 
   private action: any
@@ -36,101 +67,130 @@ export default class Peer {
     setup: { id: string; data: any; timestamp: number; hash: string | null },
     stationID?: string
   ) {
+    this.doc = new Y.Doc()
+    this.doc.getMap('setup')
+    this.doc.getMap('users')
+    this.doc.getMap('rooms')
+    this.doc.getArray('chat')
+
     this.id = setup.id
     this.hash = setup.hash
-    this.data = setup.data
+    this.data = clone(setup.data)
 
     this.timestamp.config = setup.timestamp
 
     this.peerID = getPeerID()
-
     if (stationID) {
+      this.isStation = true
       this.peerID = 'Station ' + stationID
     }
 
     this.state = new State(this.peerID)
 
-    const self = this
-
-    this.room = joinRoom({ appId: 'edrys-Lite' }, this.id + (this.hash || ''))
-
-    const [sendSetup, getSetup] = this.room.makeAction('setup')
-    const [sendUpdate, getUpdate] = this.room.makeAction('update')
-    const [sendConfig, getConfig] = this.room.makeAction('config')
-    const [sendRoom, getRoom] = this.room.makeAction('room')
-
-    this.action = { sendSetup, sendUpdate, sendRoom, sendConfig }
-
-    this.room.onPeerJoin((peerId) => {
-      LOG('peer joined with id', peerId)
-
-      self.peers[peerId] = null
-
-      sendSetup(
-        {
-          data: self.data,
-          timestamp: self.timestamp.config,
-        },
-        peerId
-      )
-    })
-
-    getUpdate((msg, peerID: string) => {
-      const { data, timestamp } = msg
-
-      if (!self.hash && timestamp > self.timestamp.config) {
-        LOG('applying update from', peerID)
-
-        self.timestamp.config = timestamp
-        self.data = data
-        self.update('setup')
-      } else {
-        LOG('ignoring update from', peerID)
+    const provider = new TrysteroProvider(
+      this.id + (this.hash || ''),
+      this.doc,
+      {
+        appId: 'edry-Lite', // optional, but recommended
+        joinRoom: joinRoom,
       }
-    })
+    )
 
-    getSetup((msg, peerID: string) => {
-      const { data, timestamp } = msg
+    this.initSetup()
+    console.warn('provider', provider)
 
-      LOG('received setup', data, timestamp)
+    provider.on('status', (event) => {
+      this.connected = event.connected
 
-      if (!!self.hash) {
-        // answer with the current setup
-        if (data === null && self.data !== null) {
-          sendUpdate({
-            data: self.data,
-            timestamp: self.timestamp.config,
-          })
-        } else if (data !== null && self.data === null) {
-          hashJsonObject(data).then((hash) => {
-            if (hash === self.hash) {
-              self.timestamp.config = timestamp
-              self.data = data
-              self.update('setup')
-            }
-          })
-        }
-      } else {
-        if (timestamp < self.timestamp.config) {
-          sendUpdate({
-            data: self.data,
-            timestamp: self.timestamp.config,
-          })
-        } else if (timestamp > self.timestamp.config) {
-          self.timestamp.config = timestamp
-          self.data = data
-          self.update('setup')
-        }
+      if (event.connected) {
+        const setup = this.doc.getMap('setup')
+
+        setup.observe((event) => {
+          const timestamp = this.doc.getMap('setup').get('timestamp')
+
+          if (this.timestamp.config !== timestamp) {
+            this.initSetup()
+          }
+        })
       }
+
+      this.update('connected')
     })
 
-    this.room.onPeerLeave((peerId) => {
-      LOG(`${peerId} left`)
-      self.state.removeUser(peerId, true)
+    provider.on('synced', (event) => {
+      console.warn('sync XXXXXXXXXXXXXXXXXXXXXXXXXXXX', event)
     })
+  }
 
-    this.connected = true
-    this.update('connected')
+  initSetup() {
+    const setup = this.doc.getMap('setup')
+
+    const timestamp: number = (setup.get('timestamp') as number) || 0
+    const data = setup.get('config')
+
+    // If my setup is older than the current setup
+    if (this.timestamp.config < timestamp) {
+      this.data = data
+      this.timestamp.config = timestamp
+      this.update('setup')
+    }
+    // if the received setup is not up to date
+    else if (this.timestamp.config !== timestamp) {
+      this.doc.transact(() => {
+        setup.set('config', this.data)
+        setup.set('timestamp', this.timestamp.config)
+      })
+    }
+    // equal setups will be ignored
+  }
+
+  initUser(role: 'student' | 'teacher' | 'station') {
+    const users = this.doc.getMap('users')
+
+    this.userSettings.displayName = getShortPeerID(this.peerID)
+    this.userSettings.room = this.isStation ? this.peerID : LOBBY
+    this.userSettings.dateJoined = Date.now()
+    this.userSettings.timestamp = Date.now()
+    this.userSettings.role = role
+
+    users.set(this.peerID, clone(this.userSettings))
+
+    users.observe((event) => {
+      this.update('room')
+    })
+  }
+
+  initRooms() {
+    const rooms = this.doc.getMap('rooms')
+
+    if (rooms.size === 0) {
+      this.doc.transact(() => {
+        this.addRoom(LOBBY)
+
+        if (this.isStation) {
+          this.addRoom(this.peerID)
+        }
+
+        if (this.data.meta.defaultNumberOfRooms) {
+          for (let i = 1; i <= this.data.meta.defaultNumberOfRooms; i++) {
+            this.addRoom('Room ' + i)
+          }
+        }
+      })
+    }
+
+    rooms.observe((event) => {
+      this.update('room')
+    })
+  }
+
+  initChat() {
+    const chat = this.doc.getArray('chat')
+
+    chat.observe((event) => {
+      console.warn('WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW', chat.toArray())
+      this.update('chat')
+    })
   }
 
   newSetup(config: { id: string; data: any; timestamp: number }) {
@@ -182,7 +242,7 @@ export default class Peer {
       }
       case 'room': {
         if (callback) {
-          callback(this.state.toJSON())
+          callback(this.toJSON())
           this.callbackUpdate[event] = false
         } else {
           this.callbackUpdate[event] = true
@@ -192,7 +252,10 @@ export default class Peer {
 
       case 'chat': {
         if (callback) {
-          callback(this.state.getChat())
+          callback({
+            messages: this.doc.getArray('chat').toArray(),
+            truncated: false,
+          })
           this.callbackUpdate[event] = false
         } else {
           this.callbackUpdate[event] = true
@@ -285,66 +348,75 @@ export default class Peer {
   }
 
   stop() {
-    this.room.leave()
     this.action = {}
     this.callback = {}
     this.callbackUpdate = {}
     this.peers = {}
   }
 
-  publishSetup(peerID?: string) {
-    try {
-      this.action['sendSetup'](
-        {
-          data: this.data,
-          timestamp: this.timestamp.config,
-        },
-        peerID
-      )
-    } catch (e) {
-      console.warn('publishSetup', e.message)
+  addRoom(name?: string) {
+    const rooms = this.doc.getMap('rooms')
+
+    if (name && !rooms.has(name)) {
+      const room = {
+        studentPublicState: '',
+        teacherPublicState: '',
+        teacherPrivateState: '',
+      }
+
+      rooms.set(name, room)
+    } else {
+      const roomIDs: number[] = Object.keys(rooms.toJSON())
+        .filter((e) => e.match(/Room/))
+        .map((e) => e.split(' ')[1])
+        .map((e) => parseInt(e))
+        .sort((a, b) => a - b)
+
+      let newRoomID = 1
+      for (const id of roomIDs) {
+        if (id !== newRoomID) {
+          break
+        }
+        newRoomID++
+      }
+
+      this.addRoom('Room ' + newRoomID)
     }
   }
 
-  addRoom() {
-    this.state.addRoom(true)
-  }
-
   gotoRoom(room: string) {
-    this.state.gotoRoom(room)
+    this.userSettings.room = room
+    this.userSettings.timestamp = Date.now()
+
+    const users = this.doc.getMap('users')
+    users.set(this.peerID, this.userSettings)
   }
 
   sendMessage(message: string) {
-    this.state.addMessage(message)
+    this.doc.getArray('chat').push([
+      {
+        timestamp: Date.now(),
+        user: getShortPeerID(this.peerID),
+        msg: message,
+      },
+    ])
   }
 
   join(role: 'student' | 'teacher' | 'station') {
     this.timestamp.join = Date.now()
-
     this.state.init(role, this.data.meta.defaultNumberOfRooms)
 
-    const self = this
-    this.state.on('update', (config: { room?: boolean; chat?: boolean }) => {
-      if (config.room || config.chat) {
-        this.updateClassroom(!!config.chat)
-      }
+    this.initUser(role)
+    this.initRooms()
+    this.initChat()
 
-      if (config.room !== undefined) this.update('room')
-
-      if (config.chat !== undefined) this.update('chat')
-    })
-
-    setTimeout(() => {
-      self.updateClassroom(true)
-    }, 1000)
-
-    return this.state.toJSON()
+    return this.toJSON()
   }
 
-  updateClassroom(chat: boolean) {
-    this.broadcast({
-      topic: 'room-update',
-      data: this.state.encode(chat),
-    })
+  toJSON() {
+    return {
+      rooms: this.doc.getMap('rooms').toJSON(),
+      users: this.doc.getMap('users').toJSON(),
+    }
   }
 }
