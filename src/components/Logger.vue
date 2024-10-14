@@ -8,13 +8,13 @@ declare global {
             jsHeapSizeLimit: number;
         };
     }
-}
+};
 
 interface ConsoleData {
     date: Date;
     message: string;
     type: string;
-}
+};
 
 interface NetworkData {
     date: Date;
@@ -24,7 +24,8 @@ interface NetworkData {
     status?: number;
     options?: string;
     url?: string;
-}
+};
+
 
 export default {
     name: "Logger",
@@ -53,6 +54,7 @@ export default {
         this.overrideFetch();
         this.overrideXHR();
         this.overrideWebSocket();
+        this.observeResources();
     },
 
     methods: {
@@ -93,6 +95,10 @@ export default {
             ws.onclose = () => {
                 console.log("WebSocket closed");
             };
+
+            const iframe = document.createElement("iframe");
+            iframe.src = "https://example.com";
+            document.body.appendChild(iframe);
         },
         clearLogger() {
             console.log("Logger cleared");
@@ -216,8 +222,60 @@ export default {
                 return JSON.stringify(message, null, 2);
             }
             return message.toString();
-            },
         },
+        observeResources() {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    mutation.addedNodes.forEach((node) => {
+                        switch (node.nodeName) {
+                            case "IMG":
+                                this.networkData.push({
+                                    date: new Date(),
+                                    type: "image resource",
+                                    url: (node as HTMLImageElement).src,
+                                });
+                                break;
+                            case "LINK":
+                                this.networkData.push({
+                                    date: new Date(),
+                                    type: "stylesheet resource",
+                                    url: (node as HTMLLinkElement).href,
+                                });
+                                break;
+                            case "SCRIPT":
+                                this.networkData.push({
+                                    date: new Date(),
+                                    type: "script resource",
+                                    url: (node as HTMLScriptElement).src,
+                                });
+                                break;
+                            case "IFRAME":
+                                this.networkData.push({
+                                    date: new Date(),
+                                    type: "iframe resource",
+                                    url: (node as HTMLIFrameElement).src,
+                                });
+                                break;
+                            case "HTML":
+                                this.networkData.push({
+                                    date: new Date(),
+                                    type: "document resource",
+                                    url: node.baseURI,
+                                });
+                                break;
+                            default:
+                                break;
+                        }
+                    });
+                });
+            });
+
+            observer.observe(document, {
+                childList: true,
+                subtree: true,
+            });
+        },
+    },
 };
 </script>
 
@@ -303,6 +361,9 @@ export default {
                             <span v-else-if="data.type === 'ws'"> 
                                 Request: {{ data.request }} 
                                 Response: {{ data.response }}
+                            </span>
+                            <span v-else-if="data.type.includes('resource')"> 
+                                Resource: {{ data.url }}
                             </span>
                         </div>
                     </div>
