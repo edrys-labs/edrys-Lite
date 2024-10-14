@@ -24,6 +24,7 @@ interface NetworkData {
     status?: number;
     options?: string;
     url?: string;
+    eventType?: string;
 };
 
 
@@ -57,18 +58,29 @@ export default {
         this.observeResources();
     },
 
+    beforeUnmount() {
+        this.stopLogger();
+    },
+
     methods: {
         startLogger() {
             console.log("Logger started");
-            this.intervalId = setInterval(() => {
-                this.measureMemory();
-            }, 5000);
+            if (this.intervalId === null) { 
+                this.intervalId = setInterval(() => {
+                    console.log("Memory measured");
+                    this.measureMemory();
+                }, 5000);
+            } else {
+                console.warn("Memory logger is already running!");
+            }
         },
         stopLogger() {
             console.log("Logger stopped");
-            if (this.intervalId) {
+            if (this.intervalId !== null) { 
                 clearInterval(this.intervalId);
-                this.intervalId = null;
+                this.intervalId = null; 
+            } else {
+                console.warn("Memory logger is not running.");
             }
         },
         loadLogger() {
@@ -103,6 +115,8 @@ export default {
         clearLogger() {
             console.log("Logger cleared");
             this.memoryData = [];
+            this.consoleData = [];
+            this.networkData = [];
         },
         measureMemory() {
             // performance.memory is only available in certain browsers
@@ -162,7 +176,7 @@ export default {
                     date: new Date(),
                     type: "fetch",
                     request: args[0],
-                    response,
+                    response: await response.text(),
                     status: response.status,
                     options: args[1] || {},
                 };
@@ -202,17 +216,23 @@ export default {
 
             window.WebSocket = function (...args) {
                 const ws = new originalWebSocket(...(args as [string, ...any[]]));
-                
-                ws.addEventListener("message", function (event) {
+
+                const logWebSocketEvent = (type, response) => {
                     const data = {
                         date: new Date(),
                         type: "ws",
                         request: args[0],
-                        response: event.data,
+                        response,
+                        eventType: type, 
                     };
 
                     vueInstance.networkData.push(data);
-                });
+                };
+
+                ws.addEventListener("open", () => logWebSocketEvent("open", "Connection opened"));
+                ws.addEventListener("message", (event) => logWebSocketEvent("message", event.data));
+                ws.addEventListener("close", () => logWebSocketEvent("close", "Connection closed"));
+                ws.addEventListener("error", () => logWebSocketEvent("error", "WebSocket error"));
 
                 return ws;
             } as any;
@@ -231,35 +251,40 @@ export default {
                             case "IMG":
                                 this.networkData.push({
                                     date: new Date(),
-                                    type: "image resource",
+                                    type: "resource",
+                                    eventType: "image",
                                     url: (node as HTMLImageElement).src,
                                 });
                                 break;
                             case "LINK":
                                 this.networkData.push({
                                     date: new Date(),
-                                    type: "stylesheet resource",
+                                    type: "resource",
+                                    eventType: "stylesheet",
                                     url: (node as HTMLLinkElement).href,
                                 });
                                 break;
                             case "SCRIPT":
                                 this.networkData.push({
                                     date: new Date(),
-                                    type: "script resource",
+                                    type: "resource",
+                                    evenType: "script",
                                     url: (node as HTMLScriptElement).src,
                                 });
                                 break;
                             case "IFRAME":
                                 this.networkData.push({
                                     date: new Date(),
-                                    type: "iframe resource",
+                                    type: "resource",
+                                    eventType: "iframe",
                                     url: (node as HTMLIFrameElement).src,
                                 });
                                 break;
                             case "HTML":
                                 this.networkData.push({
                                     date: new Date(),
-                                    type: "document resource",
+                                    type: "resource",
+                                    eventType: "document",
                                     url: node.baseURI,
                                 });
                                 break;
@@ -270,10 +295,7 @@ export default {
                 });
             });
 
-            observer.observe(document, {
-                childList: true,
-                subtree: true,
-            });
+            observer.observe(document, { childList: true, subtree: true, });
         },
     },
 };
@@ -285,6 +307,10 @@ export default {
             <v-toolbar-title>Logger</v-toolbar-title>
 
             <v-spacer></v-spacer>
+
+            <v-btn icon @click="$emit('minimize')">
+                <v-icon>mdi-minus</v-icon>
+            </v-btn>
 
             <v-btn icon @click="$emit('close')">
                 <v-icon>mdi-close</v-icon>
@@ -359,11 +385,13 @@ export default {
                                 Options: {{ data.options }}
                             </span>
                             <span v-else-if="data.type === 'ws'"> 
-                                Request: {{ data.request }} 
+                                Event: {{ data.eventType }},
+                                Request: {{ data.request }},
                                 Response: {{ data.response }}
                             </span>
-                            <span v-else-if="data.type.includes('resource')"> 
-                                Resource: {{ data.url }}
+                            <span v-else-if="data.type === 'resource'">
+                                Type: {{ data.eventType }}, 
+                                Url: {{ data.url }}
                             </span>
                         </div>
                     </div>
