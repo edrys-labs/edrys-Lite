@@ -1,5 +1,7 @@
 <script lang="ts">
 
+import * as echarts from 'echarts';
+
 declare global {
     interface Performance {
         memory?: {
@@ -57,6 +59,8 @@ export default {
             tab: 'memory',
 
             usersInStations: [] as IUserInStation[],
+
+            isChartOpen: false,
         };
     },
 
@@ -66,8 +70,6 @@ export default {
         this.overrideXHR();
         this.overrideWebSocket();
         this.observeResources();
-
-        this.monitorUsersInStations();
     },
 
     beforeUnmount() {
@@ -88,7 +90,6 @@ export default {
             console.log("Logger started");
             if (this.intervalId === null) { 
                 this.intervalId = setInterval(() => {
-                    console.log("Memory measured");
                     this.measureMemory();
                 }, 5000);
             } else {
@@ -107,7 +108,7 @@ export default {
         loadLogger() {
             console.log("Logger loaded");
 
-            
+            /*
             // Testing network data
             fetch("https://jsonplaceholder.typicode.com/posts", {
                 method: "POST",
@@ -132,12 +133,20 @@ export default {
             const iframe = document.createElement("iframe");
             iframe.src = "https://example.com";
             document.body.appendChild(iframe);
+            */
         },
         clearLogger() {
             console.log("Logger cleared");
             this.memoryData = [];
             this.consoleData = [];
             this.networkData = [];
+            this.usersInStations = [];
+        },
+        formatMessage(message: object | string) {
+            if (typeof message === "object" && message !== null) {
+                return JSON.stringify(message, null, 2);
+            }
+            return message.toString();
         },
         measureMemory() {
             // performance.memory is only available in certain browsers
@@ -258,12 +267,6 @@ export default {
                 return ws;
             } as any;
         },
-        formatMessage(message: object | string) {
-            if (typeof message === "object" && message !== null) {
-                return JSON.stringify(message, null, 2);
-            }
-            return message.toString();
-        },
         observeResources() {
             const observer = new MutationObserver((mutations) => {
                 mutations.forEach((mutation) => {
@@ -324,19 +327,71 @@ export default {
                 const userRole = this.liveClassProxy.users[key].role; // to exclude stations
 
                 if (userRoom.includes("Station") && userRole !== "station") {
-
                     this.usersInStations.push({ user: key, station: userRoom, date: new Date(), event: "joined" });
-                    console.log(`${key} joined station ${userRoom}`);
-
                 } else {
-
                     const index = this.usersInStations.findIndex((u) => u.user === key);
                     if (index !== -1) {
-                        console.log(`${key} left station ${this.usersInStations[index].station}`);
                         this.usersInStations.push({ user: key, station: this.usersInStations[index].station, date: new Date(), event: "left" });
                     }
                 }
             }
+        },
+        generateChart() {
+            const memoryDataArray = this.memoryData;
+      
+            if (memoryDataArray.length > 0) {
+                const chartDom = document.getElementById("chart");
+                if (!chartDom) {
+                    console.warn("Chart DOM element not found.");
+                    return;
+                }
+
+                const myChart = echarts.init(chartDom);
+
+                const option = {
+                xAxis: {
+                    type: 'time',
+                    name: 'Time',
+                    nameLocation: 'middle',
+                    nameGap: 25,
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'Memory Usage (MB)',
+                    nameLocation: 'middle',
+                    nameGap: 30,
+                },
+                series: [
+                    {
+                    data: memoryDataArray.map((memory: any) => [
+                        memory.date, 
+                        memory.usedJSHeapSize,
+                    ]),
+                    type: 'line',
+                    smooth: true,
+                    name: 'Used JS Heap Size',
+                    }
+                ],
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function (params: any) {
+                        const data = params[0].data;
+                        return `Date: ${new Date(data[0]).toLocaleString()}<br/>Memory: ${data[1]} MB`; 
+                    },
+                },
+                };
+
+                myChart.setOption(option);
+            } else {
+                console.warn("No memory data available to plot the chart.");
+            }
+        },
+        openChartDialog() {
+            this.isChartOpen = true;
+
+            this.$nextTick(() => {
+                this.generateChart();
+            });
         },
     },
 };
@@ -387,6 +442,12 @@ export default {
             <v-tabs-window v-model="tab">
                 <v-tabs-window-item value="memory">
                     <div v-if="memoryData.length">
+                        <div class="btns-container">
+                            <v-btn variant="tonal" @click="openChartDialog">Generate Chart</v-btn>
+                        </div>
+
+                        <v-divider></v-divider>
+
                         <div 
                             v-for="(data, index) in memoryData" 
                             :key="index"
@@ -477,6 +538,26 @@ export default {
                 </v-tabs-window-item>
             </v-tabs-window>
         </v-card-text>
+
+        <v-dialog 
+            v-model="isChartOpen"
+            max-width="800"
+        >
+            <v-card>
+            <v-toolbar dark flat>
+                <v-toolbar-title>Memory Usage Chart</v-toolbar-title>
+                <v-spacer></v-spacer>
+                <v-btn icon @click="isChartOpen = false">
+                <v-icon>mdi-close</v-icon>
+                </v-btn>
+            </v-toolbar>
+
+            <v-card-text>
+                <!-- Chart Container -->
+                <div id="chart"></div>
+            </v-card-text>
+            </v-card>
+        </v-dialog>
     </v-card>
 </template>
 
@@ -501,5 +582,11 @@ export default {
 
 #log-title {
     color: #0047AB;
+}
+
+#chart {
+    width: 100%;
+    height: 400px;
+    background-color: #fff;
 }
 </style>
