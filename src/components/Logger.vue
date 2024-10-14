@@ -16,9 +16,18 @@ interface ConsoleData {
     type: string;
 }
 
+interface NetworkData {
+    date: Date;
+    type: string;
+    request?: string;
+    response?: string;
+    status?: number;
+    options?: string;
+    url?: string;
+}
+
 export default {
     name: "Logger",
-
 
     data() {
         return {
@@ -33,12 +42,17 @@ export default {
 
             consoleData: [] as ConsoleData[],
 
+            networkData: [] as NetworkData[],
+
             tab: 'memory',
         };
     },
 
     created() {
         this.overrideConsoleMethods();
+        this.overrideFetch();
+        this.overrideXHR();
+        this.overrideWebSocket();
     },
 
     methods: {
@@ -57,6 +71,28 @@ export default {
         },
         loadLogger() {
             console.log("Logger loaded");
+
+            
+            // Testing network data
+            fetch("https://jsonplaceholder.typicode.com/posts", {
+                method: "POST",
+                headers: {
+                "Content-Type": "application/json;charset=utf-8",
+                },
+                body: JSON.stringify({ title: "foo", body: "bar", userId: 1 }),
+            })
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", "https://jsonplaceholder.typicode.com/posts/1");
+            xhr.send();
+
+            const ws = new WebSocket("wss://echo.websocket.org");
+            ws.onopen = () => {
+                ws.send("Hello, World!");
+            };
+            ws.onclose = () => {
+                console.log("WebSocket closed");
+            };
         },
         clearLogger() {
             console.log("Logger cleared");
@@ -88,13 +124,100 @@ export default {
                     originalMethod(...args);
                     this.consoleData.push({
                         date: new Date().toLocaleString(),
-                        message: args.join(" "),
+                        message: args.map(this.formatMessage).join(" "),
                         type: method,
                     });
                 };
             });
+
+            window.addEventListener("error", (event) => {
+                this.consoleData.push({
+                    type: "error",
+                    date: new Date().toLocaleString(),
+                    message: ["Unhandled Error:", event.error.toString()],
+                });
+            });
+
+            window.addEventListener("unhandledrejection", (event) => {
+                this.consoleData.push({
+                    type: "error",
+                    date: new Date().toLocaleString(),
+                    message: ["Unhandled Promise Rejection:", event.reason.toString()],
+                });
+            });  
         },
-    },
+        overrideFetch() {
+            const originalFetch = window.fetch;
+
+            window.fetch = async (...args) => {
+                const response = await originalFetch(...args);
+
+                const data = {
+                    date: new Date(),
+                    type: "fetch",
+                    request: args[0],
+                    response,
+                    status: response.status,
+                    options: args[1] || {},
+                };
+
+                this.networkData.push(data);
+
+                return response;
+            };
+        },
+        overrideXHR() {
+            const originalOpen = window.XMLHttpRequest.prototype.open;
+            const vueInstance = this;
+
+            window.XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+            this._url = url;
+            this._method = method;
+
+            this.addEventListener("load", function () {
+                const data = {
+                    date: new Date(),
+                    type: "xhr",
+                    request: { url: this._url, method: this._method },
+                    response: this.responseText,
+                    status: this.status,
+                    options: this._method,
+                };
+
+                vueInstance.networkData.push(data);
+            });
+
+            originalOpen.call(this, method, url, ...rest);
+            };
+        },
+        overrideWebSocket() {
+            const originalWebSocket = window.WebSocket;
+            const vueInstance = this;
+
+            window.WebSocket = function (...args) {
+                const ws = new originalWebSocket(...(args as [string, ...any[]]));
+                
+                ws.addEventListener("message", function (event) {
+                    const data = {
+                        date: new Date(),
+                        type: "ws",
+                        request: args[0],
+                        response: event.data,
+                    };
+
+                    vueInstance.networkData.push(data);
+                });
+
+                return ws;
+            } as any;
+        },
+        formatMessage(message: object | string) {
+            if (typeof message === "object" && message !== null) {
+                return JSON.stringify(message, null, 2);
+            }
+            return message.toString();
+            },
+        },
 };
 </script>
 
@@ -146,7 +269,7 @@ export default {
                             v-for="(data, index) in memoryData" 
                             :key="index"
                         >
-                            <span id="log-date">{{ data.date.toLocaleTimeString() }}</span> 
+                            <span id="log-date">{{ data.date.toLocaleString() }}</span> 
                             <span id="log-title"> - Used JS Heap Size:</span> {{ data.usedJSHeapSize }} MB
                             <span id="log-title"> - Total JS Heap Size:</span> {{ data.totalJSHeapSize }} MB
                             <span id="log-title"> - JS Heap Size Limit:</span> {{ data.jsHeapSizeLimit }} MB
@@ -158,7 +281,34 @@ export default {
                 </v-tabs-window-item>
 
                 <v-tabs-window-item value="network">
-                    Network data
+                    <div v-if="networkData.length">
+                        <div 
+                            v-for="(data, index) in networkData" 
+                            :key="index"
+                        >
+                            <span id="log-date">{{ data.date.toLocaleString() }}</span> 
+                            <span id="log-title"> - {{ data.type.toLocaleUpperCase() }}:</span> 
+                            <span v-if="data.type === 'fetch'"> 
+                                Request: {{ data.request }} 
+                                Response: {{ data.response }} 
+                                Status: {{ data.status }} 
+                                Options: {{ data.options }}
+                            </span>
+                            <span v-else-if="data.type === 'xhr'"> 
+                                Request: {{ data.url }} 
+                                Response: {{ data.response }} 
+                                Status: {{ data.status }} 
+                                Options: {{ data.options }}
+                            </span>
+                            <span v-else-if="data.type === 'ws'"> 
+                                Request: {{ data.request }} 
+                                Response: {{ data.response }}
+                            </span>
+                        </div>
+                    </div>
+                    <div v-else>
+                        <p>Click Start to monitor network data, or load existing logs.</p>
+                    </div>
                 </v-tabs-window-item>
 
                 <v-tabs-window-item value="console">
