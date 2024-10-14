@@ -27,9 +27,17 @@ interface NetworkData {
     eventType?: string;
 };
 
+interface IUserInStation {
+  user: string;
+  station: string;
+  date: Date;
+  event: string;
+};
 
 export default {
     name: "Logger",
+
+    props: ["liveClassProxy"],
 
     data() {
         return {
@@ -47,6 +55,8 @@ export default {
             networkData: [] as NetworkData[],
 
             tab: 'memory',
+
+            usersInStations: [] as IUserInStation[],
         };
     },
 
@@ -56,10 +66,21 @@ export default {
         this.overrideXHR();
         this.overrideWebSocket();
         this.observeResources();
+
+        this.monitorUsersInStations();
     },
 
     beforeUnmount() {
         this.stopLogger();
+    },
+
+    watch: {
+        liveClassProxy: {
+            handler() {
+                this.monitorUsersInStations();
+            },
+            deep: true,
+        },
     },
 
     methods: {
@@ -297,6 +318,26 @@ export default {
 
             observer.observe(document, { childList: true, subtree: true, });
         },
+        monitorUsersInStations() {
+            for (const key in this.liveClassProxy.users) {
+                const userRoom = this.liveClassProxy.users[key].room;
+                const userRole = this.liveClassProxy.users[key].role; // to exclude stations
+
+                if (userRoom.includes("Station") && userRole !== "station") {
+
+                    this.usersInStations.push({ user: key, station: userRoom, date: new Date(), event: "joined" });
+                    console.log(`${key} joined station ${userRoom}`);
+
+                } else {
+
+                    const index = this.usersInStations.findIndex((u) => u.user === key);
+                    if (index !== -1) {
+                        console.log(`${key} left station ${this.usersInStations[index].station}`);
+                        this.usersInStations.push({ user: key, station: this.usersInStations[index].station, date: new Date(), event: "left" });
+                    }
+                }
+            }
+        },
     },
 };
 </script>
@@ -307,10 +348,6 @@ export default {
             <v-toolbar-title>Logger</v-toolbar-title>
 
             <v-spacer></v-spacer>
-
-            <v-btn icon @click="$emit('minimize')">
-                <v-icon>mdi-minus</v-icon>
-            </v-btn>
 
             <v-btn icon @click="$emit('close')">
                 <v-icon>mdi-close</v-icon>
@@ -343,6 +380,7 @@ export default {
             <v-tab value="memory">Memory Usage</v-tab>
             <v-tab value="network">Network Data</v-tab>
             <v-tab value="console">Console Logs</v-tab>
+            <v-tab value="station">Station Data</v-tab>
         </v-tabs>
 
         <v-card-text>
@@ -418,6 +456,23 @@ export default {
                     </div>
                     <div v-else>
                         <p>Click Start to monitor console logs, or load existing logs.</p>
+                    </div>
+                </v-tabs-window-item>
+
+                <v-tabs-window-item value="station">
+                    <div v-if="usersInStations.length">
+                        <div 
+                            v-for="(data, index) in usersInStations" 
+                            :key="index"
+                        >
+                            <span id="log-date">{{ data.date.toLocaleString() }}</span> 
+                            <span id="log-title"> - User:</span> {{ data.user }}
+                            <span id="log-title"> - Event:</span> {{ data.event }}
+                            <span id="log-title"> - Station:</span> {{ data.station }}
+                        </div>
+                    </div>
+                    <div v-else>
+                        <p>No users in stations.</p>
                     </div>
                 </v-tabs-window-item>
             </v-tabs-window>

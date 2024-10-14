@@ -596,6 +596,7 @@ export default {
     >
       <Logger 
         @close="showLogger = false"
+        :liveClassProxy="liveClassProxy"
       >
       </Logger>
     </v-dialog>
