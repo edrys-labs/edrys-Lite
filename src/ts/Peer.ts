@@ -1,10 +1,9 @@
-import { clone, getPeerID, hashJsonObject, getShortPeerID } from './Utils'
+import { getPeerID, hashJsonObject, getShortPeerID } from './Utils'
 
 import * as Y from 'yjs'
 import { TrysteroProvider } from '../../node_modules/y-trystero/src/TrysteroProvider'
 import { joinRoom } from '../../node_modules/trystero/src/torrent'
 
-import * as objectHash from 'object-hash'
 import { selfId } from 'trystero'
 
 function LOG(...args: any[]) {
@@ -28,6 +27,8 @@ const STATION = 'Station'
 
 export default class Peer {
   private provider: any
+  private tx: any
+  private rx: any
 
   private y: {
     doc: Y.Doc
@@ -35,24 +36,9 @@ export default class Peer {
     rooms: Y.Map<any>
     users: Y.Map<any>
     setup: Y.Map<any>
+    userSettings: Y.Map<any>
   }
   private isStation: boolean = false
-
-  private userSettings: any = {
-    displayName: '',
-    room: LOBBY,
-    role: 'student',
-    dateJoined: Date.now(),
-    handRaised: false,
-    connections: [
-      {
-        id: '',
-        target: {},
-      },
-    ],
-    timestamp: Date.now(),
-    selfID: '',
-  }
 
   private lab: {
     id: string
@@ -80,6 +66,7 @@ export default class Peer {
       users: doc.getMap('users'),
       rooms: doc.getMap('rooms'),
       chat: doc.getArray('chat'),
+      userSettings: new Y.Map(),
     }
 
     this.lab = setup
@@ -108,6 +95,19 @@ export default class Peer {
       LOG('status', event)
 
       if (event.connected) {
+        const [tx, rx] = this.provider.room.trysteroRoom.makeAction('p2p')
+        this.tx = tx
+        this.rx = rx
+
+        this.rx((msg: any, peerId: string) => {
+          msg.date = Date.now()
+          this.update('message', msg)
+        })
+
+        //this.provider.room.trysteroRoom.onPeerJoin(() => this.peerUpdate())
+
+        //this.provider.room.trysteroRoom.onPeerLeave(() => this.peerUpdate())
+
         this.y.setup.observe((event) => {
           const timestamp = this.y.setup.get('timestamp')
 
@@ -122,6 +122,20 @@ export default class Peer {
 
     this.provider.on('synced', (event) => {
       LOG('synced', event)
+    })
+  }
+
+  peerUpdate() {
+    const peers = Object.keys(this.provider.room.trysteroRoom.getPeers())
+    peers.push(selfId)
+
+    this.y.doc.transact(() => {
+      const users = this.y.users.toJSON()
+      for (const id in users) {
+        if (!peers.includes(users[id].selfId)) {
+          this.y.users.delete(id)
+        }
+      }
     })
   }
 
@@ -149,16 +163,18 @@ export default class Peer {
   }
 
   initUser(role: 'student' | 'teacher' | 'station') {
-    this.userSettings.displayName = getShortPeerID(this.peerID)
-    this.userSettings.room = this.isStation ? this.peerID : LOBBY
-    this.userSettings.dateJoined = Date.now()
-    this.userSettings.timestamp = Date.now()
-    this.userSettings.role = role
-    this.userSettings.selfID = selfId
+    this.y.userSettings.set('displayName', getShortPeerID(this.peerID))
+    this.y.userSettings.set('room', this.isStation ? this.peerID : LOBBY)
+    this.y.userSettings.set('role', role)
+    this.y.userSettings.set('dateJoined', Date.now())
+    this.y.userSettings.set('timestamp', Date.now())
+    this.y.userSettings.set('selfId', selfId)
+    this.y.userSettings.set('handRaised', false)
+    this.y.userSettings.set('connections', [{ id: '', target: {} }])
 
-    this.y.users.set(this.peerID, clone(this.userSettings))
+    this.y.users.set(this.peerID, this.y.userSettings)
 
-    this.y.users.observe((event) => {
+    this.y.users.observeDeep((event) => {
       this.update('room')
     })
   }
@@ -240,6 +256,8 @@ export default class Peer {
         break
       }
       case 'room': {
+        this.peerUpdate()
+
         if (callback) {
           callback(this.toJSON())
           this.callbackUpdate[event] = false
@@ -286,41 +304,18 @@ export default class Peer {
     }
   }
 
-  broadcast(msg: { topic: string; data: any }) {
+  broadcast(room: string, msg: any) {
     if (!this.connected) {
       return
     }
 
-    // @ts-ignore
-    msg.id = this.peerID
-
-    if (msg.topic === 'room') {
-      const users = this.state.getUsers()
-
-      msg.data.msg.date = Date.now()
-
-      for (const id in this.peers) {
-        if (this.peers[id].id) {
-          if (users[this.peers[id].id]?.room === msg.data.room) {
-            try {
-              this.p2pt.send(this.peers[id].peer, msg)
-            } catch (e) {
-              console.warn('room', e.message)
-              //delete this.peers[id]
-            }
-          }
-        }
-      }
-
-      // as in the original Edrys ... messages are send back to the sender
-      this.update('message', msg.data.msg)
-    } else {
-      for (const id in this.peers) {
+    const users = this.y.users.toJSON()
+    for (const id in users) {
+      if (users[id].room === room) {
         try {
-          this.p2pt.send(this.peers[id].peer, msg)
+          this.tx(msg, users[id].selfId)
         } catch (e) {
-          console.warn('message', e.message)
-          delete this.peers[id]
+          console.warn('broadcast', e.message)
         }
       }
     }
@@ -328,9 +323,11 @@ export default class Peer {
 
   stop() {
     LOG('stopping peer')
+    this.y.users.delete(this.peerID)
 
+    this.provider.disconnect()
     this.provider.destroy()
-    this.y.doc.destroy()
+
     this.callback = {}
     this.callbackUpdate = {}
   }
@@ -364,10 +361,8 @@ export default class Peer {
   }
 
   gotoRoom(room: string) {
-    this.userSettings.room = room
-    this.userSettings.timestamp = Date.now()
-
-    this.y.users.set(this.peerID, this.userSettings)
+    this.y.userSettings.set('room', room)
+    this.y.userSettings.set('timestamp', Date.now())
   }
 
   sendMessage(message: string) {
@@ -384,6 +379,7 @@ export default class Peer {
     this.initUser(role)
     this.initRooms()
     this.initChat()
+    this.peerUpdate()
 
     return this.toJSON()
   }

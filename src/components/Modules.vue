@@ -144,17 +144,12 @@ export default {
 
     async sendMessage(subject, body, module_url) {
       if (body !== undefined) {
-        const data = {
-          msg: {
-            from: this.username /* Email if teacher, name if station */,
-            subject: subject,
-            body: body,
-            module: module_url,
-          },
-          room: this.roomName,
-        };
-
-        this.communication.broadcast({ topic: "room", data });
+        this.communication.broadcast(this.roomName, {
+          from: this.username /* Email if teacher, name if station */,
+          subject: subject,
+          body: body,
+          module: module_url,
+        });
       }
     },
   },
