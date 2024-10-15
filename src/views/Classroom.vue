@@ -34,11 +34,17 @@ export default {
       this.init();
     });
 
-    let stationName = "";
+    let stationName: string | null = "";
     let peerID = getPeerID(true);
-
+    
     if (this.station) {
-      stationName = infoHash(6);
+      stationName = sessionStorage.getItem(`station_${this.id}`);
+
+      if (!stationName) {
+        stationName = infoHash(6);
+        sessionStorage.setItem(`station_${this.id}`, stationName);
+      }
+
       peerID = "Station " + stationName;
     }
 
@@ -78,6 +84,12 @@ export default {
         truncated: false,
         new: false,
       },
+
+      stationNameInput: stationName,
+      stationNameRules: [
+        (v: string) => !!v || "Name is required",
+        (v: string) => !this.isNameTaken(v) || "Name is already taken",
+      ],
     };
   },
   watch: {
@@ -278,6 +290,21 @@ export default {
     sendMessage(message: string) {
       this.communication.sendMessage(message);
     },
+
+    setStationName() {
+      const isValid = this.stationNameRules.every((rule) => rule(this.stationNameInput) === true);
+
+      if (!isValid) {
+        return;  // If validation fails, do not submit
+      }
+      
+      sessionStorage.setItem(`station_${this.id}`, this.stationNameInput);
+      window.location.reload();
+    },
+
+    isNameTaken(name: string) {
+      return Object.keys(this.liveClassProxy.rooms).includes("Station " + name);
+    },
   },
 
   components: {
@@ -366,14 +393,17 @@ export default {
             <v-divider></v-divider>
 
             <v-card-text>
-              <v-text-field
-                outlined
-                v-model="stationName"
-                active="false"
-                label="Station Name"
-                required
-                disabled="true"
-              ></v-text-field>
+              <v-form @submit.prevent="setStationName">
+                <v-text-field
+                  variant="solo"
+                  v-model="stationNameInput"
+                  :rules="stationNameRules"
+                  label="Station Name"
+                  required
+                  append-inner-icon="mdi-arrow-right"
+                  @click:append-inner="setStationName"
+                ></v-text-field>
+              </v-form>
 
               This browser is now running as a station and ready to serve students
             </v-card-text>
