@@ -1,14 +1,18 @@
 import { clone, getPeerID, hashJsonObject, getShortPeerID } from './Utils'
-import State from './State'
 
 import * as Y from 'yjs'
 import { TrysteroProvider } from '../../node_modules/y-trystero/src/TrysteroProvider'
 import { joinRoom } from '../../node_modules/trystero/src/torrent'
 
 import * as objectHash from 'object-hash'
+import { selfId } from 'trystero'
 
 function LOG(...args: any[]) {
-  console.warn('Connection >>', ...args)
+  console.log(
+    '%c🛸 Connection >>>',
+    'background-color: #004400; font-weight: bold;',
+    ...args
+  )
 }
 
 const trackersAnnounceURLs = [
@@ -23,12 +27,15 @@ const LOBBY = 'Lobby'
 const STATION = 'Station'
 
 export default class Peer {
-  private doc: Y.Doc
-  private chat: Y.Array<any>
-  private rooms: Y.Map<any>
-  private users: Y.Map<any>
-  private setup: Y.Map<any>
+  private provider: any
 
+  private y: {
+    doc: Y.Doc
+    chat: Y.Array<any>
+    rooms: Y.Map<any>
+    users: Y.Map<any>
+    setup: Y.Map<any>
+  }
   private isStation: boolean = false
 
   private userSettings: any = {
@@ -44,16 +51,17 @@ export default class Peer {
       },
     ],
     timestamp: Date.now(),
+    selfID: '',
   }
 
-  private id: string
-  private hash: string | null
-  private data: any
+  private lab: {
+    id: string
+    data: any
+    timestamp: number
+    hash: string | null
+  }
+
   private connected: boolean = false
-
-  private timestamp: number = 0
-
-  private peers: any = {}
 
   private callback: {} = {}
   private callbackUpdate: {} = {}
@@ -64,16 +72,17 @@ export default class Peer {
     setup: { id: string; data: any; timestamp: number; hash: string | null },
     stationID?: string
   ) {
-    this.doc = new Y.Doc()
-    this.setup = this.doc.getMap('setup')
-    this.users = this.doc.getMap('users')
-    this.rooms = this.doc.getMap('rooms')
-    this.chat = this.doc.getArray('chat')
+    const doc = new Y.Doc()
 
-    this.id = setup.id
-    this.hash = setup.hash
-    this.timestamp = setup.timestamp
-    this.data = clone(setup.data)
+    this.y = {
+      doc: doc,
+      setup: doc.getMap('setup'),
+      users: doc.getMap('users'),
+      rooms: doc.getMap('rooms'),
+      chat: doc.getArray('chat'),
+    }
+
+    this.lab = setup
 
     this.peerID = getPeerID()
     if (stationID) {
@@ -81,9 +90,9 @@ export default class Peer {
       this.peerID = STATION + ' ' + stationID
     }
 
-    const provider = new TrysteroProvider(
-      this.id + (this.hash || ''),
-      this.doc,
+    this.provider = new TrysteroProvider(
+      this.lab.id + (this.lab.hash || ''),
+      this.y.doc,
       {
         appId: 'edry-Lite', // optional, but recommended
         joinRoom: joinRoom,
@@ -91,16 +100,18 @@ export default class Peer {
     )
 
     this.initSetup()
-    console.warn('provider', provider)
+    console.warn('provider', this.provider)
 
-    provider.on('status', (event) => {
+    this.provider.on('status', (event) => {
       this.connected = event.connected
 
-      if (event.connected) {
-        this.setup.observe((event) => {
-          const timestamp = this.doc.getMap('setup').get('timestamp')
+      LOG('status', event)
 
-          if (this.timestamp !== timestamp) {
+      if (event.connected) {
+        this.y.setup.observe((event) => {
+          const timestamp = this.y.setup.get('timestamp')
+
+          if (this.lab.timestamp !== timestamp) {
             this.initSetup()
           }
         })
@@ -109,26 +120,29 @@ export default class Peer {
       this.update('connected')
     })
 
-    provider.on('synced', (event) => {
-      console.warn('sync XXXXXXXXXXXXXXXXXXXXXXXXXXXX', event)
+    this.provider.on('synced', (event) => {
+      LOG('synced', event)
     })
   }
 
   initSetup() {
-    const timestamp: number = (this.setup.get('timestamp') as number) || 0
-    const data = this.setup.get('config')
+    const timestamp: number = (this.y.setup.get('timestamp') as number) || 0
+    const data = this.y.setup.get('config')
 
     // If my setup is older than the current setup
-    if (this.timestamp < timestamp) {
-      this.data = data
-      this.timestamp = timestamp
+    if (this.lab.timestamp < timestamp) {
+      LOG('updating lab configuration with new setup')
+
+      this.lab.data = data
+      this.lab.timestamp = timestamp
       this.update('setup')
     }
     // if the received setup is not up to date
-    else if (this.timestamp !== timestamp) {
-      this.doc.transact(() => {
-        this.setup.set('config', this.data)
-        this.setup.set('timestamp', this.timestamp)
+    else if (this.lab.timestamp !== timestamp) {
+      LOG('received outdated setup, writing changes back')
+      this.y.doc.transact(() => {
+        this.y.setup.set('config', this.lab.data)
+        this.y.setup.set('timestamp', this.lab.timestamp)
       })
     }
     // equal setups will be ignored
@@ -140,58 +154,64 @@ export default class Peer {
     this.userSettings.dateJoined = Date.now()
     this.userSettings.timestamp = Date.now()
     this.userSettings.role = role
+    this.userSettings.selfID = selfId
 
-    this.users.set(this.peerID, clone(this.userSettings))
+    this.y.users.set(this.peerID, clone(this.userSettings))
 
-    this.users.observe((event) => {
+    this.y.users.observe((event) => {
       this.update('room')
     })
   }
 
   initRooms() {
-    if (this.rooms.size === 0) {
-      this.doc.transact(() => {
+    if (this.y.rooms.size === 0) {
+      LOG('initializing rooms')
+      this.y.doc.transact(() => {
         this.addRoom(LOBBY)
 
         if (this.isStation) {
           this.addRoom(this.peerID)
         }
 
-        if (this.data.meta.defaultNumberOfRooms) {
-          for (let i = 1; i <= this.data.meta.defaultNumberOfRooms; i++) {
+        const defaultRooms = this.lab.data.meta.defaultNumberOfRooms
+        if (defaultRooms) {
+          for (let i = 1; i <= defaultRooms; i++) {
             this.addRoom('Room ' + i)
           }
         }
       })
     }
 
-    this.rooms.observe((event) => {
+    this.y.rooms.observe((event) => {
       this.update('room')
     })
   }
 
   initChat() {
-    this.chat.observe((event) => {
+    this.y.chat.observe((event) => {
       this.update('chat')
     })
   }
 
   newSetup(config: { id: string; data: any; timestamp: number }) {
-    if (this.hash) {
+    LOG('updating lab configuration with new setup')
+    if (this.lab.hash) {
       const self = this
       hashJsonObject(config.data).then((hash) => {
-        if (hash === self.hash) {
-          self.id = config.id
-          self.data = config.data
-          self.timestamp = config.timestamp
+        if (hash === self.lab.hash) {
+          self.lab.id = config.id
+          self.lab.data = config.data
+          self.lab.timestamp = config.timestamp
 
           self.initSetup()
+        } else {
+          LOG('updating failed, hash mismatch')
         }
       })
     } else {
-      this.id = config.id
-      this.data = config.data
-      this.timestamp = config.timestamp
+      this.lab.id = config.id
+      this.lab.data = config.data
+      this.lab.timestamp = config.timestamp
 
       this.initSetup()
     }
@@ -212,11 +232,7 @@ export default class Peer {
       }
       case 'setup': {
         if (callback) {
-          callback({
-            id: this.id,
-            data: this.data,
-            timestamp: this.timestamp,
-          })
+          callback(this.lab)
           this.callbackUpdate[event] = false
         } else {
           this.callbackUpdate[event] = true
@@ -236,7 +252,7 @@ export default class Peer {
       case 'chat': {
         if (callback) {
           callback({
-            messages: this.doc.getArray('chat').toArray(),
+            messages: this.y.doc.getArray('chat').toArray(),
             truncated: false,
           })
           this.callbackUpdate[event] = false
@@ -311,23 +327,25 @@ export default class Peer {
   }
 
   stop() {
-    this.action = {}
+    LOG('stopping peer')
+
+    this.provider.destroy()
+    this.y.doc.destroy()
     this.callback = {}
     this.callbackUpdate = {}
-    this.peers = {}
   }
 
   addRoom(name?: string) {
-    if (name && !this.rooms.has(name)) {
+    if (name && !this.y.rooms.has(name)) {
       const room = {
         studentPublicState: '',
         teacherPublicState: '',
         teacherPrivateState: '',
       }
 
-      this.rooms.set(name, room)
+      this.y.rooms.set(name, room)
     } else {
-      const roomIDs: number[] = Object.keys(this.rooms.toJSON())
+      const roomIDs: number[] = Object.keys(this.y.rooms.toJSON())
         .filter((e) => e.match(/Room/))
         .map((e) => e.split(' ')[1])
         .map((e) => parseInt(e))
@@ -349,11 +367,11 @@ export default class Peer {
     this.userSettings.room = room
     this.userSettings.timestamp = Date.now()
 
-    this.users.set(this.peerID, this.userSettings)
+    this.y.users.set(this.peerID, this.userSettings)
   }
 
   sendMessage(message: string) {
-    this.chat.push([
+    this.y.chat.push([
       {
         timestamp: Date.now(),
         user: getShortPeerID(this.peerID),
@@ -372,8 +390,8 @@ export default class Peer {
 
   toJSON() {
     return {
-      rooms: this.rooms.toJSON(),
-      users: this.users.toJSON(),
+      rooms: this.y.rooms.toJSON(),
+      users: this.y.users.toJSON(),
     }
   }
 }
