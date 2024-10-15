@@ -46,19 +46,12 @@ export default class Peer {
     timestamp: Date.now(),
   }
 
-  private state: State
-
-  private action: any
-
   private id: string
   private hash: string | null
   private data: any
   private connected: boolean = false
 
-  private timestamp: {
-    config: number
-    join: number
-  } = { config: 0, join: 0 }
+  private timestamp: number = 0
 
   private peers: any = {}
 
@@ -79,17 +72,14 @@ export default class Peer {
 
     this.id = setup.id
     this.hash = setup.hash
+    this.timestamp = setup.timestamp
     this.data = clone(setup.data)
-
-    this.timestamp.config = setup.timestamp
 
     this.peerID = getPeerID()
     if (stationID) {
       this.isStation = true
       this.peerID = STATION + ' ' + stationID
     }
-
-    this.state = new State(this.peerID)
 
     const provider = new TrysteroProvider(
       this.id + (this.hash || ''),
@@ -110,7 +100,7 @@ export default class Peer {
         this.setup.observe((event) => {
           const timestamp = this.doc.getMap('setup').get('timestamp')
 
-          if (this.timestamp.config !== timestamp) {
+          if (this.timestamp !== timestamp) {
             this.initSetup()
           }
         })
@@ -129,16 +119,16 @@ export default class Peer {
     const data = this.setup.get('config')
 
     // If my setup is older than the current setup
-    if (this.timestamp.config < timestamp) {
+    if (this.timestamp < timestamp) {
       this.data = data
-      this.timestamp.config = timestamp
+      this.timestamp = timestamp
       this.update('setup')
     }
     // if the received setup is not up to date
-    else if (this.timestamp.config !== timestamp) {
+    else if (this.timestamp !== timestamp) {
       this.doc.transact(() => {
         this.setup.set('config', this.data)
-        this.setup.set('timestamp', this.timestamp.config)
+        this.setup.set('timestamp', this.timestamp)
       })
     }
     // equal setups will be ignored
@@ -193,17 +183,17 @@ export default class Peer {
         if (hash === self.hash) {
           self.id = config.id
           self.data = config.data
-          self.timestamp.config = config.timestamp
+          self.timestamp = config.timestamp
 
-          self.publishSetup()
+          self.initSetup()
         }
       })
     } else {
       this.id = config.id
       this.data = config.data
-      this.timestamp.config = config.timestamp
+      this.timestamp = config.timestamp
 
-      this.publishSetup()
+      this.initSetup()
     }
   }
 
@@ -225,7 +215,7 @@ export default class Peer {
           callback({
             id: this.id,
             data: this.data,
-            timestamp: this.timestamp.config,
+            timestamp: this.timestamp,
           })
           this.callbackUpdate[event] = false
         } else {
@@ -373,9 +363,6 @@ export default class Peer {
   }
 
   join(role: 'student' | 'teacher' | 'station') {
-    this.timestamp.join = Date.now()
-    this.state.init(role, this.data.meta.defaultNumberOfRooms)
-
     this.initUser(role)
     this.initRooms()
     this.initChat()
