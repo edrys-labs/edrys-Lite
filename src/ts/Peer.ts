@@ -127,7 +127,6 @@ export default class Peer {
         }, 1000)
 
         this.rx((msg: any, peerId: string) => {
-          msg.date = Date.now()
           this.update('message', msg)
         })
 
@@ -264,6 +263,7 @@ export default class Peer {
     switch (event) {
       case 'message': {
         if (callback) {
+          message.date = Date.now()
           callback(message)
         }
         break
@@ -337,10 +337,11 @@ export default class Peer {
         try {
           this.tx(msg, users[id].selfId)
         } catch (e) {
-          console.warn('broadcast', e.message)
+          LOG('warning', e.message)
         }
       }
     }
+    this.update('message', msg)
   }
 
   stop() {
