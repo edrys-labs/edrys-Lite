@@ -58,7 +58,8 @@ export default class Peer {
 
   constructor(
     setup: { id: string; data: any; timestamp: number; hash: string | null },
-    stationID?: string
+    stationID?: string,
+    password?: string
   ) {
     const doc = new Y.Doc()
 
@@ -83,7 +84,8 @@ export default class Peer {
       this.lab.id + (this.lab.hash || ''),
       this.y.doc,
       {
-        appId: 'edry-Lite', // optional, but recommended
+        appId: process.env.APP_ID || 'edry-Lite', // optional, but recommended
+        password: password,
         joinRoom: joinRoom,
         peerOpts: {
           config: JSON.parse(process.env.ICE_SERVERS || '{}'),
