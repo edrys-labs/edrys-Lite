@@ -25,8 +25,10 @@ const trackersAnnounceURLs = [
 const LOBBY = 'Lobby'
 const STATION = 'Station'
 
+let heartbeatID
+
 export default class Peer {
-  private provider: any
+  private provider: TrysteroProvider
   private tx: any
   private rx: any
 
@@ -95,18 +97,39 @@ export default class Peer {
       LOG('status', event)
 
       if (event.connected) {
+        this.provider.room?.onPeerLeave((id: string) => {
+          this.removePeers([id])
+        })
         const [tx, rx] = this.provider.room.trysteroRoom.makeAction('p2p')
         this.tx = tx
         this.rx = rx
+
+        if (heartbeatID) {
+          clearInterval(heartbeatID)
+        }
+
+        heartbeatID = setInterval(() => {
+          const timeNow = Date.now()
+          this.y.userSettings.set('timestamp', timeNow)
+
+          const users = this.y.users.toJSON()
+
+          let ids: string[] = []
+          for (const id in users) {
+            if (users[id].timestamp < timeNow - 5000) {
+              ids.push(users[id].selfId)
+            }
+          }
+
+          if (ids.length > 0) {
+            this.removePeers(ids)
+          }
+        }, 1000)
 
         this.rx((msg: any, peerId: string) => {
           msg.date = Date.now()
           this.update('message', msg)
         })
-
-        //this.provider.room.trysteroRoom.onPeerJoin(() => this.peerUpdate())
-
-        //this.provider.room.trysteroRoom.onPeerLeave(() => this.peerUpdate())
 
         this.y.setup.observe((event) => {
           const timestamp = this.y.setup.get('timestamp')
@@ -125,15 +148,14 @@ export default class Peer {
     })
   }
 
-  peerUpdate() {
-    const peers = Object.keys(this.provider.room.trysteroRoom.getPeers())
-    peers.push(selfId)
+  removePeers(selfIds: string[]) {
+    const peers = this.y.users.toJSON()
 
     this.y.doc.transact(() => {
-      const users = this.y.users.toJSON()
-      for (const id in users) {
-        if (!peers.includes(users[id].selfId)) {
+      for (const id in peers) {
+        if (selfIds.includes(peers[id].selfId)) {
           this.y.users.delete(id)
+          break
         }
       }
     })
@@ -256,7 +278,7 @@ export default class Peer {
         break
       }
       case 'room': {
-        this.peerUpdate()
+        //this.peerUpdate()
 
         if (callback) {
           callback(this.toJSON())
@@ -323,6 +345,8 @@ export default class Peer {
 
   stop() {
     LOG('stopping peer')
+    clearInterval(heartbeatID)
+    heartbeatID = null
     this.y.users.delete(this.peerID)
 
     this.provider.disconnect()
@@ -379,7 +403,7 @@ export default class Peer {
     this.initUser(role)
     this.initRooms()
     this.initChat()
-    this.peerUpdate()
+    //this.peerUpdate()
 
     return this.toJSON()
   }
