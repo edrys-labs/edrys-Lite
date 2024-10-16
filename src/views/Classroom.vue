@@ -42,7 +42,6 @@ export default {
 
     let stationName: string | null = "";
     let peerID = getPeerID(true);
-    let usersInStations: IUserInStation[] = [];
     
     if (this.station) {
       stationName = sessionStorage.getItem(`station_${this.id}`);
@@ -82,7 +81,6 @@ export default {
       peerID,
       userName: getShortPeerID(peerID),
       stationName,
-      usersInStations,
 
       componentKey: 0,
 
@@ -113,27 +111,6 @@ export default {
   methods: {
     copyPeerID() {
       copyToClipboard(getPeerID(false));
-      
-      //console.log(this.communication.peers);
-      
-      /*for (const key in this.liveClassProxy.users) {
-        const userRoom = this.liveClassProxy.users[key].room;
-
-        if (userRoom.includes("Station")) {
-          const existingUser = this.usersInStations.find((u) => u.user === key);
-
-          if (!existingUser) {
-            this.usersInStations.push({ user: key, station: userRoom });
-            console.log(`${key} joined station ${userRoom}`);
-          }
-        } else {
-          const index = this.usersInStations.findIndex((u) => u.user === key);
-          if (index !== -1) {
-            console.log(`${key} left station ${this.usersInStations[index].station}`);
-            this.usersInStations.splice(index, 1); 
-          }
-        }
-      }*/
     },
     getPeer_ID() {
       return getPeerID(false);

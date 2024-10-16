@@ -408,6 +408,7 @@ export default {
         openChartDialog() {
             this.isChartOpen = true;
 
+            // Wait for the dialog to open before generating the chart
             this.$nextTick(() => {
                 this.generateChart();
             });
