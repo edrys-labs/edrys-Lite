@@ -85,11 +85,13 @@ export default class Peer {
       {
         appId: 'edry-Lite', // optional, but recommended
         joinRoom: joinRoom,
+        peerOpts: {
+          config: JSON.parse(process.env.ICE_SERVERS || '{}'),
+        },
       }
     )
 
     this.initSetup()
-    console.warn('provider', this.provider)
 
     this.provider.on('status', (event) => {
       this.connected = event.connected
