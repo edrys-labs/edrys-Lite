@@ -325,14 +325,33 @@ export default {
             for (const key in this.liveClassProxy.users) {
                 const userRoom = this.liveClassProxy.users[key].room;
                 const userRole = this.liveClassProxy.users[key].role; // to exclude stations
+                const existingUser = this.usersInStations.find((u) => u.user === key && u.event === 'joined');
 
                 if (userRoom.includes("Station") && userRole !== "station") {
-                    this.usersInStations.push({ user: key, station: userRoom, date: new Date(), event: "joined" });
-                } else {
-                    const index = this.usersInStations.findIndex((u) => u.user === key);
-                    if (index !== -1) {
-                        this.usersInStations.push({ user: key, station: this.usersInStations[index].station, date: new Date(), event: "left" });
+                    if (existingUser && existingUser.station !== userRoom) {
+                        // User left the previous station
+                        this.usersInStations.push({
+                            user: key,
+                            station: existingUser.station,
+                            date: new Date(),
+                            event: "left"
+                        });
                     }
+                    // User joined a new station
+                    this.usersInStations.push({
+                        user: key,
+                        station: userRoom,
+                        date: new Date(),
+                        event: "joined"
+                    });
+                } else if (existingUser) {
+                    // User left a station
+                    this.usersInStations.push({
+                        user: key,
+                        station: existingUser.station,
+                        date: new Date(),
+                        event: "left"
+                    });
                 }
             }
         },
