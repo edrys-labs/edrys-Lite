@@ -262,7 +262,7 @@ export default {
                 ws.addEventListener("open", () => logWebSocketEvent("open", "Connection opened"));
                 ws.addEventListener("message", (event) => logWebSocketEvent("message", event.data));
                 ws.addEventListener("close", () => logWebSocketEvent("close", "Connection closed"));
-                ws.addEventListener("error", () => logWebSocketEvent("error", "WebSocket error"));
+                ws.addEventListener("error", (event) => logWebSocketEvent("error", event));
 
                 return ws;
             } as any;

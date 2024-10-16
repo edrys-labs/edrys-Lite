@@ -12,10 +12,6 @@ import Peer from "../ts/Peer";
 
 import { copyToClipboard, deepEqual } from "../ts/Utils";
 
-interface IUserInStation {
-  user: string;
-  station: string;
-}
 
 export default {
   props: ["id", "station", "hash"],
@@ -569,6 +565,7 @@ export default {
       width="90%" 
       height="50%"
       scrollable
+      persistent
       :id="'logger' + componentKey"
     >
       <Logger 
