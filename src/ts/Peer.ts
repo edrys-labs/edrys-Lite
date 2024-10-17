@@ -157,12 +157,9 @@ export default class Peer {
     this.y.doc.transact(() => {
       for (const id in peers) {
         if (selfIds.includes(peers[id].selfId)) {
+          this.y.userSettings.set('room', this.isStation ? this.peerID : LOBBY)
           this.y.users.delete(id)
-          if (peers[id].room.startsWith(STATION)) {
-            this.y.users.set(id, { ...peers[id], room: this.peerID })
-            this.y.rooms.delete(id)
-          }
-          break
+          this.y.rooms.delete(id)
         }
       }
     })
