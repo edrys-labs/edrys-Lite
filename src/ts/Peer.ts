@@ -157,7 +157,6 @@ export default class Peer {
     this.y.doc.transact(() => {
       for (const id in peers) {
         if (selfIds.includes(peers[id].selfId)) {
-          console.log('removing peer', id)
           this.y.users.delete(id)
           if (this.y.rooms.has(id)) {
             this.y.rooms.delete(id)
