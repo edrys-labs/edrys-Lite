@@ -158,7 +158,8 @@ export default class Peer {
       for (const id in peers) {
         if (selfIds.includes(peers[id].selfId)) {
           this.y.users.delete(id)
-          if (this.y.rooms.has(id)) {
+          if (peers[id].room.startsWith(STATION)) {
+            this.y.users.set(id, { ...peers[id], room: this.peerID })
             this.y.rooms.delete(id)
           }
           break
@@ -166,7 +167,7 @@ export default class Peer {
       }
     })
   }
-
+  
   initSetup() {
     const timestamp: number = (this.y.setup.get('timestamp') as number) || 0
     const data = this.y.setup.get('config')
