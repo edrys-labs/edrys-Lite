@@ -199,8 +199,18 @@ export default class Peer {
 
     this.y.users.set(this.peerID, this.y.userSettings)
 
-    this.y.users.observeDeep((event) => {
-      this.update('room')
+    this.y.users.observeDeep((events) => {
+      const allEventsHaveOnlyTimestamp = events.every((event) => {
+        return (
+          event.keysChanged &&
+          event.keysChanged.size === 1 &&
+          event.keysChanged.has('timestamp')
+        )
+      })
+
+      if (!allEventsHaveOnlyTimestamp) {
+        this.update('room')
+      }
     })
   }
 
