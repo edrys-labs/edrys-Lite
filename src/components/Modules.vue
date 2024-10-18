@@ -23,16 +23,16 @@ export default {
   },
   computed: {
     roomName() {
-      const self = this;
-      setTimeout(() => {
-        self.gridUpdate();
-      }, 1000);
       return this.liveClassProxy.users[this.username]?.room || "Station " + this.username;
     },
     modulesType() {
       return this.roomName.startsWith("Station ") ? "station" : "chat";
     },
     scrapedModulesFilter() {
+      setTimeout(() => {
+        this.gridUpdate();
+      }, 1000);
+
       return this.scrapedModules_.filter((m) => {
         const showIn = m.showInCustom
           ? m.showInCustom.split(",").map((e) => e.trim())
@@ -58,7 +58,7 @@ export default {
       "message",
       (msg: { subject: string; body: any; module_url: string; date: number }) => {
         for (let i = 0; i < iframes.length; i++) {
-          iframes[i].contentWindow.postMessage(
+          iframes[i].contentWindow?.postMessage(
             {
               event: "message",
               ...msg,

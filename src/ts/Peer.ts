@@ -157,29 +157,18 @@ export default class Peer {
     this.y.doc.transact(() => {
       for (const id in peers) {
         if (selfIds.includes(peers[id].selfId)) {
-          this.y.userSettings.set('room', this.isStation ? this.peerID : LOBBY)
-          
+          this.y.users.delete(id)
+
           if (peers[id].role === 'station') {
-            this.changeStationName(id)
-          } else {
-            console.log('removing peer', id);
-            this.y.users.delete(id)
+            this.y.rooms.delete(id)
           }
+
           break
         }
       }
     })
   }
 
-  changeStationName(id: string) {
-    if (this.isStation) {
-      console.log('newRoomName', this.peerID);
-
-      this.y.users.delete(id)
-      this.y.rooms.delete(id)
-    }
-  }
-  
   initSetup() {
     const timestamp: number = (this.y.setup.get('timestamp') as number) || 0
     const data = this.y.setup.get('config')
@@ -215,20 +204,27 @@ export default class Peer {
 
     this.y.users.set(this.peerID, this.y.userSettings)
 
-    this.y.users.observeDeep((event) => {
-      this.update('room')
+    this.y.users.observeDeep((events) => {
+      const allEventsHaveOnlyTimestamp = events.every((event) => {
+        return (
+          event.changes.keys &&
+          event.changes.keys.size === 1 &&
+          event.changes.keys.has('timestamp')
+        )
+      })
+
+      if (!allEventsHaveOnlyTimestamp) {
+        this.update('room')
+      }
     })
   }
 
   initRooms() {
-    if (this.y.rooms.size === 0) {
-      LOG('initializing rooms')
-      this.y.doc.transact(() => {
-        this.addRoom(LOBBY)
+    this.y.doc.transact(() => {
+      if (this.y.rooms.size === 0) {
+        LOG('initializing rooms')
 
-        if (this.isStation) {
-          this.addRoom(this.peerID)
-        }
+        this.addRoom(LOBBY)
 
         const defaultRooms = this.lab.data.meta.defaultNumberOfRooms
         if (defaultRooms) {
@@ -236,10 +232,24 @@ export default class Peer {
             this.addRoom('Room ' + i)
           }
         }
-      })
-    }
+      }
+      if (this.isStation) {
+        console.log('adding station room', this.peerID)
+        this.addRoom(this.peerID)
+      }
+    })
 
-    this.y.rooms.observe((event) => {
+    this.y.rooms.observe((events) => {
+      events.keysChanged.forEach((key) => {
+        const change = events.changes.keys.get(key)
+
+        if (change?.action === 'delete') {
+          // if my room is deleted, move to lobby
+          if (this.y.userSettings.get('room') === key) {
+            this.y.userSettings.set('room', LOBBY)
+          }
+        }
+      })
       this.update('room')
     })
   }
