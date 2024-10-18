@@ -158,11 +158,26 @@ export default class Peer {
       for (const id in peers) {
         if (selfIds.includes(peers[id].selfId)) {
           this.y.userSettings.set('room', this.isStation ? this.peerID : LOBBY)
-          this.y.users.delete(id)
-          this.y.rooms.delete(id)
+          
+          if (peers[id].role === 'station') {
+            this.changeStationName(id)
+          } else {
+            console.log('removing peer', id);
+            this.y.users.delete(id)
+          }
+          break
         }
       }
     })
+  }
+
+  changeStationName(id: string) {
+    if (this.isStation) {
+      console.log('newRoomName', this.peerID);
+
+      this.y.users.delete(id)
+      this.y.rooms.delete(id)
+    }
   }
   
   initSetup() {
