@@ -215,14 +215,11 @@ export default class Peer {
   }
 
   initRooms() {
-    if (this.y.rooms.size === 0) {
-      LOG('initializing rooms')
-      this.y.doc.transact(() => {
-        this.addRoom(LOBBY)
+    this.y.doc.transact(() => {
+      if (this.y.rooms.size === 0) {
+        LOG('initializing rooms')
 
-        if (this.isStation) {
-          this.addRoom(this.peerID)
-        }
+        this.addRoom(LOBBY)
 
         const defaultRooms = this.lab.data.meta.defaultNumberOfRooms
         if (defaultRooms) {
@@ -230,8 +227,12 @@ export default class Peer {
             this.addRoom('Room ' + i)
           }
         }
-      })
-    }
+      }
+      if (this.isStation) {
+        console.log('adding station room', this.peerID)
+        this.addRoom(this.peerID)
+      }
+    })
 
     this.y.rooms.observe((event) => {
       this.update('room')
