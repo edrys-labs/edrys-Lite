@@ -158,6 +158,11 @@ export default class Peer {
       for (const id in peers) {
         if (selfIds.includes(peers[id].selfId)) {
           this.y.users.delete(id)
+
+          if (peers[id].role === 'station') {
+            this.y.rooms.delete(id)
+          }
+
           break
         }
       }
@@ -234,7 +239,17 @@ export default class Peer {
       }
     })
 
-    this.y.rooms.observe((event) => {
+    this.y.rooms.observe((events) => {
+      events.keysChanged.forEach((key) => {
+        const change = events.changes.keys.get(key)
+
+        if (change?.action === 'delete') {
+          // if my room is deleted, move to lobby
+          if (this.y.userSettings.get('room') === key) {
+            this.y.userSettings.set('room', LOBBY)
+          }
+        }
+      })
       this.update('room')
     })
   }
