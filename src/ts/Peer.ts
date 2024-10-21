@@ -445,4 +445,26 @@ export default class Peer {
       users: this.y.users.toJSON(),
     }
   }
+
+  setStationName(newName: string) {
+    this.y.doc.transact(() => {
+      newName = 'Station ' + newName
+      const oldName = this.y.userSettings.get('room')
+
+      this.y.userSettings.set('displayName', newName)
+      this.y.userSettings.set('room', newName)
+
+      const room = this.y.rooms.get(oldName)
+      this.y.rooms.delete(oldName)
+      this.y.rooms.set(newName, room)
+
+      const peers = this.y.users.toJSON()
+
+      for (const id in peers) {
+        if (peers[id].room === oldName) {
+          this.y.users.get(id).set('room', LOBBY)
+        }
+      }
+    })
+  }
 }

@@ -292,13 +292,15 @@ export default {
     },
 
     setStationName() {
-      const isValid = this.stationNameRules.every((rule) => rule(this.stationNameInput) === true);
+      const isValid = this.stationNameRules.every(
+        (rule) => rule(this.stationNameInput) === true
+      );
       if (!isValid) {
-        return;  // If validation fails, do not submit
+        return; // If validation fails, do not submit
       }
-      
+
       sessionStorage.setItem(`station_${this.id}`, this.stationNameInput);
-      window.location.reload();
+      this.communication?.setStationName(this.stationNameInput);
     },
     isNameTaken(name: string) {
       if (!this.liveClassProxy) return false;
