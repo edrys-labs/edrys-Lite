@@ -134,9 +134,7 @@ export default {
                 this.intervalId = setInterval(() => {
                     this.measureMemory();
                 }, 5000);
-            } else {
-                console.warn("Memory logger is already running!");
-            }
+            } 
         },
         stopLogger() {
             console.log("Logger stopped");
@@ -536,7 +534,7 @@ export default {
                 };
 
                 await logsDB.logs.put({ id: (this.classId + '_Station:' + this.stationName), LoggerData: serializedData });
-                } catch (error) {
+            } catch (error) {
                 console.error("Error saving logger data to IndexedDB:", error);
             }
         },
