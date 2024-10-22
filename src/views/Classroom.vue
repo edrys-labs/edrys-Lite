@@ -580,6 +580,8 @@ export default {
         @logger-started="isLoggerRunning = true"
         @logger-stopped="isLoggerRunning = false"
         :liveClassProxy="liveClassProxy"
+        :classId="id"
+        :stationName="stationName"
       >
       </Logger>
     </v-dialog>

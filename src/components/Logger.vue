@@ -1,6 +1,7 @@
 <script lang="ts">
 
 import * as echarts from 'echarts';
+import { logsDB } from '../ts/Logs';
 
 declare global {
     interface Performance {
@@ -39,7 +40,7 @@ interface IUserInStation {
 export default {
     name: "Logger",
 
-    props: ["liveClassProxy"],
+    props: ["liveClassProxy", "classId", "stationName"],
 
     data() {
         return {
@@ -107,6 +108,12 @@ export default {
 
             this.$emit("logger-started");
 
+            /*const existingData = await logsDB.logs.get(1);
+
+            if (!existingData) {
+                await logsDB.logs.add({ id: (this.classId + '_Station:' + this.stationName), consoleData: JSON.stringify([]) });
+            }*/
+
             if (this.monitorConsole) {
                 this.loggerTabsText[2] = "Started monitoring console logs...";
                 this.overrideConsoleMethods();
@@ -169,9 +176,9 @@ export default {
                 this.loggerTabsText[0] = "Stopped monitoring memory usage.";
             } 
         },
-        loadLogger() {
+        async loadLogger() {
             console.log("Logger loaded");
-
+            
             /*
             // Testing network data
             fetch("https://jsonplaceholder.typicode.com/posts", {
@@ -241,6 +248,8 @@ export default {
                         message: args.map(this.formatMessage).join(" "),
                         type: method,
                     });
+
+                    this.saveConsoleDataToDB();
                 };
             });
 
@@ -250,6 +259,8 @@ export default {
                     date: new Date().toLocaleString(),
                     message: ["Unhandled Error:", event.error.toString()],
                 });
+
+                this.saveConsoleDataToDB();
             });
 
             window.addEventListener("unhandledrejection", (event) => {
@@ -258,7 +269,13 @@ export default {
                     date: new Date().toLocaleString(),
                     message: ["Unhandled Promise Rejection:", event.reason.toString()],
                 });
+
+                this.saveConsoleDataToDB();
             });  
+        },
+        async saveConsoleDataToDB() {
+            const consoleDataString = JSON.stringify(this.consoleData); 
+            await logsDB.logs.put({ id: (this.classId + '_Station:' + this.stationName), consoleData: consoleDataString });
         },
         overrideFetch() {
             const originalFetch = window.fetch;
