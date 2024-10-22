@@ -1,21 +1,19 @@
 import Dexie from 'dexie';
+import { MemoryData, ConsoleData, NetworkData, IUserInStation } from '../components/Logger.vue';
 
 
-interface ILogEntry {
-  id: string;
-  consoleData: string;
+interface LoggerData {
+  memoryData: MemoryData[];
+  consoleData: ConsoleData[];
+  networkData: NetworkData[];
+  usersInStations: IUserInStation[];
 }
 
 
-class LogsDB extends Dexie {
-  public logs!: Dexie.Table<ILogEntry, number>; 
+export const logsDB = new Dexie('LogsDB') as Dexie & {
+    logs: Dexie.Table<{ id: string; LoggerData: LoggerData }>;
+};
 
-  constructor() {
-    super('LogsDB');
-    this.version(1).stores({
-      logs: '&id,consoleData',
-    });
-  }
-}
-
-export const logsDB = new LogsDB();
+logsDB.version(1).stores({
+    logs: 'id'  
+});

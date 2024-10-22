@@ -13,13 +13,20 @@ declare global {
     }
 };
 
-interface ConsoleData {
+export interface MemoryData {
+    date: Date;
+    usedJSHeapSize: string;
+    totalJSHeapSize: string;
+    jsHeapSizeLimit: string;
+};
+
+export interface ConsoleData {
     date: Date;
     message: string;
     type: string;
 };
 
-interface NetworkData {
+export interface NetworkData {
     date: Date;
     type: string;
     request?: string;
@@ -30,7 +37,7 @@ interface NetworkData {
     eventType?: string;
 };
 
-interface IUserInStation {
+export interface IUserInStation {
   user: string;
   station: string;
   date: Date;
@@ -44,12 +51,7 @@ export default {
 
     data() {
         return {
-            memoryData: [] as {
-                date: Date;
-                usedJSHeapSize: string;
-                totalJSHeapSize: string;
-                jsHeapSizeLimit: string;
-            }[],
+            memoryData: [] as MemoryData[],
 
             intervalId: null as number | null,
 
@@ -107,12 +109,6 @@ export default {
             console.log("Logger started");
 
             this.$emit("logger-started");
-
-            /*const existingData = await logsDB.logs.get(1);
-
-            if (!existingData) {
-                await logsDB.logs.add({ id: (this.classId + '_Station:' + this.stationName), consoleData: JSON.stringify([]) });
-            }*/
 
             if (this.monitorConsole) {
                 this.loggerTabsText[2] = "Started monitoring console logs...";
@@ -232,6 +228,8 @@ export default {
                     totalJSHeapSize,
                     jsHeapSizeLimit,
                 });
+
+                this.saveLoggerDataToDB();
             } else
                 console.warn("Performance memory API is not supported in this browser.");
         },
@@ -249,7 +247,7 @@ export default {
                         type: method,
                     });
 
-                    this.saveConsoleDataToDB();
+                    this.saveLoggerDataToDB();
                 };
             });
 
@@ -260,7 +258,7 @@ export default {
                     message: ["Unhandled Error:", event.error.toString()],
                 });
 
-                this.saveConsoleDataToDB();
+                this.saveLoggerDataToDB();
             });
 
             window.addEventListener("unhandledrejection", (event) => {
@@ -270,12 +268,8 @@ export default {
                     message: ["Unhandled Promise Rejection:", event.reason.toString()],
                 });
 
-                this.saveConsoleDataToDB();
+                this.saveLoggerDataToDB();
             });  
-        },
-        async saveConsoleDataToDB() {
-            const consoleDataString = JSON.stringify(this.consoleData); 
-            await logsDB.logs.put({ id: (this.classId + '_Station:' + this.stationName), consoleData: consoleDataString });
         },
         overrideFetch() {
             const originalFetch = window.fetch;
@@ -294,6 +288,8 @@ export default {
                 };
 
                 this.networkData.push(data);
+
+                this.saveLoggerDataToDB();
 
                 return response;
             };
@@ -318,6 +314,8 @@ export default {
                 };
 
                 vueInstance.networkData.push(data);
+
+                vueInstance.saveLoggerDataToDB();
             });
 
             originalOpen.call(this, method, url, ...rest);
@@ -341,6 +339,8 @@ export default {
                     };
 
                     vueInstance.networkData.push(data);
+
+                    vueInstance.saveLoggerDataToDB();
                 };
 
                 ws.addEventListener("open", () => logWebSocketEvent("open", "Connection opened"));
@@ -364,6 +364,7 @@ export default {
                                         eventType: "image",
                                         url: (node as HTMLImageElement).src,
                                     });
+                                    this.saveLoggerDataToDB();
                                     break;
                                 case "LINK":
                                     this.networkData.push({
@@ -372,6 +373,7 @@ export default {
                                         eventType: "stylesheet",
                                         url: (node as HTMLLinkElement).href,
                                     });
+                                    this.saveLoggerDataToDB();
                                     break;
                                 case "SCRIPT":
                                     this.networkData.push({
@@ -380,6 +382,7 @@ export default {
                                         eventType: "script",
                                         url: (node as HTMLScriptElement).src,
                                     });
+                                    this.saveLoggerDataToDB();
                                     break;
                                 case "IFRAME":
                                     this.networkData.push({
@@ -388,6 +391,7 @@ export default {
                                         eventType: "iframe",
                                         url: (node as HTMLIFrameElement).src,
                                     });
+                                    this.saveLoggerDataToDB();
                                     break;
                                 case "HTML":
                                     this.networkData.push({
@@ -396,6 +400,7 @@ export default {
                                         eventType: "document",
                                         url: node.baseURI,
                                     });
+                                    this.saveLoggerDataToDB();
                                     break;
                                 default:
                                     break;
@@ -424,6 +429,8 @@ export default {
                                 date: new Date(),
                                 event: "left"
                             });
+
+                            this.saveLoggerDataToDB();
                         }
                         // User joined a new station
                         this.usersInStations.push({
@@ -432,6 +439,8 @@ export default {
                             date: new Date(),
                             event: "joined"
                         });
+
+                        this.saveLoggerDataToDB();
                     } else if (existingUser) {
                         // User left a station
                         this.usersInStations.push({
@@ -440,6 +449,8 @@ export default {
                             date: new Date(),
                             event: "left"
                         });
+
+                        this.saveLoggerDataToDB();
                     }
                 }
             }
@@ -501,6 +512,29 @@ export default {
             this.$nextTick(() => {
                 this.generateChart();
             });
+        },
+        async saveLoggerDataToDB() {
+            // Convert Date objects to ISO strings before saving to IndexedDB (IndexedDB doesn't support Date objects)
+            const serializedData = {
+            consoleData: this.consoleData.map(entry => ({
+                ...entry,
+                date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
+            })),
+            memoryData: this.memoryData.map(entry => ({
+                ...entry,
+                date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
+            })),
+            networkData: this.networkData.map(entry => ({
+                ...entry,
+                date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
+            })),
+            usersInStations: this.usersInStations.map(entry => ({
+                ...entry,
+                date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
+            }))
+        };
+
+            await logsDB.logs.put({ id: (this.classId + '_Station:' + this.stationName), LoggerData: serializedData });
         },
     },
 };
