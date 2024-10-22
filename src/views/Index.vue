@@ -180,7 +180,7 @@ export default {
                 <span v-if="classroom?.data.createdBy === peerID"
                   >You own this class</span
                 >
-                <span v-else-if="classroom?.data.members.teacher.includes(peerID)"
+                <span v-else-if="classroom?.data?.members?.teacher.includes(peerID)"
                   >You're a teacher here</span
                 >
                 <span v-else>You're a student here</span>
