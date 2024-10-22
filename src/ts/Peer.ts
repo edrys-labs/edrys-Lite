@@ -87,9 +87,7 @@ export default class Peer {
         appId: process.env.APP_ID || 'edry-Lite', // optional, but recommended
         password: password,
         joinRoom: joinRoom,
-        peerOpts: {
-          config: JSON.parse(process.env.ICE_SERVERS || '{}'),
-        },
+        peerOpts: JSON.parse(process.env.ICE_SERVERS || '{}'),
       }
     )
 
