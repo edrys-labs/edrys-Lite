@@ -116,12 +116,14 @@ export default {
         this.configuration = null;
       }
 
-      this.communication = new Peer(
-        this.configuration
-          ? this.configuration
-          : { id: this.id, data: null, timestamp: 0, hash: this.hash },
-        this.stationName
-      );
+      if (!this.communication) {
+        this.communication = new Peer(
+          this.configuration
+            ? this.configuration
+            : { id: this.id, data: null, timestamp: 0, hash: this.hash },
+          this.stationName
+        );
+      }
 
       const self = this;
 
