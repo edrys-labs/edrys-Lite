@@ -188,20 +188,21 @@ export default class Peer {
 
     // If my setup is older than the current setup
     if (this.lab.timestamp < timestamp) {
-      LOG('updating lab configuration with new setup')
+      LOG('receiving initial lab configuration')
 
       this.lab.data = data
       this.lab.timestamp = timestamp
       this.update('setup')
     }
     // if the received setup is not up to date
-    else if (this.lab.timestamp !== timestamp) {
-      LOG('received outdated setup, writing changes back')
+    else if (this.lab.timestamp !== timestamp && this.lab.timestamp > 0) {
+      LOG('received outdated lab configuration, writing changes back')
       this.y.doc.transact(() => {
         this.y.setup.set('config', this.lab.data)
         this.y.setup.set('timestamp', this.lab.timestamp)
       })
     }
+
     // equal setups will be ignored
   }
 
@@ -274,11 +275,10 @@ export default class Peer {
   }
 
   newSetup(config: { id: string; data: any; timestamp: number }) {
-    LOG('updating lab configuration with new setup')
     if (this.lab.hash) {
       const self = this
       hashJsonObject(config.data).then((hash) => {
-        if (hash === self.lab.hash) {
+        if (hash === self.lab.hash && self.lab.timestamp < config.timestamp) {
           self.lab.id = config.id
           self.lab.data = config.data
           self.lab.timestamp = config.timestamp
@@ -289,11 +289,13 @@ export default class Peer {
         }
       })
     } else {
-      this.lab.id = config.id
-      this.lab.data = config.data
-      this.lab.timestamp = config.timestamp
+      if (this.lab.timestamp < config.timestamp) {
+        this.lab.id = config.id
+        this.lab.data = config.data
+        this.lab.timestamp = config.timestamp
 
-      this.initSetup()
+        this.initSetup()
+      }
     }
   }
 
