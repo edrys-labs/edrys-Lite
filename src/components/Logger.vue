@@ -58,22 +58,24 @@ export default {
 
             networkData: [] as NetworkData[],
 
-            tab: 'memory',
-
             usersInStations: [] as IUserInStation[],
+
+            originalConsoleLog: console.log,
+            originalConsoleWarn: console.warn,
+            originalConsoleError: console.error,
+            originalFetch: window.fetch,
+            originalXHR: window.XMLHttpRequest.prototype.open,
+            originalWebSocket: window.WebSocket,
+            resourceObserver: null as MutationObserver | null,
+
+            isMonitoringUsers: false,
+
+            tab: 'memory',
 
             isChartOpen: false,
 
             isClosingDialogVisible: false,
         };
-    },
-
-    created() {
-        this.overrideConsoleMethods();
-        this.overrideFetch();
-        this.overrideXHR();
-        this.overrideWebSocket();
-        this.observeResources();
     },
 
     beforeUnmount() {
@@ -94,6 +96,14 @@ export default {
             console.log("Logger started");
             this.memoryTabText = "Started monitoring memory usage...";
 
+            this.overrideConsoleMethods();
+            this.overrideFetch();
+            this.overrideXHR();
+            this.overrideWebSocket();
+            this.observeResources();
+
+            this.isMonitoringUsers = true;
+
             if (this.intervalId === null) { 
                 this.intervalId = setInterval(() => {
                     this.measureMemory();
@@ -104,6 +114,26 @@ export default {
         },
         stopLogger() {
             console.log("Logger stopped");
+
+            // Reset console methods to original
+            console.log = this.originalConsoleLog;
+            console.warn = this.originalConsoleWarn;
+            console.error = this.originalConsoleError;
+
+            // Reset fetch, XHR, and WebSocket to original 
+            window.fetch = this.originalFetch;
+            window.XMLHttpRequest.prototype.open = this.originalXHR;
+            window.WebSocket = this.originalWebSocket;
+
+            // Stop resource monitoring
+            if (this.resourceObserver) {
+                this.resourceObserver.disconnect();
+                this.resourceObserver = null;
+            }
+
+            this.isMonitoringUsers = false;
+
+            // Stop memory monitoring
             if (this.intervalId !== null) { 
                 clearInterval(this.intervalId);
                 this.intervalId = null; 
@@ -204,6 +234,7 @@ export default {
         },
         overrideFetch() {
             const originalFetch = window.fetch;
+            this.originalFetch = originalFetch;
 
             window.fetch = async (...args) => {
                 const response = await originalFetch(...args);
@@ -224,6 +255,7 @@ export default {
         },
         overrideXHR() {
             const originalOpen = window.XMLHttpRequest.prototype.open;
+            this.originalXHR = originalOpen;
             const vueInstance = this;
 
             window.XMLHttpRequest.prototype.open = function (method, url, ...rest) {
@@ -248,6 +280,7 @@ export default {
         },
         overrideWebSocket() {
             const originalWebSocket = window.WebSocket;
+            this.originalWebSocket = originalWebSocket;
             const vueInstance = this;
 
             window.WebSocket = function (...args) {
@@ -274,68 +307,88 @@ export default {
             } as any;
         },
         observeResources() {
-            const observer = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    mutation.addedNodes.forEach((node) => {
-                        switch (node.nodeName) {
-                            case "IMG":
-                                this.networkData.push({
-                                    date: new Date(),
-                                    type: "resource",
-                                    eventType: "image",
-                                    url: (node as HTMLImageElement).src,
-                                });
-                                break;
-                            case "LINK":
-                                this.networkData.push({
-                                    date: new Date(),
-                                    type: "resource",
-                                    eventType: "stylesheet",
-                                    url: (node as HTMLLinkElement).href,
-                                });
-                                break;
-                            case "SCRIPT":
-                                this.networkData.push({
-                                    date: new Date(),
-                                    type: "resource",
-                                    evenType: "script",
-                                    url: (node as HTMLScriptElement).src,
-                                });
-                                break;
-                            case "IFRAME":
-                                this.networkData.push({
-                                    date: new Date(),
-                                    type: "resource",
-                                    eventType: "iframe",
-                                    url: (node as HTMLIFrameElement).src,
-                                });
-                                break;
-                            case "HTML":
-                                this.networkData.push({
-                                    date: new Date(),
-                                    type: "resource",
-                                    eventType: "document",
-                                    url: node.baseURI,
-                                });
-                                break;
-                            default:
-                                break;
-                        }
+            if (!this.resourceObserver) {
+                this.resourceObserver = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        mutation.addedNodes.forEach((node) => {
+                            switch (node.nodeName) {
+                                case "IMG":
+                                    this.networkData.push({
+                                        date: new Date(),
+                                        type: "resource",
+                                        eventType: "image",
+                                        url: (node as HTMLImageElement).src,
+                                    });
+                                    break;
+                                case "LINK":
+                                    this.networkData.push({
+                                        date: new Date(),
+                                        type: "resource",
+                                        eventType: "stylesheet",
+                                        url: (node as HTMLLinkElement).href,
+                                    });
+                                    break;
+                                case "SCRIPT":
+                                    this.networkData.push({
+                                        date: new Date(),
+                                        type: "resource",
+                                        eventType: "script",
+                                        url: (node as HTMLScriptElement).src,
+                                    });
+                                    break;
+                                case "IFRAME":
+                                    this.networkData.push({
+                                        date: new Date(),
+                                        type: "resource",
+                                        eventType: "iframe",
+                                        url: (node as HTMLIFrameElement).src,
+                                    });
+                                    break;
+                                case "HTML":
+                                    this.networkData.push({
+                                        date: new Date(),
+                                        type: "resource",
+                                        eventType: "document",
+                                        url: node.baseURI,
+                                    });
+                                    break;
+                                default:
+                                    break;
+                            }
+                        });
                     });
                 });
-            });
 
-            observer.observe(document, { childList: true, subtree: true, });
+                // Start observing the document for added nodes
+                this.resourceObserver.observe(document, { childList: true, subtree: true });
+            }
         },
         monitorUsersInStations() {
-            for (const key in this.liveClassProxy.users) {
-                const userRoom = this.liveClassProxy.users[key].room;
-                const userRole = this.liveClassProxy.users[key].role; // to exclude stations
-                const existingUser = this.usersInStations.find((u) => u.user === key && u.event === 'joined');
+            if (this.isMonitoringUsers) {
+                for (const key in this.liveClassProxy.users) {
+                    const userRoom = this.liveClassProxy.users[key].room;
+                    const userRole = this.liveClassProxy.users[key].role; // to exclude stations
+                    const existingUser = this.usersInStations.find((u) => u.user === key && u.event === 'joined');
 
-                if (userRoom.includes("Station") && userRole !== "station") {
-                    if (existingUser && existingUser.station !== userRoom) {
-                        // User left the previous station
+                    if (userRoom.includes("Station") && userRole !== "station") {
+                        if (existingUser && existingUser.station !== userRoom) {
+                            // User left the previous station
+                            this.usersInStations.push({
+                                user: key,
+                                station: existingUser.station,
+                                date: new Date(),
+                                event: "left"
+                            });
+                        }
+                        // User joined a new station
+                        this.usersInStations.push({
+                            user: key,
+                            station: userRoom,
+                            date: new Date(),
+                            event: "joined"
+                        });
+                    } else if (existingUser) {
+                        // User left a station
                         this.usersInStations.push({
                             user: key,
                             station: existingUser.station,
@@ -343,21 +396,6 @@ export default {
                             event: "left"
                         });
                     }
-                    // User joined a new station
-                    this.usersInStations.push({
-                        user: key,
-                        station: userRoom,
-                        date: new Date(),
-                        event: "joined"
-                    });
-                } else if (existingUser) {
-                    // User left a station
-                    this.usersInStations.push({
-                        user: key,
-                        station: existingUser.station,
-                        date: new Date(),
-                        event: "left"
-                    });
                 }
             }
         },
