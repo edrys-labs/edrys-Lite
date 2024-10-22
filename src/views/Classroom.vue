@@ -95,6 +95,7 @@ export default {
 
       isLoggerVisible: false,
       isLoggerMinimized: false,
+      isLoggerRunning: false,
     };
   },
   watch: {
@@ -350,7 +351,7 @@ export default {
           <template v-slot:activator="{ props }">
             <v-btn 
               icon="mdi-console" 
-              :style="{ 'animation': isLoggerVisible ? 'blink 1.5s linear infinite' : '' }"
+              :style="{ 'animation': isLoggerRunning ? 'blink 1.5s linear infinite' : '' }"
               v-bind="props"
               v-if="isStation"
               @click="isLoggerVisible = true; isLoggerMinimized = false"
@@ -576,6 +577,8 @@ export default {
       <Logger 
         @close="isLoggerVisible = false; isLoggerMinimized = false"
         @minimize="isLoggerMinimized = true"
+        @logger-started="isLoggerRunning = true"
+        @logger-stopped="isLoggerRunning = false"
         :liveClassProxy="liveClassProxy"
       >
       </Logger>

@@ -52,8 +52,6 @@ export default {
 
             intervalId: null as number | null,
 
-            memoryTabText: "Click Start to monitor memory usage, or load existing logs.",
-
             consoleData: [] as ConsoleData[],
 
             networkData: [] as NetworkData[],
@@ -75,6 +73,18 @@ export default {
             isChartOpen: false,
 
             isClosingDialogVisible: false,
+
+            monitorMemory: false,
+            monitorNetwork: false,
+            monitorConsole: false,
+            monitorUsers: false,
+
+            loggerTabsText: [
+                "Click Start to monitor memory usage, or load existing logs.",
+                "Click Start to monitor network data, or load existing logs.",
+                "Click Start to monitor console logs, or load existing logs.",
+                "Click Start to monitor users in stations activity.",
+            ],
         };
     },
 
@@ -94,17 +104,30 @@ export default {
     methods: {
         startLogger() {
             console.log("Logger started");
-            this.memoryTabText = "Started monitoring memory usage...";
 
-            this.overrideConsoleMethods();
-            this.overrideFetch();
-            this.overrideXHR();
-            this.overrideWebSocket();
-            this.observeResources();
+            this.$emit("logger-started");
 
-            this.isMonitoringUsers = true;
+            if (this.monitorConsole) {
+                this.loggerTabsText[2] = "Started monitoring console logs...";
+                this.overrideConsoleMethods();
+            }
 
-            if (this.intervalId === null) { 
+            if (this.monitorNetwork) {
+                this.loggerTabsText[1] = "Started monitoring network data...";
+                this.overrideFetch();
+                this.overrideXHR();
+                this.overrideWebSocket();
+                this.observeResources();
+            }
+
+            if (this.monitorUsers) {
+                this.loggerTabsText[3] = "Started monitoring users in stations...";
+                this.isMonitoringUsers = true;
+            }
+
+            if (this.monitorMemory && this.intervalId === null) { 
+                this.loggerTabsText[0] = "Started monitoring memory usage...";
+
                 this.intervalId = setInterval(() => {
                     this.measureMemory();
                 }, 5000);
@@ -115,31 +138,36 @@ export default {
         stopLogger() {
             console.log("Logger stopped");
 
+            this.$emit("logger-stopped");
+
             // Reset console methods to original
             console.log = this.originalConsoleLog;
             console.warn = this.originalConsoleWarn;
             console.error = this.originalConsoleError;
+            this.loggerTabsText[2] = "Stopped monitoring console logs.";
 
             // Reset fetch, XHR, and WebSocket to original 
             window.fetch = this.originalFetch;
             window.XMLHttpRequest.prototype.open = this.originalXHR;
             window.WebSocket = this.originalWebSocket;
+            this.loggerTabsText[1] = "Stopped monitoring network data.";
 
             // Stop resource monitoring
             if (this.resourceObserver) {
                 this.resourceObserver.disconnect();
                 this.resourceObserver = null;
+                this.loggerTabsText[1] = "Stopped monitoring network data.";
             }
 
             this.isMonitoringUsers = false;
+            this.loggerTabsText[3] = "Stopped monitoring users in stations.";
 
             // Stop memory monitoring
             if (this.intervalId !== null) { 
                 clearInterval(this.intervalId);
                 this.intervalId = null; 
-            } else {
-                console.warn("Memory logger is not running.");
-            }
+                this.loggerTabsText[0] = "Stopped monitoring memory usage.";
+            } 
         },
         loadLogger() {
             console.log("Logger loaded");
@@ -468,6 +496,29 @@ export default {
 
             <v-spacer></v-spacer>
 
+            <v-menu :close-on-content-click="false">
+                <template v-slot:activator="{ props }">
+                    <v-btn icon v-bind="props">
+                        <v-icon>mdi-dots-vertical</v-icon>
+                    </v-btn>
+                </template>
+
+                <v-list>
+                    <v-list-item max-height="1">
+                        <v-checkbox v-model="monitorMemory" label="Memory Usage"></v-checkbox>
+                    </v-list-item>
+                    <v-list-item max-height="1">
+                        <v-checkbox v-model="monitorNetwork" label="Network Data"></v-checkbox>
+                    </v-list-item>
+                    <v-list-item max-height="1">
+                        <v-checkbox v-model="monitorConsole" label="Console Logs"></v-checkbox>
+                    </v-list-item>
+                    <v-list-item max-height="1">
+                        <v-checkbox v-model="monitorUsers" label="Users in Stations"></v-checkbox>
+                    </v-list-item>
+                </v-list>
+            </v-menu>
+
             <v-btn icon @click="$emit('minimize')">
                 <v-icon>mdi-minus</v-icon>
             </v-btn>
@@ -476,7 +527,6 @@ export default {
                 <v-icon>mdi-close</v-icon>
             </v-btn>
         </v-toolbar>
-
 
         <div class="btns-container">
             <v-btn variant="outlined" @click="startLogger">
@@ -529,7 +579,7 @@ export default {
                         </div>
                     </div>
                     <div v-else>
-                        <p>{{ memoryTabText }}</p>
+                        <p>{{ loggerTabsText[0] }}</p>
                     </div>
                 </v-tabs-window-item>
 
@@ -565,7 +615,7 @@ export default {
                         </div>
                     </div>
                     <div v-else>
-                        <p>Click Start to monitor network data, or load existing logs.</p>
+                        <p>{{ loggerTabsText[1] }}</p>
                     </div>
                 </v-tabs-window-item>
 
@@ -586,7 +636,7 @@ export default {
                         </div>
                     </div>
                     <div v-else>
-                        <p>Click Start to monitor console logs, or load existing logs.</p>
+                        <p>{{ loggerTabsText[2] }}</p>
                     </div>
                 </v-tabs-window-item>
 
@@ -603,7 +653,7 @@ export default {
                         </div>
                     </div>
                     <div v-else>
-                        <p>No users in stations.</p>
+                        <p>{{ loggerTabsText[3] }}</p>
                     </div>
                 </v-tabs-window-item>
             </v-tabs-window>
@@ -662,6 +712,7 @@ export default {
 <style>
 .btns-container {
     display: flex;
+    align-items: center;
     justify-content: center;
     margin: 20px 0;
 }
