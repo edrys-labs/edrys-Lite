@@ -223,7 +223,7 @@ export default {
                 const jsHeapSizeLimit = (performance.memory.jsHeapSizeLimit / 1048576).toFixed(2);
 
                 this.memoryData.push({
-                    date: new Date(),
+                    date: new Date().toLocaleString(),
                     usedJSHeapSize,
                     totalJSHeapSize,
                     jsHeapSizeLimit,
@@ -279,7 +279,7 @@ export default {
                 const response = await originalFetch(...args);
 
                 const data = {
-                    date: new Date(),
+                    date: new Date().toLocaleString(),
                     type: "fetch",
                     request: args[0],
                     response: await response.text(),
@@ -305,7 +305,7 @@ export default {
 
             this.addEventListener("load", function () {
                 const data = {
-                    date: new Date(),
+                    date: new Date().toLocaleString(),
                     type: "xhr",
                     request: { url: this._url, method: this._method },
                     response: this.responseText,
@@ -331,7 +331,7 @@ export default {
 
                 const logWebSocketEvent = (type, response) => {
                     const data = {
-                        date: new Date(),
+                        date: new Date().toLocaleString(),
                         type: "ws",
                         request: args[0],
                         response,
@@ -359,7 +359,7 @@ export default {
                             switch (node.nodeName) {
                                 case "IMG":
                                     this.networkData.push({
-                                        date: new Date(),
+                                        date: new Date().toLocaleString(),
                                         type: "resource",
                                         eventType: "image",
                                         url: (node as HTMLImageElement).src,
@@ -368,7 +368,7 @@ export default {
                                     break;
                                 case "LINK":
                                     this.networkData.push({
-                                        date: new Date(),
+                                        date: new Date().toLocaleString(),
                                         type: "resource",
                                         eventType: "stylesheet",
                                         url: (node as HTMLLinkElement).href,
@@ -377,7 +377,7 @@ export default {
                                     break;
                                 case "SCRIPT":
                                     this.networkData.push({
-                                        date: new Date(),
+                                        date: new Date().toLocaleString(),
                                         type: "resource",
                                         eventType: "script",
                                         url: (node as HTMLScriptElement).src,
@@ -386,7 +386,7 @@ export default {
                                     break;
                                 case "IFRAME":
                                     this.networkData.push({
-                                        date: new Date(),
+                                        date: new Date().toLocaleString(),
                                         type: "resource",
                                         eventType: "iframe",
                                         url: (node as HTMLIFrameElement).src,
@@ -395,7 +395,7 @@ export default {
                                     break;
                                 case "HTML":
                                     this.networkData.push({
-                                        date: new Date(),
+                                        date: new Date().toLocaleString(),
                                         type: "resource",
                                         eventType: "document",
                                         url: node.baseURI,
@@ -426,7 +426,7 @@ export default {
                             this.usersInStations.push({
                                 user: key,
                                 station: existingUser.station,
-                                date: new Date(),
+                                date: new Date().toLocaleString(),
                                 event: "left"
                             });
 
@@ -436,7 +436,7 @@ export default {
                         this.usersInStations.push({
                             user: key,
                             station: userRoom,
-                            date: new Date(),
+                            date: new Date().toLocaleString(),
                             event: "joined"
                         });
 
@@ -446,7 +446,7 @@ export default {
                         this.usersInStations.push({
                             user: key,
                             station: existingUser.station,
-                            date: new Date(),
+                            date: new Date().toLocaleString(),
                             event: "left"
                         });
 
@@ -514,27 +514,31 @@ export default {
             });
         },
         async saveLoggerDataToDB() {
-            // Convert Date objects to ISO strings before saving to IndexedDB (IndexedDB doesn't support Date objects)
-            const serializedData = {
-            consoleData: this.consoleData.map(entry => ({
-                ...entry,
-                date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
-            })),
-            memoryData: this.memoryData.map(entry => ({
-                ...entry,
-                date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
-            })),
-            networkData: this.networkData.map(entry => ({
-                ...entry,
-                date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
-            })),
-            usersInStations: this.usersInStations.map(entry => ({
-                ...entry,
-                date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
-            }))
-        };
+            try {
+                // Convert Date objects to ISO strings before saving to IndexedDB (IndexedDB doesn't support Date objects)
+                const serializedData = {
+                    consoleData: this.consoleData.map(entry => ({
+                        ...entry,
+                        date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
+                    })),
+                    memoryData: this.memoryData.map(entry => ({
+                        ...entry,
+                        date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
+                    })),
+                    networkData: this.networkData.map(entry => ({
+                        ...entry,
+                        date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
+                    })),
+                    usersInStations: this.usersInStations.map(entry => ({
+                        ...entry,
+                        date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
+                    }))
+                };
 
-            await logsDB.logs.put({ id: (this.classId + '_Station:' + this.stationName), LoggerData: serializedData });
+                await logsDB.logs.put({ id: (this.classId + '_Station:' + this.stationName), LoggerData: serializedData });
+                } catch (error) {
+                console.error("Error saving logger data to IndexedDB:", error);
+            }
         },
     },
 };
@@ -623,7 +627,7 @@ export default {
                             v-for="(data, index) in memoryData" 
                             :key="index"
                         >
-                            <span id="log-date">{{ data.date.toLocaleString() }}</span> 
+                            <span id="log-date">{{ data.date }}</span> 
                             <span id="log-title"> - Used JS Heap Size:</span> {{ data.usedJSHeapSize }} MB
                             <span id="log-title"> - Total JS Heap Size:</span> {{ data.totalJSHeapSize }} MB
                             <span id="log-title"> - JS Heap Size Limit:</span> {{ data.jsHeapSizeLimit }} MB
@@ -640,7 +644,7 @@ export default {
                             v-for="(data, index) in networkData" 
                             :key="index"
                         >
-                            <span id="log-date">{{ data.date.toLocaleString() }}</span> 
+                            <span id="log-date">{{ data.date }}</span> 
                             <span id="log-title"> - {{ data.type.toLocaleUpperCase() }}:</span> 
                             <span v-if="data.type === 'fetch'"> 
                                 Request: {{ data.request }} 
@@ -697,7 +701,7 @@ export default {
                             v-for="(data, index) in usersInStations" 
                             :key="index"
                         >
-                            <span id="log-date">{{ data.date.toLocaleString() }}</span> 
+                            <span id="log-date">{{ data.date }}</span> 
                             <span id="log-title"> - User:</span> {{ data.user }}
                             <span id="log-title"> - Event:</span> {{ data.event }}
                             <span id="log-title"> - Station:</span> {{ data.station }}
