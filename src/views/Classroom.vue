@@ -3,6 +3,7 @@ import Settings from "../components/Settings.vue";
 import Chat from "../components/Chat";
 import Checks from "../components/Checks";
 import Modules from "../components/Modules.vue";
+import Logger from "../components/Logger.vue";
 
 import { Database, DatabaseItem } from "../ts/Database";
 import { infoHash, scrapeModule, clone, getPeerID, getShortPeerID } from "../ts/Utils";
@@ -10,6 +11,7 @@ import { onMounted } from "vue";
 import Peer from "../ts/Peer";
 
 import { copyToClipboard, deepEqual } from "../ts/Utils";
+
 
 export default {
   props: ["id", "station", "hash"],
@@ -36,7 +38,7 @@ export default {
 
     let stationName: string | null = "";
     let peerID = getPeerID(true);
-
+    
     if (this.station) {
       stationName = sessionStorage.getItem(`station_${this.id}`);
 
@@ -90,6 +92,9 @@ export default {
         (v: string) => !!v || "Name is required",
         (v: string) => !this.isNameTaken(v) || "Name is already taken",
       ],
+
+      isLoggerVisible: false,
+      isLoggerMinimized: false,
     };
   },
   watch: {
@@ -267,6 +272,8 @@ export default {
         }
       }
 
+      //console.log("usersInRoom() called");
+
       return users;
     },
 
@@ -292,18 +299,17 @@ export default {
     },
 
     setStationName() {
-      const isValid = this.stationNameRules.every(
-        (rule) => rule(this.stationNameInput) === true
-      );
-      if (!isValid) {
-        return; // If validation fails, do not submit
-      }
+      const isValid = this.stationNameRules.every((rule) => rule(this.stationNameInput) === true);
 
+      if (!isValid) {
+        return;  // If validation fails, do not submit
+      }
+      
       sessionStorage.setItem(`station_${this.id}`, this.stationNameInput);
-      this.communication?.setStationName(this.stationNameInput);
+      window.location.reload();
     },
+
     isNameTaken(name: string) {
-      if (!this.liveClassProxy) return false;
       return Object.keys(this.liveClassProxy.rooms).includes("Station " + name);
     },
   },
@@ -313,6 +319,7 @@ export default {
     Checks,
     Settings,
     Modules,
+    Logger,
   },
 };
 </script>
@@ -337,6 +344,27 @@ export default {
         </template>
 
         <v-spacer></v-spacer>
+
+        <v-tooltip text="Open Logger" location="bottom">
+          <template v-slot:activator="{ props }">
+            <v-btn 
+              icon="mdi-console" 
+              :style="{ 'animation': isLoggerVisible ? 'blink 1.5s linear infinite' : '' }"
+              v-bind="props"
+              v-if="isStation"
+              @click="isLoggerVisible = true; isLoggerMinimized = false"
+            >
+            </v-btn>
+          </template>
+        </v-tooltip>
+        
+
+        <v-divider
+          class="mx-3 align-self-center"
+          length="24"
+          thickness="2"
+          vertical
+        ></v-divider>
 
         <v-btn
           icon
@@ -532,6 +560,24 @@ export default {
         @updateClass="updateClass"
         :writeProtection="!!hash"
       ></Settings>
+    </v-dialog>
+
+    <v-dialog 
+      v-model="isLoggerVisible" 
+      max-width="1200px" 
+      width="90%" 
+      height="50%"
+      scrollable
+      persistent
+      :id="'logger' + componentKey"
+      :style="{ 'display': isLoggerMinimized ? 'none' : 'flex' }"
+    >
+      <Logger 
+        @close="isLoggerVisible = false; isLoggerMinimized = false"
+        @minimize="isLoggerMinimized = true"
+        :liveClassProxy="liveClassProxy"
+      >
+      </Logger>
     </v-dialog>
   </v-app>
 </template>
