@@ -306,10 +306,11 @@ export default {
       }
       
       sessionStorage.setItem(`station_${this.id}`, this.stationNameInput);
-      window.location.reload();
+      this.communication?.setStationName(this.stationNameInput);
     },
 
     isNameTaken(name: string) {
+      if (!this.liveClassProxy) return false;
       return Object.keys(this.liveClassProxy.rooms).includes("Station " + name);
     },
   },
