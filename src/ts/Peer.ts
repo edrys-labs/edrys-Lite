@@ -104,9 +104,8 @@ export default class Peer {
         this.provider.room?.onPeerLeave((id: string) => {
           this.removePeers([id])
         })
-        const [tx, rx] = this.provider.room.trysteroRoom.makeAction('p2p')
-        this.tx = tx
-        this.rx = rx
+
+        this.initPubSub()
 
         if (heartbeatID) {
           clearInterval(heartbeatID)
@@ -167,6 +166,22 @@ export default class Peer {
         }
       }
     })
+  }
+
+  initPubSub() {
+    LOG('initializing pubsub ...')
+    if (this.provider.room) {
+      const [tx, rx] = this.provider.room.trysteroRoom.makeAction('p2p')
+      this.tx = tx
+      this.rx = rx
+
+      LOG('... done')
+    } else {
+      LOG('... failed, retrying in 1s')
+      setTimeout(() => {
+        this.initPubSub()
+      }, 1000)
+    }
   }
 
   initSetup() {
