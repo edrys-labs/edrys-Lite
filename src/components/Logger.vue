@@ -455,7 +455,7 @@ export default {
                 series: [
                     {
                     data: memoryDataArray.map((memory: any) => [
-                        memory.date, 
+                        new Date(memory.date), 
                         memory.usedJSHeapSize,
                     ]),
                     type: 'line',
