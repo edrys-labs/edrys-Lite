@@ -87,7 +87,8 @@ export default class Peer {
         appId: process.env.APP_ID || 'edry-Lite', // optional, but recommended
         password: password,
         joinRoom: joinRoom,
-        peerOpts: JSON.parse(process.env.ICE_SERVERS || '{}'),
+        // {"rtcConfig":{"config":{"iceServers":[{"urls":"...."},{"urls":"turn:turn....","username":"XXXX","credential":"XXXXXX"}]}}}
+        peerOpts: JSON.parse(process.env.TRYSTERO_PEER_CONFIG || '{}'),
       }
     )
 
