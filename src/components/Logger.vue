@@ -34,6 +34,7 @@ export interface NetworkData {
     status?: number;
     options?: string;
     url?: string;
+    method?: string;
     eventType?: string;
 };
 
@@ -171,8 +172,7 @@ export default {
             } 
         },
         loadLogs() {
-            console.log("Logger loaded");
-            
+            console.log("Logger loaded");  
         },
         clearLogger() {
             console.log("Logger cleared");
@@ -227,7 +227,7 @@ export default {
                 this.consoleData.push({
                     type: "error",
                     date: new Date().toLocaleString(),
-                    message: ["Unhandled Error:", event.error.toString()],
+                    message: event.error.toString(),
                 });
 
                 this.saveLoggerDataToDB();
@@ -237,7 +237,7 @@ export default {
                 this.consoleData.push({
                     type: "error",
                     date: new Date().toLocaleString(),
-                    message: ["Unhandled Promise Rejection:", event.reason.toString()],
+                    message: event.reason.toString(),
                 });
 
                 this.saveLoggerDataToDB();
@@ -249,18 +249,18 @@ export default {
 
             window.fetch = async (...args) => {
                 const response = await originalFetch(...args);
+                const responseBody = await response.clone().text();
 
                 const data = {
                     date: new Date().toLocaleString(),
                     type: "fetch",
                     request: args[0],
-                    response: await response.text(),
+                    response: responseBody,
                     status: response.status,
-                    options: args[1] || {},
+                    options: JSON.stringify(args[1]) || {},
                 };
 
                 this.networkData.push(data);
-
                 this.saveLoggerDataToDB();
 
                 return response;
@@ -279,14 +279,14 @@ export default {
                 const data = {
                     date: new Date().toLocaleString(),
                     type: "xhr",
-                    request: { url: this._url, method: this._method },
+                    url: this._url,
+                    method: this._method,
                     response: this.responseText,
                     status: this.status,
                     options: this._method,
                 };
 
                 vueInstance.networkData.push(data);
-
                 vueInstance.saveLoggerDataToDB();
             });
 
@@ -318,7 +318,7 @@ export default {
                 ws.addEventListener("open", () => logWebSocketEvent("open", "Connection opened"));
                 ws.addEventListener("message", (event) => logWebSocketEvent("message", event.data));
                 ws.addEventListener("close", () => logWebSocketEvent("close", "Connection closed"));
-                ws.addEventListener("error", (event) => logWebSocketEvent("error", event));
+                ws.addEventListener("error", () => logWebSocketEvent("error", "Connection error"));
 
                 return ws;
             } as any;
@@ -499,7 +499,7 @@ export default {
                     })),
                     networkData: this.networkData.map(entry => ({
                         ...entry,
-                        date: entry.date instanceof Date ? entry.date.toISOString() : entry.date
+                        date: entry.date instanceof Date ? entry.date.toISOString() : entry.date,
                     })),
                     usersInStations: this.usersInStations.map(entry => ({
                         ...entry,
@@ -619,24 +619,24 @@ export default {
                             <span id="log-date">{{ data.date }}</span> 
                             <span id="log-title"> - {{ data.type.toLocaleUpperCase() }}:</span> 
                             <span v-if="data.type === 'fetch'"> 
-                                Request: {{ data.request }} 
-                                Response: {{ data.response }} 
-                                Status: {{ data.status }} 
-                                Options: {{ data.options }}
+                                Request: {{ data.request }} -
+                                Response: {{ data.response }} -
+                                Status: {{ data.status }} -
+                                Options: {{ data.options }} 
                             </span>
                             <span v-else-if="data.type === 'xhr'"> 
-                                Request: {{ data.url }} 
-                                Response: {{ data.response }} 
-                                Status: {{ data.status }} 
-                                Options: {{ data.options }}
+                                Request: {{ data.method }} {{ data.url }} - 
+                                Response: {{ data.response }} -
+                                Status: {{ data.status }} -
+                                Options: {{ data.options }} 
                             </span>
                             <span v-else-if="data.type === 'ws'"> 
-                                Event: {{ data.eventType }},
-                                Request: {{ data.request }},
-                                Response: {{ data.response }}
+                                Event: {{ data.eventType }} -
+                                Request: {{ data.request }} -
+                                Response: {{ data.response }} 
                             </span>
                             <span v-else-if="data.type === 'resource'">
-                                Type: {{ data.eventType }}, 
+                                Type: {{ data.eventType }} -
                                 Url: {{ data.url }}
                             </span>
                         </div>
