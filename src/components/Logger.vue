@@ -644,27 +644,27 @@ export default {
                             :key="index"
                         >
                             <span id="log-date">{{ data.date }}</span> 
-                            <span id="log-title"> - {{ data.type.toLocaleUpperCase() }}:</span> 
+                            <span id="log-title"> - {{ data.type.toLocaleUpperCase() }}: </span> 
                             <span v-if="data.type === 'fetch'"> 
-                                Request: {{ data.request }} -
-                                Response: {{ data.response }} -
-                                Status: {{ data.status }} -
-                                Options: {{ data.options }} 
+                                <span id="log-subtitle">Request:</span> {{ data.request }} -
+                                <span id="log-subtitle">Response:</span> {{ data.response }} -
+                                <span id="log-subtitle">Status:</span> {{ data.status }} -
+                                <span id="log-subtitle">Options:</span> {{ data.options }} 
                             </span>
                             <span v-else-if="data.type === 'xhr'"> 
-                                Request: {{ data.method }} {{ data.url }} - 
-                                Response: {{ data.response }} -
-                                Status: {{ data.status }} -
-                                Options: {{ data.options }} 
+                                <span id="log-subtitle">Request:</span> {{ data.method }} {{ data.url }} - 
+                                <span id="log-subtitle">Response:</span> {{ data.response }} -
+                                <span id="log-subtitle">Status:</span> {{ data.status }} -
+                                <span id="log-subtitle">Options:</span> {{ data.options }} 
                             </span>
                             <span v-else-if="data.type === 'ws'"> 
-                                Event: {{ data.eventType }} -
-                                Request: {{ data.request }} -
-                                Response: {{ data.response }} 
+                                <span id="log-subtitle">Event:</span> {{ data.eventType }} -
+                                <span id="log-subtitle">Request:</span> {{ data.request }} -
+                                <span id="log-subtitle">Response:</span> {{ data.response }} 
                             </span>
                             <span v-else-if="data.type === 'resource'">
-                                Type: {{ data.eventType }} -
-                                Url: {{ data.url }}
+                                <span id="log-subtitle">Type:</span> {{ data.eventType }} -
+                                <span id="log-subtitle">Url:</span> {{ data.url }}
                             </span>
                         </div>
                     </div>
@@ -833,6 +833,10 @@ export default {
 
 #log-title {
     color: #0047AB;
+}
+
+#log-subtitle {
+    color: #186a3b;
 }
 
 #chart {
