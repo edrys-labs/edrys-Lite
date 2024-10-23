@@ -170,35 +170,9 @@ export default {
                 this.loggerTabsText[0] = "Stopped monitoring memory usage.";
             } 
         },
-        async loadLogger() {
+        loadLogs() {
             console.log("Logger loaded");
             
-            /*
-            // Testing network data
-            fetch("https://jsonplaceholder.typicode.com/posts", {
-                method: "POST",
-                headers: {
-                "Content-Type": "application/json;charset=utf-8",
-                },
-                body: JSON.stringify({ title: "foo", body: "bar", userId: 1 }),
-            })
-
-            const xhr = new XMLHttpRequest();
-            xhr.open("GET", "https://jsonplaceholder.typicode.com/posts/1");
-            xhr.send();
-
-            const ws = new WebSocket("wss://echo.websocket.org");
-            ws.onopen = () => {
-                ws.send("Hello, World!");
-            };
-            ws.onclose = () => {
-                console.log("WebSocket closed");
-            };
-
-            const iframe = document.createElement("iframe");
-            iframe.src = "https://example.com";
-            document.body.appendChild(iframe);
-            */
         },
         clearLogger() {
             console.log("Logger cleared");
@@ -590,7 +564,7 @@ export default {
                 Stop
             </v-btn>
 
-            <v-btn variant="outlined" @click="loadLogger">
+            <v-btn variant="outlined" @click="loadLogs">
                 Load
             </v-btn>
 
