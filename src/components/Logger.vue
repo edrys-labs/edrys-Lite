@@ -143,12 +143,14 @@ export default {
             this.$emit("logger-stopped");
 
             // Reset console methods to original
+            this.monitorConsole = false;
             console.log = this.originalConsoleLog;
             console.warn = this.originalConsoleWarn;
             console.error = this.originalConsoleError;
             this.loggerTabsText[2] = "Stopped monitoring console logs.";
 
             // Reset fetch, XHR, and WebSocket to original 
+            this.monitorNetwork = false;
             window.fetch = this.originalFetch;
             window.XMLHttpRequest.prototype.open = this.originalXHR;
             window.WebSocket = this.originalWebSocket;
@@ -166,6 +168,7 @@ export default {
 
             // Stop memory monitoring
             if (this.intervalId !== null) { 
+                this.monitorMemory = false;
                 clearInterval(this.intervalId);
                 this.intervalId = null; 
                 this.loggerTabsText[0] = "Stopped monitoring memory usage.";
