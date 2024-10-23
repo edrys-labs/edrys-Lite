@@ -111,8 +111,6 @@ export default {
 
     methods: {
         startLogger() {
-            console.log("Logger started");
-
             this.$emit("logger-started");
 
             if (this.monitorConsole) {
@@ -142,8 +140,6 @@ export default {
             } 
         },
         stopLogger() {
-            console.log("Logger stopped");
-
             this.$emit("logger-stopped");
 
             // Reset console methods to original
@@ -179,12 +175,9 @@ export default {
             } 
         },
         loadLogs() {
-            console.log("Logger loaded");  
-
             this.isLogsLoaderVisible = true;
         },
         clearLogger() {
-            console.log("Logger cleared");
             this.memoryData = [];
             this.consoleData = [];
             this.networkData = [];
