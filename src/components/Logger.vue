@@ -176,6 +176,8 @@ export default {
         },
         loadLogs() {
             console.log("Logger loaded");  
+
+            this.loadLoggerDataFromDB();
         },
         clearLogger() {
             console.log("Logger cleared");
@@ -515,6 +517,32 @@ export default {
                 console.error("Error saving logger data to IndexedDB:", error);
             }
         },
+        async loadLoggerDataFromDB() {
+            try {
+                const data = await logsDB.logs.get((this.classId + '_Station:' + this.stationName));
+
+                if (data && data.LoggerData) {
+                    this.consoleData = data.LoggerData.consoleData.map((entry: any) => ({
+                        ...entry,
+                        date: new Date(entry.date)
+                    }));
+                    this.memoryData = data.LoggerData.memoryData.map((entry: any) => ({
+                        ...entry,
+                        date: new Date(entry.date)
+                    }));
+                    this.networkData = data.LoggerData.networkData.map((entry: any) => ({
+                        ...entry,
+                        date: new Date(entry.date)
+                    }));
+                    this.usersInStations = data.LoggerData.usersInStations.map((entry: any) => ({
+                        ...entry,
+                        date: new Date(entry.date)
+                    }));
+                }
+            } catch (error) {
+                console.error("Error loading logger data from IndexedDB:", error);
+            }
+        }
     },
 };
 </script>
