@@ -606,17 +606,19 @@ export default {
             </v-btn>
         </div>
 
-        <v-tabs
-            align-tabs="center"
-            v-model="tab"
-            bg-color="grey-lighten-4"
-            fixed-tabs
-        >
-            <v-tab value="memory">Memory Usage</v-tab>
-            <v-tab value="network">Network Data</v-tab>
-            <v-tab value="console">Console Logs</v-tab>
-            <v-tab value="station">Station Data</v-tab>
-        </v-tabs>
+        <div class="tabs-container">
+            <v-tabs
+                align-tabs="center"
+                v-model="tab"
+                bg-color="grey-lighten-4"
+                fixed-tabs
+            >
+                <v-tab value="memory">Memory Usage</v-tab>
+                <v-tab value="network">Network Data</v-tab>
+                <v-tab value="console">Console Logs</v-tab>
+                <v-tab value="station">Station Data</v-tab>
+            </v-tabs>
+        </div>
 
         <v-card-text>
             <v-tabs-window v-model="tab">
@@ -818,11 +820,15 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 20px 0;
+    margin: 10px 0;
 }
 
 .btns-container > * {
     margin: 0 10px;
+}
+
+.tabs-container {
+    margin-bottom: 5px;
 }
 
 #log-date #log-title {
