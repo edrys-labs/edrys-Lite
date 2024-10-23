@@ -75,8 +75,8 @@ export default {
             tab: 'memory',
 
             isChartOpen: false,
-
             isClosingDialogVisible: false,
+            isLogsLoaderVisible: false,
 
             monitorMemory: false,
             monitorNetwork: false,
@@ -89,6 +89,9 @@ export default {
                 "Click Start to monitor console logs, or load existing logs.",
                 "Click Start to monitor users in stations activity.",
             ],
+
+            classIdInput: "",
+            stationNameInput: "",
         };
     },
 
@@ -177,7 +180,7 @@ export default {
         loadLogs() {
             console.log("Logger loaded");  
 
-            this.loadLoggerDataFromDB();
+            this.isLogsLoaderVisible = true;
         },
         clearLogger() {
             console.log("Logger cleared");
@@ -517,9 +520,9 @@ export default {
                 console.error("Error saving logger data to IndexedDB:", error);
             }
         },
-        async loadLoggerDataFromDB() {
+        async loadLoggerDataFromDB(classroomId: string, stationName: string) {
             try {
-                const data = await logsDB.logs.get((this.classId + '_Station:' + this.stationName));
+                const data = await logsDB.logs.get((classroomId + '_Station:' + stationName));
 
                 if (data && data.LoggerData) {
                     this.consoleData = data.LoggerData.consoleData.map((entry: any) => ({
@@ -762,6 +765,46 @@ export default {
                         Close
                     </v-btn>
                 </v-card-actions>
+            </v-card>
+        </v-dialog>
+
+        <v-dialog
+            v-model="isLogsLoaderVisible"
+            max-width="600"
+            persistent
+        >
+            <v-card>
+                <v-form>
+                    <v-card-title>Load Logs from IndexedDB</v-card-title>
+                    <v-card-text>
+                        <v-text-field
+                            v-model="classIdInput"
+                            label="Classroom ID"
+                            outlined
+                        ></v-text-field>
+                        <v-text-field
+                            v-model="stationNameInput"
+                            label="Station Name"
+                            outlined
+                        ></v-text-field>
+                    </v-card-text>
+                    <v-card-actions>
+                        <v-btn
+                            variant="outlined"
+                            color="grey-darken-4"
+                            @click="isLogsLoaderVisible = false"
+                        >
+                            Cancel
+                        </v-btn>
+                        <v-btn
+                            variant="flat"
+                            color="grey-darken-4"
+                            @click="loadLoggerDataFromDB(classIdInput, stationNameInput); isLogsLoaderVisible = false;"
+                        >
+                            Load
+                        </v-btn>
+                    </v-card-actions>
+                </v-form>
             </v-card>
         </v-dialog>
     </v-card>
