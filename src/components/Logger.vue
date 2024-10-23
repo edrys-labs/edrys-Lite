@@ -92,6 +92,7 @@ export default {
 
             classIdInput: "",
             stationNameInput: "",
+            isLogsLoaderError: false,
         };
     },
 
@@ -525,6 +526,9 @@ export default {
                 const data = await logsDB.logs.get((classroomId + '_Station:' + stationName));
 
                 if (data && data.LoggerData) {
+                    this.isLogsLoaderError = false;
+                    this.isLogsLoaderVisible = false;
+
                     this.consoleData = data.LoggerData.consoleData.map((entry: any) => ({
                         ...entry,
                         date: new Date(entry.date)
@@ -541,6 +545,8 @@ export default {
                         ...entry,
                         date: new Date(entry.date)
                     }));
+                } else {
+                    this.isLogsLoaderError = true;
                 }
             } catch (error) {
                 console.error("Error loading logger data from IndexedDB:", error);
@@ -770,12 +776,14 @@ export default {
 
         <v-dialog
             v-model="isLogsLoaderVisible"
-            max-width="600"
+            max-width="450"
             persistent
         >
             <v-card>
-                <v-form>
-                    <v-card-title>Load Logs from IndexedDB</v-card-title>
+                <v-form @submit.prevent>
+                    <v-toolbar dark flat>
+                        <v-toolbar-title>Load Logs from IndexedDB</v-toolbar-title>
+                    </v-toolbar>
                     <v-card-text>
                         <v-text-field
                             v-model="classIdInput"
@@ -788,6 +796,8 @@ export default {
                             outlined
                         ></v-text-field>
                     </v-card-text>
+                    <p id="loader_error">{{ this.isLogsLoaderError ? 'No logs found for the specified Classroom ID and Station Name!!' : '' }}</p>
+                    <v-divider></v-divider>
                     <v-card-actions>
                         <v-btn
                             variant="outlined"
@@ -799,7 +809,7 @@ export default {
                         <v-btn
                             variant="flat"
                             color="grey-darken-4"
-                            @click="loadLoggerDataFromDB(classIdInput, stationNameInput); isLogsLoaderVisible = false;"
+                            @click="loadLoggerDataFromDB(classIdInput, stationNameInput)"
                         >
                             Load
                         </v-btn>
@@ -838,6 +848,12 @@ export default {
     width: 100%;
     height: 400px;
     background-color: #fff;
+}
+
+#loader_error {
+    color: red;
+    font-size: .9rem;
+    text-align: center
 }
 
 @keyframes blink {
