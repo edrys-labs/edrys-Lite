@@ -39,7 +39,7 @@
     "prismjs": "^1.29.0",
     "secure-ls": "^1.2.6",
     "trystero": "^0.20.0",
-    "y-trystero": "github:andre-dietrich/y-trystero"
+    "y-trystero": "github:edrys-labs/y-trystero"
   },
   "browserslist": [
     "cover 95.0%"
