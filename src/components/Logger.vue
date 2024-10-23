@@ -521,6 +521,8 @@ export default {
                 const data = await logsDB.logs.get((classroomId + '_Station:' + stationName));
 
                 if (data && data.LoggerData) {
+                    this.stopLogger();
+
                     this.isLogsLoaderError = false;
                     this.isLogsLoaderVisible = false;
 
