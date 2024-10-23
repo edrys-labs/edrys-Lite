@@ -113,6 +113,8 @@ export default {
         startLogger() {
             this.$emit("logger-started");
 
+            this.clearLogger();
+
             if (this.monitorConsole) {
                 this.loggerTabsText[2] = "Started monitoring console logs...";
                 this.overrideConsoleMethods();
@@ -522,22 +524,10 @@ export default {
                     this.isLogsLoaderError = false;
                     this.isLogsLoaderVisible = false;
 
-                    this.consoleData = data.LoggerData.consoleData.map((entry: any) => ({
-                        ...entry,
-                        date: new Date(entry.date)
-                    }));
-                    this.memoryData = data.LoggerData.memoryData.map((entry: any) => ({
-                        ...entry,
-                        date: new Date(entry.date)
-                    }));
-                    this.networkData = data.LoggerData.networkData.map((entry: any) => ({
-                        ...entry,
-                        date: new Date(entry.date)
-                    }));
-                    this.usersInStations = data.LoggerData.usersInStations.map((entry: any) => ({
-                        ...entry,
-                        date: new Date(entry.date)
-                    }));
+                    this.consoleData = data.LoggerData.consoleData;
+                    this.memoryData = data.LoggerData.memoryData;
+                    this.networkData = data.LoggerData.networkData;
+                    this.usersInStations = data.LoggerData.usersInStations;
                 } else {
                     this.isLogsLoaderError = true;
                 }
