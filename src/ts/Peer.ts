@@ -208,16 +208,26 @@ export default class Peer {
   }
 
   initUser(role: 'student' | 'teacher' | 'station') {
-    this.y.userSettings.set('displayName', getShortPeerID(this.peerID))
-    this.y.userSettings.set('room', this.isStation ? this.peerID : LOBBY)
-    this.y.userSettings.set('role', role)
-    this.y.userSettings.set('dateJoined', Date.now())
-    this.y.userSettings.set('timestamp', Date.now())
-    this.y.userSettings.set('selfId', selfId)
-    this.y.userSettings.set('handRaised', false)
-    this.y.userSettings.set('connections', [{ id: '', target: {} }])
+    const addMyselfAsUser = () => {
+      try {
+        this.y.doc.transact(() => {
+          this.y.userSettings.set('displayName', getShortPeerID(this.peerID))
+          this.y.userSettings.set('room', this.isStation ? this.peerID : LOBBY)
+          this.y.userSettings.set('role', role)
+          this.y.userSettings.set('dateJoined', Date.now())
+          this.y.userSettings.set('timestamp', Date.now())
+          this.y.userSettings.set('selfId', selfId)
+          this.y.userSettings.set('handRaised', false)
+          this.y.userSettings.set('connections', [{ id: '', target: {} }])
 
-    this.y.users.set(this.peerID, this.y.userSettings)
+          this.y.users.set(this.peerID, this.y.userSettings)
+        })
+      } catch (e) {
+        LOG('Adding myself as user to group failed', e.message)
+      }
+    }
+
+    addMyselfAsUser()
 
     this.y.users.observeDeep((events) => {
       const allEventsHaveOnlyTimestamp = events.every((event) => {
@@ -229,6 +239,12 @@ export default class Peer {
       })
 
       if (!allEventsHaveOnlyTimestamp) {
+        // check if I have not been deleted
+        if (!this.y.users.has(this.peerID)) {
+          LOG('re-adding myself as user', this.y.doc)
+          addMyselfAsUser()
+        }
+
         this.update('room')
       }
     })
@@ -242,6 +258,7 @@ export default class Peer {
         this.addRoom(LOBBY)
 
         const defaultRooms = this.lab.data.meta.defaultNumberOfRooms
+
         if (defaultRooms) {
           for (let i = 1; i <= defaultRooms; i++) {
             this.addRoom('Room ' + i)
@@ -412,7 +429,7 @@ export default class Peer {
       }
 
       this.y.rooms.set(name, room)
-    } else {
+    } else if (!name) {
       const roomIDs: number[] = Object.keys(this.y.rooms.toJSON())
         .filter((e) => e.match(/Room/))
         .map((e) => e.split(' ')[1])
