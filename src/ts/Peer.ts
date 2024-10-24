@@ -208,26 +208,18 @@ export default class Peer {
   }
 
   initUser(role: 'student' | 'teacher' | 'station') {
-    const addMyselfAsUser = () => {
-      try {
-        this.y.doc.transact(() => {
-          this.y.userSettings.set('displayName', getShortPeerID(this.peerID))
-          this.y.userSettings.set('room', this.isStation ? this.peerID : LOBBY)
-          this.y.userSettings.set('role', role)
-          this.y.userSettings.set('dateJoined', Date.now())
-          this.y.userSettings.set('timestamp', Date.now())
-          this.y.userSettings.set('selfId', selfId)
-          this.y.userSettings.set('handRaised', false)
-          this.y.userSettings.set('connections', [{ id: '', target: {} }])
+    this.y.doc.transact(() => {
+      this.y.userSettings.set('displayName', getShortPeerID(this.peerID))
+      this.y.userSettings.set('room', this.isStation ? this.peerID : LOBBY)
+      this.y.userSettings.set('role', role)
+      this.y.userSettings.set('dateJoined', Date.now())
+      this.y.userSettings.set('timestamp', Date.now())
+      this.y.userSettings.set('selfId', selfId)
+      this.y.userSettings.set('handRaised', false)
+      this.y.userSettings.set('connections', [{ id: '', target: {} }])
 
-          this.y.users.set(this.peerID, this.y.userSettings)
-        })
-      } catch (e) {
-        LOG('Adding myself as user to group failed', e.message)
-      }
-    }
-
-    addMyselfAsUser()
+      this.y.users.set(this.peerID, this.y.userSettings)
+    })
 
     this.y.users.observeDeep((events) => {
       const allEventsHaveOnlyTimestamp = events.every((event) => {
@@ -239,16 +231,7 @@ export default class Peer {
       })
 
       if (!allEventsHaveOnlyTimestamp) {
-        // check if I have not been deleted
-        if (!this.y.users.has(this.peerID)) {
-          setTimeout(() => {
-            LOG('re-adding myself as user', this.y.doc)
-            addMyselfAsUser()
-            this.update('room')
-          }, 500)
-        } else {
-          this.update('room')
-        }
+        this.update('room')
       }
     })
   }
@@ -476,6 +459,23 @@ export default class Peer {
   }
 
   toJSON() {
+    // check if station and add station room exist
+    if (this.isStation && !this.y.rooms.has(this.peerID)) {
+      this.addRoom(this.peerID)
+
+      this.y.userSettings.set('room', this.peerID)
+      this.y.userSettings.set('displayName', getShortPeerID(this.peerID))
+      this.y.userSettings.set('room', this.peerID)
+      this.y.userSettings.set('role', 'station')
+      this.y.userSettings.set('dateJoined', Date.now())
+      this.y.userSettings.set('timestamp', Date.now())
+      this.y.userSettings.set('selfId', selfId)
+      this.y.userSettings.set('handRaised', false)
+      this.y.userSettings.set('connections', [{ id: '', target: {} }])
+
+      this.y.users.set(this.peerID, this.y.userSettings)
+    }
+
     return {
       rooms: this.y.rooms.toJSON(),
       users: this.y.users.toJSON(),
@@ -485,6 +485,7 @@ export default class Peer {
   setStationName(newName: string) {
     this.y.doc.transact(() => {
       newName = 'Station ' + newName
+      this.peerID = newName
       const oldName = this.y.userSettings.get('room')
 
       this.y.userSettings.set('displayName', newName)
