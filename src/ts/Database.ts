@@ -40,7 +40,7 @@ export class Database {
 
         // Disable indexedDB for others
         // @ts-ignore
-        window.indexedDB.open = open
+        //window.indexedDB.open = open
         // @ts-ignore
         window.indexedDB.deleteDatabase = deleteDatabase
       })
