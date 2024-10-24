@@ -555,7 +555,7 @@ export default {
             <v-menu :close-on-content-click="false">
                 <template v-slot:activator="{ props }">
                     <v-btn icon v-bind="props">
-                        <v-icon>mdi-dots-vertical</v-icon>
+                        <v-icon>mdi-format-list-checkbox</v-icon>
                     </v-btn>
                 </template>
 
