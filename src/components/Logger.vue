@@ -70,8 +70,6 @@ export default {
             originalWebSocket: window.WebSocket,
             resourceObserver: null as MutationObserver | null,
 
-            isMonitoringUsers: false,
-
             tab: 'memory',
 
             isChartOpen: false,
@@ -130,7 +128,7 @@ export default {
 
             if (this.monitorUsers) {
                 this.loggerTabsText[3] = "Started monitoring users in stations...";
-                this.isMonitoringUsers = true;
+                this.monitorUsers = true;
             }
 
             if (this.monitorMemory && this.intervalId === null) { 
@@ -165,7 +163,7 @@ export default {
                 this.loggerTabsText[1] = "Stopped monitoring network data.";
             }
 
-            this.isMonitoringUsers = false;
+            this.monitorUsers = false;
             this.loggerTabsText[3] = "Stopped monitoring users in stations.";
 
             // Stop memory monitoring
@@ -394,7 +392,7 @@ export default {
             }
         },
         monitorUsersInStations() {
-            if (this.isMonitoringUsers) {
+            if (this.monitorUsers) {
                 for (const key in this.liveClassProxy.users) {
                     const userRoom = this.liveClassProxy.users[key].room;
                     const userRole = this.liveClassProxy.users[key].role; // to exclude stations
