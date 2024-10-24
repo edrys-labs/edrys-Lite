@@ -206,8 +206,12 @@ export default {
                 });
 
                 this.saveLoggerDataToDB();
-            } else
+            } else {
                 console.warn("Performance memory API is not supported in this browser.");
+                this.loggerTabsText[0] = "Performance memory API is not supported in this browser.";
+                clearInterval(this.intervalId);
+                this.intervalId = null;
+            }
         },
         overrideConsoleMethods() {
             const methodsToOverride = ["log", "warn", "error"];
