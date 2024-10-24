@@ -787,6 +787,7 @@ export default {
                     </v-card-text>
                     <p id="loader_error">{{ this.isLogsLoaderError ? 'No logs found for the specified Classroom ID and Station Name!!' : '' }}</p>
                     <v-divider></v-divider>
+                </v-form>
                     <v-card-actions>
                         <v-btn
                             variant="outlined"
@@ -803,7 +804,6 @@ export default {
                             Load
                         </v-btn>
                     </v-card-actions>
-                </v-form>
             </v-card>
         </v-dialog>
     </v-card>
