@@ -241,11 +241,14 @@ export default class Peer {
       if (!allEventsHaveOnlyTimestamp) {
         // check if I have not been deleted
         if (!this.y.users.has(this.peerID)) {
-          LOG('re-adding myself as user', this.y.doc)
-          addMyselfAsUser()
+          setTimeout(() => {
+            LOG('re-adding myself as user', this.y.doc)
+            addMyselfAsUser()
+            this.update('room')
+          }, 500)
+        } else {
+          this.update('room')
         }
-
-        this.update('room')
       }
     })
   }
