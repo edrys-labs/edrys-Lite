@@ -302,7 +302,7 @@ export default {
       }
 
       sessionStorage.setItem(`station_${this.id}`, this.stationNameInput);
-      this.communication?.setStationName(this.stationNameInput);
+      window.location.reload();
     },
     isNameTaken(name: string) {
       if (!this.liveClassProxy) return false;
