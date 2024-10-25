@@ -105,28 +105,6 @@ export default class Peer {
 
         this.initPubSub()
 
-        if (heartbeatID) {
-          clearInterval(heartbeatID)
-        }
-
-        heartbeatID = setInterval(() => {
-          const timeNow = Date.now()
-          this.user().set('timestamp', timeNow)
-
-          const users = this.y.users.toJSON()
-
-          let ids: string[] = []
-          for (const id in users) {
-            if (users[id].timestamp < timeNow - 5000) {
-              ids.push(users[id].selfId)
-            }
-          }
-
-          if (ids.length > 0) {
-            this.removePeers(ids)
-          }
-        }, 1000)
-
         this.rx((msg: any, peerId: string) => {
           this.update('message', msg)
         })
@@ -220,19 +198,43 @@ export default class Peer {
   ) {
     this.role = role
 
-    this.y.doc.transact(() => {
-      const userSettings = new Y.Map()
-      userSettings.set('displayName', getShortPeerID(this.peerID))
-      userSettings.set('room', this.isStation() ? this.peerID : LOBBY)
-      userSettings.set('role', this.role)
-      userSettings.set('dateJoined', Date.now())
-      userSettings.set('timestamp', Date.now())
-      userSettings.set('selfId', selfId)
-      userSettings.set('handRaised', false)
-      userSettings.set('connections', [{ id: '', target: {} }])
+    if (heartbeatID) {
+      clearInterval(heartbeatID)
+      heartbeatID = null
+    }
 
-      this.y.users.set(this.peerID, userSettings)
-    })
+    const userSettings = new Y.Map()
+    userSettings.set('displayName', getShortPeerID(this.peerID))
+    userSettings.set('room', this.isStation() ? this.peerID : LOBBY)
+    userSettings.set('role', this.role)
+    userSettings.set('dateJoined', Date.now())
+    userSettings.set('timestamp', Date.now())
+    userSettings.set('selfId', selfId)
+    userSettings.set('handRaised', false)
+    userSettings.set('connections', [{ id: '', target: {} }])
+    this.y.users.set(this.peerID, userSettings)
+
+    heartbeatID = setInterval(() => {
+      if (this.y.users.has(this.peerID)) {
+        const timeNow = Date.now()
+        this.user().set('timestamp', timeNow)
+
+        const users = this.y.users.toJSON()
+
+        let ids: string[] = []
+        for (const id in users) {
+          if (users[id].timestamp < timeNow - 5000) {
+            ids.push(users[id].selfId)
+          }
+        }
+
+        if (ids.length > 0) {
+          this.removePeers(ids)
+        }
+      } else {
+        LOG('user not found', this.peerID)
+      }
+    }, 1000)
 
     if (withObserver) {
       this.y.users.observeDeep((events) => {
@@ -318,7 +320,7 @@ export default class Peer {
     }
   }
 
-  update(
+  async update(
     event: 'setup' | 'room' | 'message' | 'connected' | 'chat',
     message?: any
   ) {
@@ -345,7 +347,7 @@ export default class Peer {
         //this.peerUpdate()
 
         if (callback) {
-          callback(this.toJSON())
+          callback(await this.toJSON())
           this.callbackUpdate[event] = false
         } else {
           this.callbackUpdate[event] = true
@@ -464,28 +466,55 @@ export default class Peer {
     ])
   }
 
-  join(role: 'student' | 'teacher' | 'station') {
+  async join(role: 'student' | 'teacher' | 'station') {
     this.initUser(role)
     this.initRooms()
     this.initChat()
     //this.peerUpdate()
 
-    return this.toJSON()
+    return await this.toJSON()
   }
 
-  toJSON() {
+  async toJSON() {
     // check if station and add station room exist
     if (this.isStation() && !this.y.rooms.has(this.peerID)) {
       this.addRoom(this.peerID)
     }
 
     if (!this.y.users.has(this.peerID)) {
-      this.initUser(this.role, false)
+      await this.awaitTransact(() => {
+        this.initUser(this.role, false)
+      })
     }
 
     return {
       rooms: this.y.rooms.toJSON(),
       users: this.y.users.toJSON(),
     }
+  }
+
+  awaitTransact(transactFn) {
+    return new Promise((resolve) => {
+      // We'll use this to track when the transaction is done
+      let isTransactionDone = false
+
+      const observer = () => {
+        if (isTransactionDone) {
+          this.y.doc.off('afterTransaction', observer)
+          resolve()
+        }
+      }
+
+      this.y.doc.on('afterTransaction', observer)
+
+      this.y.doc.transact(() => {
+        try {
+          transactFn()
+        } catch (e) {
+          console.error('Error in transaction', e)
+        }
+        isTransactionDone = true
+      })
+    })
   }
 }

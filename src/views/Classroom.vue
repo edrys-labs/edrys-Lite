@@ -220,7 +220,7 @@ export default {
         }
       });
 
-      self.liveClassProxy = this.communication.join(this.getRole());
+      self.liveClassProxy = await this.communication.join(this.getRole());
 
       this.communication.on("connected", (state: boolean) => {
         self.states.connectedToNetwork = state;
