@@ -280,7 +280,7 @@ export default class Peer {
 
         if (change?.action === 'delete') {
           // if my room is deleted, move to lobby
-          if (this.user().get('room') === key) {
+          if (this.user() && this.user().get('room') === key) {
             this.user().set('room', LOBBY)
           }
         }
