@@ -73,7 +73,7 @@ export default {
         return date.toLocaleString();
       } catch (e) {}
 
-      return timestamp;
+      return timestamp.toString();
     },
   },
 };
@@ -97,7 +97,7 @@ export default {
         </v-col>
         <v-col
           v-for="msg in history"
-          :key="msg.id"
+          :key="msg.timestamp"
           cols="12"
           style="padding: 5px 0.5rem 5px 0.5rem"
         >
@@ -109,7 +109,7 @@ export default {
                 class="text-end text-decoration-overline"
                 style="font-size: 10px; color: gray; margin-top: -10px"
               >
-                {{ toDate(msg.id) }} / {{ msg.user }}
+                {{ toDate(msg.timestamp) }} / {{ msg.user }}
               </p>
             </v-card-text>
           </v-card>

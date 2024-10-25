@@ -36,7 +36,7 @@ export default {
 
     let stationName: string | null = "";
     let peerID = getPeerID(true);
-    
+
     if (this.station) {
       stationName = sessionStorage.getItem(`station_${this.id}`);
 
@@ -116,12 +116,14 @@ export default {
         this.configuration = null;
       }
 
-      this.communication = new Peer(
-        this.configuration
-          ? this.configuration
-          : { id: this.id, data: null, timestamp: 0, hash: this.hash },
-        this.stationName
-      );
+      if (!this.communication) {
+        this.communication = new Peer(
+          this.configuration
+            ? this.configuration
+            : { id: this.id, data: null, timestamp: 0, hash: this.hash },
+          this.stationName
+        );
+      }
 
       const self = this;
 
@@ -218,7 +220,7 @@ export default {
         }
       });
 
-      self.liveClassProxy = this.communication.join(this.getRole());
+      self.liveClassProxy = await this.communication.join(this.getRole());
 
       this.communication.on("connected", (state: boolean) => {
         self.states.connectedToNetwork = state;
@@ -292,17 +294,18 @@ export default {
     },
 
     setStationName() {
-      const isValid = this.stationNameRules.every((rule) => rule(this.stationNameInput) === true);
-
+      const isValid = this.stationNameRules.every(
+        (rule) => rule(this.stationNameInput) === true
+      );
       if (!isValid) {
-        return;  // If validation fails, do not submit
+        return; // If validation fails, do not submit
       }
-      
+
       sessionStorage.setItem(`station_${this.id}`, this.stationNameInput);
       window.location.reload();
     },
-
     isNameTaken(name: string) {
+      if (!this.liveClassProxy) return false;
       return Object.keys(this.liveClassProxy.rooms).includes("Station " + name);
     },
   },

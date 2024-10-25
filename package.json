@@ -5,8 +5,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "sw": "npx workbox injectManifest workbox-config.js",
-    "build": "rm -rf .parcel-cache && rm -rf dist && npx parcel build src/index.html --log-level verbose --no-source-maps --public-url ./",
+    "build": "rm -rf .parcel-cache && rm -rf dist && npx parcel build src/index.html --log-level verbose  --no-scope-hoist --public-url ./",
     "watch": "rm -rf dist && npx parcel serve src/*.html --no-cache --no-source-maps --open --port 6999",
+    "prepare": "cd node_modules/y-trystero && npm install && npm run build && cd ../..",
     "minify:js": "find dist -name \"*.js\" -print0 | xargs -0 -P 4 -I {} sh -c 'before=$(wc -c < {}); minify {} > {}.min && after=$(wc -c < {}.min); if [ ${after} -lt ${before} ]; then mv {}.min {}; reduction=$((${before}-${after})); percent=$(awk \"BEGIN {printf \\\"%.2f\\\", ${reduction}/${before}*100}\"); echo \"{} reduced from ${before} to ${after} bytes (${percent}% reduction)\"; else rm {}.min; echo \"{} no reduction achieved, file size unchanged\"; fi'"
   },
   "author": "André Dietrich",
@@ -24,21 +25,26 @@
     "js-yaml": "^4.1.0",
     "markdown-it": "^14.0.0",
     "object-hash": "^3.0.0",
-    "p2pt": "^1.5.1",
     "parcel": "^2.9.3",
     "parcel-reporter-static-files-copy": "^1.5.3",
     "process": "^0.11.10",
     "vue-prism-editor": "^2.0.0-alpha.2",
     "vuedraggable": "^4.1.0",
-    "vuetify": "^3.3.16"
+    "vuetify": "^3.3.16",
+    "yjs": "^13.6.20"
   },
   "dependencies": {
     "material-design-icons-iconfont": "^6.7.0",
     "muuri": "^0.9.5",
     "prismjs": "^1.29.0",
-    "secure-ls": "^1.2.6"
+    "secure-ls": "^1.2.6",
+    "trystero": "^0.20.0",
+    "y-trystero": "github:edrys-labs/y-trystero"
   },
   "browserslist": [
     "cover 95.0%"
-  ]
+  ],
+  "alias": {
+    "yjs": "./node_modules/yjs/dist/yjs.mjs"
+  }
 }
