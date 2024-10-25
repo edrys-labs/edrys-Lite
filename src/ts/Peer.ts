@@ -38,9 +38,9 @@ export default class Peer {
     rooms: Y.Map<any>
     users: Y.Map<any>
     setup: Y.Map<any>
-    userSettings: Y.Map<any>
   }
-  private isStation: boolean = false
+
+  private role: 'student' | 'teacher' | 'station' = 'student'
 
   private lab: {
     id: string
@@ -69,14 +69,13 @@ export default class Peer {
       users: doc.getMap('users'),
       rooms: doc.getMap('rooms'),
       chat: doc.getArray('chat'),
-      userSettings: new Y.Map(),
     }
 
     this.lab = setup
 
     this.peerID = getPeerID()
     if (stationID) {
-      this.isStation = true
+      this.role = 'station'
       this.peerID = STATION + ' ' + stationID
     }
 
@@ -112,7 +111,7 @@ export default class Peer {
 
         heartbeatID = setInterval(() => {
           const timeNow = Date.now()
-          this.y.userSettings.set('timestamp', timeNow)
+          this.user().set('timestamp', timeNow)
 
           const users = this.y.users.toJSON()
 
@@ -147,6 +146,14 @@ export default class Peer {
     this.provider.on('synced', (event) => {
       LOG('synced', event)
     })
+  }
+
+  user() {
+    return this.y.users.get(this.peerID)
+  }
+
+  isStation() {
+    return this.role === 'station'
   }
 
   removePeers(selfIds: string[]) {
@@ -207,33 +214,41 @@ export default class Peer {
     // equal setups will be ignored
   }
 
-  initUser(role: 'student' | 'teacher' | 'station') {
+  initUser(
+    role: 'student' | 'teacher' | 'station',
+    withObserver: boolean = true
+  ) {
+    this.role = role
+
     this.y.doc.transact(() => {
-      this.y.userSettings.set('displayName', getShortPeerID(this.peerID))
-      this.y.userSettings.set('room', this.isStation ? this.peerID : LOBBY)
-      this.y.userSettings.set('role', role)
-      this.y.userSettings.set('dateJoined', Date.now())
-      this.y.userSettings.set('timestamp', Date.now())
-      this.y.userSettings.set('selfId', selfId)
-      this.y.userSettings.set('handRaised', false)
-      this.y.userSettings.set('connections', [{ id: '', target: {} }])
+      const userSettings = new Y.Map()
+      userSettings.set('displayName', getShortPeerID(this.peerID))
+      userSettings.set('room', this.isStation() ? this.peerID : LOBBY)
+      userSettings.set('role', this.role)
+      userSettings.set('dateJoined', Date.now())
+      userSettings.set('timestamp', Date.now())
+      userSettings.set('selfId', selfId)
+      userSettings.set('handRaised', false)
+      userSettings.set('connections', [{ id: '', target: {} }])
 
-      this.y.users.set(this.peerID, this.y.userSettings)
+      this.y.users.set(this.peerID, userSettings)
     })
 
-    this.y.users.observeDeep((events) => {
-      const allEventsHaveOnlyTimestamp = events.every((event) => {
-        return (
-          event.changes.keys &&
-          event.changes.keys.size === 1 &&
-          event.changes.keys.has('timestamp')
-        )
+    if (withObserver) {
+      this.y.users.observeDeep((events) => {
+        const allEventsHaveOnlyTimestamp = events.every((event) => {
+          return (
+            event.changes.keys &&
+            event.changes.keys.size === 1 &&
+            event.changes.keys.has('timestamp')
+          )
+        })
+
+        if (!allEventsHaveOnlyTimestamp) {
+          this.update('room')
+        }
       })
-
-      if (!allEventsHaveOnlyTimestamp) {
-        this.update('room')
-      }
-    })
+    }
   }
 
   initRooms() {
@@ -251,7 +266,7 @@ export default class Peer {
           }
         }
       }
-      if (this.isStation) {
+      if (this.isStation()) {
         console.log('adding station room', this.peerID)
         this.addRoom(this.peerID)
       }
@@ -263,8 +278,8 @@ export default class Peer {
 
         if (change?.action === 'delete') {
           // if my room is deleted, move to lobby
-          if (this.y.userSettings.get('room') === key) {
-            this.y.userSettings.set('room', LOBBY)
+          if (this.user().get('room') === key) {
+            this.user().set('room', LOBBY)
           }
         }
       })
@@ -435,8 +450,8 @@ export default class Peer {
   }
 
   gotoRoom(room: string) {
-    this.y.userSettings.set('room', room)
-    this.y.userSettings.set('timestamp', Date.now())
+    this.user().set('room', room)
+    this.user().set('timestamp', Date.now())
   }
 
   sendMessage(message: string) {
@@ -460,20 +475,12 @@ export default class Peer {
 
   toJSON() {
     // check if station and add station room exist
-    if (this.isStation && !this.y.rooms.has(this.peerID)) {
+    if (this.isStation() && !this.y.rooms.has(this.peerID)) {
       this.addRoom(this.peerID)
+    }
 
-      this.y.userSettings.set('room', this.peerID)
-      this.y.userSettings.set('displayName', getShortPeerID(this.peerID))
-      this.y.userSettings.set('room', this.peerID)
-      this.y.userSettings.set('role', 'station')
-      this.y.userSettings.set('dateJoined', Date.now())
-      this.y.userSettings.set('timestamp', Date.now())
-      this.y.userSettings.set('selfId', selfId)
-      this.y.userSettings.set('handRaised', false)
-      this.y.userSettings.set('connections', [{ id: '', target: {} }])
-
-      this.y.users.set(this.peerID, this.y.userSettings)
+    if (!this.y.users.has(this.peerID)) {
+      this.initUser(this.role, false)
     }
 
     return {
