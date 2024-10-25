@@ -38,9 +38,9 @@ export default class Peer {
     rooms: Y.Map<any>
     users: Y.Map<any>
     setup: Y.Map<any>
-    userSettings: Y.Map<any>
   }
-  private isStation: boolean = false
+
+  private role: 'student' | 'teacher' | 'station' = 'student'
 
   private lab: {
     id: string
@@ -69,14 +69,13 @@ export default class Peer {
       users: doc.getMap('users'),
       rooms: doc.getMap('rooms'),
       chat: doc.getArray('chat'),
-      userSettings: new Y.Map(),
     }
 
     this.lab = setup
 
     this.peerID = getPeerID()
     if (stationID) {
-      this.isStation = true
+      this.role = 'station'
       this.peerID = STATION + ' ' + stationID
     }
 
@@ -106,28 +105,6 @@ export default class Peer {
 
         this.initPubSub()
 
-        if (heartbeatID) {
-          clearInterval(heartbeatID)
-        }
-
-        heartbeatID = setInterval(() => {
-          const timeNow = Date.now()
-          this.y.userSettings.set('timestamp', timeNow)
-
-          const users = this.y.users.toJSON()
-
-          let ids: string[] = []
-          for (const id in users) {
-            if (users[id].timestamp < timeNow - 5000) {
-              ids.push(users[id].selfId)
-            }
-          }
-
-          if (ids.length > 0) {
-            this.removePeers(ids)
-          }
-        }, 1000)
-
         this.rx((msg: any, peerId: string) => {
           this.update('message', msg)
         })
@@ -147,6 +124,14 @@ export default class Peer {
     this.provider.on('synced', (event) => {
       LOG('synced', event)
     })
+  }
+
+  user() {
+    return this.y.users.get(this.peerID)
+  }
+
+  isStation() {
+    return this.role === 'station'
   }
 
   removePeers(selfIds: string[]) {
@@ -207,33 +192,65 @@ export default class Peer {
     // equal setups will be ignored
   }
 
-  initUser(role: 'student' | 'teacher' | 'station') {
-    this.y.doc.transact(() => {
-      this.y.userSettings.set('displayName', getShortPeerID(this.peerID))
-      this.y.userSettings.set('room', this.isStation ? this.peerID : LOBBY)
-      this.y.userSettings.set('role', role)
-      this.y.userSettings.set('dateJoined', Date.now())
-      this.y.userSettings.set('timestamp', Date.now())
-      this.y.userSettings.set('selfId', selfId)
-      this.y.userSettings.set('handRaised', false)
-      this.y.userSettings.set('connections', [{ id: '', target: {} }])
+  initUser(
+    role: 'student' | 'teacher' | 'station',
+    withObserver: boolean = true
+  ) {
+    this.role = role
 
-      this.y.users.set(this.peerID, this.y.userSettings)
-    })
+    if (heartbeatID) {
+      clearInterval(heartbeatID)
+      heartbeatID = null
+    }
 
-    this.y.users.observeDeep((events) => {
-      const allEventsHaveOnlyTimestamp = events.every((event) => {
-        return (
-          event.changes.keys &&
-          event.changes.keys.size === 1 &&
-          event.changes.keys.has('timestamp')
-        )
-      })
+    const userSettings = new Y.Map()
+    userSettings.set('displayName', getShortPeerID(this.peerID))
+    userSettings.set('room', this.isStation() ? this.peerID : LOBBY)
+    userSettings.set('role', this.role)
+    userSettings.set('dateJoined', Date.now())
+    userSettings.set('timestamp', Date.now())
+    userSettings.set('selfId', selfId)
+    userSettings.set('handRaised', false)
+    userSettings.set('connections', [{ id: '', target: {} }])
+    this.y.users.set(this.peerID, userSettings)
 
-      if (!allEventsHaveOnlyTimestamp) {
-        this.update('room')
+    heartbeatID = setInterval(() => {
+      if (this.y.users.has(this.peerID)) {
+        const timeNow = Date.now()
+        this.user().set('timestamp', timeNow)
+
+        const users = this.y.users.toJSON()
+
+        let ids: string[] = []
+        for (const id in users) {
+          if (users[id].timestamp < timeNow - 5000) {
+            ids.push(users[id].selfId)
+          }
+        }
+
+        if (ids.length > 0) {
+          this.removePeers(ids)
+        }
+      } else {
+        LOG('user not found', this.peerID)
       }
-    })
+    }, 1000)
+
+    if (withObserver) {
+      this.y.users.observeDeep((events) => {
+        const allEventsHaveOnlyTimestamp = events.every((event) => {
+          return (
+            event.changes.keys &&
+            event.changes.keys.size === 1 &&
+            event.changes.keys.has('timestamp')
+          )
+        })
+
+        if (!allEventsHaveOnlyTimestamp) {
+          this.update('room')
+        }
+      })
+    }
   }
 
   initRooms() {
@@ -251,7 +268,7 @@ export default class Peer {
           }
         }
       }
-      if (this.isStation) {
+      if (this.isStation()) {
         console.log('adding station room', this.peerID)
         this.addRoom(this.peerID)
       }
@@ -263,8 +280,8 @@ export default class Peer {
 
         if (change?.action === 'delete') {
           // if my room is deleted, move to lobby
-          if (this.y.userSettings.get('room') === key) {
-            this.y.userSettings.set('room', LOBBY)
+          if (this.user() && this.user().get('room') === key) {
+            this.user().set('room', LOBBY)
           }
         }
       })
@@ -303,7 +320,7 @@ export default class Peer {
     }
   }
 
-  update(
+  async update(
     event: 'setup' | 'room' | 'message' | 'connected' | 'chat',
     message?: any
   ) {
@@ -330,7 +347,7 @@ export default class Peer {
         //this.peerUpdate()
 
         if (callback) {
-          callback(this.toJSON())
+          callback(await this.toJSON())
           this.callbackUpdate[event] = false
         } else {
           this.callbackUpdate[event] = true
@@ -435,8 +452,8 @@ export default class Peer {
   }
 
   gotoRoom(room: string) {
-    this.y.userSettings.set('room', room)
-    this.y.userSettings.set('timestamp', Date.now())
+    this.user().set('room', room)
+    this.user().set('timestamp', Date.now())
   }
 
   sendMessage(message: string) {
@@ -449,31 +466,25 @@ export default class Peer {
     ])
   }
 
-  join(role: 'student' | 'teacher' | 'station') {
+  async join(role: 'student' | 'teacher' | 'station') {
     this.initUser(role)
     this.initRooms()
     this.initChat()
     //this.peerUpdate()
 
-    return this.toJSON()
+    return await this.toJSON()
   }
 
-  toJSON() {
+  async toJSON() {
     // check if station and add station room exist
-    if (this.isStation && !this.y.rooms.has(this.peerID)) {
+    if (this.isStation() && !this.y.rooms.has(this.peerID)) {
       this.addRoom(this.peerID)
+    }
 
-      this.y.userSettings.set('room', this.peerID)
-      this.y.userSettings.set('displayName', getShortPeerID(this.peerID))
-      this.y.userSettings.set('room', this.peerID)
-      this.y.userSettings.set('role', 'station')
-      this.y.userSettings.set('dateJoined', Date.now())
-      this.y.userSettings.set('timestamp', Date.now())
-      this.y.userSettings.set('selfId', selfId)
-      this.y.userSettings.set('handRaised', false)
-      this.y.userSettings.set('connections', [{ id: '', target: {} }])
-
-      this.y.users.set(this.peerID, this.y.userSettings)
+    if (!this.y.users.has(this.peerID)) {
+      await this.awaitTransact(() => {
+        this.initUser(this.role, false)
+      })
     }
 
     return {
@@ -482,26 +493,28 @@ export default class Peer {
     }
   }
 
-  setStationName(newName: string) {
-    this.y.doc.transact(() => {
-      newName = 'Station ' + newName
-      this.peerID = newName
-      const oldName = this.y.userSettings.get('room')
+  awaitTransact(transactFn) {
+    return new Promise((resolve) => {
+      // We'll use this to track when the transaction is done
+      let isTransactionDone = false
 
-      this.y.userSettings.set('displayName', newName)
-      this.y.userSettings.set('room', newName)
-
-      const room = this.y.rooms.get(oldName)
-      this.y.rooms.delete(oldName)
-      this.y.rooms.set(newName, room)
-
-      const peers = this.y.users.toJSON()
-
-      for (const id in peers) {
-        if (peers[id].room === oldName) {
-          this.y.users.get(id).set('room', LOBBY)
+      const observer = () => {
+        if (isTransactionDone) {
+          this.y.doc.off('afterTransaction', observer)
+          resolve()
         }
       }
+
+      this.y.doc.on('afterTransaction', observer)
+
+      this.y.doc.transact(() => {
+        try {
+          transactFn()
+        } catch (e) {
+          console.error('Error in transaction', e)
+        }
+        isTransactionDone = true
+      })
     })
   }
 }
