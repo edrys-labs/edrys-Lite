@@ -493,7 +493,7 @@ export default class Peer {
     }
   }
 
-  awaitTransact(transactFn) {
+  awaitTransact(transactFn): Promise<void> {
     return new Promise((resolve) => {
       // We'll use this to track when the transaction is done
       let isTransactionDone = false
