@@ -72,6 +72,8 @@ export default {
 
             tab: 'memory',
 
+            isLoggerRunning: false,
+
             isChartOpen: false,
             isClosingDialogVisible: false,
             isLogsLoaderVisible: false,
@@ -108,8 +110,17 @@ export default {
     },
 
     methods: {
+        startOrStopLogger() {
+            if (this.isLoggerRunning) {
+                this.stopLogger();
+            } else {
+                this.startLogger();
+            }
+        },
         startLogger() {
             this.$emit("logger-started");
+
+            this.isLoggerRunning = true;
 
             this.clearLogger();
 
@@ -141,6 +152,8 @@ export default {
         },
         stopLogger() {
             this.$emit("logger-stopped");
+
+            this.isLoggerRunning = false;
 
             // Reset console methods to original
             this.monitorConsole = false;
@@ -583,12 +596,8 @@ export default {
         </v-toolbar>
 
         <div class="btns-container">
-            <v-btn variant="outlined" @click="startLogger">
-                Start
-            </v-btn>
-
-            <v-btn variant="outlined" @click="stopLogger">
-                Stop
+            <v-btn variant="outlined" @click="startOrStopLogger">
+                {{ isLoggerRunning ? "Stop" : "Start" }}
             </v-btn>
 
             <v-btn variant="outlined" @click="loadLogs">
