@@ -561,6 +561,15 @@ export default {
         <v-toolbar dark flat>
             <v-toolbar-title>Logger</v-toolbar-title>
 
+            <div id="recording_text_container" v-if="isLoggerRunning">
+                Recording
+                <div class="circles">
+                    <div class="circle1"></div>
+                    <div class="circle2"></div>
+                    <div class="circle3"></div>
+                </div>
+            </div>
+
             <v-spacer></v-spacer>
 
             <v-menu :close-on-content-click="false">
@@ -870,6 +879,51 @@ export default {
     50% {
         color: #E8F5E9;
         box-shadow: none;
+    }
+}
+
+#recording_text_container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #5ccc48;
+    font-weight: 600;
+}
+
+.circles {
+    width: 25px;
+    height: 25px;
+    position: relative;
+  
+    > div {
+        animation: growAndFade 1.5s infinite ease-out;
+        background-color: #5ccc48;
+        border-radius: 50%;
+        opacity: 0;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+    }
+  
+    .circle1 {
+        animation-delay: .5s;    
+    }
+    .circle2 {
+        animation-delay: 1s; 
+    }
+    .circle3 {
+        animation-delay: 1.5s;
+    }
+}
+
+@keyframes growAndFade {
+    0% {
+        opacity: 1;
+        transform: scale(0);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1);
     }
 }
 </style>
