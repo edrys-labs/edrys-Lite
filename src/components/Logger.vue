@@ -572,6 +572,10 @@ export default {
                 <template v-slot:activator="{ props }">
                     <v-btn icon v-bind="props">
                         <v-icon>mdi-format-list-checkbox</v-icon>
+                        <v-tooltip
+                            activator="parent"
+                            location="bottom"
+                        >Data Options</v-tooltip>
                     </v-btn>
                 </template>
 
@@ -591,18 +595,22 @@ export default {
                 </v-list>
             </v-menu>
 
-            <v-btn icon @click="$emit('minimize')">
-                <v-icon>mdi-minus</v-icon>
-            </v-btn>
+            <v-tooltip text="Minimize (keeps running in background)" location="bottom">
+                <template v-slot:activator="{ props }">
+                    <v-btn v-bind="props" icon="mdi-minus"  @click="$emit('minimize')"></v-btn>
+                </template>
+            </v-tooltip>
 
-            <v-btn icon @click="isClosingDialogVisible = true">
-                <v-icon>mdi-close</v-icon>
-            </v-btn>
+            <v-tooltip text="Close" location="bottom">
+                <template v-slot:activator="{ props }">
+                    <v-btn v-bind="props" icon="mdi-close"  @click="isClosingDialogVisible = true"></v-btn>
+                </template>
+            </v-tooltip>
         </v-toolbar>
 
         <div class="btns-container">
             <v-btn 
-                variant="outlined" 
+                variant="flat" 
                 @click="startOrStopLogger"
                 :style="{ backgroundColor: isLoggerRunning ? '#cd202c' : '#5ccc48' }"
             >
