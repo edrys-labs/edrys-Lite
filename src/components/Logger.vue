@@ -78,10 +78,10 @@ export default {
             isClosingDialogVisible: false,
             isLogsLoaderVisible: false,
 
-            monitorMemory: false,
-            monitorNetwork: false,
-            monitorConsole: false,
-            monitorUsers: false,
+            monitorMemory: true,
+            monitorNetwork: true,
+            monitorConsole: true,
+            monitorUsers: true,
 
             loggerTabsText: [
                 "Click Start to monitor memory usage, or load existing logs.",
@@ -156,14 +156,12 @@ export default {
             this.isLoggerRunning = false;
 
             // Reset console methods to original
-            this.monitorConsole = false;
             console.log = this.originalConsoleLog;
             console.warn = this.originalConsoleWarn;
             console.error = this.originalConsoleError;
             this.loggerTabsText[2] = "Stopped monitoring console logs.";
 
             // Reset fetch, XHR, and WebSocket to original 
-            this.monitorNetwork = false;
             window.fetch = this.originalFetch;
             window.XMLHttpRequest.prototype.open = this.originalXHR;
             window.WebSocket = this.originalWebSocket;
@@ -176,12 +174,10 @@ export default {
                 this.loggerTabsText[1] = "Stopped monitoring network data.";
             }
 
-            this.monitorUsers = false;
             this.loggerTabsText[3] = "Stopped monitoring users in stations.";
 
             // Stop memory monitoring
             if (this.intervalId !== null) { 
-                this.monitorMemory = false;
                 clearInterval(this.intervalId);
                 this.intervalId = null; 
                 this.loggerTabsText[0] = "Stopped monitoring memory usage.";
@@ -629,16 +625,16 @@ export default {
                 bg-color="grey-lighten-4"
                 fixed-tabs
             >
-                <v-tab value="memory">Memory Usage</v-tab>
-                <v-tab value="network">Network Data</v-tab>
-                <v-tab value="console">Console Logs</v-tab>
-                <v-tab value="station">Station Data</v-tab>
+                <v-tab value="memory" v-if="monitorMemory">Memory Usage</v-tab>
+                <v-tab value="network" v-if="monitorNetwork">Network Data</v-tab>
+                <v-tab value="console" v-if="monitorConsole">Console Logs</v-tab>
+                <v-tab value="station" v-if="monitorUsers">Station Data</v-tab>
             </v-tabs>
         </div>
 
         <v-card-text>
             <v-tabs-window v-model="tab">
-                <v-tabs-window-item value="memory">
+                <v-tabs-window-item value="memory" v-if="monitorMemory">
                     <div v-if="memoryData.length">
                         <div class="btns-container">
                             <v-btn variant="tonal" @click="openChartDialog">Generate Chart</v-btn>
@@ -661,7 +657,7 @@ export default {
                     </div>
                 </v-tabs-window-item>
 
-                <v-tabs-window-item value="network">
+                <v-tabs-window-item value="network" v-if="monitorNetwork">
                     <div v-if="networkData.length">
                         <div 
                             v-for="(data, index) in networkData" 
@@ -697,7 +693,7 @@ export default {
                     </div>
                 </v-tabs-window-item>
 
-                <v-tabs-window-item value="console">
+                <v-tabs-window-item value="console" v-if="monitorConsole">
                     <div v-if="consoleData.length">
                         <div 
                             v-for="(data, index) in consoleData" 
@@ -718,7 +714,7 @@ export default {
                     </div>
                 </v-tabs-window-item>
 
-                <v-tabs-window-item value="station">
+                <v-tabs-window-item value="station" v-if="monitorUsers">
                     <div v-if="usersInStations.length">
                         <div 
                             v-for="(data, index) in usersInStations" 
@@ -877,8 +873,8 @@ export default {
 
 @keyframes blink {
     0%, 100% {
-        color:#74ff5a;
-        box-shadow: 1px 1px 0 0 #74ff5a, 0 1px 1px 0 #74ff5a, -1px 1px 0 0 #74ff5a, 0 -1px 1px 0 #74ff5a;
+        color:#5ccc48;
+        box-shadow: 1px 1px 0 0 #5ccc48, 0 1px 1px 0 #5ccc48, -1px 1px 0 0 #5ccc48, 0 -1px 1px 0 #5ccc48;
     }
     50% {
         color: #E8F5E9;
