@@ -605,7 +605,11 @@ export default {
         </v-toolbar>
 
         <div class="btns-container">
-            <v-btn variant="outlined" @click="startOrStopLogger">
+            <v-btn 
+                variant="outlined" 
+                @click="startOrStopLogger"
+                :style="{ backgroundColor: isLoggerRunning ? '#cd202c' : '#5ccc48' }"
+            >
                 {{ isLoggerRunning ? "Stop" : "Start" }}
             </v-btn>
 
