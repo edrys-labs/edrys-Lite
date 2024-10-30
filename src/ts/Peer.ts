@@ -117,12 +117,11 @@ export default class Peer {
           }
         })
       }
-
-      this.update('connected')
     })
 
     this.provider.on('synced', (event) => {
       LOG('synced', event)
+      this.update('connected')
     })
   }
 
@@ -269,12 +268,17 @@ export default class Peer {
         }
       }
       if (this.isStation()) {
-        console.log('adding station room', this.peerID)
         this.addRoom(this.peerID)
       }
     })
 
+    this.y.rooms.observeDeep((events) => {
+      console.warn('rooms changed', events)
+      this.update('room')
+    })
+
     this.y.rooms.observe((events) => {
+      console.log('rooms changed', events.keysChanged)
       events.keysChanged.forEach((key) => {
         const change = events.changes.keys.get(key)
 
@@ -425,10 +429,7 @@ export default class Peer {
 
   addRoom(name?: string) {
     if (name && !this.y.rooms.has(name)) {
-      const room = new Y.Doc()
-
-      room.getMap('meta').set('data', Math.random())
-
+      const room = new Y.Map()
       this.y.rooms.set(name, room)
     } else if (!name) {
       const roomIDs: number[] = Object.keys(this.y.rooms.toJSON())
@@ -464,6 +465,18 @@ export default class Peer {
     ])
   }
 
+  updateState(data: string) {
+    const decodedUint8Array = Uint8Array.from(atob(data), (c) =>
+      c.charCodeAt(0)
+    )
+    this.y.doc.transact(
+      () => {
+        Y.applyUpdate(this.y.doc, decodedUint8Array)
+      },
+      { transactionId: 'intern' }
+    )
+  }
+
   async join(role: 'student' | 'teacher' | 'station') {
     this.initUser(role)
     this.initRooms()
@@ -488,6 +501,7 @@ export default class Peer {
     return {
       rooms: this.y.rooms.toJSON(),
       users: this.y.users.toJSON(),
+      doc: this.y.doc,
     }
   }
 

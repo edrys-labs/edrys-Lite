@@ -16,6 +16,8 @@
 
 import * as Y from 'yjs'
 
+const EXTERN = 'extern'
+
 window['Edrys'] = {
   origin: '*',
   ready: false,
@@ -26,6 +28,7 @@ window['Edrys'] = {
   liveUser: undefined,
   module: undefined,
   class_id: undefined,
+  doc: undefined,
   onReady(handler) {
     if (window['Edrys'].ready) handler(window['Edrys'])
     else
@@ -68,6 +71,59 @@ window['Edrys'] = {
       `${window['Edrys'].class_id}.${window['Edrys'].liveUser.room}.${key}`
     )
   },
+
+  getSharedState() {
+    return window['Edrys'].doc
+      .getMap('rooms')
+      .get(window['Edrys'].liveUser.room)
+  },
+
+  addSharedState(
+    key: string,
+    type:
+      | 'Map'
+      | 'Array'
+      | 'Text'
+      | 'XmlFragment'
+      | 'XmlText'
+      | 'XmlElement'
+      | 'Value',
+    value?: any
+  ) {
+    let state
+
+    switch (type) {
+      case 'Map':
+        state = new Y.Map()
+        break
+      case 'Array':
+        state = new Y.Array()
+        break
+      case 'Text':
+        state = new Y.Text()
+        break
+      case 'XmlFragment':
+        state = new Y.XmlFragment()
+        break
+      case 'XmlText':
+        state = new Y.XmlText()
+        break
+      case 'XmlElement':
+        state = new Y.XmlElement()
+        break
+
+      default:
+        state = value
+        break
+    }
+
+    window['Edrys'].doc
+      .getMap('rooms')
+      .get(window['Edrys'].liveUser.room)
+      .set(key, state)
+
+    return state
+  },
 }
 
 const edrysProxyValidator = (path) => ({
@@ -96,6 +152,25 @@ const edrysProxyValidator = (path) => ({
   },
 })
 
+function update() {
+  const liveClass = {
+    users: window['Edrys'].doc.getMap('users').toJSON(),
+    rooms: window['Edrys'].doc.getMap('rooms').toJSON(),
+  }
+
+  Object.entries(liveClass.rooms).forEach(([name, data]) => {
+    return { name, data }
+  })
+
+  Object.entries(liveClass.users).forEach(([n, u]) => {
+    u.name = n
+  })
+
+  window['Edrys'].liveClass = new Proxy(liveClass, edrysProxyValidator(''))
+  window['Edrys'].liveUser = liveClass.users[window['Edrys'].username]
+  window['Edrys'].liveRoom = liveClass.rooms[window['Edrys'].liveUser.room]
+}
+
 window.addEventListener(
   'message',
   function (e) {
@@ -105,6 +180,34 @@ window.addEventListener(
         window['Edrys'].role = e.data.role
         window['Edrys'].username = e.data.username
         window['Edrys'].module = e.data.module
+
+        if (!window['Edrys'].doc) {
+          window['Edrys'].doc = new Y.Doc()
+
+          window['Edrys'].doc.getMap('users')
+          window['Edrys'].doc.getMap('rooms')
+
+          window['Edrys'].doc.on('update', (state, origin) => {
+            update()
+            dispatchEvent(
+              new CustomEvent('$Edrys.update', {
+                bubbles: false,
+              })
+            )
+
+            if (origin && origin.transactionId === EXTERN) {
+              return // Ignore this transaction
+            }
+
+            window.parent.postMessage(
+              {
+                event: 'state',
+                data: btoa(String.fromCharCode(...new Uint8Array(state))),
+              },
+              window['Edrys'].origin
+            )
+          })
+        }
 
         try {
           window['Edrys'].module.config = JSON.parse(e.data.module.config)
@@ -126,21 +229,18 @@ window.addEventListener(
         } catch (e) {}
 
         window['Edrys'].class_id = e.data.class_id
-        Object.entries(e.data.liveClass.rooms).forEach(([n, r]) => {
-          return { name: n, data: r }
-        })
 
-        Object.entries(e.data.liveClass.users).forEach(([n, u]) => {
-          u.name = n
-        })
-        window['Edrys'].liveClass = new Proxy(
-          e.data.liveClass,
-          edrysProxyValidator('')
+        const decodedUint8Array = Uint8Array.from(atob(e.data.liveClass), (c) =>
+          c.charCodeAt(0)
         )
-        window['Edrys'].liveUser =
-          window['Edrys'].liveClass.users[window['Edrys'].username]
-        window['Edrys'].liveRoom =
-          window['Edrys'].liveClass.rooms[window['Edrys'].liveUser.room]
+        window['Edrys'].doc.transact(
+          () => {
+            Y.applyUpdate(window['Edrys'].doc, decodedUint8Array)
+          },
+          { transactionId: EXTERN }
+        )
+
+        update()
 
         if (!window['Edrys'].ready) {
           window['Edrys'].ready = true

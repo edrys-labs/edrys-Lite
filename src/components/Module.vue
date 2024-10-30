@@ -26,6 +26,8 @@
 </template>
 
 <script lang="ts">
+import { encodeStateAsUpdate } from "yjs";
+
 export default {
   name: "Module",
   props: {
@@ -70,7 +72,10 @@ export default {
 
   methods: {
     updateIframe() {
-      //console.warn("updateIframe", typeof this.liveClassProxy_);
+      //console.warn("updateIframe", this.liveClassProxy);
+
+      const encodedFullState = encodeStateAsUpdate(this.liveClassProxy.doc);
+      const update = btoa(String.fromCharCode(...new Uint8Array(encodedFullState)));
 
       try {
         this.$refs.iframe.contentWindow.postMessage(
@@ -79,7 +84,7 @@ export default {
             origin: window.origin,
             role: this.role,
             username: this.username,
-            liveClass: JSON.parse(JSON.stringify(this.liveClassProxy)),
+            liveClass: update,
             module: JSON.parse(JSON.stringify(this.scrapedModule)),
             class_id: this.class_id,
           },

@@ -134,10 +134,14 @@ export default {
         case "update":
           this.setToValue(this.liveClassProxy, e.data.path, e.data.value);
           break;
+        case "state":
+          this.communication.updateState(e.data.data);
+          break;
         case "echo":
           console.log("ECHO:", e.data);
           break;
         default:
+          console.warn("Unknown event", e.data);
           break;
       }
     },
