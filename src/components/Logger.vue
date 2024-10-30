@@ -74,7 +74,6 @@ export default {
 
             isLoggerRunning: false,
 
-            isChartOpen: false,
             isClosingDialogVisible: false,
             isLogsLoaderVisible: false,
 
@@ -147,6 +146,10 @@ export default {
 
                 this.intervalId = setInterval(() => {
                     this.measureMemory();
+
+                    this.$nextTick(() => {
+                        this.generateChart();
+                    });
                 }, 5000);
             } 
         },
@@ -447,9 +450,15 @@ export default {
       
             if (memoryDataArray.length > 0) {
                 const chartDom = document.getElementById("chart");
-                if (!chartDom) {
-                    console.warn("Chart DOM element not found.");
+                if (!chartDom || chartDom.clientWidth === 0 || chartDom.clientHeight === 0) {
+                    //console.warn("Chart DOM element not found or has no dimensions.");
                     return;
+                }
+
+                // Dispose existing chart before creating a new one
+                const existingChart = echarts.getInstanceByDom(chartDom);
+                if (existingChart) {
+                    existingChart.dispose();
                 }
 
                 const myChart = echarts.init(chartDom);
@@ -493,8 +502,6 @@ export default {
             }
         },
         openChartDialog() {
-            this.isChartOpen = true;
-
             // Wait for the dialog to open before generating the chart
             this.$nextTick(() => {
                 this.generateChart();
@@ -541,6 +548,10 @@ export default {
                     this.memoryData = data.LoggerData.memoryData;
                     this.networkData = data.LoggerData.networkData;
                     this.usersInStations = data.LoggerData.usersInStations;
+
+                    this.$nextTick(() => {
+                        this.generateChart();
+                    });
                 } else {
                     this.isLogsLoaderError = true;
                 }
@@ -644,8 +655,17 @@ export default {
             <v-tabs-window v-model="tab">
                 <v-tabs-window-item value="memory" v-if="monitorMemory">
                     <div v-if="memoryData.length">
-                        <div class="btns-container">
-                            <v-btn variant="tonal" @click="openChartDialog">Generate Chart</v-btn>
+                        <div class="chart-container">
+                            <v-card>
+                                <v-toolbar dark flat>
+                                    <v-toolbar-title>Memory Usage Chart</v-toolbar-title>
+                                </v-toolbar>
+
+                                <v-card-text>
+                                    <!-- Chart Container -->
+                                    <div id="chart"></div>
+                                </v-card-text>
+                            </v-card>
                         </div>
 
                         <v-divider></v-divider>
@@ -740,27 +760,6 @@ export default {
                 </v-tabs-window-item>
             </v-tabs-window>
         </v-card-text>
-
-        <v-dialog 
-            v-model="isChartOpen"
-            max-width="800"
-        >
-            <v-card>
-                <v-toolbar dark flat>
-                    <v-toolbar-title>Memory Usage Chart</v-toolbar-title>
-                    <v-spacer></v-spacer>
-                    <v-btn icon @click="isChartOpen = false">
-                    <v-icon>mdi-close</v-icon>
-                    </v-btn>
-                </v-toolbar>
-
-                <v-card-text>
-                    <!-- Chart Container -->
-                    <div id="chart"></div>
-                </v-card-text>
-            </v-card>
-        </v-dialog>
-
 
         <v-dialog
             v-model="isClosingDialogVisible"
@@ -865,6 +864,11 @@ export default {
 
 #log-subtitle {
     color: #186a3b;
+}
+
+.chart-container {
+    width: 80%;
+    margin: 10px auto;
 }
 
 #chart {
