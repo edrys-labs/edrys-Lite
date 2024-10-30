@@ -425,11 +425,9 @@ export default class Peer {
 
   addRoom(name?: string) {
     if (name && !this.y.rooms.has(name)) {
-      const room = {
-        studentPublicState: '',
-        teacherPublicState: '',
-        teacherPrivateState: '',
-      }
+      const room = new Y.Doc()
+
+      room.getMap('meta').set('data', Math.random())
 
       this.y.rooms.set(name, room)
     } else if (!name) {
