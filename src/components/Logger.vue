@@ -88,7 +88,7 @@ export default {
                 "Click Start to monitor users in stations activity.",
             ],
 
-            stationNameInput: "",
+            stationNameInput: null as string | null,
             classroomPastStations: [] as string[],
         };
     },
@@ -831,7 +831,7 @@ export default {
                     <v-btn
                         variant="flat"
                         color="grey-darken-4"
-                        @click="loadLoggerDataFromDB(this.classId, stationNameInput)"
+                        @click="stationNameInput && loadLoggerDataFromDB(this.classId, stationNameInput)"
                     >
                         Load
                     </v-btn>
