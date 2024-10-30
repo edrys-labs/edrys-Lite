@@ -1,7 +1,6 @@
 <script lang="ts">
 
 import * as echarts from 'echarts';
-import { logsDB } from '../ts/Logs';
 
 declare global {
     interface Performance {
@@ -48,7 +47,7 @@ export interface IUserInStation {
 export default {
     name: "Logger",
 
-    props: ["liveClassProxy", "classId", "stationName"],
+    props: ["liveClassProxy", "classId", "stationName", "database"],
 
     data() {
         return {
@@ -501,12 +500,6 @@ export default {
                 console.warn("No memory data available to plot the chart.");
             }
         },
-        openChartDialog() {
-            // Wait for the dialog to open before generating the chart
-            this.$nextTick(() => {
-                this.generateChart();
-            });
-        },
         async saveLoggerDataToDB() {
             try {
                 // Convert Date objects to ISO strings before saving to IndexedDB (IndexedDB doesn't support Date objects)
@@ -529,14 +522,14 @@ export default {
                     }))
                 };
 
-                await logsDB.logs.put({ id: (this.classId + '_Station:' + this.stationName), LoggerData: serializedData });
+                await this.database.putLog(this.classId + '_Station:' + this.stationName, serializedData);
             } catch (error) {
                 console.error("Error saving logger data to IndexedDB:", error);
             }
         },
         async loadLoggerDataFromDB(classroomId: string, stationName: string) {
             try {
-                const data = await logsDB.logs.get((classroomId + '_Station:' + stationName));
+                const data = await this.database.getLogById(classroomId + '_Station:' + stationName);
 
                 if (data && data.LoggerData) {
                     this.stopLogger();
@@ -659,6 +652,12 @@ export default {
                             <v-card>
                                 <v-toolbar dark flat>
                                     <v-toolbar-title>Memory Usage Chart</v-toolbar-title>
+
+                                    <v-spacer></v-spacer>
+
+                                    <v-btn icon @click="generateChart">
+                                        <v-icon>mdi-refresh</v-icon>
+                                    </v-btn>
                                 </v-toolbar>
 
                                 <v-card-text>

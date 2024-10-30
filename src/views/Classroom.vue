@@ -584,6 +584,7 @@ export default {
         :liveClassProxy="liveClassProxy"
         :classId="id"
         :stationName="stationName"
+        :database="database"
       >
       </Logger>
     </v-dialog>
