@@ -273,22 +273,26 @@ export default class Peer {
     })
 
     this.y.rooms.observeDeep((events) => {
-      console.warn('rooms changed', events)
-      this.update('room')
-    })
+      // Handle room deletions from root-level changes
+      events.forEach((event) => {
+        if (event.target === this.y.rooms) {
+          // This is a root-level change (like deleting a room)
+          const keysChanged = Array.from(event.changes.keys.keys())
 
-    this.y.rooms.observe((events) => {
-      console.log('rooms changed', events.keysChanged)
-      events.keysChanged.forEach((key) => {
-        const change = events.changes.keys.get(key)
-
-        if (change?.action === 'delete') {
-          // if my room is deleted, move to lobby
-          if (this.user() && this.user().get('room') === key) {
-            this.user().set('room', LOBBY)
-          }
+          keysChanged.forEach((key) => {
+            const change = event.changes.keys.get(key)
+            if (change?.action === 'delete') {
+              // If my room is deleted, move to lobby
+              if (this.user() && this.user().get('room') === key) {
+                LOG('current room was deleted, moving to lobby')
+                this.user().set('room', LOBBY)
+              }
+            }
+          })
         }
       })
+
+      // Only trigger one update per batch of changes
       this.update('room')
     })
   }
