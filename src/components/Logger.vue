@@ -88,9 +88,8 @@ export default {
                 "Click Start to monitor users in stations activity.",
             ],
 
-            classIdInput: "",
             stationNameInput: "",
-            isLogsLoaderError: false,
+            classroomPastStations: [] as string[],
         };
     },
 
@@ -186,6 +185,7 @@ export default {
             } 
         },
         loadLogs() {
+            this.getClassroomPastStations();
             this.isLogsLoaderVisible = true;
         },
         clearLogger() {
@@ -551,7 +551,18 @@ export default {
             } catch (error) {
                 console.error("Error loading logger data from IndexedDB:", error);
             }
-        }
+        },
+        async getClassroomPastStations() {
+            try {
+                const allIds = await this.database.getLogsIds();
+
+                if (allIds) {
+                    this.classroomPastStations = allIds.filter((id: string) => id.includes(this.classId)).map((id: string) => id.split('_Station:')[1]);
+                }
+            } catch (error) {
+                console.error("Error getting classroom past stations from IndexedDB:", error);
+            }
+        },
     },
 };
 </script>
@@ -657,6 +668,10 @@ export default {
 
                                     <v-btn icon @click="generateChart">
                                         <v-icon>mdi-refresh</v-icon>
+                                        <v-tooltip
+                                            activator="parent"
+                                            location="bottom"
+                                        >Refresh Chart</v-tooltip>
                                     </v-btn>
                                 </v-toolbar>
 
@@ -793,41 +808,34 @@ export default {
             persistent
         >
             <v-card>
-                <v-form @submit.prevent>
-                    <v-toolbar dark flat>
-                        <v-toolbar-title>Load Logs from IndexedDB</v-toolbar-title>
-                    </v-toolbar>
-                    <v-card-text>
-                        <v-text-field
-                            v-model="classIdInput"
-                            label="Classroom ID"
-                            outlined
-                        ></v-text-field>
-                        <v-text-field
-                            v-model="stationNameInput"
-                            label="Station Name"
-                            outlined
-                        ></v-text-field>
-                    </v-card-text>
-                    <p id="loader_error">{{ this.isLogsLoaderError ? 'No logs found for the specified Classroom ID and Station Name!!' : '' }}</p>
-                    <v-divider></v-divider>
-                </v-form>
-                    <v-card-actions>
-                        <v-btn
-                            variant="outlined"
-                            color="grey-darken-4"
-                            @click="isLogsLoaderVisible = false"
-                        >
-                            Cancel
-                        </v-btn>
-                        <v-btn
-                            variant="flat"
-                            color="grey-darken-4"
-                            @click="loadLoggerDataFromDB(classIdInput, stationNameInput)"
-                        >
-                            Load
-                        </v-btn>
-                    </v-card-actions>
+                <v-toolbar dark flat>
+                    <v-toolbar-title>Load previous Logs</v-toolbar-title>
+                </v-toolbar>
+                
+                <v-card-text>
+                    <v-select
+                        v-model="stationNameInput"
+                        :items="classroomPastStations"
+                        label="Station Name"
+                    ></v-select>
+                </v-card-text>
+                <v-divider></v-divider>
+                <v-card-actions>
+                    <v-btn
+                        variant="outlined"
+                        color="grey-darken-4"
+                        @click="isLogsLoaderVisible = false"
+                    >
+                        Cancel
+                    </v-btn>
+                    <v-btn
+                        variant="flat"
+                        color="grey-darken-4"
+                        @click="loadLoggerDataFromDB(this.classId, stationNameInput)"
+                    >
+                        Load
+                    </v-btn>
+                </v-card-actions>
             </v-card>
         </v-dialog>
     </v-card>

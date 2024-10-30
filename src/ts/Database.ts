@@ -123,7 +123,7 @@ export class Database {
     }
   }
 
-   // Methods for `logs` table operations
+  // Methods for `logs` table operations
   getAllLogs(): Promise<LoggerData[]> {
     return this.db['logs'].toArray();
   }
@@ -138,5 +138,9 @@ export class Database {
 
   deleteLog(id: string) {
     this.db['logs'].delete(id);
+  }
+
+  getLogsIds(): Promise<string[]> {
+    return this.db['logs'].toCollection().primaryKeys();
   }
 }
