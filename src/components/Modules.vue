@@ -88,7 +88,6 @@ export default {
         layoutOnInit: true,
         layoutDuration: 400,
         layoutEasing: "ease",
-        dragSortInterval: 50,
         layout: {
           fillGaps: true,
           horizontal: false,
