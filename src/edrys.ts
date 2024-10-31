@@ -12,6 +12,7 @@
  *  Edrys.sendMessage(subject, body)
  *  Edrys.onMessage(({from, subject, body}) => { // Called when a message is received in your room })
  *  Edrys.onUpdate(() => { // Called when any Edrys properties change })
+ *  Edrys.onReady(() => { // Called when Edrys is ready })
  */
 
 import * as Y from 'yjs'
@@ -47,7 +48,7 @@ window['Edrys'] = {
       handler(e.detail)
     })
   },
-  sendMessage: (subject, body) => {
+  sendMessage: (subject: any, body: any) => {
     if (typeof subject !== 'string') subject = JSON.stringify(subject)
     if (typeof body !== 'string') body = JSON.stringify(body)
     window.parent.postMessage(
@@ -72,13 +73,14 @@ window['Edrys'] = {
     )
   },
 
-  getSharedState() {
-    return window['Edrys'].doc
+  clearState(key: string) {
+    window['Edrys'].doc
       .getMap('rooms')
       .get(window['Edrys'].liveUser.room)
+      .delete(key)
   },
 
-  addSharedState(
+  getState(
     key: string,
     type:
       | 'Map'
@@ -90,7 +92,15 @@ window['Edrys'] = {
       | 'Value',
     value?: any
   ) {
-    let state
+    const map = window['Edrys'].doc
+      .getMap('rooms')
+      .get(window['Edrys'].liveUser.room)
+
+    if (map.has(key)) {
+      return map.get(key)
+    }
+
+    let state: any
 
     switch (type) {
       case 'Map':
@@ -117,10 +127,7 @@ window['Edrys'] = {
         break
     }
 
-    window['Edrys'].doc
-      .getMap('rooms')
-      .get(window['Edrys'].liveUser.room)
-      .set(key, state)
+    map.set(key, state)
 
     return state
   },
@@ -163,7 +170,7 @@ function update() {
   })
 
   Object.entries(liveClass.users).forEach(([n, u]) => {
-    u.name = n
+    ;(u as any).name = n
   })
 
   window['Edrys'].liveClass = new Proxy(liveClass, edrysProxyValidator(''))
