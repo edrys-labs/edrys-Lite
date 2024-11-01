@@ -240,12 +240,9 @@ window.addEventListener(
         const decodedUint8Array = Uint8Array.from(atob(e.data.liveClass), (c) =>
           c.charCodeAt(0)
         )
-        window['Edrys'].doc.transact(
-          () => {
-            Y.applyUpdate(window['Edrys'].doc, decodedUint8Array)
-          },
-          { transactionId: EXTERN }
-        )
+        Y.applyUpdate(window['Edrys'].doc, decodedUint8Array, {
+          transactionId: EXTERN,
+        })
 
         update()
 

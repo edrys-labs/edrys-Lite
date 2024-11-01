@@ -31,6 +31,7 @@ export default class Peer {
   private provider: TrysteroProvider
   private tx: any
   private rx: any
+  private sync: boolean = false
 
   private y: {
     doc: Y.Doc
@@ -121,6 +122,7 @@ export default class Peer {
 
     this.provider.on('synced', (event) => {
       LOG('synced', event)
+      this.sync = true
       this.update('connected')
     })
   }
@@ -354,7 +356,7 @@ export default class Peer {
       case 'room': {
         //this.peerUpdate()
 
-        if (callback) {
+        if (callback && this.sync) {
           callback(await this.toJSON())
           this.callbackUpdate[event] = false
         } else {
@@ -485,9 +487,8 @@ export default class Peer {
     this.initUser(role)
     this.initRooms()
     this.initChat()
-    //this.peerUpdate()
 
-    return await this.toJSON()
+    this.update('room')
   }
 
   async toJSON() {
