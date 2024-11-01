@@ -95,35 +95,39 @@ export default class Peer {
     this.initSetup()
 
     this.provider.on('status', (event) => {
-      this.connected = event.connected
-
       LOG('status', event)
 
-      if (event.connected) {
-        this.provider.room?.onPeerLeave((id: string) => {
-          this.removePeers([id])
-        })
-
-        this.initPubSub()
-
-        this.rx((msg: any, peerId: string) => {
-          this.update('message', msg)
-        })
-
-        this.y.setup.observe((event) => {
-          const timestamp = this.y.setup.get('timestamp')
-
-          if (this.lab.timestamp !== timestamp) {
-            this.initSetup()
-          }
-        })
+      if (!event.connected) {
+        this.connected = false
       }
+
+      this.y.setup.observe((event) => {
+        const timestamp = this.y.setup.get('timestamp')
+
+        if (this.lab.timestamp !== timestamp) {
+          this.initSetup()
+        }
+      })
     })
 
     this.provider.on('synced', (event) => {
+      this.provider.room?.onPeerLeave((id: string) => {
+        this.removePeers([id])
+      })
+
+      this.initPubSub()
+
+      this.rx((msg: any, peerId: string) => {
+        this.update('message', msg)
+      })
+
       LOG('synced', event)
-      this.sync = true
-      this.update('connected')
+
+      setTimeout(() => {
+        this.connected = true
+
+        this.update('connected')
+      }, 1000)
     })
   }
 
@@ -356,7 +360,7 @@ export default class Peer {
       case 'room': {
         //this.peerUpdate()
 
-        if (callback && this.sync) {
+        if (callback && this.connected) {
           callback(await this.toJSON())
           this.callbackUpdate[event] = false
         } else {
