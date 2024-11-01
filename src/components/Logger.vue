@@ -72,6 +72,7 @@ export default {
             tab: 'memory',
 
             isLoggerRunning: false,
+            isShowingPrevLogs: false,
 
             isClosingDialogVisible: false,
             isLogsLoaderVisible: false,
@@ -193,6 +194,8 @@ export default {
             this.consoleData = [];
             this.networkData = [];
             this.usersInStations = [];
+
+            this.isShowingPrevLogs = false;
         },
         formatMessage(message: object | string) {
             if (typeof message === "object" && message !== null) {
@@ -534,8 +537,8 @@ export default {
                 if (data && data.LoggerData) {
                     this.stopLogger();
 
-                    this.isLogsLoaderError = false;
                     this.isLogsLoaderVisible = false;
+                    this.isShowingPrevLogs = true;
 
                     this.consoleData = data.LoggerData.consoleData;
                     this.memoryData = data.LoggerData.memoryData;
@@ -545,9 +548,7 @@ export default {
                     this.$nextTick(() => {
                         this.generateChart();
                     });
-                } else {
-                    this.isLogsLoaderError = true;
-                }
+                } 
             } catch (error) {
                 console.error("Error loading logger data from IndexedDB:", error);
             }
@@ -572,12 +573,18 @@ export default {
         <v-toolbar dark flat>
             <v-toolbar-title>Logger</v-toolbar-title>
 
-            <div id="recording_text_container" v-if="isLoggerRunning">
-                Recording
-                <div class="circles">
-                    <div class="circle1"></div>
-                    <div class="circle2"></div>
-                    <div class="circle3"></div>
+            <div id="header_text_container">
+                <div id="recording_text" v-if="isLoggerRunning">
+                    Recording
+                    <div class="circles">
+                        <div class="circle1"></div>
+                        <div class="circle2"></div>
+                        <div class="circle3"></div>
+                    </div> 
+                </div>
+                
+                <div v-if="isShowingPrevLogs">
+                    Showing Logs from Station: {{ stationNameInput }}
                 </div>
             </div>
 
@@ -901,12 +908,15 @@ export default {
     }
 }
 
-#recording_text_container {
+#header_text_container {
+    color: #5ccc48;
+    font-weight: 600;
+}
+
+#recording_text {
     display: flex;
     justify-content: center;
     align-items: center;
-    color: #5ccc48;
-    font-weight: 600;
 }
 
 .circles {
