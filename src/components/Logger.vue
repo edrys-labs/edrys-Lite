@@ -668,7 +668,7 @@ export default {
 
       <v-menu :close-on-content-click="false">
         <template v-slot:activator="{ props }">
-          <v-btn icon v-bind="props">
+          <v-btn icon v-bind="props" :disabled="isLoggerRunning">
             <v-icon>mdi-format-list-checkbox</v-icon>
             <v-tooltip activator="parent" location="bottom">Data Options</v-tooltip>
           </v-btn>
@@ -716,7 +716,9 @@ export default {
         {{ isLoggerRunning ? "Stop" : "Start" }}
       </v-btn>
 
-      <v-btn variant="outlined" @click="loadLogs"> Load </v-btn>
+      <v-btn variant="outlined" @click="loadLogs" :disabled="isLoggerRunning">
+        Load
+      </v-btn>
 
       <v-btn variant="outlined" @click="clearLogger"> Clear </v-btn>
     </div>
