@@ -83,7 +83,9 @@ export default {
       monitorUsers: true,
 
       loggerTabsText: [
-        "Click Start to monitor memory usage, or load existing logs.",
+        performance.memory
+          ? "Click Start to monitor memory usage, or load existing logs."
+          : "Performance memory API is not supported in this browser!!",
         "Click Start to monitor network data, or load existing logs.",
         "Click Start to monitor console logs, or load existing logs.",
         "Click Start to monitor users in stations activity.",
@@ -162,7 +164,7 @@ export default {
         this.monitorUsers = true;
       }
 
-      if (this.monitorMemory && this.intervalId === null) {
+      if (this.monitorMemory && this.intervalId === null && performance.memory) {
         this.loggerTabsText[0] = "Started monitoring memory usage...";
 
         this.intervalId = setInterval(() => {
@@ -226,27 +228,22 @@ export default {
       return message.toString();
     },
     measureMemory() {
-      // performance.memory is only available in certain browsers
-      if (performance.memory) {
-        const usedJSHeapSize = (performance.memory.usedJSHeapSize / 1048576).toFixed(2);
-        const totalJSHeapSize = (performance.memory.totalJSHeapSize / 1048576).toFixed(2);
-        const jsHeapSizeLimit = (performance.memory.jsHeapSizeLimit / 1048576).toFixed(2);
-
-        this.memoryData.push({
-          date: new Date().toLocaleString(),
-          usedJSHeapSize,
-          totalJSHeapSize,
-          jsHeapSizeLimit,
-        });
-
-        this.saveLoggerDataToDB();
-      } else {
-        console.warn("Performance memory API is not supported in this browser!!");
-        this.loggerTabsText[0] =
-          "Performance memory API is not supported in this browser!!";
-        clearInterval(this.intervalId);
-        this.intervalId = null;
+      if (!performance.memory) {
+        return;
       }
+
+      const usedJSHeapSize = (performance.memory.usedJSHeapSize / 1048576).toFixed(2);
+      const totalJSHeapSize = (performance.memory.totalJSHeapSize / 1048576).toFixed(2);
+      const jsHeapSizeLimit = (performance.memory.jsHeapSizeLimit / 1048576).toFixed(2);
+
+      this.memoryData.push({
+        date: new Date().toLocaleString(),
+        usedJSHeapSize,
+        totalJSHeapSize,
+        jsHeapSizeLimit,
+      });
+
+      this.saveLoggerDataToDB();
     },
     overrideConsoleMethods() {
       const methodsToOverride = ["log", "warn", "error"];
