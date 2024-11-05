@@ -97,16 +97,12 @@ export default {
   },
 
   mounted() {
-    console.warn("Logger mounted");
-
     const chartDom = document.getElementById("chart");
-    console;
+
     if (!chartDom) {
       //console.warn("Chart DOM element not found or has no dimensions.");
       return;
     }
-
-    console.warn("Creating new chart instance...", chartDom);
 
     // Dispose existing chart before creating a new one
     const existingChart = echarts.getInstanceByDom(chartDom);
@@ -114,7 +110,6 @@ export default {
       existingChart.dispose();
     }
 
-    console.warn("Creating new chart instance...");
     this.memoryChart = echarts.init(chartDom);
   },
 
@@ -167,12 +162,10 @@ export default {
       if (this.monitorMemory && this.intervalId === null && performance.memory) {
         this.loggerTabsText[0] = "Started monitoring memory usage...";
 
+        // generate one initial data point
+        this.measureMemory();
         this.intervalId = setInterval(() => {
           this.measureMemory();
-
-          this.$nextTick(() => {
-            this.generateChart();
-          });
         }, 5000);
       }
     },
@@ -244,6 +237,7 @@ export default {
       });
 
       this.saveLoggerDataToDB();
+      this.$nextTick(this.generateChart);
     },
     overrideConsoleMethods() {
       const methodsToOverride = ["log", "warn", "error"];
@@ -485,12 +479,20 @@ export default {
             name: "Time",
             nameLocation: "middle",
             nameGap: 25,
+            axisLabel: {
+              formatter: (value: number) => {
+                return new Date(value).toLocaleTimeString();
+              },
+            },
           },
           yAxis: {
             type: "value",
             name: "Memory Usage (MB)",
             nameLocation: "middle",
-            nameGap: 30,
+            nameGap: 55,
+            axisLabel: {
+              formatter: (value: number) => `${value.toFixed(0)} MB`,
+            },
           },
           series: [
             {
@@ -501,16 +503,68 @@ export default {
               type: "line",
               smooth: true,
               name: "Used JS Heap Size",
+              // Add animation effects
+              animation: true,
+              animationDuration: 1000,
+              animationEasing: "cubicInOut",
+              // Add visual enhancement
+              lineStyle: {
+                width: 3,
+                shadowColor: "rgba(0,0,0,0.3)",
+                shadowBlur: 10,
+              },
+              // Add area under the line
+              areaStyle: {
+                opacity: 0.3,
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: "rgb(116, 21, 219)" },
+                  { offset: 1, color: "rgb(55, 162, 255)" },
+                ]),
+              },
+              symbolSize: 8,
             },
           ],
           tooltip: {
             trigger: "axis",
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+            borderColor: "#777",
+            borderWidth: 1,
+            padding: [10, 15],
+            textStyle: {
+              color: "#333",
+            },
             formatter: function (params: any) {
               const data = params[0].data;
-              return `Date: ${new Date(data[0]).toLocaleString()}<br/>Memory: ${
-                data[1]
-              } MB`;
+              const date = new Date(data[0]);
+              const memory = data[1];
+
+              return `
+        <div style="font-weight: bold; margin-bottom: 5px;">
+          ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: ${params[0].color};">● </span>
+          <span>Memory Usage:</span>
+          <span style="font-weight: bold; margin-left: 5px;">
+            ${memory.toFixed(1)} MB
+          </span>
+        </div>
+      `;
             },
+            axisPointer: {
+              type: "cross",
+              label: {
+                backgroundColor: "#6a7985",
+              },
+            },
+          },
+          // Add global animation configuration
+          animation: true,
+          animationThreshold: 2000,
+          animationDuration: 1000,
+          animationEasing: "cubicInOut",
+          animationDelay: function (idx: number) {
+            return idx * 100;
           },
         };
 
@@ -567,9 +621,7 @@ export default {
           this.networkData = data.LoggerData.networkData;
           this.usersInStations = data.LoggerData.usersInStations;
 
-          this.$nextTick(() => {
-            this.generateChart();
-          });
+          this.$nextTick(this.generateChart);
         }
       } catch (error) {
         console.error("Error loading logger data from IndexedDB:", error);
