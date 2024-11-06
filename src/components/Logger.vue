@@ -95,24 +95,7 @@ export default {
       classroomPastStations: [] as string[],
     };
   },
-
-  mounted() {
-    const chartDom = document.getElementById("chart");
-
-    if (!chartDom) {
-      //console.warn("Chart DOM element not found or has no dimensions.");
-      return;
-    }
-
-    // Dispose existing chart before creating a new one
-    const existingChart = echarts.getInstanceByDom(chartDom);
-    if (existingChart) {
-      existingChart.dispose();
-    }
-
-    this.memoryChart = echarts.init(chartDom);
-  },
-
+  
   beforeUnmount() {
     this.stopLogger();
   },
@@ -470,6 +453,20 @@ export default {
       }
     },
     generateChart() {
+      const chartDom = document.getElementById("chart");
+
+      if (!chartDom) {
+        //console.warn("Chart DOM element not found or has no dimensions.");
+        return;
+      }
+
+      // Dispose existing chart before creating a new one
+      if (this.memoryChart) {
+        this.memoryChart.dispose();
+      }
+
+      this.memoryChart = echarts.init(chartDom);
+
       const memoryDataArray = this.memoryData;
 
       if (memoryDataArray.length > 0) {
@@ -569,7 +566,9 @@ export default {
         };
 
         this.memoryChart?.setOption(option);
-        this.memoryChart?.resize();
+        window.addEventListener("resize", () => {
+          this.memoryChart?.resize();
+        });
       } else {
         console.warn("No memory data available to plot the chart.");
       }
@@ -943,7 +942,7 @@ export default {
 }
 
 .chart-container {
-  min-width: 80%;
+  width: 80%;
   margin: 10px auto;
 }
 
