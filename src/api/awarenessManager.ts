@@ -8,9 +8,9 @@ export class RoomAwarenessManager {
           return () => {
             const allStates = target.getStates()
             return new Map(
-              Array.from(allStates.entries()).filter(
-                ([clientId, state]) => state._room === room
-              )
+              Array.from(
+                allStates.entries() as IterableIterator<[string, any]>
+              ).filter(([clientId, state]) => state._room === room)
             )
           }
         }

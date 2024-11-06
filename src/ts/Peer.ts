@@ -2,6 +2,7 @@ import { getPeerID, hashJsonObject, getShortPeerID } from './Utils'
 
 import * as Y from 'yjs'
 import { TrysteroProvider } from '../../node_modules/y-trystero/src/TrysteroProvider'
+// @ts-ignore
 import { joinRoom } from '../../node_modules/trystero/src/torrent'
 import * as YP from 'y-protocols/awareness.js'
 import { selfId } from 'trystero'
@@ -542,7 +543,7 @@ export default class Peer {
       const observer = () => {
         if (isTransactionDone) {
           this.y.doc.off('afterTransaction', observer)
-          resolve()
+          resolve(true)
         }
       }
 

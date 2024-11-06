@@ -49,8 +49,13 @@ window['Edrys'] = {
   },
   onMessage(handler, promiscuous = false) {
     window.addEventListener('$Edrys.message', (e) => {
-      if (!promiscuous && e.detail.module != window['Edrys'].module?.url) return
-      handler(e.detail)
+      const customEvent = e as CustomEvent
+      if (
+        !promiscuous &&
+        customEvent.detail.module != window['Edrys'].module?.url
+      )
+        return
+      handler(customEvent.detail)
     })
   },
   sendMessage: (subject: any, body: any) => {
