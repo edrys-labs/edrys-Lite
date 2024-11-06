@@ -91,11 +91,13 @@ export default {
         "Click Start to monitor users in stations activity.",
       ],
 
-      stationNameInput: null as string | null,
+      stationLogsInput: null as string | null,
       classroomPastStations: [] as string[],
+
+      logsDate: null as Date | null,
     };
   },
-  
+
   beforeUnmount() {
     this.stopLogger();
   },
@@ -121,6 +123,7 @@ export default {
       this.$emit("logger-started");
 
       this.isLoggerRunning = true;
+      this.logsDate = new Date().toLocaleString();
 
       this.clearLogger();
 
@@ -455,7 +458,7 @@ export default {
     generateChart() {
       const chartDom = document.getElementById("chart");
 
-      if (!chartDom) {
+      if (!chartDom || !chartDom.clientWidth || !chartDom.clientHeight) {
         //console.warn("Chart DOM element not found or has no dimensions.");
         return;
       }
@@ -596,17 +599,20 @@ export default {
         };
 
         await this.database.putLog(
-          this.classId + "_Station:" + this.stationName,
+          this.classId + "_Station:" + this.stationName + "_Date:" + this.logsDate,
           serializedData
         );
       } catch (error) {
         console.error("Error saving logger data to IndexedDB:", error);
       }
     },
-    async loadLoggerDataFromDB(classroomId: string, stationName: string) {
+    async loadLoggerDataFromDB() {
       try {
+        const stationName = this.stationLogsInput.split(' - ')[0].split(': ')[1];
+        const stationDate = this.stationLogsInput.split(' - ')[1].split(': ')[1];
+
         const data = await this.database.getLogById(
-          classroomId + "_Station:" + stationName
+          this.classId + "_Station:" + stationName + "_Date:" + stationDate
         );
 
         if (data && data.LoggerData) {
@@ -633,7 +639,12 @@ export default {
         if (allIds) {
           this.classroomPastStations = allIds
             .filter((id: string) => id.includes(this.classId))
-            .map((id: string) => id.split("_Station:")[1]);
+            .map((id: string) => {
+              const stationName = id.split("_Station:")[1].split("_Date:")[0]; 
+              const date = new Date(id.split("_Date:")[1]).toLocaleString(); 
+
+              return `Station: ${stationName} - Date: ${date}`;
+            });
         }
       } catch (error) {
         console.error("Error getting classroom past stations from IndexedDB:", error);
@@ -659,7 +670,7 @@ export default {
         </div>
 
         <div v-if="isShowingPrevLogs">
-          Showing Logs from Station: {{ stationNameInput }}
+          {{ !isLogsLoaderVisible ? 'Showing Logs from ' + stationLogsInput : '' }}
         </div>
       </div>
 
@@ -880,7 +891,7 @@ export default {
 
         <v-card-text>
           <v-select
-            v-model="stationNameInput"
+            v-model="stationLogsInput"
             :items="classroomPastStations"
             label="Station Name"
           ></v-select>
@@ -898,7 +909,7 @@ export default {
             variant="flat"
             color="grey-darken-4"
             @click="
-              stationNameInput && loadLoggerDataFromDB(this.classId, stationNameInput)
+              stationLogsInput && loadLoggerDataFromDB()
             "
           >
             Load
