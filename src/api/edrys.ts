@@ -58,7 +58,7 @@ window['Edrys'] = {
       handler(customEvent.detail)
     })
   },
-  sendMessage: (subject: any, body: any) => {
+  sendMessage: (subject: any, body: any, user?: string) => {
     if (typeof subject !== 'string') subject = JSON.stringify(subject)
     if (typeof body !== 'string') body = JSON.stringify(body)
     window.parent.postMessage(
@@ -67,6 +67,7 @@ window['Edrys'] = {
         subject: subject,
         body: body,
         module: window['Edrys'].module.url,
+        user,
       },
       window['Edrys'].origin
     )

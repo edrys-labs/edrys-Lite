@@ -413,6 +413,14 @@ export default class Peer {
     }
 
     const users = this.y.users.toJSON()
+
+    // send to one user only
+    if (msg.user) {
+      this.tx(msg, users[msg.user].selfId)
+      return
+    }
+
+    // otherwise broadcast to all users in the room
     for (const id in users) {
       if (users[id].room === room) {
         try {
