@@ -15,14 +15,6 @@ function LOG(...args: any[]) {
   )
 }
 
-const trackersAnnounceURLs = [
-  'wss://tracker.openwebtorrent.com',
-  'wss://tracker.webtorrent.dev',
-  'wss://tracker.files.fm:7073/announce',
-  'wss://tracker.openwebtorrent.com:443/announce',
-  'wss://tracker.files.fm:7073/announce',
-]
-
 const LOBBY = 'Lobby'
 const STATION = 'Station'
 
@@ -551,7 +543,7 @@ export default class Peer {
       const observer = () => {
         if (isTransactionDone) {
           this.y.doc.off('afterTransaction', observer)
-          resolve(true)
+          resolve()
         }
       }
 
