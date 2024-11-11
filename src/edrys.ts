@@ -16,8 +16,11 @@
  */
 
 import * as Y from 'yjs'
+import * as YP from 'y-protocols/awareness.js'
 
 const EXTERN = 'extern'
+var awareness: any
+var doc: any
 
 window['Edrys'] = {
   origin: '*',
@@ -29,7 +32,7 @@ window['Edrys'] = {
   liveUser: undefined,
   module: undefined,
   class_id: undefined,
-  doc: undefined,
+
   onReady(handler) {
     if (window['Edrys'].ready) handler(window['Edrys'])
     else
@@ -74,10 +77,7 @@ window['Edrys'] = {
   },
 
   clearState(key: string) {
-    window['Edrys'].doc
-      .getMap('rooms')
-      .get(window['Edrys'].liveUser.room)
-      .delete(key)
+    doc.getMap('rooms').get(window['Edrys'].liveUser.room).delete(key)
   },
 
   getState(
@@ -89,12 +89,15 @@ window['Edrys'] = {
       | 'XmlFragment'
       | 'XmlText'
       | 'XmlElement'
-      | 'Value',
+      | 'Value'
+      | 'Awareness',
     value?: any
   ) {
-    const map = window['Edrys'].doc
-      .getMap('rooms')
-      .get(window['Edrys'].liveUser.room)
+    if (type === 'Awareness') {
+      return awareness
+    }
+
+    const map = doc.getMap('rooms').get(window['Edrys'].liveUser.room)
 
     if (map.has(key)) {
       return map.get(key)
@@ -161,8 +164,8 @@ const edrysProxyValidator = (path) => ({
 
 function update() {
   const liveClass = {
-    users: window['Edrys'].doc.getMap('users').toJSON(),
-    rooms: window['Edrys'].doc.getMap('rooms').toJSON(),
+    users: doc.getMap('users').toJSON(),
+    rooms: doc.getMap('rooms').toJSON(),
   }
 
   Object.entries(liveClass.rooms).forEach(([name, data]) => {
@@ -188,13 +191,14 @@ window.addEventListener(
         window['Edrys'].username = e.data.username
         window['Edrys'].module = e.data.module
 
-        if (!window['Edrys'].doc) {
-          window['Edrys'].doc = new Y.Doc()
+        if (!doc) {
+          doc = new Y.Doc()
+          awareness = new YP.Awareness(doc)
 
-          window['Edrys'].doc.getMap('users')
-          window['Edrys'].doc.getMap('rooms')
+          doc.getMap('users')
+          doc.getMap('rooms')
 
-          window['Edrys'].doc.on('update', (state, origin) => {
+          doc.on('update', (state, origin) => {
             update()
             dispatchEvent(
               new CustomEvent('$Edrys.update', {
@@ -202,17 +206,32 @@ window.addEventListener(
               })
             )
 
-            if (origin && origin.transactionId === EXTERN) {
+            if (origin === EXTERN) {
               return // Ignore this transaction
             }
 
             window.parent.postMessage(
               {
                 event: 'state',
-                data: btoa(String.fromCharCode(...new Uint8Array(state))),
+                data: state,
               },
               window['Edrys'].origin
             )
+          })
+
+          awareness.on('update', ({ added, updated, removed }, origin) => {
+            if (origin !== EXTERN) {
+              const changedClients = added.concat(updated, removed)
+
+              // Send the update to the parent window
+              window.parent.postMessage(
+                {
+                  event: 'awareness',
+                  data: YP.encodeAwarenessUpdate(awareness, changedClients),
+                },
+                window['Edrys'].origin
+              )
+            }
           })
         }
 
@@ -237,12 +256,11 @@ window.addEventListener(
 
         window['Edrys'].class_id = e.data.class_id
 
-        const decodedUint8Array = Uint8Array.from(atob(e.data.liveClass), (c) =>
-          c.charCodeAt(0)
-        )
-        Y.applyUpdate(window['Edrys'].doc, decodedUint8Array, {
-          transactionId: EXTERN,
-        })
+        Y.applyUpdate(doc, e.data.liveClass, EXTERN)
+
+        if (e.data.awareness) {
+          YP.applyAwarenessUpdate(awareness, e.data.awareness, EXTERN)
+        }
 
         update()
 

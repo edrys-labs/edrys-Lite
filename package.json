@@ -32,6 +32,7 @@
     "vue-prism-editor": "^2.0.0-alpha.2",
     "vuedraggable": "^4.1.0",
     "vuetify": "^3.7.3",
+    "y-protocols": "^1.0.6",
     "yjs": "^13.6.20"
   },
   "dependencies": {

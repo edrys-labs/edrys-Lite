@@ -72,11 +72,6 @@ export default {
 
   methods: {
     updateIframe() {
-      //console.warn("updateIframe", this.liveClassProxy);
-
-      const encodedFullState = encodeStateAsUpdate(this.liveClassProxy.doc);
-      const update = btoa(String.fromCharCode(...new Uint8Array(encodedFullState)));
-
       try {
         this.$refs.iframe.contentWindow.postMessage(
           {
@@ -84,7 +79,8 @@ export default {
             origin: window.origin,
             role: this.role,
             username: this.username,
-            liveClass: update,
+            liveClass: encodeStateAsUpdate(this.liveClassProxy.doc),
+            awareness: this.liveClassProxy.awareness,
             module: JSON.parse(JSON.stringify(this.scrapedModule)),
             class_id: this.class_id,
           },
