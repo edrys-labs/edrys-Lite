@@ -2,11 +2,20 @@ import { Dexie, liveQuery } from 'dexie'
 
 import { hashJsonObject } from './Utils'
 
+import { MemoryData, ConsoleData, NetworkData, IUserInStation } from '../components/Logger.vue'
+
 export type DatabaseItem = {
   id: string
   timestamp: number
   data: any
   hash: string | null
+}
+
+interface LoggerData {
+  memoryData: MemoryData[];
+  consoleData: ConsoleData[];
+  networkData: NetworkData[];
+  usersInStations: IUserInStation[];
 }
 
 function open(name: string, version?: number) {
@@ -24,12 +33,14 @@ export class Database {
   constructor() {
     this.db = new Dexie('EdrysLite')
 
-    this.db.version(2).stores({
+    this.db.version(3).stores({
       data: `
             &id,
             timestamp,
             data,
             hash`,
+
+      logs: `id`,
     })
 
     this.db
@@ -110,5 +121,26 @@ export class Database {
       this.observables[id].unsubscribe()
       delete this.observables[id]
     }
+  }
+
+  // Methods for `logs` table operations
+  getAllLogs(): Promise<LoggerData[]> {
+    return this.db['logs'].toArray();
+  }
+
+  async getLogById(id: string): Promise<LoggerData | null> {
+    return await this.db['logs'].get(id);
+  }
+
+  putLog(id: string, logData: LoggerData) {
+    return this.db['logs'].put({ id, LoggerData: { ...logData } });
+  }
+
+  deleteLog(id: string) {
+    this.db['logs'].delete(id);
+  }
+
+  getLogsIds(): Promise<string[]> {
+    return this.db['logs'].toCollection().primaryKeys();
   }
 }

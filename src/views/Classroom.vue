@@ -3,6 +3,7 @@ import Settings from "../components/Settings.vue";
 import Chat from "../components/Chat";
 import Checks from "../components/Checks";
 import Modules from "../components/Modules.vue";
+import Logger from "../components/Logger.vue";
 
 import { Database, DatabaseItem } from "../ts/Database";
 import { infoHash, scrapeModule, clone, getPeerID, getShortPeerID } from "../ts/Utils";
@@ -90,6 +91,10 @@ export default {
         (v: string) => !!v || "Name is required",
         (v: string) => !this.isNameTaken(v) || "Name is already taken",
       ],
+
+      isLoggerVisible: false,
+      isLoggerMinimized: false,
+      isLoggerRunning: false,
     };
   },
   watch: {
@@ -269,6 +274,8 @@ export default {
         }
       }
 
+      //console.log("usersInRoom() called");
+
       return users;
     },
 
@@ -304,6 +311,7 @@ export default {
       sessionStorage.setItem(`station_${this.id}`, this.stationNameInput);
       window.location.reload();
     },
+
     isNameTaken(name: string) {
       if (!this.liveClassProxy) return false;
       return Object.keys(this.liveClassProxy.rooms).includes("Station " + name);
@@ -315,6 +323,7 @@ export default {
     Checks,
     Settings,
     Modules,
+    Logger,
   },
 };
 </script>
@@ -339,6 +348,29 @@ export default {
         </template>
 
         <v-spacer></v-spacer>
+
+        <v-tooltip text="Open Logger" location="bottom">
+          <template v-slot:activator="{ props }">
+            <v-btn
+              icon="mdi-console"
+              :style="{ animation: isLoggerRunning ? 'blink 1.5s linear infinite' : '' }"
+              v-bind="props"
+              v-if="isStation"
+              @click="
+                isLoggerVisible = true;
+                isLoggerMinimized = false;
+              "
+            >
+            </v-btn>
+          </template>
+        </v-tooltip>
+
+        <v-divider
+          class="mx-3 align-self-center"
+          length="24"
+          thickness="2"
+          vertical
+        ></v-divider>
 
         <v-btn
           icon
@@ -534,6 +566,32 @@ export default {
         @updateClass="updateClass"
         :writeProtection="!!hash"
       ></Settings>
+    </v-dialog>
+
+    <v-dialog
+      v-model="isLoggerVisible"
+      max-width="1200px"
+      width="90%"
+      height="50%"
+      scrollable
+      persistent
+      :id="'logger' + componentKey"
+      :style="{ display: isLoggerMinimized ? 'none' : 'flex' }"
+    >
+      <Logger
+        @close="
+          isLoggerVisible = false;
+          isLoggerMinimized = false;
+        "
+        @minimize="isLoggerMinimized = true"
+        @logger-started="isLoggerRunning = true"
+        @logger-stopped="isLoggerRunning = false"
+        :liveClassProxy="liveClassProxy"
+        :classId="id"
+        :stationName="stationName"
+        :database="database"
+      >
+      </Logger>
     </v-dialog>
   </v-app>
 </template>
