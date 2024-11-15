@@ -530,7 +530,7 @@ export default class Peer {
     return {
       rooms: this.y.rooms.toJSON(),
       users: this.y.users.toJSON(),
-      doc: this.y.doc,
+      doc: awareness ? undefined : Y.encodeStateAsUpdate(this.y.doc),
       awareness: awareness,
     }
   }

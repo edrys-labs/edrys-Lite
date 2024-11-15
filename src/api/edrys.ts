@@ -212,6 +212,7 @@ window.addEventListener(
 
           doc.on('update', (state, origin) => {
             update()
+
             dispatchEvent(
               new CustomEvent('$Edrys.update', {
                 bubbles: false,
@@ -268,13 +269,13 @@ window.addEventListener(
 
         window['Edrys'].class_id = e.data.class_id
 
-        Y.applyUpdate(doc, e.data.liveClass, EXTERN)
+        if (e.data.liveClass) {
+          Y.applyUpdate(doc, e.data.liveClass, EXTERN)
+        }
 
         if (e.data.awareness) {
           YP.applyAwarenessUpdate(awareness, e.data.awareness, EXTERN)
         }
-
-        update()
 
         if (!window['Edrys'].ready) {
           window['Edrys'].ready = true

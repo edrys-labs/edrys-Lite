@@ -26,8 +26,6 @@
 </template>
 
 <script lang="ts">
-import { encodeStateAsUpdate } from "yjs";
-
 export default {
   name: "Module",
   props: {
@@ -79,7 +77,7 @@ export default {
             origin: window.origin,
             role: this.role,
             username: this.username,
-            liveClass: encodeStateAsUpdate(this.liveClassProxy.doc),
+            liveClass: this.liveClassProxy.doc,
             awareness: this.liveClassProxy.awareness,
             module: JSON.parse(JSON.stringify(this.scrapedModule)),
             class_id: this.class_id,
