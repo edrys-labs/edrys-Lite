@@ -88,6 +88,10 @@ window['Edrys'] = {
     doc.getMap('rooms').get(window['Edrys'].liveUser.room).delete(key)
   },
 
+  transactState(callback: () => void, origin: any) {
+    doc.transact(callback, origin)
+  },
+
   getState(
     key: string,
     type:
@@ -109,7 +113,10 @@ window['Edrys'] = {
 
     const map = doc.getMap('rooms').get(window['Edrys'].liveUser.room)
 
-    if (map.has(key)) {
+    if (
+      map.has(key) &&
+      (type !== 'Value' || (type === 'Value' && value === undefined))
+    ) {
       return map.get(key)
     }
 
@@ -135,9 +142,23 @@ window['Edrys'] = {
         state = new Y.XmlElement()
         break
 
-      default:
+      case 'Value':
+        if (value === undefined) {
+          return
+        }
+
+        const oldState = map.get(key)
+
+        if (JSON.stringify(oldState) === JSON.stringify(value)) {
+          return oldState
+        }
+
         state = value
         break
+
+      default:
+        console.warn('Unknown type:', type)
+        return
     }
 
     map.set(key, state)
@@ -213,11 +234,13 @@ window.addEventListener(
           doc.on('update', (state, origin) => {
             update()
 
-            dispatchEvent(
-              new CustomEvent('$Edrys.update', {
-                bubbles: false,
-              })
-            )
+            if (window['Edrys'].ready) {
+              dispatchEvent(
+                new CustomEvent('$Edrys.update', {
+                  bubbles: false,
+                })
+              )
+            }
 
             if (origin === EXTERN) {
               return // Ignore this transaction
@@ -294,12 +317,16 @@ window.addEventListener(
       default:
         break
     }
-    dispatchEvent(
-      new CustomEvent('$Edrys.' + e.data.event, {
-        bubbles: false,
-        detail: e.data,
-      })
-    )
+
+    // update events are only triggered internally, if the state changes.
+    if (e.data.event !== 'update') {
+      dispatchEvent(
+        new CustomEvent('$Edrys.' + e.data.event, {
+          bubbles: false,
+          detail: e.data,
+        })
+      )
+    }
   },
   false
 )
