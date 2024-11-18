@@ -26,8 +26,6 @@ export default {
     },
 
     check() {
-      console.warn("States changed", JSON.stringify(this.states, null, 2));
-
       if (this.states.receivedConfiguration && !this.states.connectedToNetwork) {
         this.counterIncrement();
       }
