@@ -18,11 +18,25 @@
 import * as Y from 'yjs'
 import * as YP from 'y-protocols/awareness.js'
 import { RoomAwarenessManager } from './awarenessManager'
+import { unpack, pack } from 'msgpackr'
 
 const EXTERN = 'extern'
 var awareness: any
 var awarenessManager: any
 var doc: any
+
+function encode(value: any): string {
+  // Convert MessagePack binary data to Base64 string
+  const packed = pack(value)
+  return btoa(String.fromCharCode(...packed))
+}
+
+function decode(value: string): any {
+  // Convert Base64 string back to binary data then unpack
+  const binary = atob(value)
+  const bytes = new Uint8Array([...binary].map((c) => c.charCodeAt(0)))
+  return unpack(bytes)
+}
 
 window['Edrys'] = {
   origin: '*',
@@ -55,17 +69,21 @@ window['Edrys'] = {
         customEvent.detail.module != window['Edrys'].module?.url
       )
         return
+
+      const message = customEvent.detail
+      message.body = decode(message.body)
+
       handler(customEvent.detail)
     })
   },
   sendMessage: (subject: any, body: any, user?: string) => {
     if (typeof subject !== 'string') subject = JSON.stringify(subject)
-    if (typeof body !== 'string') body = JSON.stringify(body)
+
     window.parent.postMessage(
       {
         event: 'message',
         subject: subject,
-        body: body,
+        body: encode(body),
         module: window['Edrys'].module.url,
         user,
       },
