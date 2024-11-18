@@ -5,10 +5,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "sw": "npx workbox injectManifest workbox-config.js",
-    "build": "rm -rf .parcel-cache && rm -rf dist && npx parcel build src/index.html --log-level verbose  --no-scope-hoist --public-url ./",
-    "watch": "rm -rf dist && npx parcel serve src/*.html --no-cache --no-source-maps --open --port 6999",
-    "prepare": "cd node_modules/y-trystero && npm install && npm run build && cd ../..",
-    "minify:js": "find dist -name \"*.js\" -print0 | xargs -0 -P 4 -I {} sh -c 'before=$(wc -c < {}); minify {} > {}.min && after=$(wc -c < {}.min); if [ ${after} -lt ${before} ]; then mv {}.min {}; reduction=$((${before}-${after})); percent=$(awk \"BEGIN {printf \\\"%.2f\\\", ${reduction}/${before}*100}\"); echo \"{} reduced from ${before} to ${after} bytes (${percent}% reduction)\"; else rm {}.min; echo \"{} no reduction achieved, file size unchanged\"; fi'"
+    "build": "rm -rf .parcel-cache && rm -rf dist && npm run build:edrys && npx parcel build src/index.html --log-level verbose  --no-scope-hoist --public-url ./",
+    "watch": "rm -rf dist && npm run build:edrys && npx parcel serve src/*.html --no-cache --no-source-maps --open --port 6999",
+    "minify:js": "find dist -name \"*.js\" -print0 | xargs -0 -P 4 -I {} sh -c 'before=$(wc -c < {}); minify {} > {}.min && after=$(wc -c < {}.min); if [ ${after} -lt ${before} ]; then mv {}.min {}; reduction=$((${before}-${after})); percent=$(awk \"BEGIN {printf \\\"%.2f\\\", ${reduction}/${before}*100}\"); echo \"{} reduced from ${before} to ${after} bytes (${percent}% reduction)\"; else rm {}.min; echo \"{} no reduction achieved, file size unchanged\"; fi'",
+    "build:edrys": "npx parcel build src/api/edrys.ts --no-scope-hoist && mv dist/edrys.* dist/module/"
   },
   "author": "André Dietrich",
   "license": "Mozilla Public License Version 2.0",
@@ -31,14 +31,16 @@
     "vue-prism-editor": "^2.0.0-alpha.2",
     "vuedraggable": "^4.1.0",
     "vuetify": "^3.7.3",
+    "y-protocols": "^1.0.6",
     "yjs": "^13.6.20"
   },
   "dependencies": {
     "echarts": "^5.5.1",
     "material-design-icons-iconfont": "^6.7.0",
+    "msgpackr": "^1.11.2",
     "muuri": "^0.9.5",
     "prismjs": "^1.29.0",
-    "secure-ls": "^1.2.6",
+    "secure-ls": "^2.0.0",
     "trystero": "^0.20.0",
     "y-trystero": "github:edrys-labs/y-trystero"
   },

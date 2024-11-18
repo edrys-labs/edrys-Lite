@@ -10,11 +10,28 @@ export default {
   },
 
   data() {
-    return { model: this.check() };
+    return { model: this.check(), counter: 0 };
   },
 
   methods: {
+    counterIncrement() {
+      if (this.states.connectedToNetwork) {
+        this.counter = 0;
+      } else {
+        setTimeout(() => {
+          this.counter++;
+          this.counterIncrement();
+        }, 1000);
+      }
+    },
+
     check() {
+      console.warn("States changed", JSON.stringify(this.states, null, 2));
+
+      if (this.states.receivedConfiguration && !this.states.connectedToNetwork) {
+        this.counterIncrement();
+      }
+
       return !(
         this.states.connectedToNetwork &&
         this.states.webRTCSupport &&
@@ -92,7 +109,7 @@ export default {
           </div>
 
           <div>
-            Connected to peer 2 peer network
+            Connected to peer 2 peer network ({{ counter }} sec.)
 
             <v-btn
               class="ma-5"

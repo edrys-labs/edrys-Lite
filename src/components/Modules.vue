@@ -88,7 +88,6 @@ export default {
         layoutOnInit: true,
         layoutDuration: 400,
         layoutEasing: "ease",
-        dragSortInterval: 50,
         layout: {
           fillGaps: true,
           horizontal: false,
@@ -134,10 +133,17 @@ export default {
         case "update":
           this.setToValue(this.liveClassProxy, e.data.path, e.data.value);
           break;
+        case "state":
+          this.communication.updateState(e.data.data);
+          break;
+        case "awareness":
+          this.communication.updateAwareness(e.data.data);
+          break;
         case "echo":
           console.log("ECHO:", e.data);
           break;
         default:
+          console.warn("Unknown event", e.data);
           break;
       }
     },

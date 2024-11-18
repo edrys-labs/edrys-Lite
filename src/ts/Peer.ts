@@ -2,8 +2,9 @@ import { getPeerID, hashJsonObject, getShortPeerID } from './Utils'
 
 import * as Y from 'yjs'
 import { TrysteroProvider } from '../../node_modules/y-trystero/src/TrysteroProvider'
+// @ts-ignore
 import { joinRoom } from '../../node_modules/trystero/src/torrent'
-
+import * as YP from 'y-protocols/awareness.js'
 import { selfId } from 'trystero'
 
 function LOG(...args: any[]) {
@@ -14,14 +15,6 @@ function LOG(...args: any[]) {
   )
 }
 
-const trackersAnnounceURLs = [
-  'wss://tracker.openwebtorrent.com',
-  'wss://tracker.webtorrent.dev',
-  'wss://tracker.files.fm:7073/announce',
-  'wss://tracker.openwebtorrent.com:443/announce',
-  'wss://tracker.files.fm:7073/announce',
-]
-
 const LOBBY = 'Lobby'
 const STATION = 'Station'
 
@@ -31,6 +24,7 @@ export default class Peer {
   private provider: TrysteroProvider
   private tx: any
   private rx: any
+  private sync: boolean = false
 
   private y: {
     doc: Y.Doc
@@ -94,35 +88,39 @@ export default class Peer {
     this.initSetup()
 
     this.provider.on('status', (event) => {
-      this.connected = event.connected
-
       LOG('status', event)
 
-      if (event.connected) {
-        this.provider.room?.onPeerLeave((id: string) => {
-          this.removePeers([id])
-        })
-
-        this.initPubSub()
-
-        this.rx((msg: any, peerId: string) => {
-          this.update('message', msg)
-        })
-
-        this.y.setup.observe((event) => {
-          const timestamp = this.y.setup.get('timestamp')
-
-          if (this.lab.timestamp !== timestamp) {
-            this.initSetup()
-          }
-        })
+      if (!event.connected) {
+        this.connected = false
       }
 
-      this.update('connected')
+      this.y.setup.observe((event) => {
+        const timestamp = this.y.setup.get('timestamp')
+
+        if (this.lab.timestamp !== timestamp) {
+          this.initSetup()
+        }
+      })
     })
 
     this.provider.on('synced', (event) => {
+      this.provider.room?.onPeerLeave((id: string) => {
+        this.removePeers([id])
+      })
+
+      this.initPubSub()
+
+      this.rx((msg: any, peerId: string) => {
+        this.update('message', msg)
+      })
+
       LOG('synced', event)
+
+      setTimeout(() => {
+        this.connected = true
+
+        this.update('connected')
+      }, 5000)
     })
   }
 
@@ -269,22 +267,31 @@ export default class Peer {
         }
       }
       if (this.isStation()) {
-        console.log('adding station room', this.peerID)
         this.addRoom(this.peerID)
       }
     })
 
-    this.y.rooms.observe((events) => {
-      events.keysChanged.forEach((key) => {
-        const change = events.changes.keys.get(key)
+    this.y.rooms.observeDeep((events) => {
+      // Handle room deletions from root-level changes
+      events.forEach((event) => {
+        if (event.target === this.y.rooms) {
+          // This is a root-level change (like deleting a room)
+          const keysChanged = Array.from(event.changes.keys.keys())
 
-        if (change?.action === 'delete') {
-          // if my room is deleted, move to lobby
-          if (this.user() && this.user().get('room') === key) {
-            this.user().set('room', LOBBY)
-          }
+          keysChanged.forEach((key) => {
+            const change = event.changes.keys.get(key)
+            if (change?.action === 'delete') {
+              // If my room is deleted, move to lobby
+              if (this.user() && this.user().get('room') === key) {
+                LOG('current room was deleted, moving to lobby')
+                this.user().set('room', LOBBY)
+              }
+            }
+          })
         }
       })
+
+      // Only trigger one update per batch of changes
       this.update('room')
     })
   }
@@ -346,8 +353,8 @@ export default class Peer {
       case 'room': {
         //this.peerUpdate()
 
-        if (callback) {
-          callback(await this.toJSON())
+        if (callback && this.connected) {
+          callback(await this.toJSON(message))
           this.callbackUpdate[event] = false
         } else {
           this.callbackUpdate[event] = true
@@ -398,6 +405,14 @@ export default class Peer {
     }
 
     const users = this.y.users.toJSON()
+
+    // send to one user only
+    if (msg.user) {
+      this.tx(msg, users[msg.user].selfId)
+      return
+    }
+
+    // otherwise broadcast to all users in the room
     for (const id in users) {
       if (users[id].room === room) {
         try {
@@ -425,12 +440,7 @@ export default class Peer {
 
   addRoom(name?: string) {
     if (name && !this.y.rooms.has(name)) {
-      const room = {
-        studentPublicState: '',
-        teacherPublicState: '',
-        teacherPrivateState: '',
-      }
-
+      const room = new Y.Map()
       this.y.rooms.set(name, room)
     } else if (!name) {
       const roomIDs: number[] = Object.keys(this.y.rooms.toJSON())
@@ -466,16 +476,46 @@ export default class Peer {
     ])
   }
 
+  updateState(data: Uint8Array) {
+    this.y.doc.transact(
+      () => {
+        Y.applyUpdate(this.y.doc, data)
+      },
+      { transactionId: 'intern' }
+    )
+  }
+
+  updateAwareness(data: Uint8Array) {
+    YP.applyAwarenessUpdate(this.provider.awareness, data, 'EXTERN')
+  }
+
   async join(role: 'student' | 'teacher' | 'station') {
     this.initUser(role)
     this.initRooms()
     this.initChat()
-    //this.peerUpdate()
 
-    return await this.toJSON()
+    this.update('room')
+
+    this.provider.awareness.on(
+      'update',
+      ({ added, updated, removed }, origin) => {
+        const changedClients = added.concat(updated, removed)
+
+        // Encode the awareness update
+        const update = YP.encodeAwarenessUpdate(
+          this.provider.awareness,
+          changedClients
+        )
+
+        if (origin !== 'EXTERN') {
+          // Broadcast to all iframes
+          this.update('room', update)
+        }
+      }
+    )
   }
 
-  async toJSON() {
+  async toJSON(awareness?: Uint8Array) {
     // check if station and add station room exist
     if (this.isStation() && !this.y.rooms.has(this.peerID)) {
       this.addRoom(this.peerID)
@@ -490,6 +530,8 @@ export default class Peer {
     return {
       rooms: this.y.rooms.toJSON(),
       users: this.y.users.toJSON(),
+      doc: awareness ? undefined : Y.encodeStateAsUpdate(this.y.doc),
+      awareness: awareness,
     }
   }
 
