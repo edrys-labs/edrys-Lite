@@ -114,7 +114,7 @@ export default class Peer {
         this.update('message', msg)
       })
 
-      LOG('synced', event)
+      LOG('synced', event, this.provider)
 
       setTimeout(() => {
         this.connected = true
