@@ -120,7 +120,7 @@ export default class Peer {
         this.connected = true
 
         this.update('connected')
-      }, 1000)
+      }, 5000)
     })
   }
 
