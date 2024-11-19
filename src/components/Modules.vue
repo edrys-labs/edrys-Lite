@@ -19,8 +19,10 @@ export default {
       grid: null,
       //scrapedModules: JSON.parse(JSON.stringify(this.scrapedModules_)),
       count: 0,
+      isResizing: false,
     };
   },
+
   computed: {
     roomName() {
       return this.liveClassProxy.users[this.username]?.room || "Station " + this.username;
@@ -69,6 +71,36 @@ export default {
       }
       //self.scrapedModule.origin || self.iframeOrigin
     );
+
+    this.$nextTick(() => {
+      setTimeout(() => {
+        this.scrapedModulesFilter.forEach((m, index) => {
+          const element = this.$refs[`resizableItem_${index}`][0];
+
+          element.addEventListener(
+            "mousedown",
+            (event) => {
+              // Check if the mousedown occurred in the bottom-right corner
+              const rect = element.getBoundingClientRect();
+
+              if (event.clientY - rect.top > 20) {
+                this.isResizing = true;
+                element.style.setProperty("z-index", "100");
+              }
+            },
+            true
+          );
+
+          element.addEventListener("mouseup", () => {
+            if (this.isResizing) {
+              this.isResizing = false;
+              element.style.setProperty("z-index", "100");
+              this.gridUpdate();
+            }
+          });
+        });
+      }, 1000);
+    });
   },
   beforeDestroy() {
     window.removeEventListener("message", this.messageHandler);
@@ -88,6 +120,7 @@ export default {
         layoutOnInit: true,
         layoutDuration: 400,
         layoutEasing: "ease",
+
         layout: {
           fillGaps: true,
           horizontal: false,
@@ -95,7 +128,39 @@ export default {
           alignBottom: false,
           rounding: true,
         },
+
+        dragStartPredicate: (item, e) => {
+          // Start moving the item after the item has been dragged for one second.
+          if (e.deltaTime > 100 && !this.isResizing) {
+            return true;
+          }
+        },
       });
+    },
+
+    width(w: string): string {
+      switch (w) {
+        case "full":
+          return "1030px";
+        case "half":
+          return "510px";
+
+        default:
+          return "200px";
+      }
+    },
+
+    height(h: string): string {
+      switch (h) {
+        case "huge":
+          return "840px";
+        case "tall":
+          return "720px";
+        case "medium":
+          return "410px";
+        default:
+          return "200px";
+      }
     },
 
     size(height: string, width: string): string {
@@ -173,6 +238,9 @@ export default {
         class="item"
         v-for="(m, i) in scrapedModulesFilter"
         :class="size(m.height, m.width)"
+        :width="width(m.width)"
+        :height="height(m.height)"
+        :ref="'resizableItem_' + i"
       >
         <span class="item-title">{{ m.name }}</span>
         <Module
@@ -212,6 +280,9 @@ export default {
   border: 1px solid #888;
   border-top: 0.75rem solid #888;
   border-radius: 0.25rem;
+  resize: both;
+  overflow: hidden;
+  box-shadow: 4px 4px 12px #00000080;
 }
 
 .item--w2 {
@@ -252,13 +323,13 @@ export default {
 
 .item-title {
   background-color: #888;
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+
   border-radius: 0.5rem;
   position: absolute;
-  top: -1rem;
-  left: 1rem;
+  top: -0.4rem;
+  left: 0.5rem;
   padding: 1px 8px;
-  font-size: smaller;
+  font-size: small;
   cursor: move;
 }
 </style>
