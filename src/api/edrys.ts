@@ -111,8 +111,8 @@ window['Edrys'] = {
   },
 
   getState(
-    key: string,
-    type:
+    key?: string,
+    type?:
       | 'Map'
       | 'Array'
       | 'Text'
@@ -130,6 +130,10 @@ window['Edrys'] = {
     }
 
     const map = doc.getMap('rooms').get(window['Edrys'].liveUser.room)
+
+    if (!key) {
+      return map
+    }
 
     if (
       map.has(key) &&
@@ -228,6 +232,15 @@ function update() {
   window['Edrys'].liveClass = new Proxy(liveClass, edrysProxyValidator(''))
   window['Edrys'].liveUser = liveClass.users[window['Edrys'].username]
   window['Edrys'].liveRoom = liveClass.rooms[window['Edrys'].liveUser.room]
+  window['Edrys'].liveRoom.name = window['Edrys'].liveUser.room
+}
+
+function dispatchUpdate() {
+  dispatchEvent(
+    new CustomEvent('$Edrys.update', {
+      bubbles: false,
+    })
+  )
 }
 
 window.addEventListener(
@@ -253,11 +266,7 @@ window.addEventListener(
             update()
 
             if (window['Edrys'].ready) {
-              dispatchEvent(
-                new CustomEvent('$Edrys.update', {
-                  bubbles: false,
-                })
-              )
+              dispatchUpdate()
             }
 
             if (origin === EXTERN) {
@@ -323,6 +332,9 @@ window.addEventListener(
           dispatchEvent(
             new CustomEvent('$Edrys.ready', { bubbles: false, detail: e.data })
           )
+
+          // needs to be called initially
+          dispatchUpdate()
         }
 
         break

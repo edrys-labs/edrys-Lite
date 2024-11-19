@@ -174,6 +174,7 @@ export default {
         v-for="(m, i) in scrapedModulesFilter"
         :class="size(m.height, m.width)"
       >
+        <span class="item-title">{{ m.name }}</span>
         <Module
           class="item-content"
           :key="i"
@@ -247,5 +248,17 @@ export default {
 }
 .item.muuri-item-hidden {
   z-index: 0;
+}
+
+.item-title {
+  background-color: #888;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  border-radius: 0.5rem;
+  position: absolute;
+  top: -1rem;
+  left: 1rem;
+  padding: 1px 8px;
+  font-size: smaller;
+  cursor: move;
 }
 </style>
