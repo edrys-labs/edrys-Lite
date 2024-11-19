@@ -282,6 +282,7 @@ export default {
   border-radius: 0.25rem;
   resize: both;
   overflow: hidden;
+  box-shadow: 4px 4px 12px #00000080;
 }
 
 .item--w2 {
@@ -322,13 +323,13 @@ export default {
 
 .item-title {
   background-color: #888;
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+
   border-radius: 0.5rem;
   position: absolute;
-  top: -1rem;
-  left: 1rem;
+  top: -0.4rem;
+  left: 0.5rem;
   padding: 1px 8px;
-  font-size: smaller;
+  font-size: small;
   cursor: move;
 }
 </style>
