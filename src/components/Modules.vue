@@ -77,15 +77,24 @@ export default {
         this.scrapedModulesFilter.forEach((m, index) => {
           const element = this.$refs[`resizableItem_${index}`][0];
 
-          const resizeObserver = new ResizeObserver((entries) => {
-            this.isResizing = true;
-          });
+          element.addEventListener(
+            "mousedown",
+            (event) => {
+              // Check if the mousedown occurred in the bottom-right corner
+              const rect = element.getBoundingClientRect();
 
-          resizeObserver.observe(element);
+              if (event.clientY - rect.top > 20) {
+                this.isResizing = true;
+                element.style.setProperty("z-index", "100");
+              }
+            },
+            true
+          );
 
           element.addEventListener("mouseup", () => {
             if (this.isResizing) {
               this.isResizing = false;
+              element.style.setProperty("z-index", "100");
               this.gridUpdate();
             }
           });
@@ -111,12 +120,20 @@ export default {
         layoutOnInit: true,
         layoutDuration: 400,
         layoutEasing: "ease",
+
         layout: {
           fillGaps: true,
           horizontal: false,
           alignRight: false,
           alignBottom: false,
           rounding: true,
+        },
+
+        dragStartPredicate: (item, e) => {
+          // Start moving the item after the item has been dragged for one second.
+          if (e.deltaTime > 100 && !this.isResizing) {
+            return true;
+          }
         },
       });
     },
@@ -265,9 +282,6 @@ export default {
   border-radius: 0.25rem;
   resize: both;
   overflow: hidden;
-}
-
-.item-content {
 }
 
 .item--w2 {
