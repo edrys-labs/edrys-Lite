@@ -26,16 +26,24 @@ var awarenessManager: any
 var doc: any
 
 function encode(value: any): string {
-  // Convert MessagePack binary data to Base64 string
-  const packed = pack(value)
-  return btoa(String.fromCharCode(...packed))
+  try {
+    // Convert MessagePack binary data to Base64 string
+    const packed = pack(value)
+    return btoa(String.fromCharCode(...packed))
+  } catch (error) {
+    throw error
+  }
 }
 
 function decode(value: string): any {
-  // Convert Base64 string back to binary data then unpack
-  const binary = atob(value)
-  const bytes = new Uint8Array([...binary].map((c) => c.charCodeAt(0)))
-  return unpack(bytes)
+  try {
+    // Convert Base64 string back to binary data then unpack
+    const binary = atob(value)
+    const bytes = new Uint8Array([...binary].map((c) => c.charCodeAt(0)))
+    return unpack(bytes)
+  } catch (error) {
+    throw error
+  }
 }
 
 window['Edrys'] = {
@@ -48,6 +56,7 @@ window['Edrys'] = {
   liveUser: undefined,
   module: undefined,
   class_id: undefined,
+  debug: false,
 
   onReady(handler) {
     if (window['Edrys'].ready) handler(window['Edrys'])
@@ -71,7 +80,15 @@ window['Edrys'] = {
         return
 
       const message = customEvent.detail
-      message.body = decode(message.body)
+      try {
+        message.body = decode(message.body)
+      } catch (e) {
+        console.warn('Edrys: Error decoding message =>', message, e)
+        return
+      }
+
+      if (window['Edrys'].debug)
+        console.log('RECEIVED MESSAGE', message.subject, message.body)
 
       handler(customEvent.detail)
     })
@@ -79,11 +96,20 @@ window['Edrys'] = {
   sendMessage: (subject: any, body: any, user?: string) => {
     if (typeof subject !== 'string') subject = JSON.stringify(subject)
 
+    if (window['Edrys'].debug) console.log('SENDING MESSAGE', subject, body)
+
+    try {
+      body = encode(body)
+    } catch (e) {
+      console.warn('Edrys: Error encoding message =>', body, e)
+      return
+    }
+
     window.parent.postMessage(
       {
         event: 'message',
-        subject: subject,
-        body: encode(body),
+        subject,
+        body,
         module: window['Edrys'].module.url,
         user,
       },
