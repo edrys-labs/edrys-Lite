@@ -105,6 +105,7 @@ export default {
   beforeDestroy() {
     window.removeEventListener("message", this.messageHandler);
     this.communication.on("message", undefined);
+    this.grid.destroy();
   },
 
   async mounted() {

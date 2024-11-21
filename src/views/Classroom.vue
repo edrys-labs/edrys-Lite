@@ -67,7 +67,7 @@ export default {
       showSideMenu: true,
       showSettings: false,
 
-      scrapedModules: [],
+      scrapedModules: [] as any[],
 
       liveClassProxy: null,
 
@@ -204,11 +204,14 @@ export default {
     async scrapeModules() {
       this.states.receivedConfiguration = true;
 
-      this.scrapedModules = [];
+      const scrapedModules: any[] = [];
       for (let i = 0; i < this.data.modules.length; i++) {
         let module = await scrapeModule(this.data.modules[i]);
-        this.scrapedModules.push(module);
+        scrapedModules.push(module);
       }
+
+      this.componentKey++;
+      this.scrapedModules = scrapedModules;
 
       const self = this;
 
@@ -230,7 +233,7 @@ export default {
         this.communication.join(this.getRole());
       });
 
-      this.componentKey++;
+      this.communication.update("room");
 
       /*
       setTimeout(() => {
