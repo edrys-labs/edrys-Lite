@@ -324,13 +324,11 @@ export default {
 
 .item-title {
   background-color: #888;
-
-  border-radius: 0.5rem;
   position: absolute;
-  top: -0.4rem;
-  left: 0.5rem;
-  padding: 1px 8px;
-  font-size: small;
+  top: -0.3rem;
+  right: 0;
+  padding: 1px 4px;
+  font-size: x-small;
   cursor: move;
 }
 </style>
