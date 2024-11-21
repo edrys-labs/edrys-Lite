@@ -120,7 +120,7 @@ export default class Peer {
         this.connected = true
 
         this.update('connected')
-      }, 4000)
+      }, 1000)
     })
   }
 
@@ -232,7 +232,7 @@ export default class Peer {
       } else {
         LOG('user not found', this.peerID)
       }
-    }, 1000)
+    }, 4000)
 
     if (withObserver) {
       this.y.users.observeDeep((events) => {

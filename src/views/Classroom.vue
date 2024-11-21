@@ -128,6 +128,11 @@ export default {
             : { id: this.id, data: null, timestamp: 0, hash: this.hash },
           this.stationName
         );
+
+        this.communication.on("setup", async (configuration: DatabaseItem) => {
+          await self.database.put(clone(configuration));
+          self.init();
+        });
       }
 
       const self = this;
@@ -153,24 +158,6 @@ export default {
           this.getRole() === "teacher";
         this.scrapeModules();
       }
-
-      this.communication.on("setup", (configuration: DatabaseItem) => {
-        try {
-          if (
-            configuration.timestamp &&
-            configuration &&
-            !deepEqual(self.configuration.data, configuration.data)
-          ) {
-            self.database.put(configuration);
-            self.init();
-          }
-        } catch (e) {
-          if (configuration.timestamp && configuration) {
-            self.database.put(configuration);
-            self.init();
-          }
-        }
-      });
     },
 
     getRooms() {
@@ -202,6 +189,8 @@ export default {
     },
 
     async scrapeModules() {
+      if (!this.data) return;
+
       this.states.receivedConfiguration = true;
 
       const scrapedModules: any[] = [];
@@ -233,7 +222,9 @@ export default {
         this.communication.join(this.getRole());
       });
 
-      this.communication.update("room");
+      setTimeout(() => {
+        this.communication.update("room");
+      }, 1000);
 
       /*
       setTimeout(() => {
@@ -261,7 +252,10 @@ export default {
       this.configuration.data = clone(configuration);
       this.data = clone(configuration);
 
-      this.database.update(clone(this.configuration));
+      this.database.update(clone(this.configuration)).then(async (id) => {
+        const config = await this.database.get(id);
+        this.communication?.newSetup(config);
+      });
 
       this.scrapeModules();
     },
@@ -283,6 +277,11 @@ export default {
 
     gotoRoom(name: string) {
       this.communication?.gotoRoom(name);
+
+      // sometimes the room is not correctly initialized
+      setTimeout(() => {
+        this.communication?.update("room");
+      }, 1000);
     },
 
     addRoom() {
