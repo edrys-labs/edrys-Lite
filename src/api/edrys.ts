@@ -357,7 +357,7 @@ window.addEventListener(
           YP.applyAwarenessUpdate(awareness, e.data.awareness, EXTERN)
         }
 
-        if (!window['Edrys'].ready) {
+        if (!window['Edrys'].ready && window['Edrys'].liveClass) {
           window['Edrys'].ready = true
           dispatchEvent(
             new CustomEvent('$Edrys.ready', { bubbles: false, detail: e.data })
