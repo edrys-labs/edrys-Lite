@@ -80,17 +80,21 @@ window['Edrys'] = {
         return
 
       const message = customEvent.detail
-      try {
-        message.body = decode(message.body)
-      } catch (e) {
-        console.warn('Edrys: Error decoding message =>', message, e)
-        return
+
+      if (!message?._decoded) {
+        try {
+          message.body = decode(message.body)
+          message._decoded = true
+        } catch (e) {
+          console.warn('Edrys: Error decoding message =>', message, e)
+          return
+        }
       }
 
       if (window['Edrys'].debug)
         console.log('RECEIVED MESSAGE', message.subject, message.body)
 
-      handler(customEvent.detail)
+      handler(message)
     })
   },
   sendMessage: (subject: any, body: any, user?: string) => {
