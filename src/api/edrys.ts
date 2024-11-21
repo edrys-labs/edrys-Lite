@@ -295,12 +295,34 @@ window.addEventListener(
           doc.on('update', (state, origin) => {
             update()
 
-            if (window['Edrys'].ready) {
-              dispatchUpdate()
-            }
-
             if (origin === EXTERN) {
-              return // Ignore this transaction
+              // onReady can only be sent if it has been updated by the parent
+              if (!window['Edrys'].ready && window['Edrys'].liveClass) {
+                window['Edrys'].ready = true
+                dispatchEvent(
+                  new CustomEvent('$Edrys.ready', {
+                    bubbles: false,
+                    detail: e.data,
+                  })
+                )
+
+                // onUpdate is called only on changes within the room
+                doc
+                  .getMap('rooms')
+                  .get(window['Edrys'].liveUser.room)
+                  .observeDeep((_event, _transact) => {
+                    dispatchUpdate()
+                  })
+
+                doc.getMap('users').observeDeep((_event, _transact) => {
+                  dispatchUpdate()
+                })
+
+                // needs to be called initially
+                setTimeout(dispatchUpdate, 500)
+              }
+
+              return
             }
 
             window.parent.postMessage(
@@ -355,16 +377,6 @@ window.addEventListener(
 
         if (e.data.awareness) {
           YP.applyAwarenessUpdate(awareness, e.data.awareness, EXTERN)
-        }
-
-        if (!window['Edrys'].ready && window['Edrys'].liveClass) {
-          window['Edrys'].ready = true
-          dispatchEvent(
-            new CustomEvent('$Edrys.ready', { bubbles: false, detail: e.data })
-          )
-
-          // needs to be called initially
-          dispatchUpdate()
         }
 
         break
