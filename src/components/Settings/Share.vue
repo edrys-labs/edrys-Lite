@@ -79,12 +79,10 @@ export default {
   },
 
   data() {
-    console.log("Classroom config", JSON.stringify(this.config, null, 2));
-
     return {
       url: window.location.toString(),
       selectedURL: "",
-      selectedFile: [],
+      selectedFile: undefined,
 
       showTemplate: false,
 
@@ -165,7 +163,7 @@ export default {
       this.saveError = false;
       const reader = new FileReader();
 
-      reader.readAsText(this.selectedFile[0]);
+      reader.readAsText(this.selectedFile);
       reader.onload = (res) => {
         // will load yaml and json as well
 
@@ -200,7 +198,7 @@ export default {
       return this.selectedURL ? "mdi-upload" : "";
     },
     selectedFileIcon() {
-      return this.selectedFile[0] !== undefined ? "mdi-upload" : "";
+      return this.selectedFile !== undefined ? "mdi-upload" : "";
     },
   },
 };
