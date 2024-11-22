@@ -266,6 +266,7 @@ function update() {
 }
 
 function dispatchUpdate() {
+  update()
   dispatchEvent(
     new CustomEvent('$Edrys.update', {
       bubbles: false,
@@ -311,10 +312,12 @@ window.addEventListener(
                   .getMap('rooms')
                   .get(window['Edrys'].liveUser.room)
                   .observeDeep((_event, _transact) => {
+                    console.log('ROOM UPDATE')
                     dispatchUpdate()
                   })
 
                 doc.getMap('users').observeDeep((_event, _transact) => {
+                  console.log('USERS UPDATE')
                   dispatchUpdate()
                 })
 
