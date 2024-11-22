@@ -1,7 +1,7 @@
 <script lang="ts">
 import Settings from "../components/Settings.vue";
-import Chat from "../components/Chat";
-import Checks from "../components/Checks";
+import Chat from "../components/Chat.vue";
+import Checks from "../components/Checks.vue";
 import Modules from "../components/Modules.vue";
 import Logger from "../components/Logger.vue";
 
@@ -17,8 +17,8 @@ export default {
 
   data() {
     const database = new Database();
-
-    const configuration: DatabaseItem | null = null;
+    const liveClassProxy: any = null;
+    const configuration: DatabaseItem | null = {} as DatabaseItem;
     const data: any = null;
     const communication: Peer | null = null;
 
@@ -69,7 +69,7 @@ export default {
 
       scrapedModules: [] as any[],
 
-      liveClassProxy: null,
+      liveClassProxy: liveClassProxy,
 
       isStation: this.station,
 
