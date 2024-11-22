@@ -262,7 +262,7 @@ function update() {
   window['Edrys'].liveClass = new Proxy(liveClass, edrysProxyValidator(''))
   window['Edrys'].liveUser = liveClass.users[window['Edrys'].username]
   window['Edrys'].liveRoom = liveClass.rooms[window['Edrys'].liveUser.room]
-  window['Edrys'].liveRoom.name = window['Edrys'].liveUser.room
+  //window['Edrys'].liveRoom.name = window['Edrys'].liveUser.room
 }
 
 function dispatchUpdate() {
