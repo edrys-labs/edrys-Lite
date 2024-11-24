@@ -46,6 +46,16 @@ function decode(value: string): any {
   }
 }
 
+window.addEventListener('unload', () => {
+  window.parent.postMessage(
+    {
+      event: 'reload',
+      module: window['Edrys']?.module.url,
+    },
+    window['Edrys']?.origin || '*'
+  )
+})
+
 window['Edrys'] = {
   origin: '*',
   ready: false,
@@ -312,12 +322,12 @@ window.addEventListener(
                   .getMap('rooms')
                   .get(window['Edrys'].liveUser.room)
                   .observeDeep((_event, _transact) => {
-                    console.log('ROOM UPDATE')
+                    // console.log('ROOM UPDATE')
                     dispatchUpdate()
                   })
 
                 doc.getMap('users').observeDeep((_event, _transact) => {
-                  console.log('USERS UPDATE')
+                  // console.log('USERS UPDATE')
                   dispatchUpdate()
                 })
 

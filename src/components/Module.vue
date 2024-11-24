@@ -55,7 +55,7 @@ export default {
     },
   },
   data() {
-    return {};
+    return { loaded: false };
   },
   computed: {
     iframeOrigin() {
@@ -64,7 +64,7 @@ export default {
   },
   watch: {
     liveClassProxy() {
-      this.updateIframe();
+      if (this.loaded) this.updateIframe();
     },
   },
 
@@ -85,7 +85,11 @@ export default {
           this.scrapedModule.origin || this.iframeOrigin
         );
       } catch (e) {
-        console.warn(e);
+        console.warn("Module update", e);
+      }
+
+      if (!this.loaded) {
+        this.loaded = true;
       }
     },
   },

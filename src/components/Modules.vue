@@ -208,6 +208,12 @@ export default {
         case "echo":
           console.log("ECHO:", e.data);
           break;
+        case "reload":
+          // a full reload is needed
+          setTimeout(() => {
+            this.communication.update("room");
+          }, 100);
+          break;
         default:
           console.warn("Unknown event", e.data);
           break;
