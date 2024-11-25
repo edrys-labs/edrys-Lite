@@ -20,6 +20,7 @@ export default {
       //scrapedModules: JSON.parse(JSON.stringify(this.scrapedModules_)),
       count: 0,
       isResizing: false,
+      isMoving: false,
     };
   },
 
@@ -86,6 +87,8 @@ export default {
               if (event.clientY - rect.top > 20) {
                 this.isResizing = true;
                 element.style.setProperty("z-index", "100");
+              } else {
+                this.isMoving = true;
               }
             },
             true
@@ -96,6 +99,8 @@ export default {
               this.isResizing = false;
               element.style.setProperty("z-index", "100");
               this.gridUpdate();
+            } else if (this.isMoving) {
+              this.isMoving = false;
             }
           });
         });
@@ -250,6 +255,7 @@ export default {
         :ref="'resizableItem_' + i"
       >
         <span class="item-title">{{ m.name }}</span>
+        <div v-show="isMoving" class="item-overlay-protection"></div>
         <Module
           class="item-content"
           :key="i"
@@ -336,5 +342,12 @@ export default {
   padding: 1px 4px;
   font-size: x-small;
   cursor: move;
+}
+
+.item-overlay-protection {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  z-index: 100;
 }
 </style>
