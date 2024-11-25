@@ -415,3 +415,24 @@ window.addEventListener(
   },
   false
 )
+
+function checkReady() {
+  if (!window['Edrys'].ready) {
+    window.parent.postMessage(
+      {
+        event: 'reload',
+        module: window['Edrys']?.module.url,
+      },
+      window['Edrys']?.origin || '*'
+    )
+
+    setTimeout(() => {
+      console.warn('Edrys-module: Not ready yet ...')
+      checkReady()
+    }, 1000)
+  }
+}
+
+setTimeout(() => {
+  checkReady()
+}, 1000)
