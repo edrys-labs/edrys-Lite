@@ -416,6 +416,7 @@ window.addEventListener(
   false
 )
 
+/*
 function checkReady() {
   if (!window['Edrys'].ready) {
     window.parent.postMessage(
@@ -436,3 +437,4 @@ function checkReady() {
 setTimeout(() => {
   checkReady()
 }, 1000)
+*/
