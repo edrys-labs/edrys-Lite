@@ -416,7 +416,6 @@ window.addEventListener(
   false
 )
 
-/*
 function checkReady() {
   if (!window['Edrys'].ready) {
     window.parent.postMessage(
@@ -430,11 +429,10 @@ function checkReady() {
     setTimeout(() => {
       console.warn('Edrys-module: Not ready yet ...')
       checkReady()
-    }, 1000)
+    }, 5000)
   }
 }
 
 setTimeout(() => {
   checkReady()
-}, 1000)
-*/
+}, 8000)
