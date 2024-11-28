@@ -5,19 +5,16 @@ const MESSAGE_TYPE_CUSTOM = 42
 const MESSAGE_TYPE_ID = 43
 
 export class EdrysWebrtcProvider extends WebrtcProvider {
-  private _messageListeners: Set<Function>
+  private _messageListener: Function | null = null
   private _setupPeers: Set<string>
   private _peerUserIds: Map<string, string>
   private _userIdToPeer: Map<string, any>
   private _bcChannel: BroadcastChannel
-  private _leaveListeners: Set<Function>
+  private _leaveListener: Function | null = null
   public userid: string
 
   constructor(roomName: string, doc: any, options: any) {
     super(roomName, doc, options)
-
-    // Set to store message listeners
-    this._messageListeners = new Set()
 
     // Map to store peers we've already set up listeners for
     this._setupPeers = new Set()
@@ -27,8 +24,6 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
     // Map user IDs to peer connections
     this._userIdToPeer = new Map()
-
-    this._leaveListeners = new Set()
 
     // Initialize BroadcastChannel
     this._bcChannel = new BroadcastChannel(`custom-webrtc-provider-${roomName}`)
@@ -55,16 +50,16 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
    * @param {Object} data - The data received
    */
   _handleIncomingBCMessage(data) {
-    const { topic, body, userid, targetUserId } = data
+    console.warn('Received BC message:', data)
 
     // If targetUserId is set, check if it matches own userid
-    if (targetUserId && targetUserId !== this.userid) {
-      return // Not intended for this peer
-    }
+    //    if (targetUserId && targetUserId !== this.userid) {
+    //      return // Not intended for this peer
+    //    }
 
-    this._messageListeners.forEach((listener) => {
-      listener({ topic, body, userid })
-    })
+    if (this._messageListener) {
+      this._messageListener(data)
+    }
   }
 
   /**
@@ -84,6 +79,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
       // Ensure we don't add multiple listeners
       if (this._setupPeers.has(peerId)) return
+
       this._setupPeers.add(peerId)
 
       peer.on('connect', () => {
@@ -93,6 +89,8 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
       })
 
       peer.on('data', (data) => {
+        //console.warn(`Received data from peer ${peerId}:`, data)
+
         this._handleIncomingData(data, peerId, peer)
       })
 
@@ -107,9 +105,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
         const remoteUserId = this._peerUserIds.get(peerId)
         if (remoteUserId) {
           // Invoke all registered leave callbacks with the remoteUserId
-          this._leaveListeners.forEach((callback) => {
-            callback(remoteUserId)
-          })
+          if (this._leaveListener) this._leaveListener(remoteUserId)
 
           // Remove mappings
           this._peerUserIds.delete(peerId)
@@ -149,15 +145,10 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
       if (messageType === MESSAGE_TYPE_CUSTOM) {
         const messageContent = decoding.readVarString(decoder)
         const message = JSON.parse(messageContent)
+        console.warn('Received data---------------:', message, senderId, peer)
 
         // Invoke all registered listeners with the message
-        this._messageListeners.forEach((listener) => {
-          listener({
-            topic: message.topic,
-            body: message.body,
-            userid: message.userid || senderId,
-          })
-        })
+        if (this._messageListener) this._messageListener(message)
       } else if (messageType === MESSAGE_TYPE_ID) {
         const remoteUserId = decoding.readVarString(decoder)
         // Map the remoteUserId to the peer
@@ -174,19 +165,18 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
    * @param {function(userid: string): void} callback
    */
   onLeave(callback) {
-    this._leaveListeners.add(callback)
+    this._leaveListener = callback
   }
 
   /**
    * Send a custom JSON message to connected peers.
-   * @param {string} topic - The topic of the message.
-   * @param {any} body - The body of the message.
-   * @param {string} userid - The user ID of the sender.
+   * @param {string} message - The topic of the message.
    * @param {string} [targetUserId=null] - The target user's ID. If null, broadcast to all.
    */
+
   sendMessage(message: any, targetUserId: string | null = null) {
     // Send via BroadcastChannel
-    this._bcChannel.postMessage({ ...message, targetUserId })
+    this._bcChannel.postMessage(message)
 
     // Encode the message for WebRTC peers
     const encoder = encoding.createEncoder()
@@ -219,7 +209,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
    * @param {function({topic: string, body: any, userid: string}): void} callback
    */
   onMessage(callback) {
-    this._messageListeners.add(callback)
+    this._messageListener = callback
   }
 
   /**
@@ -227,8 +217,8 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
    */
   destroy() {
     super.destroy()
-    this._messageListeners.clear()
     this._bcChannel.close()
-    this._leaveListeners.clear()
+    this._messageListener = null
+    this._leaveListener = null
   }
 }

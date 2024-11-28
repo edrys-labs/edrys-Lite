@@ -98,6 +98,20 @@ export default class Peer {
       },
     })
 
+    this.provider.awareness.on(
+      'update',
+      ({ added, updated, removed }, origin) => {
+        console.warn('awareness', added, updated, removed)
+        if (added.length > 0 || updated.length > 0) {
+          // Peers have connected or updated their state
+          if (!this.connected) {
+            this.connected = true
+            this.update('connected')
+          }
+        }
+      }
+    )
+
     this.initSetup()
 
     // Register the onLeave callback
@@ -112,6 +126,10 @@ export default class Peer {
       LOG('status', event)
 
       // this.connected = event.connected
+      this.provider.onMessage((msg) => {
+        console.warn('SSSSSSSSSSSSSSS', msg)
+        this.update('message', msg)
+      })
 
       this.y.setup.observe((event) => {
         const timestamp = this.y.setup.get('timestamp')
@@ -407,7 +425,6 @@ export default class Peer {
 
     const users = this.y.users.toJSON()
 
-    console.warn('broadcast', room, msg)
     // send to one user only
     if (msg.user) {
       this.provider.sendMessage(msg, msg.user)
@@ -417,7 +434,8 @@ export default class Peer {
     // otherwise broadcast to all users in the room
     for (const id in users) {
       console.warn('broadcast', id)
-      if (users[id].room === room) {
+
+      if (users[id].room === room && id !== this.peerID) {
         try {
           this.provider.sendMessage(msg, id)
         } catch (e) {
