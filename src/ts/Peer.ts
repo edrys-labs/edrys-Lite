@@ -1,11 +1,9 @@
 import { getPeerID, hashJsonObject, getShortPeerID } from './Utils'
 
 import * as Y from 'yjs'
-import { TrysteroProvider } from '../../node_modules/y-trystero/src/TrysteroProvider'
 // @ts-ignore
-import { joinRoom } from '../../node_modules/trystero/src/torrent'
 import * as YP from 'y-protocols/awareness.js'
-import { selfId } from 'trystero'
+import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
 
 function LOG(...args: any[]) {
   console.log(
@@ -21,10 +19,7 @@ const STATION = 'Station'
 let heartbeatID
 
 export default class Peer {
-  private provider: TrysteroProvider
-  private tx: any
-  private rx: any
-  private sync: boolean = false
+  private provider: EdrysWebrtcProvider
 
   private y: {
     doc: Y.Doc
@@ -73,26 +68,50 @@ export default class Peer {
       this.peerID = STATION + ' ' + stationID
     }
 
-    this.provider = new TrysteroProvider(
-      this.lab.id + (this.lab.hash || ''),
-      this.y.doc,
-      {
-        appId: process.env.APP_ID || 'edry-Lite', // optional, but recommended
-        password: password,
-        joinRoom: joinRoom,
-        // {"rtcConfig":{"config":{"iceServers":[{"urls":"...."},{"urls":"turn:turn....","username":"XXXX","credential":"XXXXXX"}]}}}
-        peerOpts: JSON.parse(process.env.TRYSTERO_PEER_CONFIG || '{}'),
-      }
-    )
+    const room = this.lab.id + (this.lab.hash || '')
+
+    this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
+      signaling: ['wss://edrys-lite-signal-sever.deno.dev/' + room],
+      password: 'password',
+      userid: this.peerID,
+      peerOpts: {
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.relay.metered.ca:80' },
+            {
+              urls: 'turn:standard.relay.metered.ca:80',
+              username: '67907bf8b597a9dda10f190e',
+              credential: 'GDu47yZDDfCAxo5k',
+            },
+            {
+              urls: 'turn:standard.relay.metered.ca:80?transport=tcp',
+              username: '67907bf8b597a9dda10f190e',
+              credential: 'GDu47yZDDfCAxo5k',
+            },
+            {
+              urls: 'turn:standard.relay.metered.ca:443',
+              username: '67907bf8b597a9dda10f190e',
+              credential: 'GDu47yZDDfCAxo5k',
+            },
+          ],
+        },
+      },
+    })
 
     this.initSetup()
+
+    // Register the onLeave callback
+    this.provider.onLeave((userid) => {
+      console.log(`Peer with userid ${userid} has left the room.`)
+      // Perform any additional cleanup or UI updates here
+
+      this.removePeers([userid])
+    })
 
     this.provider.on('status', (event) => {
       LOG('status', event)
 
-      if (!event.connected) {
-        this.connected = false
-      }
+      // this.connected = event.connected
 
       this.y.setup.observe((event) => {
         const timestamp = this.y.setup.get('timestamp')
@@ -101,21 +120,19 @@ export default class Peer {
           this.initSetup()
         }
       })
+
+      setTimeout(() => {
+        this.connected = true
+        LOG('synced', event)
+
+        this.update('connected')
+      }, 5000)
     })
 
     this.provider.on('synced', (event) => {
-      this.provider.room?.onPeerLeave((id: string) => {
-        this.removePeers([id])
-      })
+      console.warn('WWWWWWWWWWWWWWWWWW', event)
 
-      this.initPubSub()
-
-      this.rx((msg: any, peerId: string) => {
-        this.update('message', msg)
-      })
-
-      LOG('synced', event)
-
+      // todo ... check if iam still in the list
       setTimeout(() => {
         this.connected = true
 
@@ -148,22 +165,6 @@ export default class Peer {
         }
       }
     })
-  }
-
-  initPubSub() {
-    LOG('initializing pubsub ...')
-    if (this.provider.room) {
-      const [tx, rx] = this.provider.room.trysteroRoom.makeAction('p2p')
-      this.tx = tx
-      this.rx = rx
-
-      LOG('... done')
-    } else {
-      LOG('... failed, retrying in 1s')
-      setTimeout(() => {
-        this.initPubSub()
-      }, 1000)
-    }
   }
 
   initSetup() {
@@ -207,7 +208,7 @@ export default class Peer {
     userSettings.set('role', this.role)
     userSettings.set('dateJoined', Date.now())
     userSettings.set('timestamp', Date.now())
-    userSettings.set('selfId', selfId)
+    //userSettings.set('selfId', selfId)
     userSettings.set('handRaised', false)
     userSettings.set('connections', [{ id: '', target: {} }])
     this.y.users.set(this.peerID, userSettings)
@@ -408,7 +409,7 @@ export default class Peer {
 
     // send to one user only
     if (msg.user) {
-      this.tx(msg, users[msg.user].selfId)
+      this.provider.sendMessage(msg, users[msg.user].selfId)
       return
     }
 
