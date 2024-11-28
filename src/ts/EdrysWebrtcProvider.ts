@@ -30,7 +30,9 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
     // Listen for BroadcastChannel messages
     this._bcChannel.addEventListener('message', (event) => {
-      this._handleIncomingBCMessage(event.data)
+      if (this._messageListener) {
+        this._messageListener(event.data)
+      }
     })
 
     // Listen for new peer connections
@@ -43,23 +45,6 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
     // Assign own unique user ID
     this.userid = options.userid || this.doc.clientID.toString()
-  }
-
-  /**
-   * Handle incoming messages from BroadcastChannel
-   * @param {Object} data - The data received
-   */
-  _handleIncomingBCMessage(data) {
-    console.warn('Received BC message:', data)
-
-    // If targetUserId is set, check if it matches own userid
-    //    if (targetUserId && targetUserId !== this.userid) {
-    //      return // Not intended for this peer
-    //    }
-
-    if (this._messageListener) {
-      this._messageListener(data)
-    }
   }
 
   /**
@@ -89,8 +74,6 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
       })
 
       peer.on('data', (data) => {
-        //console.warn(`Received data from peer ${peerId}:`, data)
-
         this._handleIncomingData(data, peerId, peer)
       })
 
@@ -145,7 +128,6 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
       if (messageType === MESSAGE_TYPE_CUSTOM) {
         const messageContent = decoding.readVarString(decoder)
         const message = JSON.parse(messageContent)
-        console.warn('Received data---------------:', message, senderId, peer)
 
         // Invoke all registered listeners with the message
         if (this._messageListener) this._messageListener(message)
