@@ -184,7 +184,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
    * @param {string} userid - The user ID of the sender.
    * @param {string} [targetUserId=null] - The target user's ID. If null, broadcast to all.
    */
-  sendMessage(message: any, targetUserId = null) {
+  sendMessage(message: any, targetUserId: string | null = null) {
     // Send via BroadcastChannel
     this._bcChannel.postMessage({ ...message, targetUserId })
 
@@ -200,7 +200,6 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
         // Send to specific peer
         const peer = this._userIdToPeer.get(targetUserId)
         if (peer && peer.connected) {
-          console.warn('WWWWWWWWWWWWW', peer, encodedMessage)
           peer.send(encodedMessage)
         }
       } else {
