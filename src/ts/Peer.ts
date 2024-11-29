@@ -373,7 +373,10 @@ export default class Peer {
 
         this.addRoom(LOBBY)
 
-        const defaultRooms = this.lab.data.meta.defaultNumberOfRooms
+        let defaultRooms = 0
+        try {
+          defaultRooms = this.lab.data.meta.defaultNumberOfRooms
+        } catch (e) {}
 
         if (defaultRooms) {
           for (let i = 1; i <= defaultRooms; i++) {
