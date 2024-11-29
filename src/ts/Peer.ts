@@ -98,7 +98,7 @@ export default class Peer {
   private connectProvider(room: string, password?: string) {
     try {
       this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
-        signaling: ['wss://edrys-lite-signal-sever.deno.dev/' + room],
+        signaling: ['wss://rooms.deno.dev'], // 'wss://edrys-lite-signal-sever.deno.dev/' + room],
         password: password || 'password',
         userid: this.peerID,
         peerOpts: {
