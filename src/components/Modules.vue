@@ -199,7 +199,7 @@ export default {
     messageHandler(e) {
       switch (e.data.event) {
         case "message":
-          this.sendMessage(e.data.subject, e.data.body, e.data.module);
+          this.sendMessage(e.data.subject, e.data.body, e.data.user, e.data.module);
           break;
         case "update":
           this.setToValue(this.liveClassProxy, e.data.path, e.data.value);
@@ -225,12 +225,13 @@ export default {
       }
     },
 
-    async sendMessage(subject, body, module_url) {
+    async sendMessage(subject, body, user, module_url) {
       if (body !== undefined) {
         this.communication.broadcast(this.roomName, {
           from: this.username /* Email if teacher, name if station */,
           subject: subject,
           body: body,
+          user: user,
           module: module_url,
         });
       }
