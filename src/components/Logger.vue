@@ -1,5 +1,11 @@
 <script lang="ts">
-import * as echarts from "echarts";
+import * as echarts from "echarts/core";
+import { LineChart } from "echarts/charts";
+import { TooltipComponent, GridComponent } from "echarts/components";
+import { CanvasRenderer } from "echarts/renderers";
+
+// Register only the components you need
+echarts.use([LineChart, TooltipComponent, GridComponent, CanvasRenderer]);
 
 declare global {
   interface Performance {
@@ -473,6 +479,8 @@ export default {
       const memoryDataArray = this.memoryData;
 
       if (memoryDataArray.length > 0) {
+        this.memoryChart = echarts.init(chartDom);
+
         const option = {
           xAxis: {
             type: "time",
@@ -480,9 +488,7 @@ export default {
             nameLocation: "middle",
             nameGap: 25,
             axisLabel: {
-              formatter: (value: number) => {
-                return new Date(value).toLocaleTimeString();
-              },
+              formatter: (value) => new Date(value).toLocaleTimeString(),
             },
           },
           yAxis: {
@@ -491,84 +497,25 @@ export default {
             nameLocation: "middle",
             nameGap: 55,
             axisLabel: {
-              formatter: (value: number) => `${value.toFixed(0)} MB`,
+              formatter: (value) => `${value.toFixed(0)} MB`,
             },
           },
           series: [
             {
-              data: memoryDataArray.map((memory: any) => [
+              data: this.memoryData.map((memory) => [
                 new Date(memory.date),
-                memory.usedJSHeapSize,
+                parseFloat(memory.usedJSHeapSize),
               ]),
-              type: "line",
+              type: "line", // Ensure this matches the imported chart type
               smooth: true,
               name: "Used JS Heap Size",
-              // Add animation effects
-              animation: true,
-              animationDuration: 1000,
-              animationEasing: "cubicInOut",
-              // Add visual enhancement
-              lineStyle: {
-                width: 3,
-                shadowColor: "rgba(0,0,0,0.3)",
-                shadowBlur: 10,
-              },
-              // Add area under the line
-              areaStyle: {
-                opacity: 0.3,
-                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                  { offset: 0, color: "rgb(116, 21, 219)" },
-                  { offset: 1, color: "rgb(55, 162, 255)" },
-                ]),
-              },
-              symbolSize: 8,
             },
           ],
           tooltip: {
             trigger: "axis",
-            backgroundColor: "rgba(255, 255, 255, 0.9)",
-            borderColor: "#777",
-            borderWidth: 1,
-            padding: [10, 15],
-            textStyle: {
-              color: "#333",
-            },
-            formatter: function (params: any) {
-              const data = params[0].data;
-              const date = new Date(data[0]);
-              const memory = data[1];
-
-              return `
-        <div style="font-weight: bold; margin-bottom: 5px;">
-          ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="color: ${params[0].color};">● </span>
-          <span>Memory Usage:</span>
-          <span style="font-weight: bold; margin-left: 5px;">
-            ${memory.toFixed(1)} MB
-          </span>
-        </div>
-      `;
-            },
-            axisPointer: {
-              type: "cross",
-              label: {
-                backgroundColor: "#6a7985",
-              },
-            },
-          },
-          // Add global animation configuration
-          animation: true,
-          animationThreshold: 2000,
-          animationDuration: 1000,
-          animationEasing: "cubicInOut",
-          animationDelay: function (idx: number) {
-            return idx * 100;
           },
         };
-
-        this.memoryChart?.setOption(option);
+        this.memoryChart.setOption(option);
         window.addEventListener("resize", () => {
           this.memoryChart?.resize();
         });
@@ -608,8 +555,8 @@ export default {
     },
     async loadLoggerDataFromDB() {
       try {
-        const stationName = this.stationLogsInput.split(' - ')[0].split(': ')[1];
-        const stationDate = this.stationLogsInput.split(' - ')[1].split(': ')[1];
+        const stationName = this.stationLogsInput.split(" - ")[0].split(": ")[1];
+        const stationDate = this.stationLogsInput.split(" - ")[1].split(": ")[1];
 
         const data = await this.database.getLogById(
           this.classId + "_Station:" + stationName + "_Date:" + stationDate
@@ -640,8 +587,8 @@ export default {
           this.classroomPastStations = allIds
             .filter((id: string) => id.includes(this.classId))
             .map((id: string) => {
-              const stationName = id.split("_Station:")[1].split("_Date:")[0]; 
-              const date = new Date(id.split("_Date:")[1]).toLocaleString(); 
+              const stationName = id.split("_Station:")[1].split("_Date:")[0];
+              const date = new Date(id.split("_Date:")[1]).toLocaleString();
 
               return `Station: ${stationName} - Date: ${date}`;
             });
@@ -670,7 +617,7 @@ export default {
         </div>
 
         <div v-if="isShowingPrevLogs">
-          {{ !isLogsLoaderVisible ? 'Showing Logs from ' + stationLogsInput : '' }}
+          {{ !isLogsLoaderVisible ? "Showing Logs from " + stationLogsInput : "" }}
         </div>
       </div>
 
@@ -908,9 +855,7 @@ export default {
           <v-btn
             variant="flat"
             color="grey-darken-4"
-            @click="
-              stationLogsInput && loadLoggerDataFromDB()
-            "
+            @click="stationLogsInput && loadLoggerDataFromDB()"
           >
             Load
           </v-btn>
