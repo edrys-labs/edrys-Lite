@@ -105,7 +105,9 @@ export default {
   watch: {
     liveClassProxy: {
       handler() {
-        this.monitorUsersInStations();
+        if (this.isLoggerRunning) {
+          this.monitorUsersInStations();
+        }
       },
       deep: true,
     },
