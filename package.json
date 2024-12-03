@@ -8,13 +8,15 @@
     "build": "rm -rf .parcel-cache && rm -rf dist && npm run build:edrys && npx parcel build src/index.html --log-level verbose  --no-scope-hoist --public-url ./",
     "watch": "rm -rf dist && npm run build:edrys && npx parcel serve src/*.html --no-cache --no-source-maps --open --port 6999",
     "minify:js": "find dist -name \"*.js\" -print0 | xargs -0 -P 4 -I {} sh -c 'before=$(wc -c < {}); minify {} > {}.min && after=$(wc -c < {}.min); if [ ${after} -lt ${before} ]; then mv {}.min {}; reduction=$((${before}-${after})); percent=$(awk \"BEGIN {printf \\\"%.2f\\\", ${reduction}/${before}*100}\"); echo \"{} reduced from ${before} to ${after} bytes (${percent}% reduction)\"; else rm {}.min; echo \"{} no reduction achieved, file size unchanged\"; fi'",
-    "build:edrys": "npx parcel build src/api/edrys.ts --no-scope-hoist && mv dist/edrys.* dist/module/"
+    "build:edrys": "npx parcel build src/api/edrys.ts --no-scope-hoist && mv dist/edrys.* dist/module/",
+    "analyze": "rm -rf dist && npx parcel build --no-source-maps --reporter @parcel/reporter-bundle-analyzer src/index.html"
   },
   "author": "André Dietrich",
   "license": "Mozilla Public License Version 2.0",
   "devDependencies": {
-    "@parcel/transformer-sass": "^2.9.3",
-    "@parcel/transformer-vue": "^2.9.3",
+    "@parcel/reporter-bundle-analyzer": "^2.13.2",
+    "@parcel/transformer-sass": "^2.13.2",
+    "@parcel/transformer-vue": "^2.13.2",
     "@types/node": "^22.10.1",
     "assert": "^2.1.0",
     "buffer": "^6.0.3",
@@ -26,7 +28,8 @@
     "js-yaml": "^4.1.0",
     "markdown-it": "^14.0.0",
     "object-hash": "^3.0.0",
-    "parcel": "^2.9.3",
+    "parcel": "^2.13.2",
+    "parcel-plugin-bundle-visualiser": "^1.2.0",
     "parcel-reporter-static-files-copy": "^1.5.3",
     "process": "^0.11.10",
     "vue-prism-editor": "^2.0.0-alpha.2",
@@ -45,7 +48,7 @@
     "y-webrtc": "^10.3.0"
   },
   "browserslist": [
-    "cover 95.0%"
+    "cover 85.0%"
   ],
   "alias": {
     "yjs": "./node_modules/yjs/dist/yjs.mjs"
