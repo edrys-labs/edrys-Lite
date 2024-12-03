@@ -1,11 +1,9 @@
 import { getPeerID, hashJsonObject, getShortPeerID } from './Utils'
 
 import * as Y from 'yjs'
-import { TrysteroProvider } from '../../node_modules/y-trystero/src/TrysteroProvider'
 // @ts-ignore
-import { joinRoom } from '../../node_modules/trystero/src/torrent'
 import * as YP from 'y-protocols/awareness.js'
-import { selfId } from 'trystero'
+import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
 
 function LOG(...args: any[]) {
   console.log(
@@ -18,13 +16,10 @@ function LOG(...args: any[]) {
 const LOBBY = 'Lobby'
 const STATION = 'Station'
 
-let heartbeatID
+let heartbeatID: ReturnType<typeof setInterval> | null
 
 export default class Peer {
-  private provider: TrysteroProvider
-  private tx: any
-  private rx: any
-  private sync: boolean = false
+  private provider: EdrysWebrtcProvider
 
   private y: {
     doc: Y.Doc
@@ -45,10 +40,12 @@ export default class Peer {
 
   private connected: boolean = false
 
-  private callback: {} = {}
-  private callbackUpdate: {} = {}
+  private callback: { [key: string]: any } = {}
+  private callbackUpdate: { [key: string]: boolean } = {}
 
   private peerID: string
+
+  private isReady: boolean = false
 
   constructor(
     setup: { id: string; data: any; timestamp: number; hash: string | null },
@@ -73,123 +70,215 @@ export default class Peer {
       this.peerID = STATION + ' ' + stationID
     }
 
-    this.provider = new TrysteroProvider(
-      this.lab.id + (this.lab.hash || ''),
-      this.y.doc,
-      {
-        appId: process.env.APP_ID || 'edry-Lite', // optional, but recommended
-        password: password,
-        joinRoom: joinRoom,
-        // {"rtcConfig":{"config":{"iceServers":[{"urls":"...."},{"urls":"turn:turn....","username":"XXXX","credential":"XXXXXX"}]}}}
-        peerOpts: JSON.parse(process.env.TRYSTERO_PEER_CONFIG || '{}'),
-      }
-    )
+    // Initialize local state within a transaction
+    this.y.doc.transact(() => {
+      this.initUser(this.role, false)
+      this.initRooms()
+      this.initChat()
+      this.initSetup()
+    }, 'initialization')
 
-    this.initSetup()
+    // Set up persistence before connecting
+    const room = this.lab.id + (this.lab.hash || '')
 
-    this.provider.on('status', (event) => {
-      LOG('status', event)
+    this.isReady = true
+    this.connectProvider(room, password)
 
-      if (!event.connected) {
-        this.connected = false
-      }
-
-      this.y.setup.observe((event) => {
-        const timestamp = this.y.setup.get('timestamp')
-
-        if (this.lab.timestamp !== timestamp) {
-          this.initSetup()
-        }
-      })
-    })
-
-    this.provider.on('synced', (event) => {
-      this.provider.room?.onPeerLeave((id: string) => {
-        this.removePeers([id])
-      })
-
-      this.initPubSub()
-
-      this.rx((msg: any, peerId: string) => {
-        this.update('message', msg)
-      })
-
-      LOG('synced', event)
-
-      setTimeout(() => {
-        this.connected = true
-
-        this.update('connected')
-      }, 5000)
+    // Ensure cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      this.stop()
     })
   }
 
+  /**
+   * Establishes the WebRTC provider connection.
+   * @param room The room identifier.
+   * @param password The password for the room.
+   */
+  private connectProvider(room: string, password?: string) {
+    try {
+      this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
+        signaling: [process.env.WEBRTC_SIGNALING || 'wss://rooms.deno.dev'], // 'wss://edrys-lite-signal-sever.deno.dev/' + room],
+        password: password || 'password',
+        userid: this.peerID,
+        peerOpts: JSON.parse(process.env.WEBRTC_CONFIG || '{}'),
+      })
+
+      // Handle awareness updates
+      this.provider.awareness.on(
+        'update',
+        this.handleAwarenessUpdate.bind(this)
+      )
+
+      // Handle provider status events
+      this.provider.on('status', this.handleStatus.bind(this))
+
+      // Handle synced events
+      this.provider.on('synced', this.handleSynced.bind(this))
+
+      // Register the onLeave callback
+      this.provider.onLeave((userid) => {
+        console.log(`Peer with userid ${userid} has left the room.`)
+        this.removePeers([userid])
+      })
+
+      // Listen for messages
+      this.provider.onMessage((msg) => {
+        this.update('message', msg)
+      })
+    } catch (error) {
+      console.error('Error connecting provider:', error)
+      // Implement retry logic or other recovery mechanisms if necessary
+    }
+  }
+
+  /**
+   * Handles awareness updates only if the document is ready.
+   */
+  private handleAwarenessUpdate(
+    {
+      added,
+      updated,
+      removed,
+    }: { added: number[]; updated: number[]; removed: number[] },
+    origin: any
+  ) {
+    if (!this.isReady) return // Ignore updates until ready
+
+    if (added.length > 0 || updated.length > 0) {
+      if (!this.connected) {
+        this.connected = true
+        this.update('connected')
+      }
+    }
+
+    if (removed.length > 0) {
+      // Collect peerIDs of removed users
+      const removedPeerIDs = removed
+        .map((clientId) => {
+          const state = this.provider.awareness.getStates().get(clientId)
+          return state?.userid || null
+        })
+        .filter((id): id is string => id !== null)
+
+      if (removedPeerIDs.length > 0) {
+        this.removePeers(removedPeerIDs)
+      }
+    }
+  }
+
+  /**
+   * Handles provider status changes.
+   */
+  private handleStatus(event: { status: string }) {
+    LOG('status', event)
+
+    // Observe setup changes
+    this.y.setup.observe(this.handleSetupChange.bind(this))
+
+    // Delay setting connected to true to ensure synchronization
+    setTimeout(() => {
+      if (!this.connected) {
+        this.connected = true
+        LOG('synced', event)
+        this.update('connected')
+      }
+    }, 5000)
+  }
+
+  /**
+   * Handles synced events from the provider.
+   */
+  private handleSynced(event: any) {
+    console.warn('Synced event received', event)
+
+    // Ensure that synchronization is complete before updating state
+    setTimeout(() => {
+      if (!this.connected) {
+        this.connected = true
+        this.update('connected')
+      }
+    }, 5000)
+  }
+
+  /**
+   * Observes setup changes and initializes setup if necessary.
+   */
+  private handleSetupChange(event: Y.YMapEvent<any>) {
+    const timestamp = this.y.setup.get('timestamp')
+
+    if (this.lab.timestamp !== timestamp) {
+      this.initSetup()
+    }
+  }
+
+  /**
+   * Returns the current user data.
+   */
   user() {
     return this.y.users.get(this.peerID)
   }
 
+  /**
+   * Checks if the current role is a station.
+   */
   isStation() {
     return this.role === 'station'
   }
 
-  removePeers(selfIds: string[]) {
+  /**
+   * Removes peers by their peerIDs.
+   * @param peerIds Array of peerIDs to remove.
+   */
+  removePeers(peerIds: string[]) {
     const peers = this.y.users.toJSON()
 
     this.y.doc.transact(() => {
       for (const id in peers) {
-        if (selfIds.includes(peers[id].selfId)) {
+        if (peerIds.includes(id)) {
           this.y.users.delete(id)
 
           if (peers[id].role === 'station') {
             this.y.rooms.delete(id)
           }
 
-          break
+          // Continue without breaking to remove all specified peers
         }
       }
-    })
+    }, 'removePeers')
   }
 
-  initPubSub() {
-    LOG('initializing pubsub ...')
-    if (this.provider.room) {
-      const [tx, rx] = this.provider.room.trysteroRoom.makeAction('p2p')
-      this.tx = tx
-      this.rx = rx
-
-      LOG('... done')
-    } else {
-      LOG('... failed, retrying in 1s')
-      setTimeout(() => {
-        this.initPubSub()
-      }, 1000)
-    }
-  }
-
+  /**
+   * Initializes the setup map with proper conflict resolution.
+   */
   initSetup() {
     const timestamp: number = (this.y.setup.get('timestamp') as number) || 0
     const data = this.y.setup.get('config')
 
-    // If my setup is older than the current setup
-    if (this.lab.timestamp < timestamp) {
-      LOG('receiving initial lab configuration')
+    this.y.doc.transact(() => {
+      // If my setup is older than the current setup
+      if (this.lab.timestamp < timestamp) {
+        LOG('receiving initial lab configuration')
 
-      this.lab.data = data
-      this.lab.timestamp = timestamp
-      this.update('setup')
-    }
-    // if the received setup is not up to date
-    else if (this.lab.timestamp !== timestamp && this.lab.timestamp > 0) {
-      LOG('received outdated lab configuration, writing changes back')
-      this.y.doc.transact(() => {
+        this.lab.data = data
+        this.lab.timestamp = timestamp
+        this.update('setup')
+      }
+      // If the received setup is not up to date
+      else if (this.lab.timestamp !== timestamp && this.lab.timestamp > 0) {
+        LOG('received outdated lab configuration, writing changes back')
         this.y.setup.set('config', this.lab.data)
         this.y.setup.set('timestamp', this.lab.timestamp)
-      })
-    }
-
-    // equal setups will be ignored
+      }
+      // Equal setups are ignored
+    }, 'initSetup')
   }
 
+  /**
+   * Initializes a user within a transaction.
+   * @param role The role of the user.
+   * @param withObserver Whether to set up observers.
+   */
   initUser(
     role: 'student' | 'teacher' | 'station',
     withObserver: boolean = true
@@ -201,17 +290,19 @@ export default class Peer {
       heartbeatID = null
     }
 
-    const userSettings = new Y.Map()
-    userSettings.set('displayName', getShortPeerID(this.peerID))
-    userSettings.set('room', this.isStation() ? this.peerID : LOBBY)
-    userSettings.set('role', this.role)
-    userSettings.set('dateJoined', Date.now())
-    userSettings.set('timestamp', Date.now())
-    userSettings.set('selfId', selfId)
-    userSettings.set('handRaised', false)
-    userSettings.set('connections', [{ id: '', target: {} }])
-    this.y.users.set(this.peerID, userSettings)
+    this.y.doc.transact(() => {
+      const userSettings = new Y.Map()
+      userSettings.set('displayName', getShortPeerID(this.peerID))
+      userSettings.set('room', this.isStation() ? this.peerID : LOBBY)
+      userSettings.set('role', this.role)
+      userSettings.set('dateJoined', Date.now())
+      userSettings.set('timestamp', Date.now())
+      userSettings.set('handRaised', false)
+      userSettings.set('connections', [{ id: '', target: {} }])
+      this.y.users.set(this.peerID, userSettings)
+    }, 'initUser')
 
+    // Set up heartbeat to monitor user activity
     heartbeatID = setInterval(() => {
       if (this.y.users.has(this.peerID)) {
         const timeNow = Date.now()
@@ -222,7 +313,7 @@ export default class Peer {
         let ids: string[] = []
         for (const id in users) {
           if (users[id].timestamp < timeNow - 8000) {
-            ids.push(users[id].selfId)
+            ids.push(id) // Collect peerIDs directly
           }
         }
 
@@ -251,6 +342,9 @@ export default class Peer {
     }
   }
 
+  /**
+   * Initializes rooms within a transaction.
+   */
   initRooms() {
     this.y.doc.transact(() => {
       if (this.y.rooms.size === 0) {
@@ -258,7 +352,10 @@ export default class Peer {
 
         this.addRoom(LOBBY)
 
-        const defaultRooms = this.lab.data.meta.defaultNumberOfRooms
+        let defaultRooms = 0
+        try {
+          defaultRooms = this.lab.data.meta.defaultNumberOfRooms
+        } catch (e) {}
 
         if (defaultRooms) {
           for (let i = 1; i <= defaultRooms; i++) {
@@ -266,10 +363,10 @@ export default class Peer {
           }
         }
       }
-      if (this.isStation()) {
+      if (this.isStation() && !this.y.rooms.has(this.peerID)) {
         this.addRoom(this.peerID)
       }
-    })
+    }, 'initRooms')
 
     this.y.rooms.observeDeep((events) => {
       // Handle room deletions from root-level changes
@@ -284,7 +381,10 @@ export default class Peer {
               // If my room is deleted, move to lobby
               if (this.user() && this.user().get('room') === key) {
                 LOG('current room was deleted, moving to lobby')
-                this.user().set('room', LOBBY)
+                this.y.doc.transact(() => {
+                  this.user().set('room', LOBBY)
+                  this.user().set('timestamp', Date.now())
+                }, 'moveToLobby')
               }
             }
           })
@@ -296,12 +396,21 @@ export default class Peer {
     })
   }
 
+  /**
+   * Initializes chat within a transaction.
+   */
   initChat() {
-    this.y.chat.observe((event) => {
-      this.update('chat')
-    })
+    this.y.doc.transact(() => {
+      this.y.chat.observe((event) => {
+        this.update('chat')
+      })
+    }, 'initChat')
   }
 
+  /**
+   * Handles new setup configurations.
+   * @param config The new configuration.
+   */
   newSetup(config: { id: string; data: any; timestamp: number }) {
     if (this.lab.hash) {
       const self = this
@@ -327,6 +436,11 @@ export default class Peer {
     }
   }
 
+  /**
+   * Updates different parts of the state based on events.
+   * @param event The event type.
+   * @param message Optional message data.
+   */
   async update(
     event: 'setup' | 'room' | 'message' | 'connected' | 'chat',
     message?: any
@@ -387,6 +501,11 @@ export default class Peer {
     }
   }
 
+  /**
+   * Registers event callbacks.
+   * @param event The event type.
+   * @param callback The callback function.
+   */
   on(event: 'setup' | 'room' | 'connected', callback: any) {
     if (callback) {
       this.callback[event] = callback
@@ -399,6 +518,11 @@ export default class Peer {
     }
   }
 
+  /**
+   * Broadcasts a message to a room or specific user.
+   * @param room The room to broadcast to.
+   * @param msg The message to send.
+   */
   broadcast(room: string, msg: any) {
     if (!this.connected) {
       return
@@ -406,18 +530,18 @@ export default class Peer {
 
     const users = this.y.users.toJSON()
 
-    // send to one user only
+    // Send to one user only
     if (msg.user) {
-      this.tx(msg, users[msg.user].selfId)
+      this.provider.sendMessage(msg, msg.user)
       return
     }
 
-    // otherwise broadcast to all users in the room
+    // Otherwise broadcast to all users in the room
     for (const id in users) {
-      if (users[id].room === room) {
+      if (users[id].room === room && id !== this.peerID) {
         try {
-          this.tx(msg, users[id].selfId)
-        } catch (e) {
+          this.provider.sendMessage(msg, id)
+        } catch (e: any) {
           LOG('warning', e.message)
         }
       }
@@ -425,11 +549,18 @@ export default class Peer {
     this.update('message', msg)
   }
 
+  /**
+   * Stops the peer, cleans up resources.
+   */
   stop() {
     LOG('stopping peer')
-    clearInterval(heartbeatID)
-    heartbeatID = null
-    this.y.users.delete(this.peerID)
+    if (heartbeatID) {
+      clearInterval(heartbeatID)
+      heartbeatID = null
+    }
+    this.y.doc.transact(() => {
+      this.y.users.delete(this.peerID)
+    }, 'stop')
 
     this.provider.disconnect()
     this.provider.destroy()
@@ -438,57 +569,87 @@ export default class Peer {
     this.callbackUpdate = {}
   }
 
+  /**
+   * Adds a new room.
+   * @param name Optional name of the room.
+   */
   addRoom(name?: string) {
-    if (name && !this.y.rooms.has(name)) {
-      const room = new Y.Map()
-      this.y.rooms.set(name, room)
-    } else if (!name) {
-      const roomIDs: number[] = Object.keys(this.y.rooms.toJSON())
-        .filter((e) => e.match(/Room/))
-        .map((e) => e.split(' ')[1])
-        .map((e) => parseInt(e))
-        .sort((a, b) => a - b)
+    this.y.doc.transact(() => {
+      if (name && !this.y.rooms.has(name)) {
+        const room = new Y.Map()
+        this.y.rooms.set(name, room)
+      } else if (!name) {
+        const roomIDs: number[] = Object.keys(this.y.rooms.toJSON())
+          .filter((e) => e.match(/Room/))
+          .map((e) => e.split(' ')[1])
+          .map((e) => parseInt(e))
+          .sort((a, b) => a - b)
 
-      let newRoomID = 1
-      for (const id of roomIDs) {
-        if (id !== newRoomID) {
-          break
+        let newRoomID = 1
+        for (const id of roomIDs) {
+          if (id !== newRoomID) {
+            break
+          }
+          newRoomID++
         }
-        newRoomID++
+
+        this.addRoom('Room ' + newRoomID)
       }
-
-      this.addRoom('Room ' + newRoomID)
-    }
+    }, 'addRoom')
   }
 
+  /**
+   * Moves the user to a specified room.
+   * @param room The room to move to.
+   */
   gotoRoom(room: string) {
-    this.user().set('room', room)
-    this.user().set('timestamp', Date.now())
+    this.y.doc.transact(() => {
+      this.user().set('room', room)
+      this.user().set('timestamp', Date.now())
+    }, 'gotoRoom')
   }
 
+  /**
+   * Sends a chat message.
+   * @param message The message to send.
+   */
   sendMessage(message: string) {
-    this.y.chat.push([
-      {
-        timestamp: Date.now(),
-        user: getShortPeerID(this.peerID),
-        msg: message,
-      },
-    ])
+    this.y.doc.transact(() => {
+      this.y.chat.push([
+        {
+          timestamp: Date.now(),
+          user: getShortPeerID(this.peerID),
+          msg: message,
+        },
+      ])
+    }, 'sendMessage')
   }
 
+  /**
+   * Applies an update to the Y.Doc.
+   * @param data The update data.
+   */
   updateState(data: Uint8Array) {
     this.y.doc.transact(
       () => {
         Y.applyUpdate(this.y.doc, data)
       },
-      { transactionId: 'intern' }
+      { transactionId: 'extern' }
     )
   }
 
+  /**
+   * Applies an awareness update.
+   * @param data The awareness update data.
+   */
   updateAwareness(data: Uint8Array) {
     YP.applyAwarenessUpdate(this.provider.awareness, data, 'EXTERN')
   }
 
+  /**
+   * Joins a role and initializes necessary components.
+   * @param role The role to join as.
+   */
   async join(role: 'student' | 'teacher' | 'station') {
     this.initUser(role)
     this.initRooms()
@@ -496,6 +657,7 @@ export default class Peer {
 
     this.update('room')
 
+    // Handle awareness updates within join
     this.provider.awareness.on(
       'update',
       ({ added, updated, removed }, origin) => {
@@ -508,15 +670,20 @@ export default class Peer {
         )
 
         if (origin !== 'EXTERN') {
-          // Broadcast to all iframes
+          // Broadcast to all iframes or other relevant components
           this.update('room', update)
         }
       }
     )
   }
 
+  /**
+   * Serializes the current state to JSON.
+   * @param awareness Optional awareness data.
+   * @returns The serialized state.
+   */
   async toJSON(awareness?: Uint8Array) {
-    // check if station and add station room exist
+    // Check if station and add station room exist
     if (this.isStation() && !this.y.rooms.has(this.peerID)) {
       this.addRoom(this.peerID)
     }
@@ -535,9 +702,13 @@ export default class Peer {
     }
   }
 
-  awaitTransact(transactFn): Promise<void> {
+  /**
+   * Executes a function within a Yjs transaction and waits for it to complete.
+   * @param transactFn The function to execute within the transaction.
+   */
+  awaitTransact(transactFn: () => void): Promise<void> {
     return new Promise((resolve) => {
-      // We'll use this to track when the transaction is done
+      // Track when the transaction is done
       let isTransactionDone = false
 
       const observer = () => {
@@ -556,7 +727,7 @@ export default class Peer {
           console.error('Error in transaction', e)
         }
         isTransactionDone = true
-      })
+      }, 'awaitTransact')
     })
   }
 }

@@ -24,6 +24,8 @@ jobs:
       - name: Build the app
         env:
           TRYSTERO_PEER_CONFIG: ${{ secrets.TRYSTERO_PEER_CONFIG }}
+          WEBRTC_CONFIG: ${{ secrets.WEBRTC_CONFIG }}
+          WEBRTC_SIGNALING: ${{ secrets.WEBRTC_SIGNALING }}
         run: npm run build
 
       # Deploy to the website repository
