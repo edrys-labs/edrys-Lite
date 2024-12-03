@@ -16,7 +16,7 @@ function LOG(...args: any[]) {
 const LOBBY = 'Lobby'
 const STATION = 'Station'
 
-let heartbeatID: number | null
+let heartbeatID: ReturnType<typeof setInterval> | null
 
 export default class Peer {
   private provider: EdrysWebrtcProvider
