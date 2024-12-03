@@ -98,31 +98,10 @@ export default class Peer {
   private connectProvider(room: string, password?: string) {
     try {
       this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
-        signaling: ['wss://rooms.deno.dev'], // 'wss://edrys-lite-signal-sever.deno.dev/' + room],
+        signaling: [process.env.WEBRTC_SIGNALING || 'wss://rooms.deno.dev'], // 'wss://edrys-lite-signal-sever.deno.dev/' + room],
         password: password || 'password',
         userid: this.peerID,
-        peerOpts: {
-          config: {
-            iceServers: [
-              { urls: 'stun:stun.relay.metered.ca:80' },
-              {
-                urls: 'turn:standard.relay.metered.ca:80',
-                username: '67907bf8b597a9dda10f190e',
-                credential: 'GDu47yZDDfCAxo5k',
-              },
-              {
-                urls: 'turn:standard.relay.metered.ca:80?transport=tcp',
-                username: '67907bf8b597a9dda10f190e',
-                credential: 'GDu47yZDDfCAxo5k',
-              },
-              {
-                urls: 'turn:standard.relay.metered.ca:443',
-                username: '67907bf8b597a9dda10f190e',
-                credential: 'GDu47yZDDfCAxo5k',
-              },
-            ],
-          },
-        },
+        peerOpts: JSON.parse(process.env.WEBRTC_CONFIG || '{}'),
       })
 
       // Handle awareness updates
