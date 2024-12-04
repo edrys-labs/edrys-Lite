@@ -16,7 +16,6 @@ const vuetify = createVuetify({
   directives,
   icons: {
     defaultSet: 'mdi',
-
     sets: {
       mdi,
     },
@@ -29,7 +28,7 @@ const pathToRegex = (path) =>
 const getParams = (match) => {
   const values = match.result.slice(1)
   const keys = Array.from(match.route.path.matchAll(/:(\w+)/g)).map(
-    (result) => result[1]
+    (result: unknown) => (result as RegExpMatchArray)[1]
   )
 
   let params = Object.fromEntries(
@@ -88,7 +87,6 @@ const router = async () => {
     return {
       route: route,
       result: location.search.slice(1).match(pathToRegex(route.path)),
-      redirect: route.redirect,
       params: route.params,
     }
   })
@@ -101,12 +99,8 @@ const router = async () => {
     match = {
       route: routes[0],
       result: [location.search],
+      params: { station: false },
     }
-  }
-
-  if (match.redirect) {
-    navigateTo(match.redirect, true)
-    return
   }
 
   const params = getParams(match)
@@ -123,9 +117,9 @@ window.addEventListener('popstate', router)
 
 document.addEventListener('DOMContentLoaded', () => {
   document.body.addEventListener('click', (e) => {
-    if (e.target && e.target.matches('[data-link]')) {
+    if (e.target && (e.target as Element).matches('[data-link]')) {
       e.preventDefault()
-      navigateTo(e.target.href)
+      navigateTo((e.target as HTMLAnchorElement).href)
     }
   })
 
