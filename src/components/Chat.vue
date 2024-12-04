@@ -1,7 +1,5 @@
 <script lang="ts">
 import markdownit from "markdown-it";
-import hljs from "highlight.js";
-import "../../node_modules/highlight.js/scss/atom-one-dark.scss";
 
 export default {
   name: "Chat",
@@ -9,21 +7,32 @@ export default {
   emits: ["sendMessage"],
 
   data() {
+    import("highlight.js").then((hljs) => {
+      this.md = markdownit({
+        html: true,
+        linkify: true,
+        typographer: true,
+        highlight: function (str, lang) {
+          if (lang && hljs.getLanguage(lang)) {
+            try {
+              return (
+                '<pre><code class="hljs">' +
+                hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+                "</code></pre>"
+              );
+            } catch (__) {}
+          }
+
+          return '<pre><code class="hljs">' + md.utils.escapeHtml(str) + "</code></pre>";
+        },
+      });
+    });
+
     const md = markdownit({
       html: true,
       linkify: true,
       typographer: true,
       highlight: function (str, lang) {
-        if (lang && hljs.getLanguage(lang)) {
-          try {
-            return (
-              '<pre><code class="hljs">' +
-              hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
-              "</code></pre>"
-            );
-          } catch (__) {}
-        }
-
         return '<pre><code class="hljs">' + md.utils.escapeHtml(str) + "</code></pre>";
       },
     });
