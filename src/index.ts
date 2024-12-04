@@ -4,97 +4,17 @@ import Classroom from './views/Classroom.vue'
 import Deploy from './views/Deploy.vue'
 
 // Vuetify
-
+import 'vuetify/dist/vuetify.min.css'
 import { createVuetify } from 'vuetify'
 import { aliases, mdi } from '../node_modules/vuetify/lib/iconsets/mdi.mjs'
-import {
-  VApp,
-  VAlert,
-  VBadge,
-  VBtn,
-  VCard,
-  VCardActions,
-  VCardText,
-  VCheckbox,
-  VChip,
-  VCol,
-  VContainer,
-  VDialog,
-  VDivider,
-  VExpansionPanel,
-  VExpansionPanelText,
-  VExpansionPanelTitle,
-  VFileInput,
-  VFooter,
-  VIcon,
-  VList,
-  VListItem,
-  VListItemTitle,
-  VMenu,
-  VNavigationDrawer,
-  VProgressCircular,
-  VRadio,
-  VRadioGroup,
-  VRow,
-  VSelect,
-  VSpacer,
-  VTab,
-  VTabs,
-  VTabsWindowItem,
-  VTextarea,
-  VTextField,
-  VToolbar,
-  VTooltip,
-  VWindow,
-  VWindowItem,
-} from '../node_modules/vuetify/lib/components' // Import only the components you use
-
+import * as components from '../node_modules/vuetify/lib/components'
 import * as directives from '../node_modules/vuetify/lib/directives'
+import './assets/scss/main.scss'
 
 var app
 
 const vuetify = createVuetify({
-  components: {
-    VApp,
-    VAlert,
-    VBadge,
-    VBtn,
-    VCard,
-    VCardActions,
-    VCardText,
-    VCheckbox,
-    VChip,
-    VCol,
-    VContainer,
-    VDialog,
-    VDivider,
-    VExpansionPanel,
-    VExpansionPanelText,
-    VExpansionPanelTitle,
-    VFileInput,
-    VFooter,
-    VIcon,
-    VList,
-    VListItem,
-    VListItemTitle,
-    VMenu,
-    VNavigationDrawer,
-    VProgressCircular,
-    VRadio,
-    VRadioGroup,
-    VRow,
-    VSelect,
-    VSpacer,
-    VTab,
-    VTabs,
-    VTabsWindowItem,
-    VTextarea,
-    VTextField,
-    VToolbar,
-    VTooltip,
-    VWindow,
-    VWindowItem,
-  },
+  components,
   directives,
   icons: {
     defaultSet: 'mdi',
