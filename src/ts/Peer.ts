@@ -312,7 +312,7 @@ export default class Peer {
 
         let ids: string[] = []
         for (const id in users) {
-          if (users[id].timestamp < timeNow - 8000) {
+          if (users[id].timestamp < timeNow - 30000) {
             ids.push(id) // Collect peerIDs directly
           }
         }
@@ -323,7 +323,7 @@ export default class Peer {
       } else {
         LOG('user not found', this.peerID)
       }
-    }, 1000)
+    }, 5000)
 
     if (withObserver) {
       this.y.users.observeDeep((events) => {
