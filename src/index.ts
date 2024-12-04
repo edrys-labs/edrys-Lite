@@ -5,9 +5,9 @@ import Deploy from './views/Deploy.vue'
 
 // Vuetify
 import { createVuetify } from 'vuetify'
-import { aliases, mdi } from '../node_modules/vuetify/lib/iconsets/mdi.mjs'
-import * as components from '../node_modules/vuetify/lib/components'
-import * as directives from '../node_modules/vuetify/lib/directives'
+import { mdi } from '../node_modules/vuetify/lib/iconsets/mdi.mjs'
+import * as components from '../node_modules/vuetify/lib/components/index.mjs'
+import * as directives from '../node_modules/vuetify/lib/directives/index.mjs'
 
 var app
 
@@ -16,7 +16,7 @@ const vuetify = createVuetify({
   directives,
   icons: {
     defaultSet: 'mdi',
-    aliases,
+
     sets: {
       mdi,
     },
