@@ -16,6 +16,8 @@ function LOG(...args: any[]) {
 const LOBBY = 'Lobby'
 const STATION = 'Station'
 
+let heartbeatID: ReturnType<typeof setInterval> | null
+
 export default class Peer {
   private provider: EdrysWebrtcProvider
 
@@ -283,6 +285,11 @@ export default class Peer {
   ) {
     this.role = role
 
+    if (heartbeatID) {
+      clearInterval(heartbeatID)
+      heartbeatID = null
+    }
+
     this.y.doc.transact(() => {
       const userSettings = new Y.Map()
       userSettings.set('displayName', getShortPeerID(this.peerID))
@@ -294,6 +301,29 @@ export default class Peer {
       userSettings.set('connections', [{ id: '', target: {} }])
       this.y.users.set(this.peerID, userSettings)
     }, 'initUser')
+
+    // Set up heartbeat to monitor user activity
+    heartbeatID = setInterval(() => {
+      if (this.y.users.has(this.peerID)) {
+        const timeNow = Date.now()
+        this.user().set('timestamp', timeNow)
+
+        const users = this.y.users.toJSON()
+
+        let ids: string[] = []
+        for (const id in users) {
+          if (users[id].timestamp < timeNow - 30000) {
+            ids.push(id) // Collect peerIDs directly
+          }
+        }
+
+        if (ids.length > 0) {
+          this.removePeers(ids)
+        }
+      } else {
+        LOG('user not found', this.peerID)
+      }
+    }, 5000)
 
     if (withObserver) {
       this.y.users.observeDeep((events) => {
@@ -528,7 +558,10 @@ export default class Peer {
    */
   stop() {
     LOG('stopping peer')
-
+    if (heartbeatID) {
+      clearInterval(heartbeatID)
+      heartbeatID = null
+    }
     this.y.doc.transact(() => {
       this.y.users.delete(this.peerID)
     }, 'stop')
