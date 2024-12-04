@@ -502,7 +502,11 @@ export default class Peer {
 
     // Send to one user only
     if (msg.user) {
-      this.provider.sendMessage(msg, msg.user)
+      if (msg.user === this.peerID) {
+        this.update('message', msg)
+      } else {
+        this.provider.sendMessage(msg, msg.user)
+      }
       return
     }
 
