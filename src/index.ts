@@ -4,12 +4,10 @@ import Classroom from './views/Classroom.vue'
 import Deploy from './views/Deploy.vue'
 
 // Vuetify
-import 'vuetify/dist/vuetify.min.css'
 import { createVuetify } from 'vuetify'
 import { aliases, mdi } from '../node_modules/vuetify/lib/iconsets/mdi.mjs'
 import * as components from '../node_modules/vuetify/lib/components'
 import * as directives from '../node_modules/vuetify/lib/directives'
-import './assets/scss/main.scss'
 
 var app
 
