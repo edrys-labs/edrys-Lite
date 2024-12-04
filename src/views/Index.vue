@@ -1,5 +1,4 @@
 <script lang="ts">
-import DateFormat from "date-format-simple";
 import { Database, DatabaseItem } from "../ts/Database";
 import {
   infoHash,
