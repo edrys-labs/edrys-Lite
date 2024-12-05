@@ -8,7 +8,7 @@
     "build": "rm -rf .parcel-cache && rm -rf dist && npm run build:edrys && npx parcel build src/index.html --no-source-maps --log-level verbose --public-url ./",
     "watch": "rm -rf dist && npm run build:edrys && npx parcel serve src/*.html --no-cache --no-source-maps --open --port 6999",
     "minify:js": "find dist -name \"*.js\" -print0 | xargs -0 -P 4 -I {} sh -c 'before=$(wc -c < {}); minify {} > {}.min && after=$(wc -c < {}.min); if [ ${after} -lt ${before} ]; then mv {}.min {}; reduction=$((${before}-${after})); percent=$(awk \"BEGIN {printf \\\"%.2f\\\", ${reduction}/${before}*100}\"); echo \"{} reduced from ${before} to ${after} bytes (${percent}% reduction)\"; else rm {}.min; echo \"{} no reduction achieved, file size unchanged\"; fi'",
-    "build:edrys": "npx parcel build src/api/edrys.ts --no-scope-hoist && mv dist/edrys.* dist/module/",
+    "build:edrys": "npx parcel build src/api/edrys.ts --no-scope-hoist --no-source-maps && mv dist/edrys.* dist/module/",
     "analyze": "rm -rf dist && npx parcel build --no-source-maps --reporter @parcel/reporter-bundle-analyzer src/index.html && firefox parcel-bundle-reports/default.html"
   },
   "author": "André Dietrich",
