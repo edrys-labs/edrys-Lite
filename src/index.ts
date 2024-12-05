@@ -9,11 +9,26 @@ import { mdi } from '../node_modules/vuetify/lib/iconsets/mdi.mjs'
 import * as components from '../node_modules/vuetify/lib/components/index.mjs'
 import * as directives from '../node_modules/vuetify/lib/directives/index.mjs'
 
+// import highlighting library (you can use any library you want just return html string)
+// @ts-ignore
+import Prism from 'prismjs/prism'
+window.Prism = Prism
+console.warn('indexedDB is disabled', Prism)
+
+import { PrismEditor } from 'vue-prism-editor'
+import 'vue-prism-editor/dist/prismeditor.min.css'
+
+import { highlight, languages } from 'prismjs/components/prism-core'
+import 'prismjs/components/prism-yaml'
+import 'prismjs/components/prism-markup' // Required for inline HTML
+import 'prismjs/components/prism-markdown'
+import 'prismjs/themes/prism-tomorrow.css' // import syntax highlighting styles
+
 var app
 
 const vuetify = createVuetify({
-  components,
-  directives,
+  components: { ...components, PrismEditor },
+  directives: { ...directives },
   icons: {
     defaultSet: 'mdi',
     sets: {
@@ -108,8 +123,12 @@ const router = async () => {
 
   app?.unmount()
   app = createApp(view, params)
-  app.use(vuetify)
 
+  // Provide Prism functionality globally
+  app.provide('prismHighlight', highlight)
+  app.provide('prismLanguages', languages)
+
+  app.use(vuetify)
   app.mount(document.body)
 }
 

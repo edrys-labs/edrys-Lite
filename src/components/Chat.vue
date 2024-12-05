@@ -1,38 +1,40 @@
 <script lang="ts">
+import { inject } from "vue";
 import markdownit from "markdown-it";
+import hljs from "highlight.js";
+import "../../node_modules/highlight.js/scss/atom-one-dark.scss";
 
 export default {
   name: "Chat",
   props: ["show", "messages", "truncated"],
   emits: ["sendMessage"],
 
+  setup() {
+    const prismHighlight = inject("prismHighlight");
+    const prismLanguages = inject("prismLanguages");
+
+    return {
+      prismHighlight,
+      prismLanguages,
+    };
+  },
+
   data() {
-    import("highlight.js").then((hljs) => {
-      this.md = markdownit({
-        html: true,
-        linkify: true,
-        typographer: true,
-        highlight: function (str, lang) {
-          if (lang && hljs.getLanguage(lang)) {
-            try {
-              return (
-                '<pre><code class="hljs">' +
-                hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
-                "</code></pre>"
-              );
-            } catch (__) {}
-          }
-
-          return '<pre><code class="hljs">' + md.utils.escapeHtml(str) + "</code></pre>";
-        },
-      });
-    });
-
     const md = markdownit({
       html: true,
       linkify: true,
       typographer: true,
       highlight: function (str, lang) {
+        if (lang && hljs.getLanguage(lang)) {
+          try {
+            return (
+              '<pre><code class="hljs">' +
+              hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+              "</code></pre>"
+            );
+          } catch (__) {}
+        }
+
         return '<pre><code class="hljs">' + md.utils.escapeHtml(str) + "</code></pre>";
       },
     });
@@ -59,6 +61,15 @@ export default {
   },
 
   methods: {
+    highlighter(code) {
+      // Use fallback-safe values
+      if (!this.prismHighlight || !this.prismLanguages.markdown) {
+        console.error("Prism not properly injected.");
+        return code;
+      }
+      return this.prismHighlight(code, this.prismLanguages.markdown, "markdown");
+    },
+
     permanent() {
       return window.innerWidth > 1000 + 400;
     },
@@ -127,7 +138,16 @@ export default {
     </v-container>
     <template v-slot:append>
       <div class="pa-2">
-        <v-textarea
+        <prism-editor
+          v-model="message"
+          :highlight="highlighter"
+          :readonly="false"
+          rows="4"
+          @keyup.ctrl.enter="send()"
+          style="height: 100px; border: 1px solid black; padding: 2px 5px"
+        ></prism-editor>
+
+        <!--v-textarea
           counter
           no-resize
           rows="4"
@@ -135,7 +155,7 @@ export default {
           maxlength="2000"
           @keyup.ctrl.enter="send()"
         >
-        </v-textarea>
+        </v-textarea-->
 
         <v-btn
           append-icon="mdi-send-outline"

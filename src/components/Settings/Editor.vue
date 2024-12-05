@@ -27,18 +27,7 @@
 </template>
 
 <script lang="ts">
-// @ts-ignore
-import { PrismEditor } from "vue-prism-editor";
-import "vue-prism-editor/dist/prismeditor.min.css"; // import the styles somewhere
-
-// import highlighting library (you can use any library you want just return html string)
-// @ts-ignore
-import { highlight, languages } from "prismjs/components/prism-core";
-
-import "prismjs/components/prism-json";
-import "prismjs/components/prism-yaml";
-import "prismjs/themes/prism-tomorrow.css"; // import syntax highlighting styles
-
+import { inject } from "vue";
 import { parse, stringify } from "../../ts/Utils";
 
 export default {
@@ -71,6 +60,16 @@ export default {
     },
   },
 
+  setup() {
+    const prismHighlight = inject("prismHighlight");
+    const prismLanguages = inject("prismLanguages");
+
+    return {
+      prismHighlight,
+      prismLanguages,
+    };
+  },
+
   data() {
     let input = "";
 
@@ -97,9 +96,13 @@ export default {
   },
 
   methods: {
-    highlighter(code: string) {
-      // js highlight example
-      return highlight(code, languages.yaml, "yaml");
+    highlighter(code) {
+      // Use fallback-safe values
+      if (!this.prismHighlight || !this.prismLanguages.yaml) {
+        console.error("Prism not properly injected.");
+        return code;
+      }
+      return this.prismHighlight(code, this.prismLanguages.yaml, "yaml");
     },
 
     check() {
@@ -113,7 +116,5 @@ export default {
       }
     },
   },
-
-  components: { PrismEditor },
 };
 </script>
