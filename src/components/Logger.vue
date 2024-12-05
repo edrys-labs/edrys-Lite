@@ -1,11 +1,7 @@
 <script lang="ts">
-import * as echarts from "echarts/core";
-import { LineChart } from "echarts/charts";
-import { TooltipComponent, GridComponent } from "echarts/components";
-import { CanvasRenderer } from "echarts/renderers";
+import { onMounted } from "vue";
 
-// Register only the components you need
-echarts.use([LineChart, TooltipComponent, GridComponent, CanvasRenderer]);
+var echarts: any = null;
 
 declare global {
   interface Performance {
@@ -55,9 +51,30 @@ export default {
   props: ["liveClassProxy", "classId", "stationName", "database"],
 
   data() {
+    onMounted(async () => {
+      const chartDom = document.getElementById("chart");
+      if (chartDom) {
+        // Dynamically import ECharts and its components
+        echarts = await import("echarts/core");
+        const { LineChart } = await import("echarts/charts");
+        const { TooltipComponent, GridComponent } = await import("echarts/components");
+        const { CanvasRenderer } = await import("echarts/renderers");
+
+        // Register the required components
+        echarts.use([LineChart, TooltipComponent, GridComponent, CanvasRenderer]);
+
+        // Initialize the chart instance
+        this.memoryChart = echarts.init(chartDom);
+        window.addEventListener("resize", () => {
+          ((this.memoryChart as unknown) as echarts.EChartsType)?.resize();
+        });
+
+        this.generateChart();
+      }
+    });
     return {
       memoryData: [] as MemoryData[],
-      memoryChart: null as echarts.ECharts | null,
+      memoryChart: null as echarts.EChartsType | null,
 
       intervalId: null as number | null,
 
@@ -469,18 +486,9 @@ export default {
         return;
       }
 
-      // Dispose existing chart before creating a new one
-      if (this.memoryChart) {
-        this.memoryChart.dispose();
-      }
-
-      this.memoryChart = echarts.init(chartDom);
-
       const memoryDataArray = this.memoryData;
 
       if (memoryDataArray.length > 0) {
-        this.memoryChart = echarts.init(chartDom);
-
         const option = {
           xAxis: {
             type: "time",
@@ -516,9 +524,7 @@ export default {
           },
         };
         this.memoryChart.setOption(option);
-        window.addEventListener("resize", () => {
-          this.memoryChart?.resize();
-        });
+        this.memoryChart.resize();
       } else {
         console.warn("No memory data available to plot the chart.");
       }
@@ -903,7 +909,7 @@ export default {
 }
 
 #chart {
-  width: 100%;
+  min-width: 100%;
   height: 400px;
   background-color: #fff;
 }
