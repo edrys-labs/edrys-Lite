@@ -24,7 +24,6 @@
     "create-vuetify": "^1.1.0",
     "dexie": "^3.2.4",
     "events": "^3.3.0",
-    "highlight.js": "^11.9.0",
     "js-yaml": "^4.1.0",
     "markdown-it": "^14.0.0",
     "object-hash": "^3.0.0",

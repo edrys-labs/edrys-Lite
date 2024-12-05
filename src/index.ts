@@ -13,13 +13,20 @@ import * as directives from '../node_modules/vuetify/lib/directives/index.mjs'
 // @ts-ignore
 import Prism from 'prismjs/prism'
 window.Prism = Prism
-console.warn('indexedDB is disabled', Prism)
 
 import { PrismEditor } from 'vue-prism-editor'
 import 'vue-prism-editor/dist/prismeditor.min.css'
 
 import { highlight, languages } from 'prismjs/components/prism-core'
 import 'prismjs/components/prism-yaml'
+import 'prismjs/components/prism-json'
+import 'prismjs/components/prism-python'
+import 'prismjs/components/prism-clike'
+import 'prismjs/components/prism-java'
+import 'prismjs/components/prism-c'
+import 'prismjs/components/prism-go'
+import 'prismjs/components/prism-haskell'
+import 'prismjs/components/prism-javascript'
 import 'prismjs/components/prism-markup' // Required for inline HTML
 import 'prismjs/components/prism-markdown'
 import 'prismjs/themes/prism-tomorrow.css' // import syntax highlighting styles

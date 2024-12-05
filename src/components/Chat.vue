@@ -1,8 +1,6 @@
 <script lang="ts">
 import { inject } from "vue";
 import markdownit from "markdown-it";
-import hljs from "highlight.js";
-import "../../node_modules/highlight.js/scss/atom-one-dark.scss";
 
 export default {
   name: "Chat",
@@ -24,18 +22,20 @@ export default {
       html: true,
       linkify: true,
       typographer: true,
-      highlight: function (str, lang) {
-        if (lang && hljs.getLanguage(lang)) {
+      highlight: (code: string, lang: string) => {
+        if (lang && this.prismLanguages[lang]) {
           try {
-            return (
-              '<pre><code class="hljs">' +
-              hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
-              "</code></pre>"
+            const highlighted = this.prismHighlight(
+              code,
+              this.prismLanguages[lang],
+              lang
             );
-          } catch (__) {}
+            return `<pre class="language-${lang}"><code class="language-${lang}">${highlighted}</code></pre>`;
+          } catch (e) {
+            console.error(`Error highlighting code for language '${lang}':`, e);
+          }
         }
-
-        return '<pre><code class="hljs">' + md.utils.escapeHtml(str) + "</code></pre>";
+        return `<pre><code>${md.utils.escapeHtml(code)}</code></pre>`;
       },
     });
 
