@@ -3,3 +3,4 @@ node_modules/
 ignore/
 dist/
 backup
+parcel-bundle-reports/
