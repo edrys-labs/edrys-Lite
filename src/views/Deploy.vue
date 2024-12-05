@@ -1,6 +1,6 @@
 <script lang="ts">
 import { Database } from "../ts/Database";
-import { infoHash, getPeerID, parse } from "../ts/Utils";
+import { infoHash, getPeerID, parse, copyToClipboard } from "../ts/Utils";
 
 import Footer from "../components/Footer.vue";
 
@@ -58,6 +58,9 @@ export default {
   },
 
   methods: {
+    copyPeerID() {
+      copyToClipboard(this.peerID);
+    },
     async createClass(data: any) {
       const id = infoHash(16);
 
