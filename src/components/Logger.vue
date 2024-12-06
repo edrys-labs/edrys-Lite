@@ -45,6 +45,11 @@ export interface IUserInStation {
   event: string;
 }
 
+type WebSocketInstance = {
+  ws: WebSocket; 
+  listeners: Array<{ type: string; listener: EventListener }>; 
+};
+
 export default {
   name: "Logger",
 
@@ -53,6 +58,7 @@ export default {
   data() {
     onMounted(async () => {
       const chartDom = document.getElementById("chart");
+      
       if (chartDom) {
         // Dynamically import ECharts and its components
         echarts = await import("echarts/core");
@@ -72,17 +78,16 @@ export default {
         this.generateChart();
       }
     });
+
     return {
       memoryData: [] as MemoryData[],
+      consoleData: [] as ConsoleData[],
+      networkData: [] as NetworkData[],
+      usersInStations: [] as IUserInStation[],
+
       memoryChart: null as echarts.EChartsType | null,
 
       intervalId: null as number | null,
-
-      consoleData: [] as ConsoleData[],
-
-      networkData: [] as NetworkData[],
-
-      usersInStations: [] as IUserInStation[],
 
       originalConsoleLog: console.log,
       originalConsoleWarn: console.warn,
@@ -91,6 +96,8 @@ export default {
       originalXHR: window.XMLHttpRequest.prototype.open,
       originalWebSocket: window.WebSocket,
       resourceObserver: null as MutationObserver | null,
+
+      webSocketInstances: new Set<WebSocketInstance>(),
 
       tab: "memory",
 
@@ -118,23 +125,78 @@ export default {
       classroomPastStations: [] as string[],
 
       logsDate: null as Date | null,
+
+      // Data to be displayed (for infinite scroll)
+      visibleConsoleData: [] as ConsoleData[],
+      visibleMemoryData: [] as MemoryData[],
+      visibleNetworkData: [] as NetworkData[],
+      visibleUsersInStations: [] as IUserInStation[],
+
+      isSavingEnabled: false,
     };
+  },
+
+  mounted() {
+    this.$nextTick(() => {
+      this.initializeObserverForTab(this.tab);
+    });
   },
 
   beforeUnmount() {
     this.stopLogger();
   },
 
+  computed: {
+    activeTabs() {
+      // Return a list of active monitoring options
+      const tabs: string[] = [];
+
+      if (this.monitorMemory) tabs.push("memory");
+      if (this.monitorNetwork) tabs.push("network");
+      if (this.monitorConsole) tabs.push("console");
+      if (this.monitorUsers) tabs.push("station");
+      
+      return tabs;
+    },
+  },
+
   watch: {
-    liveClassProxy: {
-      handler() {
-        this.monitorUsersInStations();
+    'liveClassProxy.users': {
+      handler(newUsers, oldUsers) {
+        if (!this.isLoggerRunning) return;
+
+        // Compare new and old users to detect changes
+        const hasChanged = Object.keys(newUsers).some((key) => {
+          const newUser = newUsers[key];
+          const oldUser = oldUsers ? oldUsers[key] : null;
+
+          // Check if the room or role has changed
+          return (
+            !oldUser ||
+            newUser.room !== oldUser.room
+          );
+        });
+
+        if (hasChanged) {
+          this.monitorUsersInStations();
+        }
       },
-      deep: true,
+    },
+
+    tab(newTab) {
+      this.initializeObserverForTab(newTab);
+    },
+
+    activeTabs(newTabs) {
+      // Update the `tab` variable to the first available tab if it becomes inactive
+      if (!newTabs.includes(this.tab)) {
+        this.tab = newTabs[0] || null; 
+      }
     },
   },
 
   methods: {
+
     startOrStopLogger() {
       if (this.isLoggerRunning) {
         this.stopLogger();
@@ -142,10 +204,12 @@ export default {
         this.startLogger();
       }
     },
+
     startLogger() {
       this.$emit("logger-started");
 
       this.isLoggerRunning = true;
+      this.isSavingEnabled = true;
       this.logsDate = new Date().toLocaleString();
 
       this.clearLogger();
@@ -178,10 +242,12 @@ export default {
         }, 5000);
       }
     },
-    stopLogger() {
-      this.$emit("logger-stopped");
 
+    stopLogger() {
       this.isLoggerRunning = false;
+      this.isSavingEnabled = false;
+
+      this.$emit("logger-stopped");
 
       // Reset console methods to original
       console.log = this.originalConsoleLog;
@@ -190,9 +256,23 @@ export default {
       this.loggerTabsText[2] = "Stopped monitoring console logs.";
 
       // Reset fetch, XHR, and WebSocket to original
-      window.fetch = this.originalFetch;
-      window.XMLHttpRequest.prototype.open = this.originalXHR;
-      window.WebSocket = this.originalWebSocket;
+      if (this.originalFetch) {
+        window.fetch = this.originalFetch;
+      }
+      if (this.originalXHR) {
+        window.XMLHttpRequest.prototype.open = this.originalXHR;
+      }
+      if (this.originalWebSocket) {
+        window.WebSocket = this.originalWebSocket;
+
+        // Remove WebSocket listeners
+        this.webSocketInstances.forEach(({ ws, listeners }) => {
+          listeners.forEach(({ type, listener }) => {
+            ws.removeEventListener(type, listener);
+          });
+        });
+        this.webSocketInstances.clear();
+      }
       this.loggerTabsText[1] = "Stopped monitoring network data.";
 
       // Stop resource monitoring
@@ -210,25 +290,41 @@ export default {
         this.intervalId = null;
         this.loggerTabsText[0] = "Stopped monitoring memory usage.";
       }
+
+      // Keep focus on the active tab
+      this.$nextTick(() => {
+        if (this.tab !== null) {
+          this.initializeObserverForTab(this.tab); 
+        } 
+      });
     },
+
     loadLogs() {
       this.getClassroomPastStations();
       this.isLogsLoaderVisible = true;
     },
+
     clearLogger() {
       this.memoryData = [];
       this.consoleData = [];
       this.networkData = [];
       this.usersInStations = [];
 
+      this.visibleMemoryData = [];
+      this.visibleConsoleData = [];
+      this.visibleNetworkData = [];
+      this.visibleUsersInStations = [];
+
       this.isShowingPrevLogs = false;
     },
+
     formatMessage(message: object | string) {
       if (typeof message === "object" && message !== null) {
         return JSON.stringify(message, null, 2);
       }
       return message.toString();
     },
+
     measureMemory() {
       if (!performance.memory) {
         return;
@@ -248,6 +344,7 @@ export default {
       this.saveLoggerDataToDB();
       this.$nextTick(this.generateChart);
     },
+
     overrideConsoleMethods() {
       const methodsToOverride = ["log", "warn", "error"];
 
@@ -261,7 +358,7 @@ export default {
             message: args.map(this.formatMessage).join(" "),
             type: method,
           });
-
+          
           this.saveLoggerDataToDB();
         };
       });
@@ -286,6 +383,7 @@ export default {
         this.saveLoggerDataToDB();
       });
     },
+
     overrideFetch() {
       const originalFetch = window.fetch;
       this.originalFetch = originalFetch;
@@ -309,6 +407,7 @@ export default {
         return response;
       };
     },
+
     overrideXHR() {
       const originalOpen = window.XMLHttpRequest.prototype.open;
       this.originalXHR = originalOpen;
@@ -336,6 +435,7 @@ export default {
         originalOpen.call(this, method, url, ...rest);
       };
     },
+
     overrideWebSocket() {
       const originalWebSocket = window.WebSocket;
       this.originalWebSocket = originalWebSocket;
@@ -343,6 +443,7 @@ export default {
 
       window.WebSocket = function (...args) {
         const ws = new originalWebSocket(...(args as [string, ...any[]]));
+        const listeners: { type: string; listener: (event: any) => void }[] = []; // To track listeners for this instance
 
         const logWebSocketEvent = (type, response) => {
           const data = {
@@ -358,20 +459,29 @@ export default {
           vueInstance.saveLoggerDataToDB();
         };
 
-        ws.addEventListener("open", () => logWebSocketEvent("open", "Connection opened"));
-        ws.addEventListener("message", (event) =>
-          logWebSocketEvent("message", event.data)
-        );
-        ws.addEventListener("close", () =>
-          logWebSocketEvent("close", "Connection closed")
-        );
-        ws.addEventListener("error", () =>
-          logWebSocketEvent("error", "Connection error")
-        );
+        // Add event listeners to track WebSocket events
+        const openListener = () => logWebSocketEvent("open", "Connection opened.");
+        const messageListener = (event) => logWebSocketEvent("message", event.data);
+        const closeListener = () => logWebSocketEvent("close", "Connection closed.");
+        const errorListener = () => logWebSocketEvent("error", "Connection error.");
+
+        ws.addEventListener("open", openListener);
+        ws.addEventListener("message", messageListener);
+        ws.addEventListener("close", closeListener);
+        ws.addEventListener("error", errorListener);
+
+        // Save listeners to remove them later
+        listeners.push({ type: "open", listener: openListener });
+        listeners.push({ type: "message", listener: messageListener });
+        listeners.push({ type: "close", listener: closeListener });
+        listeners.push({ type: "error", listener: errorListener });
+
+        vueInstance.webSocketInstances.add({ ws, listeners });
 
         return ws;
       } as any;
     },
+
     observeResources() {
       if (!this.resourceObserver) {
         this.resourceObserver = new MutationObserver((mutations) => {
@@ -434,17 +544,22 @@ export default {
         this.resourceObserver.observe(document, { childList: true, subtree: true });
       }
     },
-    monitorUsersInStations() {
-      if (this.monitorUsers) {
-        for (const key in this.liveClassProxy.users) {
-          const userRoom = this.liveClassProxy.users[key].room;
-          const userRole = this.liveClassProxy.users[key].role; // to exclude stations
-          const existingUser = this.usersInStations.find(
-            (u) => u.user === key && u.event === "joined"
-          );
 
-          if (userRoom.includes("Station") && userRole !== "station") {
-            if (existingUser && existingUser.station !== userRoom) {
+    monitorUsersInStations() {
+      if (!this.monitorUsers) return;
+
+      for (const key in this.liveClassProxy.users) {
+        const user = this.liveClassProxy.users[key];
+        const userRoom = user.room;
+        const userRole = user.role; // Exclude stations
+        const existingUser = this.usersInStations.find(
+          (u) => u.user === key && u.event === "joined"
+        );
+
+        if (userRoom.includes("Station") && userRole !== "station") {
+          if (existingUser) {
+            // User switched stations
+            if (existingUser.station !== userRoom) {
               // User left the previous station
               this.usersInStations.push({
                 user: key,
@@ -452,32 +567,33 @@ export default {
                 date: new Date().toLocaleString(),
                 event: "left",
               });
-
-              this.saveLoggerDataToDB();
+            } else {
+              // User is already in the station, no action needed
+              continue;
             }
-            // User joined a new station
-            this.usersInStations.push({
-              user: key,
-              station: userRoom,
-              date: new Date().toLocaleString(),
-              event: "joined",
-            });
-
-            this.saveLoggerDataToDB();
-          } else if (existingUser) {
-            // User left a station
-            this.usersInStations.push({
-              user: key,
-              station: existingUser.station,
-              date: new Date().toLocaleString(),
-              event: "left",
-            });
-
-            this.saveLoggerDataToDB();
           }
+
+          // User joined a new station
+          this.usersInStations.push({
+            user: key,
+            station: userRoom,
+            date: new Date().toLocaleString(),
+            event: "joined",
+          });
+          this.saveLoggerDataToDB();
+        } else if (existingUser) {
+          // User left the station
+          this.usersInStations.push({
+            user: key,
+            station: existingUser.station,
+            date: new Date().toLocaleString(),
+            event: "left",
+          });
+          this.saveLoggerDataToDB();
         }
       }
     },
+
     generateChart() {
       const chartDom = document.getElementById("chart");
 
@@ -486,7 +602,8 @@ export default {
         return;
       }
 
-      const memoryDataArray = this.memoryData;
+      // Plot the chart based on the visible memory data
+      const memoryDataArray = this.isLoggerRunning ? this.memoryData : this.visibleMemoryData;
 
       if (memoryDataArray.length > 0) {
         const option = {
@@ -496,7 +613,9 @@ export default {
             nameLocation: "middle",
             nameGap: 25,
             axisLabel: {
-              formatter: (value) => new Date(value).toLocaleTimeString(),
+              formatter: (value: number) => {
+                return new Date(value).toLocaleTimeString();
+              },
             },
           },
           yAxis: {
@@ -505,86 +624,165 @@ export default {
             nameLocation: "middle",
             nameGap: 55,
             axisLabel: {
-              formatter: (value) => `${value.toFixed(0)} MB`,
+              formatter: (value: number) => `${value.toFixed(0)} MB`,
             },
           },
           series: [
             {
-              data: this.memoryData.map((memory) => [
+              data: memoryDataArray.map((memory: any) => [
                 new Date(memory.date),
-                parseFloat(memory.usedJSHeapSize),
+                memory.usedJSHeapSize,
               ]),
-              type: "line", // Ensure this matches the imported chart type
+              type: "line",
               smooth: true,
               name: "Used JS Heap Size",
+              // Add animation effects
+              animation: true,
+              animationDuration: 1000,
+              animationEasing: "cubicInOut",
+              // Add visual enhancement
+              lineStyle: {
+                width: 3,
+                shadowColor: "rgba(0,0,0,0.3)",
+                shadowBlur: 10,
+              },
+              // Add area under the line
+              areaStyle: {
+                opacity: 0.3,
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: "rgb(116, 21, 219)" },
+                  { offset: 1, color: "rgb(55, 162, 255)" },
+                ]),
+              },
+              symbolSize: 8,
             },
           ],
           tooltip: {
             trigger: "axis",
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+            borderColor: "#777",
+            borderWidth: 1,
+            padding: [10, 15],
+            textStyle: {
+              color: "#333",
+            },
+            formatter: function (params: any) {
+              const data = params[0].data;
+              const date = new Date(data[0]);
+              const memory = data[1];
+
+              return `
+        <div style="font-weight: bold; margin-bottom: 5px;">
+          ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: ${params[0].color};">● </span>
+          <span>Memory Usage:</span>
+          <span style="font-weight: bold; margin-left: 5px;">
+            ${memory.toFixed(1)} MB
+          </span>
+        </div>
+      `;
+            },
+            axisPointer: {
+              type: "cross",
+              label: {
+                backgroundColor: "#6a7985",
+              },
+            },
+          },
+          // Add global animation configuration
+          animation: true,
+          animationThreshold: 2000,
+          animationDuration: 1000,
+          animationEasing: "cubicInOut",
+          animationDelay: function (idx: number) {
+            return idx * 100;
           },
         };
-        this.memoryChart.setOption(option);
-        this.memoryChart.resize();
+
+        this.memoryChart?.setOption(option);
+        this.memoryChart?.resize();
       } else {
         console.warn("No memory data available to plot the chart.");
       }
     },
-    async saveLoggerDataToDB() {
-      try {
-        // Convert Date objects to ISO strings before saving to IndexedDB (IndexedDB doesn't support Date objects)
-        const serializedData = {
-          consoleData: this.consoleData.map((entry) => ({
-            ...entry,
-            date: entry.date instanceof Date ? entry.date.toISOString() : entry.date,
-          })),
-          memoryData: this.memoryData.map((entry) => ({
-            ...entry,
-            date: entry.date instanceof Date ? entry.date.toISOString() : entry.date,
-          })),
-          networkData: this.networkData.map((entry) => ({
-            ...entry,
-            date: entry.date instanceof Date ? entry.date.toISOString() : entry.date,
-          })),
-          usersInStations: this.usersInStations.map((entry) => ({
-            ...entry,
-            date: entry.date instanceof Date ? entry.date.toISOString() : entry.date,
-          })),
-        };
 
-        await this.database.putLog(
-          this.classId + "_Station:" + this.stationName + "_Date:" + this.logsDate,
-          serializedData
-        );
-      } catch (error) {
-        console.error("Error saving logger data to IndexedDB:", error);
+    async saveLoggerDataToDB() {
+      if (this.isSavingEnabled) {
+        try {
+          // Convert Date objects to ISO strings before saving to IndexedDB (IndexedDB doesn't support Date objects)
+          const serializedData = {
+            consoleData: this.consoleData.map((entry) => ({
+              ...entry,
+              date: entry.date instanceof Date ? entry.date.toISOString() : entry.date,
+            })),
+            memoryData: this.memoryData.map((entry) => ({
+              ...entry,
+              date: entry.date instanceof Date ? entry.date.toISOString() : entry.date,
+            })),
+            networkData: this.networkData.map((entry) => ({
+              ...entry,
+              date: entry.date instanceof Date ? entry.date.toISOString() : entry.date,
+            })),
+            usersInStations: this.usersInStations.map((entry) => ({
+              ...entry,
+              date: entry.date instanceof Date ? entry.date.toISOString() : entry.date,
+            })),
+          };
+
+          await this.database.putLog(
+            this.classId + "_Station:" + this.stationName + "_Date:" + this.logsDate,
+            serializedData
+          );
+        } catch (error) {
+          console.error("Error saving logger data to IndexedDB:", error);
+        }
       }
     },
+
     async loadLoggerDataFromDB() {
       try {
-        const stationName = this.stationLogsInput.split(" - ")[0].split(": ")[1];
-        const stationDate = this.stationLogsInput.split(" - ")[1].split(": ")[1];
+        const stationName = this.stationLogsInput.split(' - ')[0].split(': ')[1];
+        const stationDate = this.stationLogsInput.split(' - ')[1].split(': ')[1];
 
         const data = await this.database.getLogById(
           this.classId + "_Station:" + stationName + "_Date:" + stationDate
         );
 
         if (data && data.LoggerData) {
-          this.stopLogger();
+          this.clearLogger();
 
           this.isLogsLoaderVisible = false;
           this.isShowingPrevLogs = true;
 
-          this.consoleData = data.LoggerData.consoleData;
-          this.memoryData = data.LoggerData.memoryData;
-          this.networkData = data.LoggerData.networkData;
-          this.usersInStations = data.LoggerData.usersInStations;
+          const { consoleData = [], memoryData = [], networkData = [], usersInStations = [] } = data.LoggerData;
 
-          this.$nextTick(this.generateChart);
+          this.consoleData = consoleData;
+          this.memoryData = memoryData;
+          this.networkData = networkData;
+          this.usersInStations = usersInStations;
+
+          // If no data was recorded
+          this.loggerTabsText[2] = consoleData.length ? "" : "No console logs were recorded.";
+          this.loggerTabsText[0] = memoryData.length ? "" : "No memory data were recorded.";
+          this.loggerTabsText[1] = networkData.length ? "" : "No network data were recorded.";
+          this.loggerTabsText[3] = usersInStations.length ? "" : "No users in stations activity was recorded.";
+
+          // Keep focus on the active tab and generate chart
+          this.$nextTick(() => {
+            if (this.tab !== null) {
+              this.initializeObserverForTab(this.tab); 
+            } 
+
+            this.generateChart();
+          });
         }
       } catch (error) {
         console.error("Error loading logger data from IndexedDB:", error);
       }
     },
+    
     async getClassroomPastStations() {
       try {
         const allIds = await this.database.getLogsIds();
@@ -593,14 +791,69 @@ export default {
           this.classroomPastStations = allIds
             .filter((id: string) => id.includes(this.classId))
             .map((id: string) => {
-              const stationName = id.split("_Station:")[1].split("_Date:")[0];
-              const date = new Date(id.split("_Date:")[1]).toLocaleString();
+              const stationName = id.split("_Station:")[1].split("_Date:")[0]; 
+              const date = new Date(id.split("_Date:")[1]).toLocaleString(); 
 
               return `Station: ${stationName} - Date: ${date}`;
             });
         }
       } catch (error) {
         console.error("Error getting classroom past stations from IndexedDB:", error);
+      }
+    },
+    
+    // Load more data for infinite scroll
+    loadMoreData(arrayName: string) {
+      const visibleArrayName = `visible${arrayName.charAt(0).toUpperCase() + arrayName.slice(1)}`;
+      const array = this[arrayName];
+      const visibleArray = this[visibleArrayName];
+
+      const nextItems = array.slice(visibleArray.length, visibleArray.length + 20); // Load 20 items at a time
+      this[visibleArrayName].push(...nextItems);
+
+      // Regenerate chart if memory data is being loaded
+      if (visibleArrayName === "visibleMemoryData") {
+        this.$nextTick(this.generateChart);
+      }
+    },
+
+    // Initialize IntersectionObserver for infinite scroll
+    initializeObserverForTab(activeTab) {
+      const sentinelRefMap = {
+        memory: "memorySentinel",
+        network: "networkSentinel",
+        console: "consoleSentinel",
+        station: "usersSentinel",
+      };
+
+      const arrayMap = {
+        memory: "memoryData",
+        network: "networkData",
+        console: "consoleData",
+        station: "usersInStations",
+      };
+
+      const sentinelRef = sentinelRefMap[activeTab];
+      const arrayName = arrayMap[activeTab];
+
+      if (sentinelRef && arrayName) {
+        this.$nextTick(() => {
+          const sentinel = this.$refs[sentinelRef];
+
+          if (sentinel) {
+            const observer = new IntersectionObserver(
+              ([entry]) => {
+                if (entry.isIntersecting) {
+                  this.loadMoreData(arrayName);
+                }
+              },
+              { threshold: 1.0 }
+            );
+            observer.observe(sentinel);
+          } else {
+            console.warn(`Sentinel '${sentinelRef}' is not yet available.`);
+          }
+        });
       }
     },
   },
@@ -623,7 +876,7 @@ export default {
         </div>
 
         <div v-if="isShowingPrevLogs">
-          {{ !isLogsLoaderVisible ? "Showing Logs from " + stationLogsInput : "" }}
+          {{ !isLogsLoaderVisible ? 'Showing Logs from ' + stationLogsInput : '' }}
         </div>
       </div>
 
@@ -683,7 +936,9 @@ export default {
         Load
       </v-btn>
 
-      <v-btn variant="outlined" @click="clearLogger"> Clear </v-btn>
+      <v-btn variant="outlined" @click="clearLogger" :disabled="isLoggerRunning"> 
+        Clear 
+      </v-btn>
     </div>
 
     <div class="tabs-container">
@@ -726,7 +981,7 @@ export default {
 
             <v-divider></v-divider>
 
-            <div v-for="(data, index) in memoryData" :key="index">
+            <div v-for="(data, index) in isLoggerRunning ? memoryData : visibleMemoryData" :key="index">
               <span id="log-date">{{ data.date }}</span>
               <span id="log-title"> - Used JS Heap Size:</span>
               {{ data.usedJSHeapSize }} MB
@@ -735,12 +990,13 @@ export default {
               <span id="log-title"> - JS Heap Size Limit:</span>
               {{ data.jsHeapSizeLimit }} MB
             </div>
+            <div ref="memorySentinel"></div>
           </div>
         </v-tabs-window-item>
 
         <v-tabs-window-item value="network" v-if="monitorNetwork">
           <div v-if="networkData.length">
-            <div v-for="(data, index) in networkData" :key="index">
+            <div v-for="(data, index) in isLoggerRunning ? networkData : visibleNetworkData" :key="index">
               <span id="log-date">{{ data.date }}</span>
               <span id="log-title"> - {{ data.type.toLocaleUpperCase() }}: </span>
               <span v-if="data.type === 'fetch'">
@@ -769,11 +1025,12 @@ export default {
           <div v-else>
             <p>{{ loggerTabsText[1] }}</p>
           </div>
+          <div ref="networkSentinel"></div>
         </v-tabs-window-item>
 
         <v-tabs-window-item value="console" v-if="monitorConsole">
           <div v-if="consoleData.length">
-            <div v-for="(data, index) in consoleData" :key="index">
+            <div v-for="(data, index) in isLoggerRunning ? consoleData : visibleConsoleData" :key="index">
               <span id="log-date">{{ data.date }}</span>
               <span
                 id="log-title"
@@ -796,11 +1053,12 @@ export default {
           <div v-else>
             <p>{{ loggerTabsText[2] }}</p>
           </div>
+          <div ref="consoleSentinel"></div>
         </v-tabs-window-item>
 
         <v-tabs-window-item value="station" v-if="monitorUsers">
           <div v-if="usersInStations.length">
-            <div v-for="(data, index) in usersInStations" :key="index">
+            <div v-for="(data, index) in isLoggerRunning ? usersInStations : visibleUsersInStations" :key="index">
               <span id="log-date">{{ data.date }}</span>
               <span id="log-title"> - User:</span> {{ data.user }}
               <span id="log-title"> - Event:</span> {{ data.event }}
@@ -810,6 +1068,7 @@ export default {
           <div v-else>
             <p>{{ loggerTabsText[3] }}</p>
           </div>
+          <div ref="usersSentinel"></div>
         </v-tabs-window-item>
       </v-tabs-window>
     </v-card-text>
@@ -861,7 +1120,9 @@ export default {
           <v-btn
             variant="flat"
             color="grey-darken-4"
-            @click="stationLogsInput && loadLoggerDataFromDB()"
+            @click="
+              stationLogsInput && loadLoggerDataFromDB()
+            "
           >
             Load
           </v-btn>
