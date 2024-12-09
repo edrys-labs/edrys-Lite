@@ -190,7 +190,7 @@ export default class Peer {
    * Handles synced events from the provider.
    */
   private handleSynced(event: any) {
-    console.warn('Synced event received', event)
+    LOG('Synced event received', event)
 
     // Ensure that synchronization is complete before updating state
     setTimeout(() => {
@@ -251,13 +251,19 @@ export default class Peer {
   /**
    * Initializes the setup map with proper conflict resolution.
    */
-  initSetup() {
+  initSetup(force: boolean = false) {
     const timestamp: number = (this.y.setup.get('timestamp') as number) || 0
     const data = this.y.setup.get('config')
 
     this.y.doc.transact(() => {
+      if (force) {
+        LOG('Force update new configuration')
+        this.y.setup.set('config', this.lab.data)
+        this.y.setup.set('timestamp', this.lab.timestamp)
+      }
+
       // If my setup is older than the current setup
-      if (this.lab.timestamp < timestamp) {
+      else if (this.lab.timestamp < timestamp) {
         LOG('receiving initial lab configuration')
 
         this.lab.data = data
@@ -420,7 +426,7 @@ export default class Peer {
           self.lab.data = config.data
           self.lab.timestamp = config.timestamp
 
-          self.initSetup()
+          self.initSetup(true)
         } else {
           LOG('updating failed, hash mismatch')
         }
@@ -431,7 +437,7 @@ export default class Peer {
         this.lab.data = config.data
         this.lab.timestamp = config.timestamp
 
-        this.initSetup()
+        this.initSetup(true)
       }
     }
   }
