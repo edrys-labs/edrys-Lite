@@ -3,6 +3,12 @@ import { encoding, decoding } from 'lib0'
 
 const MESSAGE_TYPE_CUSTOM = 42
 const MESSAGE_TYPE_ID = 43
+const MESSAGE_EXPIRATION_TIME = 10000 // 10 seconds
+
+// A simple UUID generator (you could use a library like uuid)
+function generateUniqueId() {
+  return Math.random().toString(36).substr(2, 9) + Date.now().toString(36)
+}
 
 export class EdrysWebrtcProvider extends WebrtcProvider {
   private _messageListener: Function | null = null
@@ -10,11 +16,20 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
   private _peerUserIds: Map<string, string>
   private _userIdToPeer: Map<string, any>
   private _bcChannel: BroadcastChannel
+  private _processedMessages: Map<string, number>
+  private _cleanupInterval: number | null = null
   private _leaveListener: Function | null = null
   public userid: string
 
   constructor(roomName: string, doc: any, options: any) {
     super(roomName, doc, options)
+    // Map of processed messages: messageId -> receivedTimestamp
+    this._processedMessages = new Map()
+    // Start periodic cleanup of old messages
+    this._cleanupInterval = window.setInterval(
+      () => this._cleanupProcessedMessages(),
+      MESSAGE_EXPIRATION_TIME
+    )
 
     // Map to store peers we've already set up listeners for
     this._setupPeers = new Set()
@@ -30,8 +45,10 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
     // Listen for BroadcastChannel messages
     this._bcChannel.addEventListener('message', (event) => {
+      const message = event.data
+      if (this._isDuplicateMessage(message)) return
       if (this._messageListener) {
-        this._messageListener(event.data)
+        this._messageListener(message)
       }
     })
 
@@ -45,6 +62,37 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
     // Assign own unique user ID
     this.userid = options.userid || this.doc.clientID.toString()
+  }
+
+  /**
+   * Check if a message is duplicate and mark it as processed if not.
+   */
+  _isDuplicateMessage(message) {
+    if (!message || !message.id) {
+      // If there's no ID, treat it as unique. Ideally all messages have IDs.
+      return false
+    }
+
+    if (this._processedMessages.has(message.id)) {
+      return true
+    }
+
+    // Mark as processed with the current timestamp
+    this._processedMessages.set(message.id, Date.now())
+    return false
+  }
+
+  /**
+   * Periodically cleanup old message IDs to prevent memory bloat.
+   * Removes messages older than MESSAGE_EXPIRATION_TIME (10 seconds).
+   */
+  _cleanupProcessedMessages() {
+    const now = Date.now()
+    for (const [id, timestamp] of this._processedMessages.entries()) {
+      if (now - timestamp > MESSAGE_EXPIRATION_TIME) {
+        this._processedMessages.delete(id)
+      }
+    }
   }
 
   /**
@@ -121,7 +169,6 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
    */
   _handleIncomingData(data, senderId, peer) {
     try {
-      // y-webrtc encodes messages with a message type
       const decoder = decoding.createDecoder(data)
       const messageType = decoding.readVarUint(decoder)
 
@@ -129,11 +176,14 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
         const messageContent = decoding.readVarString(decoder)
         const message = JSON.parse(messageContent)
 
-        // Invoke all registered listeners with the message
-        if (this._messageListener) this._messageListener(message)
+        // Check for duplicates before processing
+        if (this._isDuplicateMessage(message)) return
+
+        if (this._messageListener) {
+          this._messageListener(message)
+        }
       } else if (messageType === MESSAGE_TYPE_ID) {
         const remoteUserId = decoding.readVarString(decoder)
-        // Map the remoteUserId to the peer
         this._peerUserIds.set(senderId, remoteUserId)
         this._userIdToPeer.set(remoteUserId, peer)
       }
@@ -157,25 +207,26 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
    */
 
   sendMessage(message: any, targetUserId: string | null = null) {
+    if (!message.id) {
+      message.id = generateUniqueId()
+    }
+
     // Send via BroadcastChannel
     this._bcChannel.postMessage(message)
 
-    // Encode the message for WebRTC peers
+    // Encode for WebRTC
     const encoder = encoding.createEncoder()
-    encoding.writeVarUint(encoder, MESSAGE_TYPE_CUSTOM) // Custom message type
+    encoding.writeVarUint(encoder, MESSAGE_TYPE_CUSTOM)
     encoding.writeVarString(encoder, JSON.stringify(message))
     const encodedMessage = encoding.toUint8Array(encoder)
 
-    // Send the message to the specified peer or broadcast to all
     if (this.room) {
       if (targetUserId) {
-        // Send to specific peer
         const peer = this._userIdToPeer.get(targetUserId)
         if (peer && peer.connected) {
           peer.send(encodedMessage)
         }
       } else {
-        // Broadcast to all peers
         this.room.webrtcConns.forEach((conn) => {
           const peer = conn.peer
           if (peer && peer.connected) {
@@ -202,5 +253,10 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
     this._bcChannel.close()
     this._messageListener = null
     this._leaveListener = null
+
+    if (this._cleanupInterval) {
+      clearInterval(this._cleanupInterval)
+      this._cleanupInterval = null
+    }
   }
 }
