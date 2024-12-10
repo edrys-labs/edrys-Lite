@@ -16,18 +16,23 @@
  */
 
 import * as Y from 'yjs'
-import * as YP from 'y-protocols/awareness.js'
-import { RoomAwarenessManager } from './awarenessManager'
+// import * as YP from 'y-protocols/awareness.js'
+// import { RoomAwarenessManager } from './awarenessManager'
 import { unpack, pack } from 'msgpackr'
 
 const EXTERN = 'extern'
-var awareness: any
-var awarenessManager: any
+// var awareness: any
+// var awarenessManager: any
+var liveClass = false
 var doc: any
+var callback = { onReady: false, onUpdate: false }
 
 function LOG(...args) {
   if (window['Edrys'].debug)
-    console.log(`Edrys (${window['Edrys'].module.name}):`, ...args)
+    console.log(
+      `Edrys (${window['Edrys'].module.name || 'not ready'}):`,
+      ...args
+    )
 }
 
 function WARN(...args) {
@@ -78,6 +83,8 @@ window['Edrys'] = {
   debug: false,
 
   onReady(handler) {
+    callback.onReady = true
+
     if (window['Edrys'].ready) {
       LOG('READY')
       handler(window['Edrys'])
@@ -88,6 +95,7 @@ window['Edrys'] = {
       })
   },
   onUpdate(handler) {
+    callback.onUpdate = true
     window.addEventListener('$Edrys.update', (e) => {
       if (window['Edrys'].ready) {
         LOG('UPDATE')
@@ -95,6 +103,7 @@ window['Edrys'] = {
       }
     })
   },
+
   onMessage(handler, promiscuous = false) {
     window.addEventListener('$Edrys.message', (e) => {
       const customEvent = e as CustomEvent
@@ -173,15 +182,15 @@ window['Edrys'] = {
       | 'XmlFragment'
       | 'XmlText'
       | 'XmlElement'
-      | 'Value'
-      | 'Awareness',
+      | 'Value',
+    // | 'Awareness',
     value?: any
   ) {
-    if (type === 'Awareness') {
-      return awarenessManager.getAwareness(
-        window['Edrys'].liveUser.room + '.' + key
-      )
-    }
+    // if (type === 'Awareness') {
+    //   return awarenessManager.getAwareness(
+    //     window['Edrys'].liveUser.room + '.' + key
+    //   )
+    // }
 
     const map = doc.getMap('rooms').get(window['Edrys'].liveUser.room)
 
@@ -310,9 +319,9 @@ window.addEventListener(
 
         if (!doc) {
           doc = new Y.Doc()
-          awareness = new YP.Awareness(doc)
+          // awareness = new YP.Awareness(doc)
 
-          awarenessManager = new RoomAwarenessManager(awareness)
+          // awarenessManager = new RoomAwarenessManager(awareness)
 
           doc.getMap('users')
           doc.getMap('rooms')
@@ -323,26 +332,32 @@ window.addEventListener(
             LOG('DOC', state, origin)
             if (origin === EXTERN) {
               // onReady can only be sent if it has been updated by the parent
-              if (!window['Edrys'].ready && window['Edrys'].liveClass) {
-                window['Edrys'].ready = true
-                dispatchEvent(
-                  new CustomEvent('$Edrys.ready', {
-                    bubbles: false,
-                    detail: e.data,
-                  })
-                )
+              if (!window['Edrys'].ready && liveClass) {
+                this.setTimeout(() => {
+                  window['Edrys'].ready = true
+
+                  if (callback.onReady) {
+                    dispatchEvent(
+                      new CustomEvent('$Edrys.ready', {
+                        bubbles: false,
+                        detail: e.data,
+                      })
+                    )
+                  } else if (callback.onUpdate) {
+                    dispatchUpdate()
+                  }
+                }, 1000)
 
                 // onUpdate is called only on changes within the room
                 doc
                   .getMap('rooms')
-                  .get(window['Edrys'].liveUser.room)
+                  //.get(window['Edrys'].liveUser.room)
                   .observeDeep((_event, _transact) => {
                     // console.log('ROOM UPDATE')
                     dispatchUpdate()
                   })
 
                 doc.getMap('users').observeDeep((_event, _transact) => {
-                  // console.log('USERS UPDATE')
                   dispatchUpdate()
                 })
 
@@ -362,21 +377,21 @@ window.addEventListener(
             )
           })
 
-          awareness.on('update', ({ added, updated, removed }, origin) => {
-            LOG('AWARENESS UPDATE', origin, added, updated, removed)
-            if (origin !== EXTERN) {
-              const changedClients = added.concat(updated, removed)
+          // awareness.on('update', ({ added, updated, removed }, origin) => {
+          //   LOG('AWARENESS UPDATE', origin, added, updated, removed)
+          //   if (origin !== EXTERN) {
+          //     const changedClients = added.concat(updated, removed)
 
-              // Send the update to the parent window
-              window.parent.postMessage(
-                {
-                  event: 'awareness',
-                  data: YP.encodeAwarenessUpdate(awareness, changedClients),
-                },
-                window['Edrys'].origin
-              )
-            }
-          })
+          //     // Send the update to the parent window
+          //     window.parent.postMessage(
+          //       {
+          //         event: 'awareness',
+          //         data: YP.encodeAwarenessUpdate(awareness, changedClients),
+          //       },
+          //       window['Edrys'].origin
+          //     )
+          //   }
+          // })
         }
 
         try {
@@ -401,12 +416,13 @@ window.addEventListener(
         window['Edrys'].class_id = e.data.class_id
 
         if (e.data.liveClass) {
+          liveClass = true
           Y.applyUpdate(doc, e.data.liveClass, EXTERN)
         }
 
-        if (e.data.awareness) {
-          YP.applyAwarenessUpdate(awareness, e.data.awareness, EXTERN)
-        }
+        // if (e.data.awareness) {
+        //   YP.applyAwarenessUpdate(awareness, e.data.awareness, EXTERN)
+        // }
 
         break
       case 'message':
@@ -434,21 +450,24 @@ window.addEventListener(
 
 function checkReady() {
   if (!window['Edrys'].ready) {
+    WARN('Module not ready yet ...')
     window.parent.postMessage(
       {
         event: 'reload',
-        module: window['Edrys']?.module.url,
+        module: window['Edrys']?.module.url || '*',
       },
       window['Edrys']?.origin || '*'
     )
 
-    setTimeout(() => {
-      WARN('Module not ready yet ...')
-      checkReady()
-    }, 5000)
+    setTimeout(checkReady, 5000)
   }
 }
 
-setTimeout(() => {
-  checkReady()
-}, 8000)
+//setTimeout(() => {
+//  checkReady()
+//}, 8000)
+
+// add an addEventListener for the onload event if everything has been loaded, included all scripts
+window.addEventListener('load', () => {
+  setTimeout(checkReady, 2000)
+})
