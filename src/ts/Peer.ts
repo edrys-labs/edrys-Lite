@@ -2,7 +2,7 @@ import { getPeerID, hashJsonObject, getShortPeerID } from './Utils'
 
 import * as Y from 'yjs'
 // @ts-ignore
-import * as YP from 'y-protocols/awareness.js'
+// import * as YP from 'y-protocols/awareness.js'
 import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
 
 function LOG(...args: any[]) {
@@ -105,10 +105,10 @@ export default class Peer {
       })
 
       // Handle awareness updates
-      this.provider.awareness.on(
-        'update',
-        this.handleAwarenessUpdate.bind(this)
-      )
+      // this.provider.awareness.on(
+      //   'update',
+      //   this.handleAwarenessUpdate.bind(this)
+      // )
 
       // Handle provider status events
       this.provider.on('status', this.handleStatus.bind(this))
@@ -135,37 +135,37 @@ export default class Peer {
   /**
    * Handles awareness updates only if the document is ready.
    */
-  private handleAwarenessUpdate(
-    {
-      added,
-      updated,
-      removed,
-    }: { added: number[]; updated: number[]; removed: number[] },
-    origin: any
-  ) {
-    if (!this.isReady) return // Ignore updates until ready
+  // private handleAwarenessUpdate(
+  //   {
+  //     added,
+  //     updated,
+  //     removed,
+  //   }: { added: number[]; updated: number[]; removed: number[] },
+  //   origin: any
+  // ) {
+  //   if (!this.isReady) return // Ignore updates until ready
 
-    if (added.length > 0 || updated.length > 0) {
-      if (!this.connected) {
-        this.connected = true
-        this.update('connected')
-      }
-    }
+  //   if (added.length > 0 || updated.length > 0) {
+  //     if (!this.connected) {
+  //       this.connected = true
+  //       this.update('connected')
+  //     }
+  //   }
 
-    if (removed.length > 0) {
-      // Collect peerIDs of removed users
-      const removedPeerIDs = removed
-        .map((clientId) => {
-          const state = this.provider.awareness.getStates().get(clientId)
-          return state?.userid || null
-        })
-        .filter((id): id is string => id !== null)
+  //   if (removed.length > 0) {
+  //     // Collect peerIDs of removed users
+  //     const removedPeerIDs = removed
+  //       .map((clientId) => {
+  //         const state = this.provider.awareness.getStates().get(clientId)
+  //         return state?.userid || null
+  //       })
+  //       .filter((id): id is string => id !== null)
 
-      if (removedPeerIDs.length > 0) {
-        this.removePeers(removedPeerIDs)
-      }
-    }
-  }
+  //     if (removedPeerIDs.length > 0) {
+  //       this.removePeers(removedPeerIDs)
+  //     }
+  //   }
+  // }
 
   /**
    * Handles provider status changes.
@@ -474,7 +474,8 @@ export default class Peer {
         //this.peerUpdate()
 
         if (callback && this.connected) {
-          callback(await this.toJSON(message))
+          callback(await this.toJSON())
+          //callback(await this.toJSON(message))
           this.callbackUpdate[event] = false
         } else {
           this.callbackUpdate[event] = true
@@ -652,9 +653,9 @@ export default class Peer {
    * Applies an awareness update.
    * @param data The awareness update data.
    */
-  updateAwareness(data: Uint8Array) {
-    YP.applyAwarenessUpdate(this.provider.awareness, data, 'EXTERN')
-  }
+  // updateAwareness(data: Uint8Array) {
+  //   YP.applyAwarenessUpdate(this.provider.awareness, data, 'EXTERN')
+  // }
 
   /**
    * Joins a role and initializes necessary components.
@@ -668,31 +669,30 @@ export default class Peer {
     this.update('room')
 
     // Handle awareness updates within join
-    this.provider.awareness.on(
-      'update',
-      ({ added, updated, removed }, origin) => {
-        const changedClients = added.concat(updated, removed)
+    // this.provider.awareness.on(
+    //   'update',
+    //   ({ added, updated, removed }, origin) => {
+    //     const changedClients = added.concat(updated, removed)
 
-        // Encode the awareness update
-        const update = YP.encodeAwarenessUpdate(
-          this.provider.awareness,
-          changedClients
-        )
+    //     // Encode the awareness update
+    //     const update = YP.encodeAwarenessUpdate(
+    //       this.provider.awareness,
+    //       changedClients
+    //     )
 
-        if (origin !== 'EXTERN') {
-          // Broadcast to all iframes or other relevant components
-          this.update('room', update)
-        }
-      }
-    )
+    //     if (origin !== 'EXTERN') {
+    //       // Broadcast to all iframes or other relevant components
+    //       this.update('room', update)
+    //     }
+    //   }
+    // )
   }
 
   /**
    * Serializes the current state to JSON.
-   * @param awareness Optional awareness data.
    * @returns The serialized state.
    */
-  async toJSON(awareness?: Uint8Array) {
+  async toJSON() {
     // Check if station and add station room exist
     if (this.isStation() && !this.y.rooms.has(this.peerID)) {
       this.addRoom(this.peerID)
@@ -707,8 +707,9 @@ export default class Peer {
     return {
       rooms: this.y.rooms.toJSON(),
       users: this.y.users.toJSON(),
-      doc: awareness ? undefined : Y.encodeStateAsUpdate(this.y.doc),
-      awareness: awareness,
+      doc: Y.encodeStateAsUpdate(this.y.doc),
+      // doc: awareness ? undefined : Y.encodeStateAsUpdate(this.y.doc),
+      // awareness: awareness,
     }
   }
 

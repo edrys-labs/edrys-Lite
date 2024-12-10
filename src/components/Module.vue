@@ -18,7 +18,7 @@
           : null
       "
       allow="camera; microphone; fullscreen; display-capture; accelerometer; autoplay; encrypted-media; geolocation; gyroscope; magnetometer; midi; serial; vr; clipboard-read; clipboard-write"
-      @load="updateIframe"
+      @load="loadFrame"
       ref="iframe"
       frameborder="0"
     ></iframe>
@@ -69,6 +69,10 @@ export default {
   },
 
   methods: {
+    loadFrame() {
+      console.log("Module loaded ...");
+      this.updateIframe();
+    },
     updateIframe() {
       try {
         this.$refs.iframe.contentWindow.postMessage(
@@ -78,7 +82,7 @@ export default {
             role: this.role,
             username: this.username,
             liveClass: this.liveClassProxy.doc,
-            awareness: this.liveClassProxy.awareness,
+            // awareness: this.liveClassProxy.awareness,
             module: JSON.parse(JSON.stringify(this.scrapedModule)),
             class_id: this.class_id,
           },

@@ -210,9 +210,9 @@ export default {
         case "state":
           this.communication.updateState(e.data.data);
           break;
-        case "awareness":
-          this.communication.updateAwareness(e.data.data);
-          break;
+        // case "awareness":
+        //   this.communication.updateAwareness(e.data.data);
+        //   break;
         case "echo":
           console.log("ECHO:", e.data);
           break;
