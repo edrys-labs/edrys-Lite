@@ -25,6 +25,15 @@ var awareness: any
 var awarenessManager: any
 var doc: any
 
+function LOG(...args) {
+  if (window['Edrys'].debug)
+    console.log(`Edrys (${window['Edrys'].module.name}):`, ...args)
+}
+
+function WARN(...args) {
+  console.warn(`Edrys (${window['Edrys'].module.name}):`, ...args)
+}
+
 function encode(value: any): string {
   try {
     // Convert MessagePack binary data to Base64 string
@@ -69,15 +78,21 @@ window['Edrys'] = {
   debug: false,
 
   onReady(handler) {
-    if (window['Edrys'].ready) handler(window['Edrys'])
-    else
+    if (window['Edrys'].ready) {
+      LOG('READY')
+      handler(window['Edrys'])
+    } else
       window.addEventListener('$Edrys.ready', (e) => {
+        LOG('READY')
         handler(window['Edrys'])
       })
   },
   onUpdate(handler) {
     window.addEventListener('$Edrys.update', (e) => {
-      handler(window['Edrys'])
+      if (window['Edrys'].ready) {
+        LOG('UPDATE')
+        handler(window['Edrys'])
+      }
     })
   },
   onMessage(handler, promiscuous = false) {
@@ -96,13 +111,12 @@ window['Edrys'] = {
           message.body = decode(message.body)
           message._decoded = true
         } catch (e) {
-          console.warn('Edrys: Error decoding message =>', message, e)
+          WARN('Error decoding message =>', message, e)
           return
         }
       }
 
-      if (window['Edrys'].debug)
-        console.log('RECEIVED MESSAGE', message.subject, message.body)
+      LOG('RECEIVED MESSAGE', message.subject, message.body)
 
       handler(message)
     })
@@ -110,7 +124,7 @@ window['Edrys'] = {
   sendMessage: (subject: any, body: any, user?: string) => {
     if (typeof subject !== 'string') subject = JSON.stringify(subject)
 
-    if (window['Edrys'].debug) console.log('SENDING MESSAGE', subject, body)
+    LOG('SENDING MESSAGE', subject, body)
 
     try {
       body = encode(body)
@@ -219,7 +233,7 @@ window['Edrys'] = {
         break
 
       default:
-        console.warn('Unknown type:', type)
+        WARN('Unknown type =>', type)
         return
     }
 
@@ -306,6 +320,7 @@ window.addEventListener(
           doc.on('update', (state, origin) => {
             update()
 
+            LOG('DOC', state, origin)
             if (origin === EXTERN) {
               // onReady can only be sent if it has been updated by the parent
               if (!window['Edrys'].ready && window['Edrys'].liveClass) {
@@ -348,6 +363,7 @@ window.addEventListener(
           })
 
           awareness.on('update', ({ added, updated, removed }, origin) => {
+            LOG('AWARENESS UPDATE', origin, added, updated, removed)
             if (origin !== EXTERN) {
               const changedClients = added.concat(updated, removed)
 
@@ -427,7 +443,7 @@ function checkReady() {
     )
 
     setTimeout(() => {
-      console.warn('Edrys-module: Not ready yet ...')
+      WARN('Module not ready yet ...')
       checkReady()
     }, 5000)
   }
