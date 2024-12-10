@@ -41,16 +41,19 @@ export default {
           ? m.showInCustom.split(",").map((e) => e.trim())
           : m.shownIn;
 
-        return (
-          (showIn.includes(this.modulesType) ||
-            showIn
-              .map((e) => e.toLowerCase().replace(/\*/g, ".*"))
-              .map((e) => new RegExp(e))
-              .map((e) => this.roomName.toLowerCase().match(e) !== null)
-              .includes(true) ||
-            showIn == "*") &&
-          !showIn.includes("teacher-only")
-        );
+        const isInRoom = showIn
+          .map((e) => e.toLowerCase().replace(/\*/g, ".*"))
+          .map((e) => new RegExp(e))
+          .map((e) => this.roomName.toLowerCase().match(e) !== null)
+          .includes(true);
+
+        if (showIn.includes("teacher-only")) {
+          return (
+            (showIn.includes(this.modulesType) || isInRoom || showIn == "*") &&
+            this.role == "teacher"
+          );
+        }
+        return showIn.includes(this.modulesType) || isInRoom || showIn == "*";
       });
     },
   },
