@@ -153,10 +153,27 @@ export default {
           return "1030px";
         case "half":
           return "510px";
-
-        default:
+        default: {
+          if (typeof w === "number") {
+            return w + "px";
+          }
           return "200px";
+        }
       }
+    },
+
+    styling(height: string, width: string): string {
+      let style = "";
+
+      if (typeof width === "number") {
+        style += `width: ${width}px;`;
+      }
+
+      if (typeof height === "number") {
+        style += `height: ${height}px;`;
+      }
+
+      return style;
     },
 
     height(h: string): string {
@@ -167,8 +184,12 @@ export default {
           return "720px";
         case "medium":
           return "410px";
-        default:
+        default: {
+          if (typeof h === "number") {
+            return h + "px";
+          }
           return "200px";
+        }
       }
     },
 
@@ -256,6 +277,7 @@ export default {
         :class="size(m.height, m.width)"
         :width="width(m.width)"
         :height="height(m.height)"
+        :style="styling(m.height, m.width)"
         :ref="'resizableItem_' + i"
       >
         <span class="item-title">{{ m.name }}</span>
