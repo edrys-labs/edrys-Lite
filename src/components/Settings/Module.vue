@@ -126,7 +126,7 @@
       <v-expansion-panel-text>
         <v-text-field
           variant="underlined"
-          label="Comma separated list of rooms, or: lobby, * for all, teacher-only, station"
+          label="Comma separated list of rooms, or: lobby, * for all, station, (role specific teacher-only, station-only)"
           v-model="module.showInCustom"
           :disabled="writeProtection"
         ></v-text-field>

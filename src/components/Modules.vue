@@ -53,6 +53,14 @@ export default {
             this.role == "teacher"
           );
         }
+
+        if (showIn.includes("station-only")) {
+          return (
+            (showIn.includes(this.modulesType) || isInRoom || showIn == "*") &&
+            this.role == "station"
+          );
+        }
+
         return showIn.includes(this.modulesType) || isInRoom || showIn == "*";
       });
     },
