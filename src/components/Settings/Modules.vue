@@ -8,7 +8,11 @@
       :disabled="writeProtection"
     >
       <template #item="{ element, index }">
-        <v-list-item :key="index" class="list-group-item">
+        <v-list-item
+          :key="index"
+          class="list-group-item"
+          :style="'border: 3px solid ' + stringToColor(element.showInCustom)"
+        >
           <template v-slot:prepend>
             <v-icon :icon="scrapedModules[index].icon || 'mdi-package'"></v-icon>
           </template>
@@ -152,10 +156,37 @@ export default {
     return {
       moduleImportUrl: "",
       errors,
+      colors: {},
     };
   },
 
   methods: {
+    stringToColor(str: string) {
+      str = str || "*";
+      str = str.toLowerCase();
+
+      if (this.colors[str]) return this.colors[str];
+
+      const uid = str + str + str;
+
+      // Generate a hash value from the string
+      let hash = 0;
+      for (let i = 0; i < uid.length; i++) {
+        hash = uid.charCodeAt(i) + ((hash << 5) - hash);
+      }
+
+      // Convert hash to a valid color code
+      let color = "#";
+      for (let i = 0; i < 3; i++) {
+        const value = (hash >> (i * 8)) & 0xff;
+        color += ("00" + value.toString(16)).slice(-2); // Ensure two hex digits
+      }
+
+      this.colors[str] = color;
+
+      return color;
+    },
+
     async update() {
       this.scrapedModules = [];
       for (let i = 0; i < this.config.modules.length; i++) {
@@ -222,3 +253,18 @@ export default {
   components: { Module, draggable },
 };
 </script>
+
+<style scoped>
+.list-group-item {
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+
+  margin-bottom: 5px;
+  border-radius: 5px !important;
+  background-color: white; /* Optional: Default background color */
+}
+
+.list-group-item:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 3px 10px rgba(0, 0, 0, 0.19);
+  transform: translateY(-2px);
+}
+</style>
