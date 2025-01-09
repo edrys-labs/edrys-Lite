@@ -42,10 +42,14 @@ export default class Peer {
 
   private callback: { [key: string]: any } = {}
   private callbackUpdate: { [key: string]: boolean } = {}
+  private logicalClocks: {
+    [key: string]: {
+      clock: number
+      lastModified: number
+    }
+  } = {}
 
   private peerID: string
-
-  private isReady: boolean = false
 
   constructor(
     setup: { id: string; data: any; timestamp: number; hash: string | null },
@@ -81,7 +85,6 @@ export default class Peer {
     // Set up persistence before connecting
     const room = this.lab.id + (this.lab.hash || '')
 
-    this.isReady = true
     this.connectProvider(room, password)
 
     // Ensure cleanup on page unload
@@ -242,6 +245,7 @@ export default class Peer {
             this.y.rooms.delete(id)
           }
 
+          delete this.logicalClocks[id]
           // Continue without breaking to remove all specified peers
         }
       }
@@ -298,11 +302,13 @@ export default class Peer {
 
     this.y.doc.transact(() => {
       const userSettings = new Y.Map()
+      const timeNow = Date.now()
       userSettings.set('displayName', getShortPeerID(this.peerID))
       userSettings.set('room', this.isStation() ? this.peerID : LOBBY)
       userSettings.set('role', this.role)
-      userSettings.set('dateJoined', Date.now())
-      userSettings.set('timestamp', Date.now())
+      userSettings.set('dateJoined', timeNow)
+      userSettings.set('timestamp', timeNow)
+      userSettings.set('logicalClock', 0)
       userSettings.set('handRaised', false)
       userSettings.set('connections', [{ id: '', target: {} }])
       this.y.users.set(this.peerID, userSettings)
@@ -311,21 +317,8 @@ export default class Peer {
     // Set up heartbeat to monitor user activity
     heartbeatID = setInterval(() => {
       if (this.y.users.has(this.peerID)) {
-        const timeNow = Date.now()
-        this.user().set('timestamp', timeNow)
-
-        const users = this.y.users.toJSON()
-
-        let ids: string[] = []
-        for (const id in users) {
-          if (users[id].timestamp < timeNow - 30000) {
-            ids.push(id) // Collect peerIDs directly
-          }
-        }
-
-        if (ids.length > 0) {
-          this.removePeers(ids)
-        }
+        this.ticktack()
+        this.checkLogicalClocks()
       } else {
         LOG('user not found', this.peerID)
       }
@@ -337,7 +330,7 @@ export default class Peer {
           return (
             event.changes.keys &&
             event.changes.keys.size === 1 &&
-            event.changes.keys.has('timestamp')
+            event.changes.keys.has('logicalClock')
           )
         })
 
@@ -388,8 +381,8 @@ export default class Peer {
               if (this.user() && this.user().get('room') === key) {
                 LOG('current room was deleted, moving to lobby')
                 this.y.doc.transact(() => {
+                  this.ticktack()
                   this.user().set('room', LOBBY)
-                  this.user().set('timestamp', Date.now())
                 }, 'moveToLobby')
               }
             }
@@ -411,6 +404,39 @@ export default class Peer {
         this.update('chat')
       })
     }, 'initChat')
+  }
+
+  checkLogicalClocks() {
+    const timeNow = Date.now()
+    const users = this.y.users.toJSON()
+    const deadPeers: string[] = []
+    const timeout = 15000
+
+    for (const id in users) {
+      if (id === this.peerID) continue
+
+      const user = users[id]
+
+      if (this.logicalClocks[id] === undefined) {
+        this.logicalClocks[id] = {
+          clock: user.logicalClock,
+          lastModified: timeNow,
+        }
+      } else {
+        if (user.logicalClock > this.logicalClocks[id].clock) {
+          this.logicalClocks[id].clock = user.logicalClock
+          this.logicalClocks[id].lastModified = timeNow
+        } else if (user.logicalClock === this.logicalClocks[id].clock) {
+          if (timeNow - this.logicalClocks[id].lastModified > timeout) {
+            deadPeers.push(id)
+          }
+        }
+      }
+    }
+
+    if (deadPeers.length > 0) {
+      this.removePeers(deadPeers)
+    }
   }
 
   /**
@@ -616,8 +642,13 @@ export default class Peer {
   gotoRoom(room: string) {
     this.y.doc.transact(() => {
       this.user().set('room', room)
-      this.user().set('timestamp', Date.now())
+      this.ticktack()
     }, 'gotoRoom')
+  }
+
+  ticktack() {
+    this.user().set('timestamp', Date.now())
+    this.user().set('logicalClock', (this.user().get('logicalClock') || 0) + 1)
   }
 
   /**
