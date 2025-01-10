@@ -307,7 +307,6 @@ export default class Peer {
       userSettings.set('room', this.isStation() ? this.peerID : LOBBY)
       userSettings.set('role', this.role)
       userSettings.set('dateJoined', timeNow)
-      userSettings.set('timestamp', timeNow)
       userSettings.set('logicalClock', 0)
       userSettings.set('handRaised', false)
       userSettings.set('connections', [{ id: '', target: {} }])
@@ -326,7 +325,7 @@ export default class Peer {
 
     if (withObserver) {
       this.y.users.observeDeep((events) => {
-        const allEventsHaveOnlyTimestamp = events.every((event) => {
+        const onlyClockEvents = events.every((event) => {
           return (
             event.changes.keys &&
             event.changes.keys.size === 1 &&
@@ -334,7 +333,7 @@ export default class Peer {
           )
         })
 
-        if (!allEventsHaveOnlyTimestamp) {
+        if (!onlyClockEvents) {
           this.update('room')
         }
       })
@@ -423,13 +422,11 @@ export default class Peer {
           lastModified: timeNow,
         }
       } else {
-        if (user.logicalClock > this.logicalClocks[id].clock) {
+        if (user.logicalClock != this.logicalClocks[id].clock) {
           this.logicalClocks[id].clock = user.logicalClock
           this.logicalClocks[id].lastModified = timeNow
-        } else if (user.logicalClock === this.logicalClocks[id].clock) {
-          if (timeNow - this.logicalClocks[id].lastModified > timeout) {
-            deadPeers.push(id)
-          }
+        } else if (timeNow - this.logicalClocks[id].lastModified > timeout) {
+          deadPeers.push(id)
         }
       }
     }
@@ -647,7 +644,6 @@ export default class Peer {
   }
 
   ticktack() {
-    this.user().set('timestamp', Date.now())
     this.user().set('logicalClock', (this.user().get('logicalClock') || 0) + 1)
   }
 
