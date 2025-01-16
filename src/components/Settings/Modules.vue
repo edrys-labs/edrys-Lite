@@ -11,7 +11,7 @@
         <v-list-item
           :key="index"
           class="list-group-item"
-          :style="'border: 3px solid ' + stringToColor(element.showInCustom)"
+          :style="borderStyle(element, index)"
         >
           <template v-slot:prepend>
             <v-icon :icon="scrapedModules[index].icon || 'mdi-package'"></v-icon>
@@ -187,6 +187,34 @@ export default {
       return color;
     },
 
+    borderStyle(element, index) {
+      const color = this.stringToColor(element.showInCustom);
+      let style = `border-left: 5px solid ${color}; border-right: 5px solid ${color};`;
+
+      const prev = this.config.modules[index - 1];
+      const next = this.config.modules[index + 1];
+
+      // Determine if module is first in its group
+      if (!prev || prev.showInCustom !== element.showInCustom) {
+        style += `
+        border-top: 5px solid ${color};
+        border-top-left-radius: 10px !important;
+        border-top-right-radius: 10px !important;
+      `;
+      }
+      // Determine if module is last in its group
+      if (!next || next.showInCustom !== element.showInCustom) {
+        style += `
+        border-bottom: 5px solid ${color};
+        border-bottom-left-radius: 10px !important;
+        border-bottom-right-radius: 10px !important;
+        margin-bottom: 10px;
+      `;
+      }
+
+      return style;
+    },
+
     async update() {
       this.scrapedModules = [];
       for (let i = 0; i < this.config.modules.length; i++) {
@@ -257,9 +285,6 @@ export default {
 <style scoped>
 .list-group-item {
   transition: box-shadow 0.3s ease, transform 0.3s ease;
-
-  margin-bottom: 5px;
-  border-radius: 5px !important;
   background-color: white; /* Optional: Default background color */
 }
 
