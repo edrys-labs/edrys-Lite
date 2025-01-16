@@ -6,7 +6,14 @@ import Modules from "../components/Modules.vue";
 import Logger from "../components/Logger.vue";
 
 import { Database, DatabaseItem } from "../ts/Database";
-import { infoHash, scrapeModule, clone, getPeerID, getShortPeerID } from "../ts/Utils";
+import {
+  infoHash,
+  scrapeModule,
+  clone,
+  getPeerID,
+  getShortPeerID,
+  getBasePeerID,
+} from "../ts/Utils";
 import { onMounted } from "vue";
 import Peer from "../ts/Peer";
 
@@ -271,13 +278,32 @@ export default {
       this.scrapeModules();
     },
 
-    usersInRoom(name: string): [string, string][] {
-      const users: [string, "black" | "grey"][] = [];
+    usersInRoom(name: string): [string, string, string][] {
+      const users: [string, "black" | "grey", string][] = [];
+
+      const icon = {
+        teacher: "mdi-account-star-outline",
+        student: "mdi-account-plus-outline",
+        station: "mdi-account-cog-outline",
+        visitor: "mdi-account-minus-outline",
+      };
 
       for (const id in this.liveClassProxy.users) {
         if (this.liveClassProxy.users[id].room === name) {
-          const displayName = this.liveClassProxy.users[id].displayName;
-          users.push([displayName, this.peerID === id ? "black" : "grey"]);
+          let displayName = this.liveClassProxy.users[id].displayName;
+          let userRole = this.liveClassProxy.users[id].role || "student";
+
+          if (userRole === "student") {
+            if (!this.communication.allowedToParticipate(getBasePeerID(id))) {
+              userRole = "visitor";
+            }
+          }
+
+          users.push([
+            displayName,
+            this.peerID === id ? "black" : "grey",
+            icon[userRole],
+          ]);
         }
       }
 
@@ -511,11 +537,16 @@ export default {
           </v-list-item>
 
           <v-list-item
-            v-for="([user, color], j) in usersInRoom(name)"
+            v-for="([user, color, icon], j) in usersInRoom(name)"
             :key="j"
-            :title="user"
             :style="'min-height: 1.25rem; color: ' + color"
-          />
+          >
+            <template v-slot:prepend>
+              <v-icon :icon="icon"></v-icon>
+            </template>
+
+            <v-list-item-title v-text="user"></v-list-item-title>
+          </v-list-item>
         </v-list>
 
         <template v-slot:append>

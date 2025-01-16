@@ -616,8 +616,8 @@ export default class Peer {
     }
   }
 
-  allowedToParticipate() {
-    const id = getPeerID(false)
+  allowedToParticipate(id?: string) {
+    if (id === undefined) id = getPeerID(false)
 
     if (
       this.lab.data.members.student.length === 0 ||
