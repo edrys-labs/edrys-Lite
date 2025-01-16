@@ -20,6 +20,18 @@
     v-model="teacher"
     :disabled="writeProtection"
   ></v-textarea>
+
+  <v-textarea
+    label="List of student ids"
+    auto-grow
+    variant="outlined"
+    rows="3"
+    row-height="25"
+    shaped
+    style="margin-top: 2rem"
+    v-model="student"
+    :disabled="writeProtection"
+  ></v-textarea>
 </template>
 
 <script lang="ts">
@@ -44,10 +56,12 @@ export default {
 
   data() {
     const teacher = this.members.teacher.join(", ");
+    const student = this.members.student.join(", ");
 
     return {
       url: window.location.toString(),
       teacher,
+      student,
     };
   },
 
@@ -65,6 +79,16 @@ export default {
           .map((s) => s.trim())
           .filter((s) => s.length > 0),
         student: this.members.student,
+      });
+    },
+
+    student() {
+      this.$emit("updateMembers", {
+        student: this.student
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0),
+        teacher: this.members.teacher,
       });
     },
   },
