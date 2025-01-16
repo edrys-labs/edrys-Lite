@@ -11,6 +11,7 @@ import { onMounted } from "vue";
 import Peer from "../ts/Peer";
 
 import { copyToClipboard, deepEqual } from "../ts/Utils";
+import { pop } from "echarts/types/src/component/dataZoom/history.js";
 
 export default {
   props: ["id", "station", "hash"],
@@ -60,6 +61,11 @@ export default {
       database,
       configuration,
       data,
+
+      popup: {
+        open: false,
+        message: "",
+      },
 
       communication,
       isOwner: false,
@@ -132,6 +138,11 @@ export default {
         this.communication.on("setup", async (configuration: DatabaseItem) => {
           await self.database.put(clone(configuration));
           self.init();
+        });
+
+        this.communication.on("popup", (msg: string) => {
+          this.popup.message = msg;
+          this.popup.open = true;
         });
       }
 
@@ -594,5 +605,13 @@ export default {
       >
       </Logger>
     </v-dialog>
+
+    <v-snackbar v-model="popup.open">
+      {{ popup.message }}
+
+      <template v-slot:actions>
+        <v-btn color="pink" variant="text" @click="popup.open = false"> Close </v-btn>
+      </template>
+    </v-snackbar>
   </v-app>
 </template>

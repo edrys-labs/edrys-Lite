@@ -185,6 +185,13 @@ export default class Peer {
         this.connected = true
         LOG('synced', event)
         this.update('connected')
+
+        if (!this.allowedToParticipate()) {
+          this.update(
+            'popup',
+            "You don't have access to this lab, you can only view"
+          )
+        }
       }
     }, 5000)
   }
@@ -264,6 +271,13 @@ export default class Peer {
         LOG('Force update new configuration')
         this.y.setup.set('config', this.lab.data)
         this.y.setup.set('timestamp', this.lab.timestamp)
+
+        if (!this.allowedToParticipate()) {
+          this.update(
+            'popup',
+            "You don't have access to this lab, you can only view"
+          )
+        }
       }
 
       // If my setup is older than the current setup
@@ -273,6 +287,13 @@ export default class Peer {
         this.lab.data = data
         this.lab.timestamp = timestamp
         this.update('setup')
+
+        if (!this.allowedToParticipate()) {
+          this.update(
+            'popup',
+            "You don't have access to this lab, you can only view"
+          )
+        }
       }
       // If the received setup is not up to date
       else if (this.lab.timestamp !== timestamp && this.lab.timestamp > 0) {
@@ -471,7 +492,7 @@ export default class Peer {
    * @param message Optional message data.
    */
   async update(
-    event: 'setup' | 'room' | 'message' | 'connected' | 'chat',
+    event: 'setup' | 'room' | 'message' | 'connected' | 'chat' | 'popup',
     message?: any
   ) {
     const callback = this.callback[event]
@@ -528,6 +549,15 @@ export default class Peer {
         }
         break
       }
+
+      case 'popup': {
+        if (callback) {
+          callback(message)
+          this.callbackUpdate[event] = false
+        } else {
+          this.callbackUpdate[event] = true
+        }
+      }
     }
   }
 
@@ -536,7 +566,7 @@ export default class Peer {
    * @param event The event type.
    * @param callback The callback function.
    */
-  on(event: 'setup' | 'room' | 'connected', callback: any) {
+  on(event: 'setup' | 'room' | 'connected' | 'popup', callback: any) {
     if (callback) {
       this.callback[event] = callback
 
