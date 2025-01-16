@@ -10,7 +10,7 @@
   </v-alert>
   <v-divider></v-divider>
   <v-textarea
-    label="List of teacher ids"
+    label="List of teacher ids, separated by commas. Each teacher can modify course."
     auto-grow
     variant="outlined"
     rows="3"
@@ -22,13 +22,13 @@
   ></v-textarea>
 
   <v-textarea
-    label="List of student ids"
+    label="List of student ids, separated by commas, leave empty or add a * for all. Student can interact with with modules."
     auto-grow
     variant="outlined"
     rows="3"
     row-height="25"
     shaped
-    style="margin-top: 2rem"
+    style="margin-top: 0px"
     v-model="student"
     :disabled="writeProtection"
   ></v-textarea>

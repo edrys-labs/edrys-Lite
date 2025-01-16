@@ -548,6 +548,34 @@ export default class Peer {
     }
   }
 
+  allowedToParticipate() {
+    const id = getPeerID(false)
+
+    if (
+      this.lab.data.members.student.length === 0 ||
+      this.lab.data.members.student.includes('*')
+    ) {
+      return true
+    }
+
+    if (
+      this.lab.data.members.teacher.includes(id) ||
+      this.lab.data.members.student.includes(id)
+    ) {
+      return true
+    }
+
+    if (this.lab.data.createdBy === id) {
+      return true
+    }
+
+    if (this.isStation()) {
+      return true
+    }
+
+    return false
+  }
+
   /**
    * Broadcasts a message to a room or specific user.
    * @param room The room to broadcast to.
@@ -555,6 +583,14 @@ export default class Peer {
    */
   broadcast(room: string, msg: any) {
     if (!this.connected) {
+      return
+    }
+
+    // prevent broadcast from unauthorized users
+    if (!this.allowedToParticipate()) {
+      console.warn(
+        'Unauthorized user trying to broadcast message, contact admin for access'
+      )
       return
     }
 
@@ -668,6 +704,13 @@ export default class Peer {
    * @param data The update data.
    */
   updateState(data: Uint8Array) {
+    if (!this.allowedToParticipate()) {
+      console.warn(
+        'Your state changes will not be propagated to other users, contact admin for lab access'
+      )
+      return
+    }
+
     this.y.doc.transact(
       () => {
         Y.applyUpdate(this.y.doc, data)
