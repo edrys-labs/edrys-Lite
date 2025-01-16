@@ -61,6 +61,7 @@ import {
   VTextField,
   VWindow,
   VWindowItem,
+  VSnackbar,
 } from '../node_modules/vuetify/lib/components/index.mjs'
 import * as directives from '../node_modules/vuetify/lib/directives/index.mjs'
 
@@ -131,6 +132,7 @@ const vuetify = createVuetify({
     VRadioGroup,
     VRow,
     VSelect,
+    VSnackbar,
     VSpacer,
     VSwitch,
     VTab,
