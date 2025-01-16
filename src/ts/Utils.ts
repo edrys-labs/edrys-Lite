@@ -345,6 +345,17 @@ export function getShortPeerID(id: string) {
   return id
 }
 
+export function getBasePeerID(id: string) {
+  const ids = id.split('_')
+
+  // peerID_sessionID
+  if (ids.length == 2) {
+    return ids[0]
+  }
+
+  return id
+}
+
 export function clone(object: any) {
   if (object !== undefined) return JSON.parse(JSON.stringify(object))
 }
