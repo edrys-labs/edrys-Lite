@@ -284,6 +284,7 @@ export default class Peer {
         !newSetup.members.teacher.includes(id)
       ) {
         this.update('popup', 'You have been removed as a teacher...')
+        this.user().set('role', 'student')
       }
 
       if (
@@ -291,6 +292,7 @@ export default class Peer {
         newSetup.members.teacher.includes(id)
       ) {
         this.update('popup', 'You have been added as a teacher...')
+        this.user().set('role', 'teacher')
         return
       }
 
@@ -313,6 +315,7 @@ export default class Peer {
 
       if ((oldOpen || !isInOldSetup) && isInNewSetup) {
         this.update('popup', 'You have been added as a student...')
+
         return
       }
 
