@@ -181,9 +181,8 @@ export default {
 
       if (this.configuration) {
         this.data = clone(this.configuration.data);
-        this.isOwner =
-          this.peerID.startsWith(this.configuration.data.createdBy) ||
-          this.getRole() === "teacher";
+
+        this.getRole();
 
         if (hardReload) {
           this.scrapeModules();
@@ -206,16 +205,19 @@ export default {
 
     getRole() {
       if (this.isStation) {
+        this.isOwner = false;
         return "station";
       }
 
       if (
-        this.isOwner ||
+        this.peerID.startsWith(this.configuration.data.createdBy) ||
         this.configuration?.data?.members?.teacher?.includes(getPeerID(false))
       ) {
+        this.isOwner = true;
         return "teacher";
       }
 
+      this.isOwner = false;
       return "student";
     },
 
@@ -292,6 +294,8 @@ export default {
         const config = await this.database.get(id);
         this.communication?.newSetup(config);
       });
+
+      this.getRole();
 
       if (hardReload) this.scrapeModules();
     },
@@ -535,7 +539,7 @@ export default {
                   icon="mdi-cog"
                   @click="showSettings = !showSettings"
                   variant="text"
-                  v-if="!isStation && isOwner"
+                  v-if="isOwner"
                 ></v-btn>
               </template>
             </v-list-item>
@@ -578,13 +582,7 @@ export default {
 
         <template v-slot:append>
           <div class="pa-2">
-            <v-btn
-              depressed
-              block
-              class="mb-2"
-              @click="addRoom"
-              v-if="!isStation && isOwner"
-            >
+            <v-btn depressed block class="mb-2" @click="addRoom" v-if="isOwner">
               <v-icon left>mdi-forum</v-icon>
               New room
             </v-btn>
