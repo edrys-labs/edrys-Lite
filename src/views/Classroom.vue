@@ -136,6 +136,7 @@ export default {
       const config = await this.database.get(this.id);
 
       const hardReload =
+        this.scrapedModules.length === 0 ||
         !this.configuration ||
         !this.configuration.data ||
         !deepEqual(this.configuration?.data?.modules, config?.data.modules);
