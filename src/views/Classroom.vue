@@ -18,7 +18,6 @@ import { onMounted } from "vue";
 import Peer from "../ts/Peer";
 
 import { copyToClipboard, deepEqual } from "../ts/Utils";
-import { pop } from "echarts/types/src/component/dataZoom/history.js";
 
 export default {
   props: ["id", "station", "hash"],
@@ -134,7 +133,14 @@ export default {
     async init() {
       await this.database.setProtection(this.id, !!this.hash);
 
-      this.configuration = await this.database.get(this.id);
+      const config = await this.database.get(this.id);
+
+      const hardReload =
+        !this.configuration ||
+        !this.configuration.data ||
+        !deepEqual(this.configuration?.data?.modules, config?.data.modules);
+
+      this.configuration = config;
 
       if (!!this.hash && this.configuration?.hash !== this.hash) {
         this.configuration = null;
@@ -150,6 +156,7 @@ export default {
 
         this.communication.on("setup", async (configuration: DatabaseItem) => {
           await self.database.put(clone(configuration));
+
           self.init();
         });
 
@@ -177,7 +184,10 @@ export default {
         this.isOwner =
           this.peerID.startsWith(this.configuration.data.createdBy) ||
           this.getRole() === "teacher";
-        this.scrapeModules();
+
+        if (hardReload) {
+          this.scrapeModules();
+        }
       }
     },
 
@@ -270,6 +280,11 @@ export default {
     saveClass(configuration: any) {
       this.$refs.Settings.close = true;
 
+      const hardReload = !deepEqual(
+        this.configuration.data.modules,
+        configuration.modules
+      );
+
       this.configuration.data = clone(configuration);
       this.data = clone(configuration);
 
@@ -278,7 +293,7 @@ export default {
         this.communication?.newSetup(config);
       });
 
-      this.scrapeModules();
+      if (hardReload) this.scrapeModules();
     },
 
     usersInRoom(name: string): [string, string, string][] {
