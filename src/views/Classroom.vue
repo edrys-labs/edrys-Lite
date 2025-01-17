@@ -69,10 +69,7 @@ export default {
       configuration,
       data,
 
-      popup: {
-        open: false,
-        message: "",
-      },
+      popups: [],
 
       communication,
       isOwner: false,
@@ -125,6 +122,15 @@ export default {
     getPeer_ID() {
       return getPeerID(false);
     },
+
+    addPopup(message: string) {
+      this.popups.unshift({
+        message,
+        open: true,
+        id: Date.now(),
+      });
+    },
+
     async init() {
       await this.database.setProtection(this.id, !!this.hash);
 
@@ -147,10 +153,7 @@ export default {
           self.init();
         });
 
-        this.communication.on("popup", (msg: string) => {
-          this.popup.message = msg;
-          this.popup.open = true;
-        });
+        this.communication.on("popup", this.addPopup);
       }
 
       const self = this;
@@ -310,6 +313,15 @@ export default {
       //console.log("usersInRoom() called");
 
       return users;
+    },
+
+    closePopup(id: number) {
+      for (let i = 0; i < this.popups.length; i++) {
+        if (this.popups[i].id === id) {
+          this.popups.splice(i, 1);
+          break;
+        }
+      }
     },
 
     gotoRoom(name: string) {
@@ -637,11 +649,17 @@ export default {
       </Logger>
     </v-dialog>
 
-    <v-snackbar v-model="popup.open">
+    <v-snackbar
+      v-for="popup in popups"
+      :key="popup.id"
+      v-model="popup.open"
+      :multi-line="true"
+      :timeout="500000"
+    >
       {{ popup.message }}
 
       <template v-slot:actions>
-        <v-btn color="pink" variant="text" @click="popup.open = false"> Close </v-btn>
+        <v-btn text color="pink" @click="closePopup(popup.id)"> Close </v-btn>
       </template>
     </v-snackbar>
   </v-app>
