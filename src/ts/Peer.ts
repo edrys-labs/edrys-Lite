@@ -1,4 +1,4 @@
-import { getPeerID, hashJsonObject, getShortPeerID } from './Utils'
+import { getPeerID, hashJsonObject, deepEqual, getShortPeerID } from './Utils'
 
 import * as Y from 'yjs'
 // @ts-ignore
@@ -259,6 +259,79 @@ export default class Peer {
     }, 'removePeers')
   }
 
+  logSetupChanges(oldSetup: any, newSetup: any) {
+    if (oldSetup === null) {
+      return
+    }
+
+    if (!deepEqual(oldSetup.modules, newSetup.modules)) {
+      this.update(
+        'popup',
+        'Module definitions have changed, you better reload the page to capture all changes...'
+      )
+    }
+
+    if (!deepEqual(oldSetup.members, newSetup.members)) {
+      const id = getPeerID(false)
+
+      // the owner and stations are not affected by member changes
+      if (newSetup.createdBy === id || this.isStation()) {
+        return
+      }
+
+      if (
+        oldSetup.members.teacher.includes(id) &&
+        !newSetup.members.teacher.includes(id)
+      ) {
+        this.update('popup', 'You have been removed as a teacher...')
+      }
+
+      if (
+        !oldSetup.members.teacher.includes(id) &&
+        newSetup.members.teacher.includes(id)
+      ) {
+        this.update('popup', 'You have been added as a teacher...')
+        return
+      }
+
+      if (
+        oldSetup.members.teacher.includes(id) &&
+        newSetup.members.teacher.includes(id)
+      ) {
+        return
+      }
+
+      const isInOldSetup = oldSetup.members.student.includes(id)
+      const oldOpen =
+        oldSetup.members.student.length === 0 ||
+        oldSetup.members.student.includes('*')
+
+      const isInNewSetup = newSetup.members.student.includes(id)
+      const newOpen =
+        newSetup.members.student.length === 0 ||
+        newSetup.members.student.includes('*')
+
+      if ((oldOpen || !isInOldSetup) && isInNewSetup) {
+        this.update('popup', 'You have been added as a student...')
+        return
+      }
+
+      if (!oldOpen && newOpen) {
+        this.update('popup', 'You have been added as a student...')
+        return
+      }
+
+      if (!oldOpen && isInOldSetup && !isInNewSetup) {
+        this.update('popup', 'You have been removed as a student...')
+        return
+      }
+
+      if (oldOpen && !newOpen && !isInNewSetup) {
+        this.update('popup', 'You have been removed as a student...')
+      }
+    }
+  }
+
   /**
    * Initializes the setup map with proper conflict resolution.
    */
@@ -269,6 +342,9 @@ export default class Peer {
     this.y.doc.transact(() => {
       if (force) {
         LOG('Force update new configuration')
+
+        this.logSetupChanges(data, this.lab.data)
+
         this.y.setup.set('config', this.lab.data)
         this.y.setup.set('timestamp', this.lab.timestamp)
 
@@ -283,6 +359,8 @@ export default class Peer {
       // If my setup is older than the current setup
       else if (this.lab.timestamp < timestamp) {
         LOG('receiving initial lab configuration')
+
+        this.logSetupChanges(this.lab.data, data)
 
         this.lab.data = data
         this.lab.timestamp = timestamp
