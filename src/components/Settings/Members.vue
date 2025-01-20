@@ -22,7 +22,7 @@
   ></v-textarea>
 
   <v-textarea
-    label="List of student ids, separated by commas, leave empty or add a * for all. Student can interact with with modules."
+    label="List of student ids, separated by commas, leave empty or add a * for all. Student can interact with modules."
     auto-grow
     variant="outlined"
     rows="3"
