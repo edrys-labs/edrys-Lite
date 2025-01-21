@@ -93,18 +93,22 @@ import 'prismjs/themes/prism-tomorrow.css' // import syntax highlighting styles
 
 var app
 
-// get browser language and set it as default if supported
+// Get browser language and set it as default if supported
 const getBrowserLocale = () => {
   const browserLang = navigator.language.split('-')[0]
-  
   const supportedLocales = ['en', 'de', 'uk', 'ar']
-  
   return supportedLocales.includes(browserLang) ? browserLang : 'en'
+}
+
+// Get the saved language from localStorage or use the browser language
+const getSavedLocale = () => {
+  const savedLang = localStorage.getItem('locale')
+  return savedLang || getBrowserLocale()
 }
 
 const i18n = createI18n({
   legacy: false,
-  locale: getBrowserLocale(),
+  locale: getSavedLocale(),
   fallbackLocale: 'en',
   messages: {
     en: { $vuetify: { ...en }, ...text.en },

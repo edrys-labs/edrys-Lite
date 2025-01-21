@@ -66,6 +66,7 @@ export default defineComponent({
     },
     changeLocale(newLocale: string) {
       this.locale = newLocale;
+      localStorage.setItem('locale', newLocale);
     },
   },
 });
