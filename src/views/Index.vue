@@ -9,12 +9,13 @@ import {
 } from "../ts/Utils";
 
 import Footer from "../components/Footer.vue";
+import UserMenu from '../components/UserMenu.vue';
 import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Index",
 
-  components: { Footer },
+  components: { Footer, UserMenu },
 
   setup() {
     const { t, locale } = useI18n();
@@ -33,12 +34,6 @@ export default {
       database,
       classrooms,
       peerID: getPeerID(false),
-      languages: [
-        { title: 'English', value: 'en' },
-        { title: 'Deutsch', value: 'de' },
-        { title: 'Українська', value: 'uk' },
-        { title: 'العربية', value: 'ar' },
-      ],
     };
   },
 
@@ -111,10 +106,6 @@ export default {
 
       window.location.search = `?/classroom/${id}`;
     },
-
-    changeLocale(newLocale: string) {
-      this.locale = newLocale;
-    },
   },
 };
 </script>
@@ -123,41 +114,7 @@ export default {
   <v-app>
     <v-app-bar color="surface-variant" title="edrys-lite">
       <template v-slot:append>
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" icon="mdi-dots-vertical"> </v-btn>
-          </template>
-
-          <v-list>
-            <v-list-item>
-              <v-list-item-title>{{ t('general.userId') }}:</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ peerID }}
-                <v-btn
-                  icon="mdi-content-copy"
-                  size="small"
-                  variant="flat"
-                  @click="copyPeerID()"
-                >
-                </v-btn>
-              </v-list-item-subtitle>
-            </v-list-item>
-            <v-divider></v-divider>
-            <v-list-item>
-              <v-list-item-title class="mb-1">{{ t('general.language') }}:</v-list-item-title>
-              <v-select
-                v-model="locale"
-                :items="languages"
-                item-title="title"
-                item-value="value"
-                variant="outlined"
-                density="compact"
-                @update:model-value="changeLocale"
-                @click.stop
-              ></v-select>
-            </v-list-item>
-          </v-list>
-        </v-menu>
+        <UserMenu />
       </template>
     </v-app-bar>
 

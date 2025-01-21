@@ -4,6 +4,7 @@ import Chat from "../components/Chat.vue";
 import Checks from "../components/Checks.vue";
 import Modules from "../components/Modules.vue";
 import Logger from "../components/Logger.vue";
+import UserMenu from '../components/UserMenu.vue';
 
 import { Database, DatabaseItem } from "../ts/Database";
 import {
@@ -394,6 +395,7 @@ export default {
     Settings,
     Modules,
     Logger,
+    UserMenu,
   },
 };
 </script>
@@ -483,6 +485,7 @@ export default {
             </v-list-item>
           </v-list>
         </v-menu>
+        <UserMenu />
       </v-app-bar>
 
       <v-navigation-drawer temporary v-model="showSideMenu">
@@ -673,7 +676,7 @@ export default {
       {{ popup.message }}
 
       <template v-slot:actions>
-        <v-btn text color="pink" @click="closePopup(popup.id)"> Close </v-btn>
+        <v-btn variant="text" color="pink" @click="closePopup(popup.id)"> Close </v-btn>
       </template>
     </v-snackbar>
   </v-app>

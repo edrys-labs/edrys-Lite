@@ -3,13 +3,14 @@ import { Database } from "../ts/Database";
 import { infoHash, getPeerID, parse, copyToClipboard } from "../ts/Utils";
 
 import Footer from "../components/Footer.vue";
+import UserMenu from '../components/UserMenu.vue';
 
 export default {
   name: "Deploy",
 
   props: ["url"],
 
-  components: { Footer },
+  components: { Footer, UserMenu },
 
   data() {
     const database = new Database();
@@ -84,27 +85,7 @@ export default {
   <v-app>
     <v-app-bar color="surface-variant" title="edrys-lite">
       <template v-slot:append>
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" icon="mdi-dots-vertical"> </v-btn>
-          </template>
-
-          <v-list>
-            <v-list-item>
-              <v-list-item-title> User ID: </v-list-item-title>
-              <v-list-item-subtitle>
-                {{ peerID }}
-                <v-btn
-                  icon="mdi-content-copy"
-                  size="small"
-                  variant="flat"
-                  @click="copyPeerID()"
-                >
-                </v-btn>
-              </v-list-item-subtitle>
-            </v-list-item>
-          </v-list>
-        </v-menu>
+        <UserMenu />
       </template>
     </v-app-bar>
 
