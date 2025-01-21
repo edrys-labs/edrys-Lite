@@ -64,6 +64,10 @@ import {
   VSnackbar,
 } from '../node_modules/vuetify/lib/components/index.mjs'
 import * as directives from '../node_modules/vuetify/lib/directives/index.mjs'
+import { createVueI18nAdapter } from '../node_modules/vuetify/lib/locale/adapters/vue-i18n.mjs'
+import { createI18n, useI18n } from 'vue-i18n'
+import text from '../src/locales/text.json'
+import { en, de, uk, ar } from '../node_modules/vuetify/lib/locale/index.mjs'
 
 // import highlighting library (you can use any library you want just return html string)
 // @ts-ignore
@@ -88,6 +92,27 @@ import 'prismjs/components/prism-markdown'
 import 'prismjs/themes/prism-tomorrow.css' // import syntax highlighting styles
 
 var app
+
+// get browser language and set it as default if supported
+const getBrowserLocale = () => {
+  const browserLang = navigator.language.split('-')[0]
+  
+  const supportedLocales = ['en', 'de', 'uk', 'ar']
+  
+  return supportedLocales.includes(browserLang) ? browserLang : 'en'
+}
+
+const i18n = createI18n({
+  legacy: false,
+  locale: getBrowserLocale(),
+  fallbackLocale: 'en',
+  messages: {
+    en: { $vuetify: { ...en }, ...text.en },
+    de: { $vuetify: { ...de }, ...text.de },
+    uk: { $vuetify: { ...uk }, ...text.uk },
+    ar: { $vuetify: { ...ar }, ...text.ar },
+  }
+})
 
 const vuetify = createVuetify({
   components: {
@@ -156,6 +181,9 @@ const vuetify = createVuetify({
       mdi,
     },
   },
+  locale: {
+    adapter: createVueI18nAdapter({ i18n, useI18n }),
+  }
 })
 
 const pathToRegex = (path) =>
@@ -250,6 +278,7 @@ const router = async () => {
   app.provide('prismLanguages', languages)
 
   app.use(vuetify)
+  app.use(i18n)
   app.mount(document.body)
 }
 

@@ -9,11 +9,17 @@ import {
 } from "../ts/Utils";
 
 import Footer from "../components/Footer.vue";
+import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Index",
 
   components: { Footer },
+
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
+  },
 
   data() {
     const database = new Database();
@@ -27,6 +33,12 @@ export default {
       database,
       classrooms,
       peerID: getPeerID(false),
+      languages: [
+        { title: 'English', value: 'en' },
+        { title: 'Deutsch', value: 'de' },
+        { title: 'Українська', value: 'uk' },
+        { title: 'العربية', value: 'ar' },
+      ],
     };
   },
 
@@ -99,6 +111,10 @@ export default {
 
       window.location.search = `?/classroom/${id}`;
     },
+
+    changeLocale(newLocale: string) {
+      this.locale = newLocale;
+    },
   },
 };
 </script>
@@ -114,7 +130,7 @@ export default {
 
           <v-list>
             <v-list-item>
-              <v-list-item-title> User ID: </v-list-item-title>
+              <v-list-item-title>{{ t('general.userId') }}:</v-list-item-title>
               <v-list-item-subtitle>
                 {{ peerID }}
                 <v-btn
@@ -125,6 +141,20 @@ export default {
                 >
                 </v-btn>
               </v-list-item-subtitle>
+            </v-list-item>
+            <v-divider></v-divider>
+            <v-list-item>
+              <v-list-item-title class="mb-1">{{ t('general.language') }}:</v-list-item-title>
+              <v-select
+                v-model="locale"
+                :items="languages"
+                item-title="title"
+                item-value="value"
+                variant="outlined"
+                density="compact"
+                @update:model-value="changeLocale"
+                @click.stop
+              ></v-select>
             </v-list-item>
           </v-list>
         </v-menu>
@@ -157,7 +187,7 @@ export default {
                   !classroom?.data.members.teacher.includes(peerID)
                 "
               >
-                Write Protection
+              {{ t('classroom.writeProtection') }} 
                 <v-switch
                   :model-value="!!classroom.hash"
                   color="primary"
@@ -176,13 +206,9 @@ export default {
               ></v-img>
               <v-card-title>{{ classroom.data?.name }}</v-card-title>
               <v-card-subtitle>
-                <span v-if="classroom?.data.createdBy === peerID"
-                  >You own this class</span
-                >
-                <span v-else-if="classroom?.data?.members?.teacher.includes(peerID)"
-                  >You're a teacher here</span
-                >
-                <span v-else>You're a student here</span>
+                <span v-if="classroom?.data.createdBy === peerID">{{ t('classroom.ownership.owner') }}</span>
+                <span v-else-if="classroom?.data?.members?.teacher.includes(peerID)">{{ t('classroom.ownership.teacher') }}</span>
+                <span v-else>{{ t('classroom.ownership.student') }}</span>
               </v-card-subtitle>
 
               <v-card-text>
@@ -192,18 +218,18 @@ export default {
               </v-card-text>
 
               <v-card-actions>
-                <v-btn icon title="fork" @click="forkClass(classroom)">
+                <v-btn icon :title="t('classroom.actions.fork')" @click="forkClass(classroom)">
                   <v-icon>mdi-source-fork</v-icon>
                 </v-btn>
 
                 <v-menu>
                   <template v-slot:activator="{ props }">
-                    <v-btn color="" v-bind="props" icon="mdi-delete"> </v-btn>
+                    <v-btn color="" v-bind="props" icon="mdi-delete" :title="t('classroom.actions.delete')"> </v-btn>
                   </template>
 
                   <v-list>
                     <v-list-item>
-                      <v-list-item-title> Are you sure? </v-list-item-title>
+                      <v-list-item-title> {{ t('classroom.actions.deleteConfirm') }} </v-list-item-title>
 
                       <v-btn
                         color="red"
@@ -212,7 +238,7 @@ export default {
                         class="float-right"
                         style="margin-top: 10px"
                       >
-                        Yes, delete forever</v-btn
+                      {{ t('classroom.actions.deleteForever') }}</v-btn
                       >
                     </v-list-item>
                   </v-list>
@@ -227,7 +253,7 @@ export default {
                   style="color: white"
                 >
                   <v-btn icon title="open">
-                    <v-icon>mdi-arrow-right-bold</v-icon>
+                    <v-icon>{{ locale === 'ar' ? 'mdi-arrow-left-bold' : 'mdi-arrow-right-bold' }}</v-icon>
                   </v-btn>
                 </a>
               </v-card-actions>
@@ -242,8 +268,8 @@ export default {
               @click="createClass()"
               variant="elevated"
             >
-              <v-card-title>Create a class</v-card-title>
-              <v-card-subtitle>Start teaching now</v-card-subtitle>
+              <v-card-title>{{ t('classroom.create') }}</v-card-title>
+              <v-card-subtitle>{{ t('classroom.startTeaching') }}</v-card-subtitle>
               <v-card-actions>
                 <v-spacer></v-spacer>
                 <v-btn icon>
