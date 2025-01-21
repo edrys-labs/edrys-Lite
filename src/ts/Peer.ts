@@ -433,6 +433,44 @@ export default class Peer {
 
     if (deadPeers.length > 0) {
       this.removePeers(deadPeers)
+    } else {
+      this.checkForDeadStations()
+    }
+  }
+
+  // This is simply a fix, since stations need to have at least one station user
+  checkForDeadStations() {
+    const rooms = this.y.rooms.toJSON()
+    const stations = Object.keys(rooms).filter((id) =>
+      id.toLocaleLowerCase().startsWith('station')
+    )
+
+    if (stations.length > 0) {
+      const deadStation: string[] = []
+      const users = this.y.users.toJSON()
+
+      for (const station of stations) {
+        let found = false
+        for (const id in users) {
+          if (users[id].room === station) {
+            found = true
+            break
+          }
+        }
+
+        if (!found) {
+          deadStation.push(station)
+        }
+      }
+
+      if (deadStation.length > 0) {
+        this.y.doc.transact(() => {
+          for (const station of deadStation) {
+            LOG('Removing dead station', station)
+            this.y.rooms.delete(station)
+          }
+        }, 'checkForDeadStations')
+      }
     }
   }
 
