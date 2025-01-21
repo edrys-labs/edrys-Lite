@@ -2,92 +2,104 @@
   "en": {
     "general": {
       "userId": "User ID",
+      "userRole": "User Role",
       "language": "Language"
     },
-    "classroom": {
-      "create": "Create a class",
-      "startTeaching": "Start teaching now",
-      "writeProtection": "Write Protection",
-      "ownership": {
-        "owner": "You own this class",
-        "teacher": "You're a teacher here",
-        "student": "You're a student here"
-      },
-      "actions": {
-        "delete": "Delete",
-        "deleteConfirm": "Are you sure?",
-        "deleteForever": "Yes, delete forever",
-        "fork": "Fork",
-        "open": "Open"
+    "index": {
+      "classroom": {
+        "create": "Create a class",
+        "startTeaching": "Start teaching now",
+        "writeProtection": "Write Protection",
+        "ownership": {
+          "owner": "You own this class",
+          "teacher": "You're a teacher here",
+          "student": "You're a student here"
+        },
+        "actions": {
+          "delete": "Delete",
+          "deleteConfirm": "Are you sure?",
+          "deleteForever": "Yes, delete forever",
+          "fork": "Fork",
+          "open": "Open"
+        }
       }
     }
   },
   "de": {
     "general": {
       "userId": "Benutzer-ID",
+      "userRole": "Benutzerrolle",
       "language": "Sprache"
     },
-    "classroom": {
-      "create": "Klasse erstellen",
-      "startTeaching": "Jetzt unterrichten",
-      "writeProtection": "Schreibschutz",
-      "ownership": {
-        "owner": "Sie besitzen diese Klasse",
-        "teacher": "Sie sind hier Lehrer",
-        "student": "Sie sind hier Student"
-      },
-      "actions": {
-        "delete": "Löschen",
-        "deleteConfirm": "Sind Sie sicher?",
-        "deleteForever": "Ja, für immer löschen",
-        "fork": "Kopieren",
-        "open": "Öffnen"
+    "index": {
+      "classroom": {
+        "create": "Klasse erstellen",
+        "startTeaching": "Jetzt unterrichten",
+        "writeProtection": "Schreibschutz",
+        "ownership": {
+          "owner": "Sie besitzen diese Klasse",
+          "teacher": "Sie sind hier Lehrer",
+          "student": "Sie sind hier Student"
+        },
+        "actions": {
+          "delete": "Löschen",
+          "deleteConfirm": "Sind Sie sicher?",
+          "deleteForever": "Ja, für immer löschen",
+          "fork": "Kopieren",
+          "open": "Öffnen"
+        }
       }
     }
   },
   "uk": {
     "general": {
       "userId": "ID користувача",
+      "userRole": "Роль користувача",
       "language": "Мова"
     },
-    "classroom": {
-      "create": "Створити клас",
-      "startTeaching": "Почати викладання",
-      "writeProtection": "Захист від запису",
-      "ownership": {
-        "owner": "Ви власник цього класу",
-        "teacher": "Ви тут викладач",
-        "student": "Ви тут студент"
-      },
-      "actions": {
-        "delete": "Видалити",
-        "deleteConfirm": "Ви впевнені?",
-        "deleteForever": "Так, видалити назавжди",
-        "fork": "Копіювати",
-        "open": "Відкрити"
+    "index": {
+      "classroom": {
+        "create": "Створити клас",
+        "startTeaching": "Почати викладання",
+        "writeProtection": "Захист від запису",
+        "ownership": {
+          "owner": "Ви власник цього класу",
+          "teacher": "Ви тут викладач",
+          "student": "Ви тут студент"
+        },
+        "actions": {
+          "delete": "Видалити",
+          "deleteConfirm": "Ви впевнені?",
+          "deleteForever": "Так, видалити назавжди",
+          "fork": "Копіювати",
+          "open": "Відкрити"
+        }
       }
     }
   },
   "ar": {
     "general": {
       "userId": "معرف المستخدم",
+      "userRole": "دور المستخدم",
       "language": "لغة"
     },
-    "classroom": {
-      "create": "إنشاء فصل دراسي",
-      "startTeaching": "ابدأ التدريس الآن",
-      "writeProtection": "حماية الكتابة",
-      "ownership": {
-        "owner": "أنت تمتلك هذا الفصل",
-        "teacher": "أنت معلم هنا",
-        "student": "أنت طالب هنا"
-      },
-      "actions": {
-        "delete": "حذف",
-        "deleteConfirm": "هل أنت متأكد؟",
-        "deleteForever": "نعم، احذف بشكل دائم",
-        "fork": "نسخ",
-        "open": "فتح"
+    "index": {
+      "classroom": {
+        "create": "إنشاء فصل دراسي",
+        "startTeaching": "ابدأ التدريس الآن",
+        "writeProtection": "حماية الكتابة",
+        "ownership": {
+          "owner": "أنت تمتلك هذا الفصل",
+          "teacher": "أنت معلم هنا",
+          "student": "أنت طالب هنا"
+        },
+        "actions": {
+          "delete": "حذف",
+          "deleteConfirm": "هل أنت متأكد؟",
+          "deleteForever": "نعم، احذف بشكل دائم",
+          "fork": "نسخ",
+          "open": "فتح"
+        }
       }
     }
   }

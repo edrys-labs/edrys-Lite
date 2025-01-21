@@ -19,6 +19,8 @@
         </v-list-item-subtitle>
       </v-list-item>
       <v-divider></v-divider>
+      <slot name="user-role"></slot>
+      <v-divider class="mt-1"></v-divider>
       <v-list-item>
         <v-list-item-title class="mb-1">{{ t('general.language') }}:</v-list-item-title>
         <v-select

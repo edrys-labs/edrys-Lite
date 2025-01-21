@@ -5,6 +5,7 @@ import Checks from "../components/Checks.vue";
 import Modules from "../components/Modules.vue";
 import Logger from "../components/Logger.vue";
 import UserMenu from '../components/UserMenu.vue';
+import { useI18n } from 'vue-i18n';
 
 import { Database, DatabaseItem } from "../ts/Database";
 import {
@@ -397,6 +398,10 @@ export default {
     Logger,
     UserMenu,
   },
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
+  },
 };
 </script>
 
@@ -457,35 +462,16 @@ export default {
           <v-icon icon="mdi-forum" v-else></v-icon>
         </v-btn>
 
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" icon="mdi-dots-vertical"> </v-btn>
-          </template>
-
-          <v-list>
+        <UserMenu>
+          <template v-slot:user-role>
             <v-list-item>
-              <v-list-item-title> User ID: </v-list-item-title>
-              <v-list-item-subtitle>
-                {{ getPeer_ID() }}
-                <v-btn
-                  icon="mdi-content-copy"
-                  size="small"
-                  variant="flat"
-                  @click="copyPeerID()"
-                >
-                </v-btn>
-              </v-list-item-subtitle>
-            </v-list-item>
-
-            <v-list-item>
-              <v-list-item-title> User Role: </v-list-item-title>
+              <v-list-item-title>{{ t('general.userRole') }}:</v-list-item-title>
               <v-list-item-subtitle>
                 {{ getRole() }}
               </v-list-item-subtitle>
             </v-list-item>
-          </v-list>
-        </v-menu>
-        <UserMenu />
+          </template>
+        </UserMenu>
       </v-app-bar>
 
       <v-navigation-drawer temporary v-model="showSideMenu">

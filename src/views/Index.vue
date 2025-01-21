@@ -144,7 +144,7 @@ export default {
                   !classroom?.data.members.teacher.includes(peerID)
                 "
               >
-              {{ t('classroom.writeProtection') }} 
+              {{ t('index.classroom.writeProtection') }} 
                 <v-switch
                   :model-value="!!classroom.hash"
                   color="primary"
@@ -163,9 +163,9 @@ export default {
               ></v-img>
               <v-card-title>{{ classroom.data?.name }}</v-card-title>
               <v-card-subtitle>
-                <span v-if="classroom?.data.createdBy === peerID">{{ t('classroom.ownership.owner') }}</span>
-                <span v-else-if="classroom?.data?.members?.teacher.includes(peerID)">{{ t('classroom.ownership.teacher') }}</span>
-                <span v-else>{{ t('classroom.ownership.student') }}</span>
+                <span v-if="classroom?.data.createdBy === peerID">{{ t('index.classroom.ownership.owner') }}</span>
+                <span v-else-if="classroom?.data?.members?.teacher.includes(peerID)">{{ t('index.classroom.ownership.teacher') }}</span>
+                <span v-else>{{ t('index.classroom.ownership.student') }}</span>
               </v-card-subtitle>
 
               <v-card-text>
@@ -175,18 +175,18 @@ export default {
               </v-card-text>
 
               <v-card-actions>
-                <v-btn icon :title="t('classroom.actions.fork')" @click="forkClass(classroom)">
+                <v-btn icon :title="t('index.classroom.actions.fork')" @click="forkClass(classroom)">
                   <v-icon>mdi-source-fork</v-icon>
                 </v-btn>
 
                 <v-menu>
                   <template v-slot:activator="{ props }">
-                    <v-btn color="" v-bind="props" icon="mdi-delete" :title="t('classroom.actions.delete')"> </v-btn>
+                    <v-btn color="" v-bind="props" icon="mdi-delete" :title="t('index.classroom.actions.delete')"> </v-btn>
                   </template>
 
                   <v-list>
                     <v-list-item>
-                      <v-list-item-title> {{ t('classroom.actions.deleteConfirm') }} </v-list-item-title>
+                      <v-list-item-title> {{ t('index.classroom.actions.deleteConfirm') }} </v-list-item-title>
 
                       <v-btn
                         color="red"
@@ -195,7 +195,7 @@ export default {
                         class="float-right"
                         style="margin-top: 10px"
                       >
-                      {{ t('classroom.actions.deleteForever') }}</v-btn
+                      {{ t('index.classroom.actions.deleteForever') }}</v-btn
                       >
                     </v-list-item>
                   </v-list>
@@ -225,8 +225,8 @@ export default {
               @click="createClass()"
               variant="elevated"
             >
-              <v-card-title>{{ t('classroom.create') }}</v-card-title>
-              <v-card-subtitle>{{ t('classroom.startTeaching') }}</v-card-subtitle>
+              <v-card-title>{{ t('index.classroom.create') }}</v-card-title>
+              <v-card-subtitle>{{ t('index.classroom.startTeaching') }}</v-card-subtitle>
               <v-card-actions>
                 <v-spacer></v-spacer>
                 <v-btn icon>
