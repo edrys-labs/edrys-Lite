@@ -148,7 +148,7 @@ export default {
                 <v-switch
                   :model-value="!!classroom.hash"
                   color="primary"
-                  :label="!!classroom.hash ? 'on' : 'off'"
+                  :label="!!classroom.hash ? t('index.classroom.actions.on') : t('index.classroom.actions.off')"
                   style="padding-top: 20px; z-index: 200"
                   @change="switchClassroomProtection(classroom.id, !classroom.hash)"
                 ></v-switch>
@@ -210,7 +210,7 @@ export default {
                   style="color: white"
                 >
                   <v-btn icon title="open">
-                    <v-icon>{{ locale === 'ar' ? 'mdi-arrow-left-bold' : 'mdi-arrow-right-bold' }}</v-icon>
+                    <v-icon>{{ ['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left-bold' : 'mdi-arrow-right-bold' }}</v-icon>
                   </v-btn>
                 </a>
               </v-card-actions>

@@ -20,7 +20,9 @@
           "deleteConfirm": "Are you sure?",
           "deleteForever": "Yes, delete forever",
           "fork": "Fork",
-          "open": "Open"
+          "open": "Open",
+          "on": "on",
+          "off": "off"
         }
       }
     }
@@ -46,7 +48,9 @@
           "deleteConfirm": "Sind Sie sicher?",
           "deleteForever": "Ja, für immer löschen",
           "fork": "Kopieren",
-          "open": "Öffnen"
+          "open": "Öffnen",
+          "on": "an",
+          "off": "aus"
         }
       }
     }
@@ -72,7 +76,9 @@
           "deleteConfirm": "Ви впевнені?",
           "deleteForever": "Так, видалити назавжди",
           "fork": "Копіювати",
-          "open": "Відкрити"
+          "open": "Відкрити",
+          "on": "увімкнено",
+          "off": "вимкнено"
         }
       }
     }
@@ -98,7 +104,9 @@
           "deleteConfirm": "هل أنت متأكد؟",
           "deleteForever": "نعم، احذف بشكل دائم",
           "fork": "نسخ",
-          "open": "فتح"
+          "open": "فتح",
+          "on": "مشغّل",
+          "off": "متوقف"
         }
       }
     }
