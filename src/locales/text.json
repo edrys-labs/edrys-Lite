@@ -39,6 +39,23 @@
       "popup": {
         "close": "Close"
       }
+    },
+    "deploy": {
+      "state": {
+        "waiting": "Please wait while your classrooms gets loaded, you will be redirected ...",
+        "fetching": "Fetching data from ",
+        "fetched": "Data fetched successfully",
+        "parsed": "Data parsed successfully",
+        "parsingError": "Error parsing data",
+        "fetchingError": "Error fetching data"
+      },
+      "overlay": {
+        "isReady": "Congratulations, your lab is ready",
+        "redirect": "You will be automatically redirected to the new classroom that has been created at",
+        "info": "You own this classroom and you are the only one who can modify it and you can share the link with your students. The link is unique and recreating or reloading this link will create a new room.",
+        "checkbox": "Don't show this message again",
+        "goto": "Goto Classroom"
+      }
     }
   },
   "de": {
@@ -80,6 +97,23 @@
       },
       "popup": {
         "close": "Schließen"
+      }
+    },
+    "deploy": {
+      "state": {
+        "waiting": "Bitte warten Sie, während Ihr Klassenzimmer geladen wird, Sie werden umgeleitet ...",
+        "fetching": "Daten von ",
+        "fetched": "Daten erfolgreich abgerufen",
+        "parsed": "Daten erfolgreich analysiert",
+        "parsingError": "Fehler beim Analysieren von Daten",
+        "fetchingError": "Fehler beim Abrufen von Daten"
+      },
+      "overlay": {
+        "isReady": "Herzlichen Glückwunsch, Ihr Labor ist bereit",
+        "redirect": "Sie werden automatisch zu dem neuen Klassenzimmer umgeleitet, das erstellt wurde",
+        "info": "Sie besitzen dieses Klassenzimmer und sind der einzige, der es ändern kann, und Sie können den Link mit Ihren Schülern teilen. Der Link ist einzigartig und das Erstellen oder Neuladen dieses Links erstellt einen neuen Raum.",
+        "checkbox": "Diese Nachricht nicht mehr anzeigen",
+        "goto": "Zum Klassenzimmer"
       }
     }
   },
@@ -123,6 +157,23 @@
       "popup": {
         "close": "Закрити"
       }
+    },
+    "deploy": {
+      "state": {
+        "waiting": "Будь ласка, зачекайте, поки ваш клас буде завантажено, вас буде перенаправлено ...",
+        "fetching": "Отримання даних з ",
+        "fetched": "Дані успішно отримані",
+        "parsed": "Дані успішно проаналізовані",
+        "parsingError": "Помилка аналізу даних",
+        "fetchingError": "Помилка отримання даних"
+      },
+      "overlay": {
+        "isReady": "Вітаємо, ваш лабораторія готова",
+        "redirect": "Вас автоматично перенаправлять до нового класу, який був створений",
+        "info": "Ви володієте цим класом і тільки ви можете його змінювати, і ви можете поділитися посиланням зі своїми студентами. Посилання є унікальним, і створення або перезавантаження цього посилання створить нову кімнату.",
+        "checkbox": "Більше не показувати це повідомлення",
+        "goto": "Перейти до класу"
+      }
     }
   },
   "ar": {
@@ -164,6 +215,23 @@
       },
       "popup": {
         "close": "إغلاق"
+      }
+    },
+    "deploy": {
+      "state": {
+        "waiting": "يرجى الانتظار بينما يتم تحميل فصلك الدراسي، سيتم توجيهك ...",
+        "fetching": " جلب البيانات من",
+        "fetched": "تم جلب البيانات بنجاح",
+        "parsed": "تم تحليل البيانات بنجاح",
+        "parsingError": "خطأ في تحليل البيانات",
+        "fetchingError": "خطأ في جلب البيانات"
+      },
+      "overlay": {
+        "isReady": "تهانينا، مختبرك جاهز",
+        "redirect": "سيتم توجيهك تلقائيًا إلى الفصل الدراسي الجديد الذي تم إنشاؤه في",
+        "info": "أنت تمتلك هذا الفصل الدراسي وأنت الوحيد الذي يمكنه تعديله ويمكنك مشاركة الرابط مع طلابك. الرابط فريد وإعادة إنشاء أو إعادة تحميل هذا الرابط سينشئ غرفة جديدة.",
+        "checkbox": "لا تظهر هذه الرسالة مرة أخرى",
+        "goto": "انتقل إلى الفصل الدراسي"
       }
     }
   }

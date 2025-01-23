@@ -377,6 +377,33 @@ export function removeKeysStartingWithSecret(obj: any) {
   }
 }
 
+/*export function removeKeysStartingWithSecret(obj: any) {
+  if (!obj) return;
+  
+  if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      if (typeof obj[i] === 'object') {
+        removeKeysStartingWithSecret(obj[i]);
+      }
+    }
+    return;
+  }
+
+  for (let key in obj) {
+    if (typeof obj[key] === 'object') {
+      removeKeysStartingWithSecret(obj[key]);
+      if (Array.isArray(obj[key])) {
+        obj[key] = obj[key].filter(item => item !== undefined);
+      } else if (Object.keys(obj[key]).length === 0) {
+        delete obj[key];
+      }
+    }
+    if (key.toLowerCase().startsWith('secret')) {
+      delete obj[key];
+    }
+  }
+}*/
+
 export function deepEqual(object1, object2) {
   const keys1 = Object.keys(object1)
   const keys2 = Object.keys(object2)
