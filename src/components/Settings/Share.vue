@@ -3,13 +3,13 @@
     <v-col>
       <v-btn depressed block @click="downloadClass('yaml')">
         <v-icon left> mdi-download </v-icon>
-        Download class file (.yml)
+        {{ t('settings.share.downloadYml') }}
       </v-btn>
     </v-col>
     <v-col>
       <v-btn depressed block @click="downloadClass('json')">
         <v-icon left> mdi-download </v-icon>
-        Download class file (.json)
+        {{ t('settings.share.downloadJson') }}
       </v-btn>
     </v-col>
   </v-row>
@@ -18,7 +18,7 @@
       <v-file-input
         dense
         accept=".yml,.yaml,.json,application/yaml,application/json"
-        label="Restore class from file (yaml, json)"
+        :label="t('settings.share.restoreFromFile')"
         v-model="selectedFile"
         :append-icon="selectedFileIcon"
         @click:append.self="restoreFile"
@@ -29,7 +29,7 @@
     <v-col>
       <v-text-field
         dense
-        label="Restore class from URL (http, https)"
+        :label="t('settings.share.restoreFromUrl')"
         v-model="selectedURL"
         prepend-icon="mdi-link"
         :append-icon="selectedURLIcon"
@@ -54,13 +54,13 @@
   <v-divider class="pb-2"></v-divider>
   <v-btn href="https://github.com/topics/edrys-lab" target="_blank">
     <v-icon left> mdi-github </v-icon>
-    Explore on GitHub
+    {{ t('settings.share.explore') }}
   </v-btn>
 </template>
 
 <script lang="ts">
 import * as yaml from "js-yaml";
-
+import { useI18n } from 'vue-i18n';
 import { getPeerID, parseClassroom } from "../../ts/Utils";
 
 export default {
@@ -76,6 +76,11 @@ export default {
       type: Boolean,
       required: true,
     },
+  },
+
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
   },
 
   data() {

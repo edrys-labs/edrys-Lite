@@ -4,6 +4,7 @@ import Members from "./Settings/Members.vue";
 import Modules from "./Settings/Modules.vue";
 import Stations from "./Settings/Stations.vue";
 import Share from "./Settings/Share.vue";
+import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Settings",
@@ -26,6 +27,11 @@ export default {
   },
 
   emits: ["close", "saveClass", "deleteClass", "updateClass"],
+
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
+  },
 
   data() {
     return {
@@ -74,10 +80,10 @@ export default {
 <template>
   <v-card>
     <v-toolbar dark flat>
-      <v-toolbar-title>Settings</v-toolbar-title>
+      <v-toolbar-title>{{ t('settings.general.title') }}</v-toolbar-title>
 
       <span class="text-decoration-underline text-medium-emphasis"
-        >Write Protection: {{ writeProtection ? "ON" : "OFF" }}</span
+        >{{ t('settings.general.writeProtection') }} {{ writeProtection ? t('settings.general.actions.on') : t('settings.general.actions.off') }}</span
       >
       <v-spacer></v-spacer>
 
@@ -89,23 +95,23 @@ export default {
         <v-tabs v-model="tab" fixed-tabs center-active show-arrows>
           <v-tab :active="tab == 0">
             <v-icon left style="margin-right: 15px"> mdi-book-open-outline </v-icon>
-            Main
+            {{ t('settings.general.Main') }}
           </v-tab>
           <v-tab :active="tab == 1">
             <v-icon left style="margin-right: 15px"> mdi-account-group </v-icon>
-            Members
+            {{ t('settings.general.Members') }}
           </v-tab>
           <v-tab :active="tab == 2">
             <v-icon left style="margin-right: 15px"> mdi-view-dashboard </v-icon>
-            Modules
+            {{ t('settings.general.Modules') }}
           </v-tab>
           <v-tab :active="tab == 3">
             <v-icon left style="margin-right: 15px"> mdi-router-wireless </v-icon>
-            Stations
+            {{ t('settings.general.Stations') }}
           </v-tab>
           <v-tab :active="tab == 4">
             <v-icon left style="margin-right: 15px"> mdi-share-variant </v-icon>
-            Share
+            {{ t('settings.general.Share') }}
           </v-tab>
         </v-tabs>
       </template>
@@ -150,7 +156,7 @@ export default {
         :disabled="writeProtection"
       >
         <v-icon left> mdi-upload </v-icon>
-        Save
+        {{ t('settings.general.actions.save') }}
         <v-badge
           overlap
           dot
@@ -169,13 +175,13 @@ export default {
             style="margin-top: 30px; margin-right: 10px; margin-left: 30px"
             class="float-right"
           >
-            Delete Class
+            {{ t('settings.general.actions.delete') }}
           </v-btn>
         </template>
 
         <v-list>
           <v-list-item>
-            <v-list-item-title> Are you sure? </v-list-item-title>
+            <v-list-item-title> {{ t('settings.general.actions.deleteConfirm') }} </v-list-item-title>
 
             <v-btn
               color="red"
@@ -184,7 +190,7 @@ export default {
               class="float-right"
               style="margin-top: 10px"
             >
-              Yes, delete forever</v-btn
+              {{ t('settings.general.actions.deleteForever') }}</v-btn
             >
           </v-list-item>
         </v-list>

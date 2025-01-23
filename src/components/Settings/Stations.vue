@@ -3,7 +3,7 @@
     outlined
     dense
     type="info"
-    text="To add a new station, simply open this link on the client device: "
+    :text="t('settings.stations.info')"
   >
     <v-container>
       <a :href="url" target="_blank">{{ url }}</a>
@@ -17,6 +17,7 @@
 
 <script lang="ts">
 import { copyToClipboard} from "../../ts/Utils";
+import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Settings-Stations",
@@ -26,6 +27,11 @@ export default {
       type: Object,
       required: true,
     },
+  },
+
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
   },
 
   data() {

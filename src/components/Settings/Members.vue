@@ -1,5 +1,5 @@
 <template>
-  <v-alert outlined dense type="info" text="Invite your users in by sharing this link: ">
+  <v-alert outlined dense type="info" :text="t('settings.members.info')">
     <v-container>
       <a :href="url">{{ url }}</a>
     </v-container>
@@ -10,7 +10,7 @@
   </v-alert>
   <v-divider></v-divider>
   <v-textarea
-    label="List of teacher ids, separated by commas. Each teacher can modify course."
+    :label="t('settings.members.teacherIds')"
     auto-grow
     variant="outlined"
     rows="3"
@@ -22,7 +22,7 @@
   ></v-textarea>
 
   <v-textarea
-    label="List of student ids, separated by commas, leave empty or add a * for all. Student can interact with modules."
+    :label="t('settings.members.studentIds')"
     auto-grow
     variant="outlined"
     rows="3"
@@ -36,6 +36,7 @@
 
 <script lang="ts">
 import { copyToClipboard } from "../../ts/Utils";
+import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Settings-Members",
@@ -52,6 +53,11 @@ export default {
       type: Boolean,
       required: true,
     },
+  },
+
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
   },
 
   data() {
