@@ -29,11 +29,17 @@
     "classroom": {
       "station": {
         "mode": "Station Mode Active",
+        "label": "Station Name",
         "modeDescription": "This browser is now running as a station and ready to serve students",
-        "exit": "Exit Station Mode"
+        "exit": "Exit Station Mode",
+        "rules": {
+          "1": "Name is required",
+          "2": "Name is already taken"
+        }
       },
       "sideMenu": {
         "onlineUsers": "online users",
+        "settings": "Settings",
         "newRoom": "New room"
       },
       "popup": {
@@ -88,11 +94,17 @@
     "classroom": {
       "station": {
         "mode": "Station-Modus aktiv",
+        "label": "Station-Name",
         "modeDescription": "Dieser Browser läuft jetzt als Station und ist bereit, Studenten zu bedienen",
-        "exit": "Station-Modus beenden"
+        "exit": "Station-Modus beenden",
+        "rules": {
+          "1": "Name ist erforderlich",
+          "2": "Name ist bereits vergeben"
+        }
       },
       "sideMenu": {
         "onlineUsers": "Online-Benutzer",
+        "settings": "Einstellungen",
         "newRoom": "Neuer Raum"
       },
       "popup": {
@@ -147,11 +159,17 @@
     "classroom": {
       "station": {
         "mode": "Активний режим станції",
+        "label": "Назва станції",
         "modeDescription": "Цей браузер зараз працює як станція і готовий обслуговувати студентів",
-        "exit": "Вийти з режиму станції"
+        "exit": "Вийти з режиму станції",
+        "rules": {
+          "1": "Потрібно вказати назву",
+          "2": "Назва вже зайнята"
+        }
       },
       "sideMenu": {
         "onlineUsers": "онлайн-користувачі",
+        "settings": "Налаштування",
         "newRoom": "Нова кімната"
       },
       "popup": {
@@ -206,11 +224,17 @@
     "classroom": {
       "station": {
         "mode": "وضع المحطة نشط",
+        "label": "اسم المحطة",
         "modeDescription": "هذا المتصفح يعمل الآن كمحطة وجاهز لخدمة الطلاب",
-        "exit": "الخروج من وضع المحطة"
+        "exit": "الخروج من وضع المحطة",
+        "rules": {
+          "1": "الاسم مطلوب",
+          "2": "هذا الاسم محجوز"
+        }
       },
       "sideMenu": {
         "onlineUsers": "المستخدمون المتصلون",
+        "settings": "الإعدادات",
         "newRoom": "غرفة جديدة"
       },
       "popup": {

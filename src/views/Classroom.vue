@@ -104,8 +104,8 @@ export default {
 
       stationNameInput: stationName,
       stationNameRules: [
-        (v: string) => !!v || "Name is required",
-        (v: string) => !this.isNameTaken(v) || "Name is already taken",
+        (v: string) => !!v || this.t("classroom.station.rules.1"),
+        (v: string) => !this.isNameTaken(v) || this.t("classroom.station.rules.2"),
       ],
 
       isLoggerVisible: false,
@@ -493,7 +493,7 @@ export default {
                   variant="solo"
                   v-model="stationNameInput"
                   :rules="stationNameRules"
-                  label="Station Name"
+                  :label="t('classroom.station.label')"
                   required
                   append-inner-icon="mdi-arrow-right"
                   @click:append-inner="setStationName"
@@ -528,6 +528,7 @@ export default {
                 <v-btn
                   color="grey"
                   icon="mdi-cog"
+                  :title="t('classroom.sideMenu.settings')"
                   @click="showSettings = !showSettings"
                   variant="text"
                   v-if="isOwner"
