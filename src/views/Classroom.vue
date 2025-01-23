@@ -24,6 +24,11 @@ import { copyToClipboard, deepEqual } from "../ts/Utils";
 export default {
   props: ["id", "station", "hash"],
 
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
+  },
+
   data() {
     const database = new Database();
     const liveClassProxy: any = null;
@@ -398,10 +403,6 @@ export default {
     Logger,
     UserMenu,
   },
-  setup() {
-    const { t, locale } = useI18n();
-    return { t, locale };
-  },
 };
 </script>
 
@@ -482,7 +483,7 @@ export default {
             class="text-center"
             style="margin-top: calc(50vh - 100px)"
           >
-            <v-card-text class="white--text"> Station Mode Active </v-card-text>
+            <v-card-text class="white--text"> {{ t('classroom.station.mode') }} </v-card-text>
 
             <v-divider></v-divider>
 
@@ -499,14 +500,14 @@ export default {
                 ></v-text-field>
               </v-form>
 
-              This browser is now running as a station and ready to serve students
+              {{ t('classroom.station.modeDescription') }}
             </v-card-text>
             <v-divider></v-divider>
             <v-card-text>
               <v-btn :href="'/?/classroom/' + id">
                 <v-icon left>mdi-export-variant</v-icon>
 
-                Exit Station mode
+                {{ t('classroom.station.exit') }}
               </v-btn>
             </v-card-text>
           </v-card>
@@ -520,7 +521,7 @@ export default {
               </v-list-item-title>
 
               <v-list-item-subtitle>
-                online users {{ Object.keys(liveClassProxy?.users || {}).length }}
+                {{ t('classroom.sideMenu.onlineUsers') }} {{ Object.keys(liveClassProxy?.users || {}).length }}
               </v-list-item-subtitle>
 
               <template v-slot:append>
@@ -550,7 +551,7 @@ export default {
           >
             <template v-slot:append>
               <v-btn
-                icon="mdi-arrow-right-circle"
+                :icon="['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left-circle' : 'mdi-arrow-right-circle'"
                 variant="text"
                 @click="gotoRoom(name)"
               ></v-btn>
@@ -574,7 +575,7 @@ export default {
           <div class="pa-2">
             <v-btn depressed block class="mb-2" @click="addRoom" v-if="isOwner">
               <v-icon left>mdi-forum</v-icon>
-              New room
+              {{ t('classroom.sideMenu.newRoom') }}
             </v-btn>
           </div>
         </template>
@@ -662,7 +663,7 @@ export default {
       {{ popup.message }}
 
       <template v-slot:actions>
-        <v-btn variant="text" color="pink" @click="closePopup(popup.id)"> Close </v-btn>
+        <v-btn variant="text" color="pink" @click="closePopup(popup.id)"> {{ t('classroom.popup.close') }} </v-btn>
       </template>
     </v-snackbar>
   </v-app>

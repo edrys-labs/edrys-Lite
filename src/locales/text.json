@@ -25,6 +25,20 @@
           "off": "off"
         }
       }
+    },
+    "classroom": {
+      "station": {
+        "mode": "Station Mode Active",
+        "modeDescription": "This browser is now running as a station and ready to serve students",
+        "exit": "Exit Station Mode"
+      },
+      "sideMenu": {
+        "onlineUsers": "online users",
+        "newRoom": "New room"
+      },
+      "popup": {
+        "close": "Close"
+      }
     }
   },
   "de": {
@@ -52,6 +66,20 @@
           "on": "an",
           "off": "aus"
         }
+      }
+    },
+    "classroom": {
+      "station": {
+        "mode": "Station-Modus aktiv",
+        "modeDescription": "Dieser Browser läuft jetzt als Station und ist bereit, Studenten zu bedienen",
+        "exit": "Station-Modus beenden"
+      },
+      "sideMenu": {
+        "onlineUsers": "Online-Benutzer",
+        "newRoom": "Neuer Raum"
+      },
+      "popup": {
+        "close": "Schließen"
       }
     }
   },
@@ -81,6 +109,20 @@
           "off": "вимкнено"
         }
       }
+    },
+    "classroom": {
+      "station": {
+        "mode": "Активний режим станції",
+        "modeDescription": "Цей браузер зараз працює як станція і готовий обслуговувати студентів",
+        "exit": "Вийти з режиму станції"
+      },
+      "sideMenu": {
+        "onlineUsers": "онлайн-користувачі",
+        "newRoom": "Нова кімната"
+      },
+      "popup": {
+        "close": "Закрити"
+      }
     }
   },
   "ar": {
@@ -108,6 +150,20 @@
           "on": "مشغّل",
           "off": "متوقف"
         }
+      }
+    },
+    "classroom": {
+      "station": {
+        "mode": "وضع المحطة نشط",
+        "modeDescription": "هذا المتصفح يعمل الآن كمحطة وجاهز لخدمة الطلاب",
+        "exit": "الخروج من وضع المحطة"
+      },
+      "sideMenu": {
+        "onlineUsers": "المستخدمون المتصلون",
+        "newRoom": "غرفة جديدة"
+      },
+      "popup": {
+        "close": "إغلاق"
       }
     }
   }

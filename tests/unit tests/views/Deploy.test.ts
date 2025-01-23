@@ -128,9 +128,12 @@ describe('Deploy View', () => {
   test('handles auto-redirect based on localStorage', async () => {
     // Mock window.location
     const locationMock = { search: '' };
+    const originalSearch = window.location.search;
+    
     Object.defineProperty(window, 'location', {
       value: locationMock,
-      writable: true
+      writable: true,
+      configurable: true
     });
 
     // Test with auto-redirect enabled
@@ -138,15 +141,22 @@ describe('Deploy View', () => {
     const wrapper = createWrapper();
     await flushPromises();
     
-    expect(locationMock.search).toContain('classroom/test-hash');
+    expect(wrapper.vm.ready).toBe(false); // Should not show overlay when redirecting
+    expect(locationMock.search).toBe('?/classroom/test-hash');
+    
+    // Reset mock
+    locationMock.search = '';
     
     // Test with auto-redirect disabled
     localStorage.setItem('deployed', 'false');
     const wrapper2 = createWrapper();
     await flushPromises();
     
-    expect(wrapper2.vm.ready).toBe(true);
-    expect(locationMock.search).not.toContain('classroom/test-hash');
+    expect(wrapper2.vm.ready).toBe(true); // Should show overlay
+    expect(locationMock.search).toBe(''); // Should not redirect
+    
+    // Cleanup
+    window.location.search = originalSearch;
   });
 
   test('copies user ID to clipboard', async () => {
