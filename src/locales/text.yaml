@@ -1,0 +1,508 @@
+en:
+  general:
+    userId: "User ID"
+    userRole: "User Role"
+    language: "Language"
+  index:
+    classroom:
+      create: "Create a class"
+      startTeaching: "Start teaching now"
+      writeProtection: "Write Protection"
+      ownership:
+        owner: "You own this class"
+        teacher: "You're a teacher here"
+        student: "You're a student here"
+      actions:
+        delete: "Delete"
+        deleteConfirm: "Are you sure?"
+        deleteForever: "Yes, delete forever"
+        fork: "Fork"
+        open: "Open"
+        on: "on"
+        off: "off"
+  classroom:
+    station:
+      mode: "Station Mode Active"
+      label: "Station Name"
+      modeDescription: "This browser is now running as a station and ready to serve students"
+      exit: "Exit Station Mode"
+      rules:
+        "1": "Name is required"
+        "2": "Name is already taken"
+    sideMenu:
+      onlineUsers: "online users"
+      settings: "Settings"
+      newRoom: "New room"
+    popup:
+      close: "Close"
+  deploy:
+    state:
+      waiting: "Please wait while your classrooms gets loaded, you will be redirected ..."
+      fetching: "Fetching data from "
+      fetched: "Data fetched successfully"
+      parsed: "Data parsed successfully"
+      parsingError: "Error parsing data"
+      fetchingError: "Error fetching data"
+    overlay:
+      isReady: "Congratulations, your lab is ready"
+      redirect: "You will be automatically redirected to the new classroom that has been created at"
+      info: "You own this classroom and you are the only one who can modify it and you can share the link with your students. The link is unique and recreating or reloading this link will create a new room."
+      checkbox: "Don't show this message again"
+      goto: "Goto Classroom"
+  settings:
+    general:
+      title: "Settings"
+      writeProtection: "Write Protection:"
+      Main: "Main"
+      Members: "Members"
+      Modules: "Modules"
+      Stations: "Stations"
+      Share: "Share"
+      actions:
+        on: "ON"
+        off: "OFF"
+        save: "Save"
+        delete: "Delete Class"
+        deleteConfirm: "Are you sure?"
+        deleteForever: "Yes, delete forever"
+    main:
+      className: "Class Name"
+      logoUrl: "Logo URL"
+      description: "Description"
+      roomsNum: "Default number of rooms (optional)"
+      selfAssign: "Enable self-assignment"
+    members:
+      info: "Invite your users in by sharing this link: "
+      teacherIds: "List of teacher ids, separated by commas. Each teacher can modify course."
+      studentIds: "List of student ids, separated by commas, leave empty or add a * for all. Student can interact with modules."
+    modules:
+      delete: "Delete the module and its configuration?"
+      deleteConfirm: "Yes"
+      url: "Module URL"
+      add: "Add"
+      explore: "Explore on Github"
+      noDescription: "No description"
+      module:
+        url:
+          title: "URL"
+          urlLabel: "Module URL"
+        design:
+          title: "Design"
+          width:
+            title: "Width"
+            full: "Full (1000px)"
+            half: "Half (500px)"
+            quarter: "Quarter (250px)"
+            custom:
+              title: "Custom (px)"
+              label: "Custom Width (px)"
+              hint: "Enter custom width in pixels"
+          height:
+            title: "Height"
+            huge: "Huge (830px)"
+            tall: "Tall (720px)"
+            medium: "Medium (410px)"
+            short: "Short (200px)"
+            custom:
+              title: "Custom (px)"
+              label: "Custom Height (px)"
+              hint: "Enter custom height in pixels"
+        generalSettings: "General Settings"
+        studentSettings: "Student Settings"
+        teacherSettings: "Teacher Settings"
+        stationSettings: "Station Settings"
+        showIn:
+          title: "Show in"
+          label: "Comma separated list of rooms, or: lobby, * for all, station, (role specific teacher-only, station-only)"
+      editor:
+        info: "Valid YAML or JSON configuration"
+    stations:
+      info: "To add a new station, simply open this link on the client device: "
+    share:
+      downloadYml: "Download class file (.yml)"
+      downloadJson: "Download class file (.json)"
+      restoreFromFile: "Restore class from file (yaml, json)"
+      restoreFromUrl: "Restore class from URL (http, https)"
+      explore: "Explore on Github"
+
+de:
+  general:
+    userId: "Benutzer-ID"
+    userRole: "Benutzerrolle"
+    language: "Sprache"
+  index:
+    classroom:
+      create: "Klasse erstellen"
+      startTeaching: "Jetzt unterrichten"
+      writeProtection: "Schreibschutz"
+      ownership:
+        owner: "Sie besitzen diese Klasse"
+        teacher: "Sie sind hier Lehrer"
+        student: "Sie sind hier Student"
+      actions:
+        delete: "Löschen"
+        deleteConfirm: "Sind Sie sicher?"
+        deleteForever: "Ja, für immer löschen"
+        fork: "Kopieren"
+        open: "Öffnen"
+        on: "an"
+        off: "aus"
+  classroom:
+    station:
+      mode: "Station-Modus aktiv"
+      label: "Station-Name"
+      modeDescription: "Dieser Browser läuft jetzt als Station und ist bereit, Studenten zu bedienen"
+      exit: "Station-Modus beenden"
+      rules:
+        "1": "Name ist erforderlich"
+        "2": "Name ist bereits vergeben"
+    sideMenu:
+      onlineUsers: "Online-Benutzer"
+      settings: "Einstellungen"
+      newRoom: "Neuer Raum"
+    popup:
+      close: "Schließen"
+  deploy:
+    state:
+      waiting: "Bitte warten Sie, während Ihr Klassenzimmer geladen wird, Sie werden umgeleitet ..."
+      fetching: "Daten von "
+      fetched: "Daten erfolgreich abgerufen"
+      parsed: "Daten erfolgreich analysiert"
+      parsingError: "Fehler beim Analysieren von Daten"
+      fetchingError: "Fehler beim Abrufen von Daten"
+    overlay:
+      isReady: "Herzlichen Glückwunsch, Ihr Labor ist bereit"
+      redirect: "Sie werden automatisch zu dem neuen Klassenzimmer umgeleitet, das erstellt wurde"
+      info: "Sie besitzen dieses Klassenzimmer und sind der einzige, der es ändern kann, und Sie können den Link mit Ihren Schülern teilen. Der Link ist einzigartig und das Erstellen oder Neuladen dieses Links erstellt einen neuen Raum."
+      checkbox: "Diese Nachricht nicht mehr anzeigen"
+      goto: "Zum Klassenzimmer"
+  settings:
+    general:
+      title: "Einstellungen"
+      writeProtection: "Schreibschutz:"
+      Main: "Haupt"
+      Members: "Mitglieder"
+      Modules: "Module"
+      Stations: "Stationen"
+      Share: "Teilen"
+      actions:
+        on: "AN"
+        off: "AUS"
+        save: "Speichern"
+        delete: "Klasse löschen"
+        deleteConfirm: "Sind Sie sicher?"
+        deleteForever: "Ja, für immer löschen"
+    main:
+      className: "Klassenname"
+      logoUrl: "Logo-URL"
+      description: "Beschreibung"
+      roomsNum: "Standardanzahl von Räumen (optional)"
+      selfAssign: "Selbstzuweisung aktivieren"
+    members:
+      info: "Laden Sie Ihre Benutzer ein, indem Sie diesen Link teilen: "
+      teacherIds: "Liste der Lehrer-IDs, durch Kommas getrennt. Jeder Lehrer kann den Kurs ändern."
+      studentIds: "Liste der Schüler-IDs, durch Kommas getrennt, leer lassen oder ein * für alle hinzufügen. Der Schüler kann mit Modulen interagieren."
+    modules:
+      delete: "Modul und Konfiguration löschen?"
+      deleteConfirm: "Ja"
+      url: "Modul-URL"
+      add: "Hinzufügen"
+      explore: "Auf Github erkunden"
+      noDescription: "Keine Beschreibung"
+      module:
+        url:
+          title: "URL"
+          urlLabel: "Modul-URL"
+        design:
+          title: "Design"
+          width:
+            title: "Breite"
+            full: "Voll (1000px)"
+            half: "Halb (500px)"
+            quarter: "Viertel (250px)"
+            custom:
+              title: "Benutzerdefiniert (px)"
+              label: "Benutzerdefinierte Breite (px)"
+              hint: "Geben Sie die benutzerdefinierte Breite in Pixel ein"
+          height:
+            title: "Höhe"
+            huge: "Riesig (830px)"
+            tall: "Hoch (720px)"
+            medium: "Mittel (410px)"
+            short: "Kurz (200px)"
+            custom:
+              title: "Benutzerdefiniert (px)"
+              label: "Benutzerdefinierte Höhe (px)"
+              hint: "Geben Sie die benutzerdefinierte Höhe in Pixel ein"
+        generalSettings: "Allgemeine Einstellungen"
+        studentSettings: "Schülereinstellungen"
+        teacherSettings: "Lehrereinstellungen"
+        stationSettings: "Stationseinstellungen"
+        showIn:
+          title: "Anzeigen in"
+          label: "Durch Kommas getrennte Liste von Räumen oder: Lobby, * für alle, Station, (rollenspezifisch nur für Lehrer, nur für Station)"
+      editor:
+        info: "Gültige YAML- oder JSON-Konfiguration"
+    stations:
+      info: "Um eine neue Station hinzuzufügen, öffnen Sie diesen Link einfach auf dem Client-Gerät: "
+    share:
+      downloadYml: "Klassendatei herunterladen (.yml)"
+      downloadJson: "Klassendatei herunterladen (.json)"
+      restoreFromFile: "Klasse aus Datei wiederherstellen (yaml, json)"
+      restoreFromUrl: "Klasse aus URL wiederherstellen (http, https)"
+      explore: "Auf Github erkunden"
+
+uk:
+  general:
+    userId: "ID користувача"
+    userRole: "Роль користувача"
+    language: "Мова"
+  index:
+    classroom:
+      create: "Створити клас"
+      startTeaching: "Почати викладання"
+      writeProtection: "Захист від запису"
+      ownership:
+        owner: "Ви власник цього класу"
+        teacher: "Ви тут викладач"
+        student: "Ви тут студент"
+      actions:
+        delete: "Видалити"
+        deleteConfirm: "Ви впевнені?"
+        deleteForever: "Так, видалити назавжди"
+        fork: "Копіювати"
+        open: "Відкрити"
+        on: "увімкнено"
+        off: "вимкнено"
+  classroom:
+    station:
+      mode: "Активний режим станції"
+      label: "Назва станції"
+      modeDescription: "Цей браузер зараз працює як станція і готовий обслуговувати студентів"
+      exit: "Вийти з режиму станції"
+      rules:
+        "1": "Потрібно вказати назву"
+        "2": "Назва вже зайнята"
+    sideMenu:
+      onlineUsers: "онлайн-користувачі"
+      settings: "Налаштування"
+      newRoom: "Нова кімната"
+    popup:
+      close: "Закрити"
+  deploy:
+    state:
+      waiting: "Будь ласка, зачекайте, поки ваш клас буде завантажено, вас буде перенаправлено ..."
+      fetching: "Отримання даних з "
+      fetched: "Дані успішно отримані"
+      parsed: "Дані успішно проаналізовані"
+      parsingError: "Помилка аналізу даних"
+      fetchingError: "Помилка отримання даних"
+    overlay:
+      isReady: "Вітаємо, ваш лабораторія готова"
+      redirect: "Вас автоматично перенаправлять до нового класу, який був створений"
+      info: "Ви володієте цим класом і тільки ви можете його змінювати, і ви можете поділитися посиланням зі своїми студентами. Посилання є унікальним, і створення або перезавантаження цього посилання створить нову кімнату."
+      checkbox: "Більше не показувати це повідомлення"
+      goto: "Перейти до класу"
+  settings:
+    general:
+      title: "Налаштування"
+      writeProtection: "Захист від запису:"
+      Main: "Головне"
+      Members: "Учасники"
+      Modules: "Модулі"
+      Stations: "Станції"
+      Share: "Поділитися"
+      actions:
+        on: "УВІМК"
+        off: "ВИМК"
+        save: "Зберегти"
+        delete: "Видалити клас"
+        deleteConfirm: "Ви впевнені?"
+        deleteForever: "Так, видалити назавжди"
+    main:
+      className: "Назва класу"
+      logoUrl: "URL логотипу"
+      description: "Опис"
+      roomsNum: "Кількість кімнат за замовчуванням (необов'язково)"
+      selfAssign: "Увімкнути самостійне призначення"
+    members:
+      info: "Запросіть своїх користувачів, поділившись цим посиланням: "
+      teacherIds: "Список ідентифікаторів вчителів, розділених комами. Кожен вчитель може змінювати курс."
+      studentIds: "Список ідентифікаторів студентів, розділених комами, залиште порожнім або додайте *, щоб вказати всіх. Студент може взаємодіяти з модулями."
+    modules:
+      delete: "Видалити модуль та його конфігурацію?"
+      deleteConfirm: "Так"
+      url: "URL модуля"
+      add: "Додати"
+      explore: "Досліджуйте на Github"
+      noDescription: "Немає опису"
+      module:
+        url:
+          title: "URL"
+          urlLabel: "URL модуля"
+        design:
+          title: "Дизайн"
+          width:
+            title: "Ширина"
+            full: "Повний (1000px)"
+            half: "Половина (500px)"
+            quarter: "Чверть (250px)"
+            custom:
+              title: "Користувацький (px)"
+              label: "Користувацька ширина (px)"
+              hint: "Введіть користувацьку ширину в пікселях"
+          height:
+            title: "Висота"
+            huge: "Великий (830px)"
+            tall: "Високий (720px)"
+            medium: "Середній (410px)"
+            short: "Короткий (200px)"
+            custom:
+              title: "Користувацький (px)"
+              label: "Користувацька висота (px)"
+              hint: "Введіть користувацьку висоту в пікселях"
+        generalSettings: "Загальні налаштування"
+        studentSettings: "Налаштування студента"
+        teacherSettings: "Налаштування вчителя"
+        stationSettings: "Налаштування станції"
+        showIn:
+          title: "Показати в"
+          label: "Список кімнат, розділених комами, або: лобі, * для всіх, станція, (рольово-специфічний тільки для вчителя, тільки для станції)"
+      editor:
+        info: "Дійсна конфігурація YAML або JSON"
+    stations:
+      info: "Щоб додати нову станцію, просто відкрийте це посилання на пристрої клієнта: "
+    share:
+      downloadYml: "Завантажити файл класу (.yml)"
+      downloadJson: "Завантажити файл класу (.json)"
+      restoreFromFile: "Відновити клас з файлу (yaml, json)"
+      restoreFromUrl: "Відновити клас з URL (http, https)"
+      explore: "Досліджуйте на Github"
+
+ar:
+  general:
+    userId: "معرف المستخدم"
+    userRole: "دور المستخدم"
+    language: "لغة"
+  index:
+    classroom:
+      create: "إنشاء فصل دراسي"
+      startTeaching: "ابدأ التدريس الآن"
+      writeProtection: "حماية الكتابة"
+      ownership:
+        owner: "أنت تمتلك هذا الفصل"
+        teacher: "أنت معلم هنا"
+        student: "أنت طالب هنا"
+      actions:
+        delete: "حذف"
+        deleteConfirm: "هل أنت متأكد؟"
+        deleteForever: "نعم، احذف بشكل دائم"
+        fork: "نسخ"
+        open: "فتح"
+        on: "مشغّل"
+        off: "متوقف"
+  classroom:
+    station:
+      mode: "وضع المحطة نشط"
+      label: "اسم المحطة"
+      modeDescription: "هذا المتصفح يعمل الآن كمحطة وجاهز لخدمة الطلاب"
+      exit: "الخروج من وضع المحطة"
+      rules:
+        "1": "الاسم مطلوب"
+        "2": "هذا الاسم محجوز"
+    sideMenu:
+      onlineUsers: "المستخدمون المتصلون"
+      settings: "الإعدادات"
+      newRoom: "غرفة جديدة"
+    popup:
+      close: "إغلاق"
+  deploy:
+    state:
+      waiting: "يرجى الانتظار بينما يتم تحميل فصلك الدراسي، سيتم توجيهك ..."
+      fetching: " جلب البيانات من"
+      fetched: "تم جلب البيانات بنجاح"
+      parsed: "تم تحليل البيانات بنجاح"
+      parsingError: "خطأ في تحليل البيانات"
+      fetchingError: "خطأ في جلب البيانات"
+    overlay:
+      isReady: "تهانينا، مختبرك جاهز"
+      redirect: "سيتم توجيهك تلقائيًا إلى الفصل الدراسي الجديد الذي تم إنشاؤه"
+      info: "أنت تمتلك هذا الفصل الدراسي وأنت الوحيد الذي يمكنه تعديله ويمكنك مشاركة الرابط مع طلابك. الرابط فريد وإعادة إنشاء أو إعادة تحميل هذا الرابط سينشئ غرفة جديدة."
+      checkbox: "لا تظهر هذه الرسالة مرة أخرى"
+      goto: "الانتقال إلى الفصل الدراسي"
+  settings:
+    general:
+      title: "الإعدادات"
+      writeProtection: "حماية الكتابة:"
+      Main: "الرئيسية"
+      Members: "الأعضاء"
+      Modules: "الوحدات"
+      Stations: "المحطات"
+      Share: "مشاركة"
+      actions:
+        on: "تشغيل"
+        off: "إيقاف"
+        save: "حفظ"
+        delete: "حذف الفصل الدراسي"
+        deleteConfirm: "هل أنت متأكد؟"
+        deleteForever: "نعم، احذف بشكل دائم"
+    main:
+      className: "اسم الفصل الدراسي"
+      logoUrl: "رابط الشعار"
+      description: "الوصف"
+      roomsNum: "عدد الغرف الافتراضي (اختياري)"
+      selfAssign: "تمكين التعيين الذاتي"
+    members:
+      info: "ادعو مستخدميك من خلال مشاركة هذا الرابط: "
+      teacherIds: "قائمة معرفات المعلمين، مفصولة بفواصل. يمكن لكل معلم تعديل الدورة."
+      studentIds: "قائمة معرفات الطلاب، مفصولة بفواصل، اتركها فارغة أو أضف * للكل. يمكن للطالب التفاعل مع الوحدات."
+    modules:
+      delete: "حذف الوحدة وتكوينها؟"
+      deleteConfirm: "نعم"
+      url: "رابط الوحدة"
+      add: "إضافة"
+      explore: "استكشاف على Github"
+      noDescription: "لا يوجد وصف"
+      module:
+        url:
+          title: "رابط"
+          urlLabel: "رابط الوحدة"
+        design:
+          title: "التصميم"
+          width:
+            title: "العرض"
+            full: "كامل (1000 بكسل)"
+            half: "نصف (500 بكسل)"
+            quarter: "ربع (250 بكسل)"
+            custom:
+              title: "مخصص (بكسل)"
+              label: "العرض المخصص (بكسل)"
+              hint: "أدخل العرض المخصص بالبكسل"
+          height:
+            title: "الارتفاع"
+            huge: "ضخم (830 بكسل)"
+            tall: "طويل (720 بكسل)"
+            medium: "متوسط (410 بكسل)"
+            short: "قصير (200 بكسل)"
+            custom:
+              title: "مخصص (بكسل)"
+              label: "الارتفاع المخصص (بكسل)"
+              hint: "أدخل الارتفاع المخصص بالبكسل"
+        generalSettings: "الإعدادات العامة"
+        studentSettings: "إعدادات الطالب"
+        teacherSettings: "إعدادات المعلم"
+        stationSettings: "إعدادات المحطة"
+        showIn:
+          title: "إظهار في"
+          label: "قائمة مفصولة بفواصل من الغرف، أو: اللوبي، * للكل، المحطة، (خاص بالمع"
+        editor:
+          info: "تكوين YAML أو JSON صالح"
+    stations:
+      info: "لإضافة محطة جديدة، فقط افتح هذا الرابط على جهاز العميل: "
+    share:
+      downloadYml: "تنزيل ملف الفصل (.yml)"
+      downloadJson: "تنزيل ملف الفصل (.json)"
+      restoreFromFile: "استعادة الفصل من الملف (yaml، json)"
+      restoreFromUrl: "استعادة الفصل من الرابط (http، https)"
+      explore: "استكشاف على Github"
+      
