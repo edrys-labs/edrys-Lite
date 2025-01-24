@@ -2,6 +2,7 @@ general:
   userId: "User ID"
   userRole: "User Role"
   language: "Language"
+
 index:
   classroom:
     create: "Create a class"
@@ -19,6 +20,7 @@ index:
       open: "Open"
       on: "on"
       off: "off"
+
 classroom:
   station:
     mode: "Station Mode Active"
@@ -34,6 +36,7 @@ classroom:
     newRoom: "New room"
   popup:
     close: "Close"
+
 deploy:
   state:
     waiting: "Please wait while your classrooms gets loaded, you will be redirected ..."
@@ -48,6 +51,7 @@ deploy:
     info: "You own this classroom and you are the only one who can modify it and you can share the link with your students. The link is unique and recreating or reloading this link will create a new room."
     checkbox: "Don't show this message again"
     goto: "Goto Classroom"
+
 settings:
   general:
     title: "Settings"
@@ -123,3 +127,105 @@ settings:
     restoreFromFile: "Restore class from file (yaml, json)"
     restoreFromUrl: "Restore class from URL (http, https)"
     explore: "Explore on Github"
+
+chat:
+  deletedMessage: "previous messages have been deleted ..."
+  sendButton: "Send"
+
+checks:
+  webRTCSupport: "WebRTC-support"
+  configLoaded: "Configuration loaded"
+  connected: 
+    1: "Connected to peer 2 peer network ("
+    2: " sec.)"
+
+footer:
+  github: "edrys-Lite on GitHub"
+  docs: "View the Documentation" 
+  explore: "Explore Classrooms"
+
+modules:
+  noModules:
+    1: "Sorry, looks like you have not loaded up any "
+    2: " modules. Add some in the class settings to get started."
+    3: "Sorry, it looks like the class creators have not added any modules yet."
+
+logger:
+  title: "Logger"
+  recording: "Recording"
+  showingLogs: "Showing Logs from"
+  loadPrevious: "Load previous Logs"
+  stationName: "Station Name"
+  dataOptions: "Data Options"
+  options:
+    memory: "Memory Usage"
+    network: "Network Data"
+    console: "Console Logs"
+    station: "Station Data"
+  minimize: "Minimize (keeps running in background)"
+  close: "Close"
+  actions:
+    start: "Start"
+    stop: "Stop"
+    load: "Load"
+    clear: "Clear"
+  tabs:
+    memory:
+      title: "Memory Usage"
+      noData: "Click Start to monitor memory usage, or load existing logs."
+      start: "Started monitoring memory usage..."
+      stop: "Stopped monitoring memory usage."
+      norecords: "No memory data were recorded."
+      notSupported: "Performance memory API is not supported in this browser!!"
+      chart:
+        title: "Memory Usage Chart"
+        refresh: "Refresh Chart"
+        x: "Time"
+        y: "Memory Usage (MB)"
+      usedJSHeapSize: "Used JS Heap Size"
+      totalJSHeapSize: "Total JS Heap Size"
+      jsHeapSizeLimit: "JS Heap Size Limit"
+      chartTitle: "Memory Usage Chart"
+      refreshChart: "Refresh Chart"
+    network:
+      title: "Network Data"
+      noData: "Click Start to monitor network data, or load existing logs."
+      start: "Started monitoring network data..."
+      stop: "Stopped monitoring network data."
+      norecords: "No network data were recorded."
+      request: "Request"
+      response: "Response"
+      status: "Status"
+      options: "Options"
+      event: "Event"
+      type: "Type"
+      url: "URL"
+    console:
+      title: "Console Logs"
+      noData: "Click Start to monitor console logs, or load existing logs."
+      start: "Started monitoring console logs..."
+      stop: "Stopped monitoring console logs."
+      norecords: "No console logs were recorded."
+    station:
+      title: "Station Data"
+      noData: "Click Start to monitor users in stations activity."
+      start: "Started monitoring station data..."
+      stop: "Stopped monitoring station data."
+      norecords: "No station data were recorded."
+      user: "User"
+      event: "Event"
+      station: "Station"
+  closeDialog:
+    title: "Closing the Logger will stop it from running, are you sure?"
+    cancel: "Cancel"
+    confirm: "Close"
+
+peer:
+  feedback:
+    noAccess: "You don't have access to this lab, you can only view"
+    userNotFound: "user not found"
+    removedTeacher: "You have been removed as a teacher..."
+    addedTeacher: "You have been added as a teacher..."
+    addedStudent: "You have been added as a student..."
+    removedStudent: "You have been removed as a student..."  
+    moduleChanges: "Module definitions have changed, you better reload the page to capture all changes..."

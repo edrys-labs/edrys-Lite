@@ -1,4 +1,6 @@
 <script lang="ts">
+import { useI18n } from 'vue-i18n';
+
 export default {
   name: "Checks",
 
@@ -7,6 +9,12 @@ export default {
       type: Object,
       required: true,
     },
+  },
+
+  setup() {
+    const { t, locale } = useI18n();
+
+    return { t, locale };
   },
 
   data() {
@@ -69,7 +77,7 @@ export default {
           ></v-progress-circular>
 
           <div>
-            WebRTC-support
+            {{ t('checks.webRTCSupport') }}
 
             <v-btn
               class="ma-5"
@@ -89,7 +97,7 @@ export default {
           </div>
 
           <div>
-            Configuration loaded
+            {{ t('checks.configLoaded') }}
 
             <v-btn
               class="ma-5"
@@ -109,7 +117,7 @@ export default {
           </div>
 
           <div>
-            Connected to peer 2 peer network ({{ counter }} sec.)
+            {{ t('checks.connected.1') }}{{ counter }} {{ t('checks.connected.2') }}
 
             <v-btn
               class="ma-5"
