@@ -88,9 +88,7 @@ export default class Peer {
     this.connectProvider(room, password)
 
     // Ensure cleanup on page unload
-    window.addEventListener('beforeunload', () => {
-      this.stop()
-    })
+    window.addEventListener('beforeunload', this.stop)
   }
 
   /**
@@ -630,15 +628,27 @@ export default class Peer {
       clearInterval(heartbeatID)
       heartbeatID = null
     }
+
+    // Remove beforeunload listener for this peer instance
+    window.removeEventListener('beforeunload', this.stop)
+
+    // Remove user from Yjs users map within a transaction
     this.y.doc.transact(() => {
       this.y.users.delete(this.peerID)
     }, 'stop')
 
-    this.provider.disconnect()
-    this.provider.destroy()
+    // Disconnect and destroy the provider with cleanup
+    if (this.provider) {
+      this.provider.disconnect()
+      this.provider.destroy() // Ensure this calls our improved destroy
+    }
 
+    // Clear callbacks to release references
     this.callback = {}
     this.callbackUpdate = {}
+
+    // Additional cleanup for Yjs document if necessary
+    this.y.doc.destroy()
   }
 
   /**
