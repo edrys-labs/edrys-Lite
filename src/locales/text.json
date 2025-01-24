@@ -484,7 +484,7 @@
         "ownership": {
           "owner": "أنت تمتلك هذا الفصل",
           "teacher": "أنت معلم هنا",
-          "student": "أنت طالب هنا"
+          "student": "أنت طالب هنا" 
         },
         "actions": {
           "delete": "حذف",

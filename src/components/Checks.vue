@@ -15,19 +15,17 @@ export default {
 
   methods: {
     counterIncrement() {
-      if (this.states.connectedToNetwork) {
-        this.counter = 0;
-      } else {
-        setTimeout(() => {
-          this.counter++;
-          this.counterIncrement();
-        }, 1000);
-      }
+      setTimeout(() => {
+        this.counter++;
+        this.counterIncrement();
+      }, 1000);
     },
 
     check() {
       if (this.states.receivedConfiguration && !this.states.connectedToNetwork) {
         this.counterIncrement();
+      } else if (this.states.connectedToNetwork) {
+        this.counter = 0;
       }
 
       return !(
@@ -45,6 +43,10 @@ export default {
       },
       deep: true,
     },
+  },
+
+  unmounted() {
+    this.counter = 0;
   },
 };
 </script>

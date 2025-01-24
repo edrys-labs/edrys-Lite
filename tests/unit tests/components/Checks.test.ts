@@ -78,7 +78,7 @@ describe('Checks Component', () => {
 
     vi.advanceTimersByTime(2000);
     await wrapper.vm.$nextTick();
-    expect(wrapper.vm.counter).toBe(2);
+    expect(wrapper.vm.counter).toBe(2); 
 
     await wrapper.setProps({
       states: {

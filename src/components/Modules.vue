@@ -118,7 +118,7 @@ export default {
       }, 1000);
     });
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener("message", this.messageHandler);
     this.communication.on("message", undefined);
     this.grid.destroy();

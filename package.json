@@ -19,6 +19,7 @@
     "@parcel/reporter-bundle-analyzer": "^2.13.2",
     "@parcel/transformer-sass": "^2.13.2",
     "@parcel/transformer-vue": "^2.13.2",
+    "@parcel/transformer-yaml": "^2.13.2",
     "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.1",
     "@vue/test-utils": "^2.4.6",
