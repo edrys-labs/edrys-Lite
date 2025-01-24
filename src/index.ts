@@ -66,8 +66,11 @@ import {
 import * as directives from '../node_modules/vuetify/lib/directives/index.mjs'
 import { createVueI18nAdapter } from '../node_modules/vuetify/lib/locale/adapters/vue-i18n.mjs'
 import { createI18n, useI18n } from 'vue-i18n'
-import translations from '@/locales/text.yaml'
 import { en, de, uk, ar } from '../node_modules/vuetify/lib/locale/index.mjs'
+import enTranslations from '@/locales/en.yaml'
+import deTranslations from '@/locales/de.yaml'
+import ukTranslations from '@/locales/uk.yaml'
+import arTranslations from '@/locales/ar.yaml'
 
 // import highlighting library (you can use any library you want just return html string)
 // @ts-ignore
@@ -111,10 +114,10 @@ const i18n = createI18n({
   locale: getSavedLocale(),
   fallbackLocale: 'en',
   messages: {
-    en: { $vuetify: { ...en }, ...(translations.en || {}) },
-    de: { $vuetify: { ...de }, ...(translations.de || {}) },
-    uk: { $vuetify: { ...uk }, ...(translations.uk || {}) },
-    ar: { $vuetify: { ...ar }, ...(translations.ar || {}) },
+    en: { $vuetify: { ...en }, ...enTranslations },
+    de: { $vuetify: { ...de }, ...deTranslations },
+    uk: { $vuetify: { ...uk }, ...ukTranslations },
+    ar: { $vuetify: { ...ar }, ...arTranslations },
   }
 })
 

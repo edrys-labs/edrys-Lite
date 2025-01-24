@@ -1,0 +1,125 @@
+general:
+  userId: "معرف المستخدم"
+  userRole: "دور المستخدم"
+  language: "لغة"
+index:
+  classroom:
+    create: "إنشاء فصل دراسي"
+    startTeaching: "ابدأ التدريس الآن"
+    writeProtection: "حماية الكتابة"
+    ownership:
+      owner: "أنت تمتلك هذا الفصل"
+      teacher: "أنت معلم هنا"
+      student: "أنت طالب هنا"
+    actions:
+      delete: "حذف"
+      deleteConfirm: "هل أنت متأكد؟"
+      deleteForever: "نعم، احذف بشكل دائم"
+      fork: "نسخ"
+      open: "فتح"
+      on: "مشغّل"
+      off: "متوقف"
+classroom:
+  station:
+    mode: "وضع المحطة نشط"
+    label: "اسم المحطة"
+    modeDescription: "هذا المتصفح يعمل الآن كمحطة وجاهز لخدمة الطلاب"
+    exit: "الخروج من وضع المحطة"
+    rules:
+      "1": "الاسم مطلوب"
+      "2": "هذا الاسم محجوز"
+  sideMenu:
+    onlineUsers: "المستخدمون المتصلون"
+    settings: "الإعدادات"
+    newRoom: "غرفة جديدة"
+  popup:
+    close: "إغلاق"
+deploy:
+  state:
+    waiting: "يرجى الانتظار بينما يتم تحميل فصلك الدراسي، سيتم توجيهك ..."
+    fetching: " جلب البيانات من"
+    fetched: "تم جلب البيانات بنجاح"
+    parsed: "تم تحليل البيانات بنجاح"
+    parsingError: "خطأ في تحليل البيانات"
+    fetchingError: "خطأ في جلب البيانات"
+  overlay:
+    isReady: "تهانينا، مختبرك جاهز"
+    redirect: "سيتم توجيهك تلقائيًا إلى الفصل الدراسي الجديد الذي تم إنشاؤه"
+    info: "أنت تمتلك هذا الفصل الدراسي وأنت الوحيد الذي يمكنه تعديله ويمكنك مشاركة الرابط مع طلابك. الرابط فريد وإعادة إنشاء أو إعادة تحميل هذا الرابط سينشئ غرفة جديدة."
+    checkbox: "لا تظهر هذه الرسالة مرة أخرى"
+    goto: "الانتقال إلى الفصل الدراسي"
+settings:
+  general:
+    title: "الإعدادات"
+    writeProtection: "حماية الكتابة:"
+    Main: "الرئيسية"
+    Members: "الأعضاء"
+    Modules: "الوحدات"
+    Stations: "المحطات"
+    Share: "مشاركة"
+    actions:
+      on: "تشغيل"
+      off: "إيقاف"
+      save: "حفظ"
+      delete: "حذف الفصل الدراسي"
+      deleteConfirm: "هل أنت متأكد؟"
+      deleteForever: "نعم، احذف بشكل دائم"
+  main:
+    className: "اسم الفصل الدراسي"
+    logoUrl: "رابط الشعار"
+    description: "الوصف"
+    roomsNum: "عدد الغرف الافتراضي (اختياري)"
+    selfAssign: "تمكين التعيين الذاتي"
+  members:
+    info: "ادعو مستخدميك من خلال مشاركة هذا الرابط: "
+    teacherIds: "قائمة معرفات المعلمين، مفصولة بفواصل. يمكن لكل معلم تعديل الدورة."
+    studentIds: "قائمة معرفات الطلاب، مفصولة بفواصل، اتركها فارغة أو أضف * للكل. يمكن للطالب التفاعل مع الوحدات."
+  modules:
+    delete: "حذف الوحدة وتكوينها؟"
+    deleteConfirm: "نعم"
+    url: "رابط الوحدة"
+    add: "إضافة"
+    explore: "استكشاف على Github"
+    noDescription: "لا يوجد وصف"
+    module:
+      url:
+        title: "رابط"
+        urlLabel: "رابط الوحدة"
+      design:
+        title: "التصميم"
+        width:
+          title: "العرض"
+          full: "كامل (1000 بكسل)"
+          half: "نصف (500 بكسل)"
+          quarter: "ربع (250 بكسل)"
+          custom:
+            title: "مخصص (بكسل)"
+            label: "العرض المخصص (بكسل)"
+            hint: "أدخل العرض المخصص بالبكسل"
+        height:
+          title: "الارتفاع"
+          huge: "ضخم (830 بكسل)"
+          tall: "طويل (720 بكسل)"
+          medium: "متوسط (410 بكسل)"
+          short: "قصير (200 بكسل)"
+          custom:
+            title: "مخصص (بكسل)"
+            label: "الارتفاع المخصص (بكسل)"
+            hint: "أدخل الارتفاع المخصص بالبكسل"
+      generalSettings: "الإعدادات العامة"
+      studentSettings: "إعدادات الطالب"
+      teacherSettings: "إعدادات المعلم"
+      stationSettings: "إعدادات المحطة"
+      showIn:
+        title: "إظهار في"
+        label: "قائمة مفصولة بفواصل من الغرف، أو: اللوبي، * للكل، المحطة، (خاص بالمعلم فقط، خاص بالمحطة فقط)"
+    editor:
+      info: "تكوين YAML أو JSON صالح"
+  stations:
+    info: "لإضافة محطة جديدة، فقط افتح هذا الرابط على جهاز العميل: "
+  share:
+    downloadYml: "تنزيل ملف الفصل (.yml)"
+    downloadJson: "تنزيل ملف الفصل (.json)"
+    restoreFromFile: "استعادة الفصل من الملف (yaml، json)"
+    restoreFromUrl: "استعادة الفصل من الرابط (http، https)"
+    explore: "استكشاف على Github"

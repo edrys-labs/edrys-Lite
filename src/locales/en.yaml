@@ -1,0 +1,125 @@
+general:
+  userId: "User ID"
+  userRole: "User Role"
+  language: "Language"
+index:
+  classroom:
+    create: "Create a class"
+    startTeaching: "Start teaching now"
+    writeProtection: "Write Protection"
+    ownership:
+      owner: "You own this class"
+      teacher: "You're a teacher here"
+      student: "You're a student here"
+    actions:
+      delete: "Delete"
+      deleteConfirm: "Are you sure?"
+      deleteForever: "Yes, delete forever"
+      fork: "Fork"
+      open: "Open"
+      on: "on"
+      off: "off"
+classroom:
+  station:
+    mode: "Station Mode Active"
+    label: "Station Name"
+    modeDescription: "This browser is now running as a station and ready to serve students"
+    exit: "Exit Station Mode"
+    rules:
+      "1": "Name is required"
+      "2": "Name is already taken"
+  sideMenu:
+    onlineUsers: "online users"
+    settings: "Settings"
+    newRoom: "New room"
+  popup:
+    close: "Close"
+deploy:
+  state:
+    waiting: "Please wait while your classrooms gets loaded, you will be redirected ..."
+    fetching: "Fetching data from "
+    fetched: "Data fetched successfully"
+    parsed: "Data parsed successfully"
+    parsingError: "Error parsing data"
+    fetchingError: "Error fetching data"
+  overlay:
+    isReady: "Congratulations, your lab is ready"
+    redirect: "You will be automatically redirected to the new classroom that has been created at"
+    info: "You own this classroom and you are the only one who can modify it and you can share the link with your students. The link is unique and recreating or reloading this link will create a new room."
+    checkbox: "Don't show this message again"
+    goto: "Goto Classroom"
+settings:
+  general:
+    title: "Settings"
+    writeProtection: "Write Protection:"
+    Main: "Main"
+    Members: "Members"
+    Modules: "Modules"
+    Stations: "Stations"
+    Share: "Share"
+    actions:
+      on: "ON"
+      off: "OFF"
+      save: "Save"
+      delete: "Delete Class"
+      deleteConfirm: "Are you sure?"
+      deleteForever: "Yes, delete forever"
+  main:
+    className: "Class Name"
+    logoUrl: "Logo URL"
+    description: "Description"
+    roomsNum: "Default number of rooms (optional)"
+    selfAssign: "Enable self-assignment"
+  members:
+    info: "Invite your users in by sharing this link: "
+    teacherIds: "List of teacher ids, separated by commas. Each teacher can modify course."
+    studentIds: "List of student ids, separated by commas, leave empty or add a * for all. Student can interact with modules."
+  modules:
+    delete: "Delete the module and its configuration?"
+    deleteConfirm: "Yes"
+    url: "Module URL"
+    add: "Add"
+    explore: "Explore on Github"
+    noDescription: "No description"
+    module:
+      url:
+        title: "URL"
+        urlLabel: "Module URL"
+      design:
+        title: "Design"
+        width:
+          title: "Width"
+          full: "Full (1000px)"
+          half: "Half (500px)"
+          quarter: "Quarter (250px)"
+          custom:
+            title: "Custom (px)"
+            label: "Custom Width (px)"
+            hint: "Enter custom width in pixels"
+        height:
+          title: "Height"
+          huge: "Huge (830px)"
+          tall: "Tall (720px)"
+          medium: "Medium (410px)"
+          short: "Short (200px)"
+          custom:
+            title: "Custom (px)"
+            label: "Custom Height (px)"
+            hint: "Enter custom height in pixels"
+      generalSettings: "General Settings"
+      studentSettings: "Student Settings"
+      teacherSettings: "Teacher Settings"
+      stationSettings: "Station Settings"
+      showIn:
+        title: "Show in"
+        label: "Comma separated list of rooms, or: lobby, * for all, station, (role specific teacher-only, station-only)"
+    editor:
+      info: "Valid YAML or JSON configuration"
+  stations:
+    info: "To add a new station, simply open this link on the client device: "
+  share:
+    downloadYml: "Download class file (.yml)"
+    downloadJson: "Download class file (.json)"
+    restoreFromFile: "Restore class from file (yaml, json)"
+    restoreFromUrl: "Restore class from URL (http, https)"
+    explore: "Explore on Github"
