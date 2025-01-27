@@ -113,9 +113,10 @@ export default {
         style="
           top: 50%;
           left: 50%;
-
+          right: 50%;
           transform: translate(-50%, 50%);
           max-width: 800px;
+          direction: inherit;
         "
       >
         <v-card-text class="white--text">

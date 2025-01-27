@@ -22,6 +22,7 @@
     "@parcel/transformer-yaml": "^2.13.2",
     "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.1",
+    "@vitejs/plugin-vue": "^5.2.1",
     "@vue/test-utils": "^2.4.6",
     "assert": "^2.1.0",
     "buffer": "^6.0.3",
