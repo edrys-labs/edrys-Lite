@@ -159,7 +159,8 @@ export default {
           this.configuration
             ? this.configuration
             : { id: this.id, data: null, timestamp: 0, hash: this.hash },
-          this.stationName
+          this.stationName,
+          this.t    
         );
 
         this.communication.on("setup", async (configuration: DatabaseItem) => {

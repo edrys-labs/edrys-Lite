@@ -1,8 +1,6 @@
 import { getPeerID, hashJsonObject, deepEqual, getShortPeerID } from './Utils'
-
 import * as Y from 'yjs'
 // @ts-ignore
-// import * as YP from 'y-protocols/awareness.js'
 import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
 
 function LOG(...args: any[]) {
@@ -20,6 +18,8 @@ let heartbeatID: ReturnType<typeof setInterval> | null
 
 export default class Peer {
   private provider: EdrysWebrtcProvider
+  
+  private t: (key: string) => string  
 
   private y: {
     doc: Y.Doc
@@ -54,7 +54,8 @@ export default class Peer {
   constructor(
     setup: { id: string; data: any; timestamp: number; hash: string | null },
     stationID?: string,
-    password?: string
+    t?: (key: string) => string,  // Translation function parameter
+    password?: string,
   ) {
     const doc = new Y.Doc()
 
@@ -73,6 +74,8 @@ export default class Peer {
       this.role = 'station'
       this.peerID = STATION + ' ' + stationID
     }
+
+    this.t = t || ((key: string) => key)  
 
     // Initialize local state within a transaction
     this.y.doc.transact(() => {
@@ -189,7 +192,7 @@ export default class Peer {
         if (!this.allowedToParticipate()) {
           this.update(
             'popup',
-            "You don't have access to this lab, you can only view"
+            this.t('peer.feedback.noAccess')
           )
         }
       }
@@ -267,7 +270,7 @@ export default class Peer {
     if (!deepEqual(oldSetup.modules, newSetup.modules)) {
       this.update(
         'popup',
-        'Module definitions have changed, you better reload the page to capture all changes...'
+        this.t('peer.feedback.moduleChanges')
       )
     }
 
@@ -283,7 +286,7 @@ export default class Peer {
         oldSetup.members.teacher.includes(id) &&
         !newSetup.members.teacher.includes(id)
       ) {
-        this.update('popup', 'You have been removed as a teacher...')
+        this.update('popup', this.t('peer.feedback.removedTeacher'))
         this.user().set('role', 'student')
       }
 
@@ -291,7 +294,7 @@ export default class Peer {
         !oldSetup.members.teacher.includes(id) &&
         newSetup.members.teacher.includes(id)
       ) {
-        this.update('popup', 'You have been added as a teacher...')
+        this.update('popup', this.t('peer.feedback.addedTeacher'))
         this.user().set('role', 'teacher')
         return
       }
@@ -314,23 +317,23 @@ export default class Peer {
         newSetup.members.student.includes('*')
 
       if ((oldOpen || !isInOldSetup) && isInNewSetup) {
-        this.update('popup', 'You have been added as a student...')
+        this.update('popup', this.t('peer.feedback.addedStudent'))
 
         return
       }
 
       if (!oldOpen && newOpen) {
-        this.update('popup', 'You have been added as a student...')
+        this.update('popup', this.t('peer.feedback.addedStudent'))
         return
       }
 
       if (!oldOpen && isInOldSetup && !isInNewSetup) {
-        this.update('popup', 'You have been removed as a student...')
+        this.update('popup', this.t('peer.feedback.removedStudent'))
         return
       }
 
       if (oldOpen && !newOpen && !isInNewSetup) {
-        this.update('popup', 'You have been removed as a student...')
+        this.update('popup', this.t('peer.feedback.removedStudent'))
       }
     }
   }
@@ -354,7 +357,7 @@ export default class Peer {
         if (!this.allowedToParticipate()) {
           this.update(
             'popup',
-            "You don't have access to this lab, you can only view"
+            this.t('peer.feedback.noAccess')
           )
         }
       }
@@ -372,7 +375,7 @@ export default class Peer {
         if (!this.allowedToParticipate()) {
           this.update(
             'popup',
-            "You don't have access to this lab, you can only view"
+            this.t('peer.feedback.noAccess')
           )
         }
       }
@@ -699,9 +702,7 @@ export default class Peer {
 
     // prevent broadcast from unauthorized users
     if (!this.allowedToParticipate()) {
-      console.warn(
-        'Unauthorized user trying to broadcast message, contact admin for access'
-      )
+      console.warn(this.t('peer.feedback.noAccess'))
       return
     }
 
@@ -817,7 +818,7 @@ export default class Peer {
   updateState(data: Uint8Array) {
     if (!this.allowedToParticipate()) {
       console.warn(
-        'Your state changes will not be propagated to other users, contact admin for lab access'
+        this.t('peer.feedback.noAccess')
       )
       return
     }
