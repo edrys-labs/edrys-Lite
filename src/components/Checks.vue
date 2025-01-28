@@ -1,4 +1,6 @@
 <script lang="ts">
+import { useI18n } from 'vue-i18n';
+
 export default {
   name: "Checks",
 
@@ -9,25 +11,29 @@ export default {
     },
   },
 
+  setup() {
+    const { t, locale } = useI18n();
+
+    return { t, locale };
+  },
+
   data() {
     return { model: this.check(), counter: 0 };
   },
 
   methods: {
     counterIncrement() {
-      if (this.states.connectedToNetwork) {
-        this.counter = 0;
-      } else {
-        setTimeout(() => {
-          this.counter++;
-          this.counterIncrement();
-        }, 1000);
-      }
+      setTimeout(() => {
+        this.counter++;
+        this.counterIncrement();
+      }, 1000);
     },
 
     check() {
       if (this.states.receivedConfiguration && !this.states.connectedToNetwork) {
         this.counterIncrement();
+      } else if (this.states.connectedToNetwork) {
+        this.counter = 0;
       }
 
       return !(
@@ -45,6 +51,10 @@ export default {
       },
       deep: true,
     },
+  },
+
+  unmounted() {
+    this.counter = 0;
   },
 };
 </script>
@@ -67,7 +77,7 @@ export default {
           ></v-progress-circular>
 
           <div>
-            WebRTC-support
+            {{ t('checks.webRTCSupport') }}
 
             <v-btn
               class="ma-5"
@@ -87,7 +97,7 @@ export default {
           </div>
 
           <div>
-            Configuration loaded
+            {{ t('checks.configLoaded') }}
 
             <v-btn
               class="ma-5"
@@ -107,7 +117,7 @@ export default {
           </div>
 
           <div>
-            Connected to peer 2 peer network ({{ counter }} sec.)
+            {{ t('checks.connected.1') }}{{ counter }} {{ t('checks.connected.2') }}
 
             <v-btn
               class="ma-5"

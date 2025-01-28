@@ -25,7 +25,7 @@
           </v-list-item-title>
 
           <v-list-item-subtitle
-            v-html="scrapedModules[index]?.description || 'No description'"
+            v-html="scrapedModules[index]?.description || t('settings.modules.noDescription')"
             style="white-space: break-spaces"
           >
           </v-list-item-subtitle>
@@ -61,7 +61,7 @@
               <v-list>
                 <v-list-item>
                   <v-list-item-title>
-                    Delete the module and its configuration?
+                    {{ t('settings.modules.delete') }}
                   </v-list-item-title>
 
                   <v-btn
@@ -71,7 +71,7 @@
                     class="float-right"
                     style="margin-top: 10px"
                   >
-                    Yes
+                    {{ t('settings.modules.deleteConfirm') }}
                   </v-btn>
                 </v-list-item>
               </v-list>
@@ -87,7 +87,7 @@
 
       <v-text-field
         v-model="moduleImportUrl"
-        label="Module URL"
+        :label="t('settings.modules.url')"
         variant="underlined"
         required
         style="width: calc(100% - 40px)"
@@ -96,7 +96,7 @@
       <template v-slot:append>
         <v-btn @click="loadURL" :disabled="!validate_url(moduleImportUrl)">
           <v-icon left> mdi-view-grid-plus </v-icon>
-          Add
+          {{ t('settings.modules.add') }}
         </v-btn>
       </template>
     </v-list-item>
@@ -105,7 +105,7 @@
   <v-divider class="pb-2"></v-divider>
   <v-btn href="https://github.com/topics/edrys-module?q=edrys-lite" target="_blank">
     <v-icon left> mdi-github </v-icon>
-    Explore on GitHub
+    {{ t('settings.modules.explore') }}
   </v-btn>
 </template>
 
@@ -113,6 +113,7 @@
 import { scrapeModule, validateUrl } from "../../ts/Utils";
 import draggable from "vuedraggable";
 import Module from "./Module.vue";
+import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Settings-Modules",
@@ -132,6 +133,11 @@ export default {
       type: Boolean,
       required: true,
     },
+  },
+
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
   },
 
   data() {

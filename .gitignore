@@ -4,3 +4,10 @@ ignore/
 dist/
 backup
 parcel-bundle-reports/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+e2e tests/
+tests-examples/
+playwright.config.ts

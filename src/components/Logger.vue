@@ -1,5 +1,6 @@
 <script lang="ts">
 import { onMounted } from "vue";
+import { useI18n } from 'vue-i18n';
 
 var echarts: any = null;
 
@@ -54,6 +55,15 @@ export default {
   name: "Logger",
 
   props: ["liveClassProxy", "classId", "stationName", "database"],
+
+  setup() {
+    const { t, locale } = useI18n();
+
+    return {
+      t, 
+      locale,
+    };
+  },
 
   data() {
     onMounted(async () => {
@@ -114,11 +124,11 @@ export default {
 
       loggerTabsText: [
         performance.memory
-          ? "Click Start to monitor memory usage, or load existing logs."
-          : "Performance memory API is not supported in this browser!!",
-        "Click Start to monitor network data, or load existing logs.",
-        "Click Start to monitor console logs, or load existing logs.",
-        "Click Start to monitor users in stations activity.",
+          ? this.t('logger.tabs.memory.noData')
+          : this.t('logger.tabs.memory.notSupported'),
+        this.t('logger.tabs.network.noData'),
+        this.t('logger.tabs.console.noData'),
+        this.t('logger.tabs.station.noData'),
       ],
 
       stationLogsInput: null as string | null,
@@ -215,12 +225,12 @@ export default {
       this.clearLogger();
 
       if (this.monitorConsole) {
-        this.loggerTabsText[2] = "Started monitoring console logs...";
+        this.loggerTabsText[2] = this.t('logger.tabs.console.start');
         this.overrideConsoleMethods();
       }
 
       if (this.monitorNetwork) {
-        this.loggerTabsText[1] = "Started monitoring network data...";
+        this.loggerTabsText[1] = this.t('logger.tabs.network.start');
         this.overrideFetch();
         this.overrideXHR();
         this.overrideWebSocket();
@@ -228,12 +238,12 @@ export default {
       }
 
       if (this.monitorUsers) {
-        this.loggerTabsText[3] = "Started monitoring users in stations...";
+        this.loggerTabsText[3] = this.t('logger.tabs.station.start');
         this.monitorUsers = true;
       }
 
       if (this.monitorMemory && this.intervalId === null && performance.memory) {
-        this.loggerTabsText[0] = "Started monitoring memory usage...";
+        this.loggerTabsText[0] = this.t('logger.tabs.memory.start');
 
         // generate one initial data point
         this.measureMemory();
@@ -253,7 +263,7 @@ export default {
       console.log = this.originalConsoleLog;
       console.warn = this.originalConsoleWarn;
       console.error = this.originalConsoleError;
-      this.loggerTabsText[2] = "Stopped monitoring console logs.";
+      this.loggerTabsText[2] = this.t('logger.tabs.console.stop');
 
       // Reset fetch, XHR, and WebSocket to original
       if (this.originalFetch) {
@@ -273,22 +283,22 @@ export default {
         });
         this.webSocketInstances.clear();
       }
-      this.loggerTabsText[1] = "Stopped monitoring network data.";
+      this.loggerTabsText[1] = this.t('logger.tabs.network.stop');
 
       // Stop resource monitoring
       if (this.resourceObserver) {
         this.resourceObserver.disconnect();
         this.resourceObserver = null;
-        this.loggerTabsText[1] = "Stopped monitoring network data.";
+        this.loggerTabsText[1] = this.t('logger.tabs.network.stop');
       }
 
-      this.loggerTabsText[3] = "Stopped monitoring users in stations.";
+      this.loggerTabsText[3] = this.t('logger.tabs.station.stop');
 
       // Stop memory monitoring
       if (this.intervalId !== null) {
         clearInterval(this.intervalId);
         this.intervalId = null;
-        this.loggerTabsText[0] = "Stopped monitoring memory usage.";
+        this.loggerTabsText[0] = this.t('logger.tabs.memory.stop');
       }
 
       // Keep focus on the active tab
@@ -609,7 +619,7 @@ export default {
         const option = {
           xAxis: {
             type: "time",
-            name: "Time",
+            name: this.t('logger.tabs.memory.chart.x'),
             nameLocation: "middle",
             nameGap: 25,
             axisLabel: {
@@ -620,7 +630,7 @@ export default {
           },
           yAxis: {
             type: "value",
-            name: "Memory Usage (MB)",
+            name: this.t('logger.tabs.memory.chart.y'),
             nameLocation: "middle",
             nameGap: 55,
             axisLabel: {
@@ -764,10 +774,10 @@ export default {
           this.usersInStations = usersInStations;
 
           // If no data was recorded
-          this.loggerTabsText[2] = consoleData.length ? "" : "No console logs were recorded.";
-          this.loggerTabsText[0] = memoryData.length ? "" : "No memory data were recorded.";
-          this.loggerTabsText[1] = networkData.length ? "" : "No network data were recorded.";
-          this.loggerTabsText[3] = usersInStations.length ? "" : "No users in stations activity was recorded.";
+          this.loggerTabsText[2] = consoleData.length ? "" : this.t('logger.tabs.console.norecords');
+          this.loggerTabsText[0] = memoryData.length ? "" : this.t('logger.tabs.memory.norecords');
+          this.loggerTabsText[1] = networkData.length ? "" : this.t('logger.tabs.network.norecords');
+          this.loggerTabsText[3] = usersInStations.length ? "" : this.t('logger.tabs.station.norecords');
 
           // Keep focus on the active tab and generate chart
           this.$nextTick(() => {
@@ -863,11 +873,11 @@ export default {
 <template>
   <v-card>
     <v-toolbar dark flat>
-      <v-toolbar-title>Logger</v-toolbar-title>
+      <v-toolbar-title>{{ t('logger.title') }}</v-toolbar-title>
 
       <div id="header_text_container">
         <div id="recording_text" v-if="isLoggerRunning">
-          Recording
+          {{ t('logger.recording') }}
           <div class="circles">
             <div class="circle1"></div>
             <div class="circle2"></div>
@@ -876,7 +886,7 @@ export default {
         </div>
 
         <div v-if="isShowingPrevLogs">
-          {{ !isLogsLoaderVisible ? 'Showing Logs from ' + stationLogsInput : '' }}
+          {{ !isLogsLoaderVisible ? t('logger.showingLogs') + ' ' + stationLogsInput : '' }}
         </div>
       </div>
 
@@ -886,67 +896,59 @@ export default {
         <template v-slot:activator="{ props }">
           <v-btn icon v-bind="props" :disabled="isLoggerRunning">
             <v-icon>mdi-format-list-checkbox</v-icon>
-            <v-tooltip activator="parent" location="bottom">Data Options</v-tooltip>
+            <v-tooltip activator="parent" location="bottom">{{ t('logger.dataOptions') }}</v-tooltip>
           </v-btn>
         </template>
 
         <v-list>
           <v-list-item max-height="1">
-            <v-checkbox v-model="monitorMemory" label="Memory Usage"></v-checkbox>
+            <v-checkbox v-model="monitorMemory" :label="t('logger.options.memory')"></v-checkbox>
           </v-list-item>
           <v-list-item max-height="1">
-            <v-checkbox v-model="monitorNetwork" label="Network Data"></v-checkbox>
+            <v-checkbox v-model="monitorNetwork" :label="t('logger.options.network')"></v-checkbox>
           </v-list-item>
           <v-list-item max-height="1">
-            <v-checkbox v-model="monitorConsole" label="Console Logs"></v-checkbox>
+            <v-checkbox v-model="monitorConsole" :label="t('logger.options.console')"></v-checkbox>
           </v-list-item>
           <v-list-item max-height="1">
-            <v-checkbox v-model="monitorUsers" label="Users in Stations"></v-checkbox>
+            <v-checkbox v-model="monitorUsers" :label="t('logger.options.station')"></v-checkbox>
           </v-list-item>
         </v-list>
       </v-menu>
 
-      <v-tooltip text="Minimize (keeps running in background)" location="bottom">
+      <v-tooltip :text="t('logger.minimize')" location="bottom">
         <template v-slot:activator="{ props }">
           <v-btn v-bind="props" icon="mdi-minus" @click="$emit('minimize')"></v-btn>
         </template>
       </v-tooltip>
 
-      <v-tooltip text="Close" location="bottom">
+      <v-tooltip :text="t('logger.close')" location="bottom">
         <template v-slot:activator="{ props }">
-          <v-btn
-            v-bind="props"
-            icon="mdi-close"
-            @click="isClosingDialogVisible = true"
-          ></v-btn>
+          <v-btn v-bind="props" icon="mdi-close" @click="isClosingDialogVisible = true"></v-btn>
         </template>
       </v-tooltip>
     </v-toolbar>
 
     <div class="btns-container">
-      <v-btn
-        variant="flat"
-        @click="startOrStopLogger"
-        :style="{ backgroundColor: isLoggerRunning ? '#cd202c' : '#5ccc48' }"
-      >
-        {{ isLoggerRunning ? "Stop" : "Start" }}
+      <v-btn variant="flat" @click="startOrStopLogger" :style="{ backgroundColor: isLoggerRunning ? '#cd202c' : '#5ccc48' }">
+        {{ isLoggerRunning ? t('logger.actions.stop') : t('logger.actions.start') }}
       </v-btn>
 
       <v-btn variant="outlined" @click="loadLogs" :disabled="isLoggerRunning">
-        Load
+        {{ t('logger.actions.load') }}
       </v-btn>
 
-      <v-btn variant="outlined" @click="clearLogger" :disabled="isLoggerRunning"> 
-        Clear 
+      <v-btn variant="outlined" @click="clearLogger" :disabled="isLoggerRunning">
+        {{ t('logger.actions.clear') }}
       </v-btn>
     </div>
 
     <div class="tabs-container">
       <v-tabs align-tabs="center" v-model="tab" bg-color="grey-lighten-4" fixed-tabs>
-        <v-tab value="memory" v-if="monitorMemory">Memory Usage</v-tab>
-        <v-tab value="network" v-if="monitorNetwork">Network Data</v-tab>
-        <v-tab value="console" v-if="monitorConsole">Console Logs</v-tab>
-        <v-tab value="station" v-if="monitorUsers">Station Data</v-tab>
+        <v-tab value="memory" v-if="monitorMemory">{{ t('logger.tabs.memory.title') }}</v-tab>
+        <v-tab value="network" v-if="monitorNetwork">{{ t('logger.tabs.network.title') }}</v-tab>
+        <v-tab value="console" v-if="monitorConsole">{{ t('logger.tabs.console.title') }}</v-tab>
+        <v-tab value="station" v-if="monitorUsers">{{ t('logger.tabs.station.title') }}</v-tab>
       </v-tabs>
     </div>
 
@@ -960,14 +962,14 @@ export default {
             <div class="chart-container">
               <v-card>
                 <v-toolbar dark flat>
-                  <v-toolbar-title>Memory Usage Chart</v-toolbar-title>
+                  <v-toolbar-title>{{ t('logger.tabs.memory.chartTitle') }}</v-toolbar-title>
 
                   <v-spacer></v-spacer>
 
                   <v-btn icon @click="generateChart">
                     <v-icon>mdi-refresh</v-icon>
                     <v-tooltip activator="parent" location="bottom"
-                      >Refresh Chart</v-tooltip
+                      >{{ t('logger.tabs.memory.refreshChart') }}</v-tooltip
                     >
                   </v-btn>
                 </v-toolbar>
@@ -983,11 +985,11 @@ export default {
 
             <div v-for="(data, index) in isLoggerRunning ? memoryData : visibleMemoryData" :key="index">
               <span id="log-date">{{ data.date }}</span>
-              <span id="log-title"> - Used JS Heap Size:</span>
+              <span id="log-title"> - {{ t('logger.tabs.memory.usedJSHeapSize') }}:</span>
               {{ data.usedJSHeapSize }} MB
-              <span id="log-title"> - Total JS Heap Size:</span>
+              <span id="log-title"> - {{ t('logger.tabs.memory.totalJSHeapSize') }}:</span>
               {{ data.totalJSHeapSize }} MB
-              <span id="log-title"> - JS Heap Size Limit:</span>
+              <span id="log-title"> - {{ t('logger.tabs.memory.jsHeapSizeLimit') }}:</span>
               {{ data.jsHeapSizeLimit }} MB
             </div>
             <div ref="memorySentinel"></div>
@@ -1000,25 +1002,25 @@ export default {
               <span id="log-date">{{ data.date }}</span>
               <span id="log-title"> - {{ data.type.toLocaleUpperCase() }}: </span>
               <span v-if="data.type === 'fetch'">
-                <span id="log-subtitle">Request:</span> {{ data.request }} -
-                <span id="log-subtitle">Response:</span> {{ data.response }} -
-                <span id="log-subtitle">Status:</span> {{ data.status }} -
-                <span id="log-subtitle">Options:</span> {{ data.options }}
+                <span id="log-subtitle">{{ t('logger.tabs.network.request') }}:</span> {{ data.request }} -
+                <span id="log-subtitle">{{ t('logger.tabs.network.response') }}:</span> {{ data.response }} -
+                <span id="log-subtitle">{{ t('logger.tabs.network.status') }}:</span> {{ data.status }} -
+                <span id="log-subtitle">{{ t('logger.tabs.network.options') }}:</span> {{ data.options }}
               </span>
               <span v-else-if="data.type === 'xhr'">
-                <span id="log-subtitle">Request:</span> {{ data.method }} {{ data.url }} -
-                <span id="log-subtitle">Response:</span> {{ data.response }} -
-                <span id="log-subtitle">Status:</span> {{ data.status }} -
-                <span id="log-subtitle">Options:</span> {{ data.options }}
+                <span id="log-subtitle">{{ t('logger.tabs.network.request') }}:</span> {{ data.method }} {{ data.url }} -
+                <span id="log-subtitle">{{ t('logger.tabs.network.response') }}:</span> {{ data.response }} -
+                <span id="log-subtitle">{{ t('logger.tabs.network.status') }}:</span> {{ data.status }} -
+                <span id="log-subtitle">{{ t('logger.tabs.network.options') }}:</span> {{ data.options }}
               </span>
               <span v-else-if="data.type === 'ws'">
-                <span id="log-subtitle">Event:</span> {{ data.eventType }} -
-                <span id="log-subtitle">Request:</span> {{ data.request }} -
-                <span id="log-subtitle">Response:</span> {{ data.response }}
+                <span id="log-subtitle">{{ t('logger.tabs.network.event') }}:</span> {{ data.eventType }} -
+                <span id="log-subtitle">{{ t('logger.tabs.network.request') }}:</span> {{ data.request }} -
+                <span id="log-subtitle">{{ t('logger.tabs.network.response') }}:</span> {{ data.response }}
               </span>
               <span v-else-if="data.type === 'resource'">
-                <span id="log-subtitle">Type:</span> {{ data.eventType }} -
-                <span id="log-subtitle">Url:</span> {{ data.url }}
+                <span id="log-subtitle">{{ t('logger.tabs.network.type') }}:</span> {{ data.eventType }} -
+                <span id="log-subtitle">{{ t('logger.tabs.network.url') }}:</span> {{ data.url }}
               </span>
             </div>
           </div>
@@ -1060,9 +1062,9 @@ export default {
           <div v-if="usersInStations.length">
             <div v-for="(data, index) in isLoggerRunning ? usersInStations : visibleUsersInStations" :key="index">
               <span id="log-date">{{ data.date }}</span>
-              <span id="log-title"> - User:</span> {{ data.user }}
-              <span id="log-title"> - Event:</span> {{ data.event }}
-              <span id="log-title"> - Station:</span> {{ data.station }}
+              <span id="log-title"> - {{ t('logger.tabs.station.user') }}:</span> {{ data.user }}
+              <span id="log-title"> - {{ t('logger.tabs.station.event') }}:</span> {{ data.event }}
+              <span id="log-title"> - {{ t('logger.tabs.station.station') }}:</span> {{ data.station }}
             </div>
           </div>
           <div v-else>
@@ -1073,23 +1075,17 @@ export default {
       </v-tabs-window>
     </v-card-text>
 
-    <v-dialog v-model="isClosingDialogVisible" max-width="600">
+    <v-dialog v-model="isClosingDialogVisible" max-width="800">
       <v-card>
         <v-toolbar dark flat>
-          <v-toolbar-title
-            >Closing the Logger will stop it from running, are you sure?</v-toolbar-title
-          >
+          <v-toolbar-title>{{ t('logger.closeDialog.title') }}</v-toolbar-title>
         </v-toolbar>
         <v-card-actions>
-          <v-btn
-            variant="outlined"
-            color="grey-darken-4"
-            @click="isClosingDialogVisible = false"
-          >
-            Cancel
+          <v-btn variant="outlined" color="grey-darken-4" @click="isClosingDialogVisible = false">
+            {{ t('logger.closeDialog.cancel') }}
           </v-btn>
           <v-btn variant="flat" color="grey-darken-4" @click="$emit('close')">
-            Close
+            {{ t('logger.closeDialog.confirm') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -1098,33 +1094,23 @@ export default {
     <v-dialog v-model="isLogsLoaderVisible" max-width="450" persistent>
       <v-card>
         <v-toolbar dark flat>
-          <v-toolbar-title>Load previous Logs</v-toolbar-title>
+          <v-toolbar-title>{{ t('logger.loadPrevious') }}</v-toolbar-title>
         </v-toolbar>
 
         <v-card-text>
           <v-select
             v-model="stationLogsInput"
             :items="classroomPastStations"
-            label="Station Name"
+            :label="t('logger.stationName')"
           ></v-select>
         </v-card-text>
         <v-divider></v-divider>
         <v-card-actions>
-          <v-btn
-            variant="outlined"
-            color="grey-darken-4"
-            @click="isLogsLoaderVisible = false"
-          >
-            Cancel
+          <v-btn variant="outlined" color="grey-darken-4" @click="isLogsLoaderVisible = false">
+            {{ t('logger.closeDialog.cancel') }}
           </v-btn>
-          <v-btn
-            variant="flat"
-            color="grey-darken-4"
-            @click="
-              stationLogsInput && loadLoggerDataFromDB()
-            "
-          >
-            Load
+          <v-btn variant="flat" color="grey-darken-4" @click="stationLogsInput && loadLoggerDataFromDB()">
+            {{ t('logger.actions.load') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -1186,7 +1172,7 @@ export default {
   100% {
     color: #5ccc48;
     box-shadow: 1px 1px 0 0 #5ccc48, 0 1px 1px 0 #5ccc48, -1px 1px 0 0 #5ccc48,
-      0 -1px 1px 0 #5ccc48;
+      0 -1px 1px 0 0 #5ccc48;
   }
   50% {
     color: #e8f5e9;

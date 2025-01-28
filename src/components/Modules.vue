@@ -1,10 +1,13 @@
 <script lang="ts">
 import Module from "./Module.vue";
 import Muuri from "muuri";
+import { useI18n } from 'vue-i18n';
 
 export default {
   components: { Module },
+
   name: "Modules",
+
   props: [
     "role",
     "username_",
@@ -13,6 +16,16 @@ export default {
     "communication",
     "class_id",
   ],
+
+  setup() {
+    const { t, locale } = useI18n();
+
+    return {
+      t,
+      locale,
+    };
+  },
+
   data() {
     return {
       username: this.username_,
@@ -118,7 +131,7 @@ export default {
       }, 1000);
     });
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener("message", this.messageHandler);
     this.communication.on("message", undefined);
     this.grid.destroy();
@@ -305,11 +318,10 @@ export default {
 
     <v-card v-if="!scrapedModules_.length">
       <v-card-text v-if="role == 'teacher' || role == 'station'">
-        Sorry, looks like you have not loaded up any {{ modulesType }} modules. Add some
-        in the class settings to get started.
+        {{ t('modules.noModules.1') }} {{ modulesType }} {{ t('modules.noModules.2') }}
       </v-card-text>
       <v-card-text v-if="role == 'student'">
-        Sorry, it looks like the class creators have not added any modules yet.
+        {{ t('modules.noModules.3') }}
       </v-card-text>
     </v-card>
   </div>

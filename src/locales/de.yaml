@@ -1,0 +1,229 @@
+general:
+  userId: "Benutzer-ID"
+  userRole: "Benutzerrolle"
+  language: "Sprache"
+index:
+  classroom:
+    create: "Klasse erstellen"
+    startTeaching: "Jetzt unterrichten"
+    writeProtection: "Schreibschutz"
+    ownership:
+      owner: "Sie besitzen diese Klasse"
+      teacher: "Sie sind hier Lehrer"
+      student: "Sie sind hier Student"
+    actions:
+      delete: "Löschen"
+      deleteConfirm: "Sind Sie sicher?"
+      deleteForever: "Ja, für immer löschen"
+      fork: "Kopieren"
+      open: "Öffnen"
+      on: "an"
+      off: "aus"
+classroom:
+  station:
+    mode: "Station-Modus aktiv"
+    label: "Station-Name"
+    modeDescription: "Dieser Browser läuft jetzt als Station und ist bereit, Studenten zu bedienen"
+    exit: "Station-Modus beenden"
+    rules:
+      "1": "Name ist erforderlich"
+      "2": "Name ist bereits vergeben"
+  sideMenu:
+    onlineUsers: "Online-Benutzer"
+    settings: "Einstellungen"
+    newRoom: "Neuer Raum"
+  popup:
+    close: "Schließen"
+deploy:
+  state:
+    waiting: "Bitte warten Sie, während Ihr Klassenzimmer geladen wird, Sie werden umgeleitet ..."
+    fetching: "Daten von "
+    fetched: "Daten erfolgreich abgerufen"
+    parsed: "Daten erfolgreich analysiert"
+    parsingError: "Fehler beim Analysieren von Daten"
+    fetchingError: "Fehler beim Abrufen von Daten"
+  overlay:
+    isReady: "Herzlichen Glückwunsch, Ihr Labor ist bereit"
+    redirect: "Sie werden automatisch zu dem neuen Klassenzimmer umgeleitet, das erstellt wurde"
+    info: "Sie besitzen dieses Klassenzimmer und sind der einzige, der es ändern kann, und Sie können den Link mit Ihren Schülern teilen. Der Link ist einzigartig und das Erstellen oder Neuladen dieses Links erstellt einen neuen Raum."
+    checkbox: "Diese Nachricht nicht mehr anzeigen"
+    goto: "Zum Klassenzimmer"
+settings:
+  general:
+    title: "Einstellungen"
+    writeProtection: "Schreibschutz:"
+    Main: "Haupt"
+    Members: "Mitglieder"
+    Modules: "Module"
+    Stations: "Stationen"
+    Share: "Teilen"
+    actions:
+      on: "AN"
+      off: "AUS"
+      save: "Speichern"
+      delete: "Klasse löschen"
+      deleteConfirm: "Sind Sie sicher?"
+      deleteForever: "Ja, für immer löschen"
+  main:
+    className: "Klassenname"
+    logoUrl: "Logo-URL"
+    description: "Beschreibung"
+    roomsNum: "Standardanzahl von Räumen (optional)"
+    selfAssign: "Selbstzuweisung aktivieren"
+  members:
+    info: "Laden Sie Ihre Benutzer ein, indem Sie diesen Link teilen: "
+    teacherIds: "Liste der Lehrer-IDs, durch Kommas getrennt. Jeder Lehrer kann den Kurs ändern."
+    studentIds: "Liste der Schüler-IDs, durch Kommas getrennt, leer lassen oder ein * für alle hinzufügen. Der Schüler kann mit Modulen interagieren."
+  modules:
+    delete: "Modul und Konfiguration löschen?"
+    deleteConfirm: "Ja"
+    url: "Modul-URL"
+    add: "Hinzufügen"
+    explore: "Auf Github erkunden"
+    noDescription: "Keine Beschreibung"
+    module:
+      url:
+        title: "URL"
+        urlLabel: "Modul-URL"
+      design:
+        title: "Design"
+        width:
+          title: "Breite"
+          full: "Voll (1000px)"
+          half: "Halb (500px)"
+          quarter: "Viertel (250px)"
+          custom:
+            title: "Benutzerdefiniert (px)"
+            label: "Benutzerdefinierte Breite (px)"
+            hint: "Geben Sie die benutzerdefinierte Breite in Pixel ein"
+        height:
+          title: "Höhe"
+          huge: "Riesig (830px)"
+          tall: "Hoch (720px)"
+          medium: "Mittel (410px)"
+          short: "Kurz (200px)"
+          custom:
+            title: "Benutzerdefiniert (px)"
+            label: "Benutzerdefinierte Höhe (px)"
+            hint: "Geben Sie die benutzerdefinierte Höhe in Pixel ein"
+      generalSettings: "Allgemeine Einstellungen"
+      studentSettings: "Schülereinstellungen"
+      teacherSettings: "Lehrereinstellungen"
+      stationSettings: "Stationseinstellungen"
+      showIn:
+        title: "Anzeigen in"
+        label: "Durch Kommas getrennte Liste von Räumen oder: Lobby, * für alle, station, (rollenspezifisch teacher-only, station-only)"
+    editor:
+      info: "Gültige YAML- oder JSON-Konfiguration"
+  stations:
+    info: "Um eine neue Station hinzuzufügen, öffnen Sie diesen Link einfach auf dem Client-Gerät: "
+  share:
+    downloadYml: "Klassendatei herunterladen (.yml)"
+    downloadJson: "Klassendatei herunterladen (.json)"
+    restoreFromFile: "Klasse aus Datei wiederherstellen (yaml, json)"
+    restoreFromUrl: "Klasse aus URL wiederherstellen (http, https)"
+    explore: "Auf Github erkunden"
+
+chat:
+  deletedMessage: "vorherige Nachrichten wurden gelöscht ..."
+  sendButton: "Senden"
+
+checks:
+  webRTCSupport: "WebRTC-Unterstützung"
+  configLoaded: "Konfiguration geladen"
+  connected: 
+    1: "Verbunden mit Peer-to-Peer-Netzwerk ("
+    2: "Sek.)"
+
+footer:
+  github: "edrys-Lite auf GitHub"
+  docs: "Dokumentation anzeigen"
+  explore: "Auf Github erkunden"
+
+modules:
+  noModules:
+    1: "Sorry, aber es sieht so aus, als hätten Sie keine "
+    2: " Module geladen. Fügen Sie einige in den Klasseneinstellungen hinzu, um loszulegen."
+    3: "Sorry, aber es sieht so aus, als hätten die Klassenersteller noch keine Module hinzugefügt."
+
+logger:
+  title: "Logger"
+  recording: "Aufzeichnung"
+  showingLogs: "Zeige Protokolle von"
+  loadPrevious: "Frühere Protokolle laden"
+  stationName: "Stationsname"
+  dataOptions: "Datenoptionen"
+  options:
+    memory: "Speichernutzung"
+    network: "Netzwerkdaten"
+    console: "Konsolenprotokolle"
+    station: "Stationsdaten"
+  minimize: "Minimieren (läuft im Hintergrund weiter)"
+  close: "Schließen"
+  actions:
+    start: "Start"
+    stop: "Stop"
+    load: "Laden"
+    clear: "Löschen"
+  tabs:
+    memory:
+      title: "Speichernutzung"
+      noData: "Klicken Sie auf Start, um die Speichernutzung zu überwachen, oder laden Sie vorhandene Protokolle."
+      start: "Überwachung der Speichernutzung gestartet..."
+      stop: "Überwachung der Speichernutzung gestoppt."
+      norecords: "Es wurden keine Speicherdaten aufgezeichnet."
+      notSupported: "Performance Memory API wird in diesem Browser nicht unterstützt!!"
+      chart:
+        title: "Speichernutzungsdiagramm"
+        refresh: "Diagramm aktualisieren"
+        x: "Zeit"
+        y: "Speichernutzung (MB)"
+      usedJSHeapSize: "Verwendeter JS Heap-Speicher"
+      totalJSHeapSize: "Gesamter JS Heap-Speicher"
+      jsHeapSizeLimit: "JS Heap-Speicherlimit"
+      chartTitle: "Speichernutzungsdiagramm"
+      refreshChart: "Diagramm aktualisieren"
+    network:
+      title: "Netzwerkdaten"
+      noData: "Klicken Sie auf Start, um Netzwerkdaten zu überwachen, oder laden Sie vorhandene Protokolle."
+      start: "Überwachung der Netzwerkdaten gestartet..."
+      stop: "Überwachung der Netzwerkdaten gestoppt."
+      norecords: "Es wurden keine Netzwerkdaten aufgezeichnet."
+      request: "Anfrage"
+      response: "Antwort"
+      status: "Status"
+      options: "Optionen"
+      event: "Ereignis"
+      type: "Typ"
+      url: "URL"
+    console:
+      title: "Konsolenprotokolle"
+      noData: "Klicken Sie auf Start, um Konsolenprotokolle zu überwachen, oder laden Sie vorhandene Protokolle."
+      start: "Überwachung der Konsolenprotokolle gestartet..."
+      stop: "Überwachung der Konsolenprotokolle gestoppt."
+      norecords: "Es wurden keine Konsolenprotokolle aufgezeichnet."
+    station:
+      title: "Stationsdaten"
+      noData: "Klicken Sie auf Start, um die Benutzeraktivität in Stationen zu überwachen."
+      start: "Überwachung der Stationsdaten gestartet..."
+      stop: "Überwachung der Stationsdaten gestoppt."
+      norecords: "Es wurden keine Stationsdaten aufgezeichnet."
+      user: "Benutzer"
+      event: "Ereignis"
+      station: "Station"
+  closeDialog:
+    title: "Wenn Sie den Logger schließen, wird die Aufzeichnung beendet. Sind Sie sicher?"
+    cancel: "Abbrechen"
+    confirm: "Schließen"
+
+peer:
+  feedback:
+    noAccess: "Sie haben keinen Zugriff auf dieses Labor, Sie können nur ansehen"
+    unauthorized: "Unbefugter Benutzer versucht, eine Nachricht zu senden, kontaktieren Sie den Administrator für den Zugang"
+    notPropagated: "Ihre Statusänderungen werden nicht an andere Benutzer weitergegeben, kontaktieren Sie den Administrator für den Laborzugang"
+    userNotFound: "Benutzer nicht gefunden"
+    removedTeacher: "Sie wurden als Lehrer entfernt..."
+    addedTeacher: "Sie wurden als Lehrer hinzugefügt..."
+    addedStudent: "Sie wurden als Student hinzugefügt..."
+    removedStudent: "Sie wurden als Student entfernt..."
+    moduleChanges: "Moduldefinitionen wurden geändert, laden Sie die Seite neu, um alle Änderungen zu übernehmen..."

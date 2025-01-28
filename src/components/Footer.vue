@@ -1,6 +1,18 @@
 <script lang="ts">
+import { useI18n } from 'vue-i18n';
+
 export default {
   name: "Footer",
+
+  setup() {
+    const { t, locale } = useI18n();
+
+    return {
+      t,
+      locale,
+    };
+  },
+
   data() {
     return {};
   },
@@ -10,7 +22,7 @@ export default {
 <template>
   <v-footer color="surface-variant" :app="true" elevation="15">
     <v-row justify="center" no-gutters>
-      <v-tooltip text="edrys-Lite on GitHub" location="top">
+      <v-tooltip :text="t('footer.github')" location="top">
         <template v-slot:activator="{ props }">
           <v-btn
             density="compact"
@@ -24,7 +36,7 @@ export default {
         </template>
       </v-tooltip>
 
-      <v-tooltip text="View the Documentation" location="top">
+      <v-tooltip :text="t('footer.docs')" location="top">
         <template v-slot:activator="{ props }">
           <v-btn
             density="compact"
@@ -38,7 +50,7 @@ export default {
         </template>
       </v-tooltip>
 
-      <v-tooltip text="Explore Classrooms" location="top">
+      <v-tooltip :text="t('footer.explore')" location="top">
         <template v-slot:activator="{ props }">
           <v-btn
             density="compact"
