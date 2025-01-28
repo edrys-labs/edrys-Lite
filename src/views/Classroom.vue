@@ -4,9 +4,18 @@ import Chat from "../components/Chat.vue";
 import Checks from "../components/Checks.vue";
 import Modules from "../components/Modules.vue";
 import Logger from "../components/Logger.vue";
+import UserMenu from '../components/UserMenu.vue';
+import { useI18n } from 'vue-i18n';
 
 import { Database, DatabaseItem } from "../ts/Database";
-import { infoHash, scrapeModule, clone, getPeerID, getShortPeerID } from "../ts/Utils";
+import {
+  infoHash,
+  scrapeModule,
+  clone,
+  getPeerID,
+  getShortPeerID,
+  getBasePeerID,
+} from "../ts/Utils";
 import { onMounted } from "vue";
 import Peer from "../ts/Peer";
 
@@ -14,6 +23,11 @@ import { copyToClipboard, deepEqual } from "../ts/Utils";
 
 export default {
   props: ["id", "station", "hash"],
+
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
+  },
 
   data() {
     const database = new Database();
@@ -61,6 +75,8 @@ export default {
       configuration,
       data,
 
+      popups: [],
+
       communication,
       isOwner: false,
 
@@ -88,8 +104,8 @@ export default {
 
       stationNameInput: stationName,
       stationNameRules: [
-        (v: string) => !!v || "Name is required",
-        (v: string) => !this.isNameTaken(v) || "Name is already taken",
+        (v: string) => !!v || this.t("classroom.station.rules.1"),
+        (v: string) => !this.isNameTaken(v) || this.t("classroom.station.rules.2"),
       ],
 
       isLoggerVisible: false,
@@ -112,10 +128,27 @@ export default {
     getPeer_ID() {
       return getPeerID(false);
     },
+
+    addPopup(message: string) {
+      this.popups.unshift({
+        message,
+        open: true,
+        id: Date.now(),
+      });
+    },
+
     async init() {
       await this.database.setProtection(this.id, !!this.hash);
 
-      this.configuration = await this.database.get(this.id);
+      const config = await this.database.get(this.id);
+
+      const hardReload =
+        this.scrapedModules.length === 0 ||
+        !this.configuration ||
+        !this.configuration.data ||
+        !deepEqual(this.configuration?.data?.modules, config?.data.modules);
+
+      this.configuration = config;
 
       if (!!this.hash && this.configuration?.hash !== this.hash) {
         this.configuration = null;
@@ -126,13 +159,17 @@ export default {
           this.configuration
             ? this.configuration
             : { id: this.id, data: null, timestamp: 0, hash: this.hash },
-          this.stationName
+          this.stationName,
+          this.t    
         );
 
         this.communication.on("setup", async (configuration: DatabaseItem) => {
           await self.database.put(clone(configuration));
+
           self.init();
         });
+
+        this.communication.on("popup", this.addPopup);
       }
 
       const self = this;
@@ -153,10 +190,12 @@ export default {
 
       if (this.configuration) {
         this.data = clone(this.configuration.data);
-        this.isOwner =
-          this.peerID.startsWith(this.configuration.data.createdBy) ||
-          this.getRole() === "teacher";
-        this.scrapeModules();
+
+        this.getRole();
+
+        if (hardReload) {
+          this.scrapeModules();
+        }
       }
     },
 
@@ -175,16 +214,19 @@ export default {
 
     getRole() {
       if (this.isStation) {
+        this.isOwner = false;
         return "station";
       }
 
       if (
-        this.isOwner ||
+        this.peerID.startsWith(this.configuration.data.createdBy) ||
         this.configuration?.data?.members?.teacher?.includes(getPeerID(false))
       ) {
+        this.isOwner = true;
         return "teacher";
       }
 
+      this.isOwner = false;
       return "student";
     },
 
@@ -249,6 +291,11 @@ export default {
     saveClass(configuration: any) {
       this.$refs.Settings.close = true;
 
+      const hardReload = !deepEqual(
+        this.configuration.data.modules,
+        configuration.modules
+      );
+
       this.configuration.data = clone(configuration);
       this.data = clone(configuration);
 
@@ -257,22 +304,52 @@ export default {
         this.communication?.newSetup(config);
       });
 
-      this.scrapeModules();
+      this.getRole();
+
+      if (hardReload) this.scrapeModules();
     },
 
-    usersInRoom(name: string): [string, string][] {
-      const users: [string, "black" | "grey"][] = [];
+    usersInRoom(name: string): [string, string, string][] {
+      const users: [string, "black" | "grey", string][] = [];
+
+      const icon = {
+        teacher: "mdi-account-star-outline",
+        student: "mdi-account-plus-outline",
+        station: "mdi-account-cog-outline",
+        visitor: "mdi-account-minus-outline",
+      };
 
       for (const id in this.liveClassProxy.users) {
         if (this.liveClassProxy.users[id].room === name) {
-          const displayName = this.liveClassProxy.users[id].displayName;
-          users.push([displayName, this.peerID === id ? "black" : "grey"]);
+          let displayName = this.liveClassProxy.users[id].displayName;
+          let userRole = this.liveClassProxy.users[id].role || "student";
+
+          if (userRole === "student") {
+            if (!this.communication.allowedToParticipate(getBasePeerID(id))) {
+              userRole = "visitor";
+            }
+          }
+
+          users.push([
+            displayName,
+            this.peerID === id ? "black" : "grey",
+            icon[userRole],
+          ]);
         }
       }
 
       //console.log("usersInRoom() called");
 
       return users;
+    },
+
+    closePopup(id: number) {
+      for (let i = 0; i < this.popups.length; i++) {
+        if (this.popups[i].id === id) {
+          this.popups.splice(i, 1);
+          break;
+        }
+      }
     },
 
     gotoRoom(name: string) {
@@ -325,6 +402,7 @@ export default {
     Settings,
     Modules,
     Logger,
+    UserMenu,
   },
 };
 </script>
@@ -386,34 +464,16 @@ export default {
           <v-icon icon="mdi-forum" v-else></v-icon>
         </v-btn>
 
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" icon="mdi-dots-vertical"> </v-btn>
-          </template>
-
-          <v-list>
+        <UserMenu>
+          <template v-slot:user-role>
             <v-list-item>
-              <v-list-item-title> User ID: </v-list-item-title>
-              <v-list-item-subtitle>
-                {{ getPeer_ID() }}
-                <v-btn
-                  icon="mdi-content-copy"
-                  size="small"
-                  variant="flat"
-                  @click="copyPeerID()"
-                >
-                </v-btn>
-              </v-list-item-subtitle>
-            </v-list-item>
-
-            <v-list-item>
-              <v-list-item-title> User Role: </v-list-item-title>
+              <v-list-item-title>{{ t('general.userRole') }}:</v-list-item-title>
               <v-list-item-subtitle>
                 {{ getRole() }}
               </v-list-item-subtitle>
             </v-list-item>
-          </v-list>
-        </v-menu>
+          </template>
+        </UserMenu>
       </v-app-bar>
 
       <v-navigation-drawer temporary v-model="showSideMenu">
@@ -424,7 +484,7 @@ export default {
             class="text-center"
             style="margin-top: calc(50vh - 100px)"
           >
-            <v-card-text class="white--text"> Station Mode Active </v-card-text>
+            <v-card-text class="white--text"> {{ t('classroom.station.mode') }} </v-card-text>
 
             <v-divider></v-divider>
 
@@ -434,21 +494,21 @@ export default {
                   variant="solo"
                   v-model="stationNameInput"
                   :rules="stationNameRules"
-                  label="Station Name"
+                  :label="t('classroom.station.label')"
                   required
                   append-inner-icon="mdi-arrow-right"
                   @click:append-inner="setStationName"
                 ></v-text-field>
               </v-form>
 
-              This browser is now running as a station and ready to serve students
+              {{ t('classroom.station.modeDescription') }}
             </v-card-text>
             <v-divider></v-divider>
             <v-card-text>
               <v-btn :href="'/?/classroom/' + id">
                 <v-icon left>mdi-export-variant</v-icon>
 
-                Exit Station mode
+                {{ t('classroom.station.exit') }}
               </v-btn>
             </v-card-text>
           </v-card>
@@ -462,16 +522,17 @@ export default {
               </v-list-item-title>
 
               <v-list-item-subtitle>
-                online users {{ Object.keys(liveClassProxy?.users || {}).length }}
+                {{ t('classroom.sideMenu.onlineUsers') }} {{ Object.keys(liveClassProxy?.users || {}).length }}
               </v-list-item-subtitle>
 
               <template v-slot:append>
                 <v-btn
                   color="grey"
                   icon="mdi-cog"
+                  :title="t('classroom.sideMenu.settings')"
                   @click="showSettings = !showSettings"
                   variant="text"
-                  v-if="!isStation && isOwner"
+                  v-if="isOwner"
                 ></v-btn>
               </template>
             </v-list-item>
@@ -492,7 +553,7 @@ export default {
           >
             <template v-slot:append>
               <v-btn
-                icon="mdi-arrow-right-circle"
+                :icon="['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left-circle' : 'mdi-arrow-right-circle'"
                 variant="text"
                 @click="gotoRoom(name)"
               ></v-btn>
@@ -500,24 +561,23 @@ export default {
           </v-list-item>
 
           <v-list-item
-            v-for="([user, color], j) in usersInRoom(name)"
+            v-for="([user, color, icon], j) in usersInRoom(name)"
             :key="j"
-            :title="user"
             :style="'min-height: 1.25rem; color: ' + color"
-          />
+          >
+            <template v-slot:prepend>
+              <v-icon :icon="icon"></v-icon>
+            </template>
+
+            <v-list-item-title v-text="user"></v-list-item-title>
+          </v-list-item>
         </v-list>
 
         <template v-slot:append>
           <div class="pa-2">
-            <v-btn
-              depressed
-              block
-              class="mb-2"
-              @click="addRoom"
-              v-if="!isStation && isOwner"
-            >
+            <v-btn depressed block class="mb-2" @click="addRoom" v-if="isOwner">
               <v-icon left>mdi-forum</v-icon>
-              New room
+              {{ t('classroom.sideMenu.newRoom') }}
             </v-btn>
           </div>
         </template>
@@ -594,5 +654,19 @@ export default {
       >
       </Logger>
     </v-dialog>
+
+    <v-snackbar
+      v-for="popup in popups"
+      :key="popup.id"
+      v-model="popup.open"
+      :multi-line="true"
+      :timeout="500000"
+    >
+      {{ popup.message }}
+
+      <template v-slot:actions>
+        <v-btn variant="text" color="pink" @click="closePopup(popup.id)"> {{ t('classroom.popup.close') }} </v-btn>
+      </template>
+    </v-snackbar>
   </v-app>
 </template>

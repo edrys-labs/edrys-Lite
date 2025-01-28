@@ -2,7 +2,7 @@
   <v-text-field
     v-model="config.name"
     :counter="20"
-    label="Class Name"
+    :label="t('settings.main.className')"
     outlined
     required
     :disabled="writeProtection"
@@ -10,7 +10,7 @@
 
   <v-text-field
     v-model="config.meta.logo"
-    label="Logo URL"
+    :label="t('settings.main.logoUrl')"
     outlined
     required
     :disabled="writeProtection"
@@ -19,14 +19,14 @@
   <v-textarea
     v-model="config.meta.description"
     filled
-    label="Description"
+    :label="t('settings.main.description')"
     auto-grow
     :disabled="writeProtection"
   ></v-textarea>
 
   <v-text-field
     v-model="config.meta.defaultNumberOfRooms"
-    label="Default number of rooms (optional)"
+    :label="t('settings.main.roomsNum')"
     type="number"
     outlined
     :disabled="writeProtection"
@@ -34,13 +34,15 @@
 
   <v-checkbox
     v-model="config.meta.selfAssign"
-    label="Enable self-assignment"
+    :label="t('settings.main.selfAssign')"
     outlined
     :disabled="writeProtection"
   ></v-checkbox>
 </template>
 
 <script lang="ts">
+import { useI18n } from 'vue-i18n';
+
 export default {
   name: "Settings-Main",
 
@@ -54,6 +56,11 @@ export default {
       type: Boolean,
       required: true,
     },
+  },
+
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
   },
 
   data() {

@@ -1,5 +1,5 @@
 <template>
-  <v-alert outlined dense type="info" text="Invite your users in by sharing this link: ">
+  <v-alert outlined dense type="info" :text="t('settings.members.info')">
     <v-container>
       <a :href="url">{{ url }}</a>
     </v-container>
@@ -10,7 +10,7 @@
   </v-alert>
   <v-divider></v-divider>
   <v-textarea
-    label="List of teacher ids"
+    :label="t('settings.members.teacherIds')"
     auto-grow
     variant="outlined"
     rows="3"
@@ -20,10 +20,23 @@
     v-model="teacher"
     :disabled="writeProtection"
   ></v-textarea>
+
+  <v-textarea
+    :label="t('settings.members.studentIds')"
+    auto-grow
+    variant="outlined"
+    rows="3"
+    row-height="25"
+    shaped
+    style="margin-top: 0px"
+    v-model="student"
+    :disabled="writeProtection"
+  ></v-textarea>
 </template>
 
 <script lang="ts">
 import { copyToClipboard } from "../../ts/Utils";
+import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Settings-Members",
@@ -42,12 +55,19 @@ export default {
     },
   },
 
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
+  },
+
   data() {
     const teacher = this.members.teacher.join(", ");
+    const student = this.members.student.join(", ");
 
     return {
       url: window.location.toString(),
       teacher,
+      student,
     };
   },
 
@@ -65,6 +85,16 @@ export default {
           .map((s) => s.trim())
           .filter((s) => s.length > 0),
         student: this.members.student,
+      });
+    },
+
+    student() {
+      this.$emit("updateMembers", {
+        student: this.student
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0),
+        teacher: this.members.teacher,
       });
     },
   },

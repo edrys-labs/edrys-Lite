@@ -11,7 +11,7 @@
         <v-list-item
           :key="index"
           class="list-group-item"
-          :style="'border: 3px solid ' + stringToColor(element.showInCustom)"
+          :style="borderStyle(element, index)"
         >
           <template v-slot:prepend>
             <v-icon :icon="scrapedModules[index].icon || 'mdi-package'"></v-icon>
@@ -25,7 +25,7 @@
           </v-list-item-title>
 
           <v-list-item-subtitle
-            v-html="scrapedModules[index]?.description || 'No description'"
+            v-html="scrapedModules[index]?.description || t('settings.modules.noDescription')"
             style="white-space: break-spaces"
           >
           </v-list-item-subtitle>
@@ -61,7 +61,7 @@
               <v-list>
                 <v-list-item>
                   <v-list-item-title>
-                    Delete the module and its configuration?
+                    {{ t('settings.modules.delete') }}
                   </v-list-item-title>
 
                   <v-btn
@@ -71,7 +71,7 @@
                     class="float-right"
                     style="margin-top: 10px"
                   >
-                    Yes
+                    {{ t('settings.modules.deleteConfirm') }}
                   </v-btn>
                 </v-list-item>
               </v-list>
@@ -87,7 +87,7 @@
 
       <v-text-field
         v-model="moduleImportUrl"
-        label="Module URL"
+        :label="t('settings.modules.url')"
         variant="underlined"
         required
         style="width: calc(100% - 40px)"
@@ -96,7 +96,7 @@
       <template v-slot:append>
         <v-btn @click="loadURL" :disabled="!validate_url(moduleImportUrl)">
           <v-icon left> mdi-view-grid-plus </v-icon>
-          Add
+          {{ t('settings.modules.add') }}
         </v-btn>
       </template>
     </v-list-item>
@@ -105,7 +105,7 @@
   <v-divider class="pb-2"></v-divider>
   <v-btn href="https://github.com/topics/edrys-module?q=edrys-lite" target="_blank">
     <v-icon left> mdi-github </v-icon>
-    Explore on GitHub
+    {{ t('settings.modules.explore') }}
   </v-btn>
 </template>
 
@@ -113,6 +113,7 @@
 import { scrapeModule, validateUrl } from "../../ts/Utils";
 import draggable from "vuedraggable";
 import Module from "./Module.vue";
+import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Settings-Modules",
@@ -132,6 +133,11 @@ export default {
       type: Boolean,
       required: true,
     },
+  },
+
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
   },
 
   data() {
@@ -185,6 +191,34 @@ export default {
       this.colors[str] = color;
 
       return color;
+    },
+
+    borderStyle(element, index) {
+      const color = this.stringToColor(element.showInCustom);
+      let style = `border-left: 5px solid ${color}; border-right: 5px solid ${color};`;
+
+      const prev = this.config.modules[index - 1];
+      const next = this.config.modules[index + 1];
+
+      // Determine if module is first in its group
+      if (!prev || prev.showInCustom !== element.showInCustom) {
+        style += `
+        border-top: 5px solid ${color};
+        border-top-left-radius: 10px !important;
+        border-top-right-radius: 10px !important;
+      `;
+      }
+      // Determine if module is last in its group
+      if (!next || next.showInCustom !== element.showInCustom) {
+        style += `
+        border-bottom: 5px solid ${color};
+        border-bottom-left-radius: 10px !important;
+        border-bottom-right-radius: 10px !important;
+        margin-bottom: 10px;
+      `;
+      }
+
+      return style;
     },
 
     async update() {
@@ -257,9 +291,6 @@ export default {
 <style scoped>
 .list-group-item {
   transition: box-shadow 0.3s ease, transform 0.3s ease;
-
-  margin-bottom: 5px;
-  border-radius: 5px !important;
   background-color: white; /* Optional: Default background color */
 }
 

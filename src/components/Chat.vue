@@ -1,6 +1,7 @@
 <script lang="ts">
 import { inject } from "vue";
 import markdownit from "markdown-it";
+import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Chat",
@@ -11,9 +12,13 @@ export default {
     const prismHighlight = inject("prismHighlight");
     const prismLanguages = inject("prismLanguages");
 
+    const { t, locale } = useI18n();
+
     return {
       prismHighlight,
       prismLanguages,
+      t,
+      locale,
     };
   },
 
@@ -113,7 +118,7 @@ export default {
           style="padding: 15px 0.5rem 15px 0.5rem"
           v-if="this.deletedMessages"
         >
-          <div>previous messages have been deleted ...</div>
+          <div>{{ t('chat.deletedMessage') }}</div>
         </v-col>
         <v-col
           v-for="msg in history"
@@ -164,7 +169,7 @@ export default {
           class="mb-2"
           @click="send()"
         >
-          Send
+          {{ t('chat.sendButton') }}
         </v-btn>
       </div>
     </template>

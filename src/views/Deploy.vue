@@ -3,18 +3,26 @@ import { Database } from "../ts/Database";
 import { infoHash, getPeerID, parse, copyToClipboard } from "../ts/Utils";
 
 import Footer from "../components/Footer.vue";
+import UserMenu from '../components/UserMenu.vue';
+
+import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Deploy",
 
   props: ["url"],
 
-  components: { Footer },
+  components: { Footer, UserMenu },
+
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
+  },
 
   data() {
     const database = new Database();
     const state = [
-      "Please wait while your classrooms gets loaded, you will be redirected ...",
+      this.t('deploy.state.waiting'),
     ];
 
     const checkboxValue = localStorage.getItem("deployed") === "true";
@@ -30,23 +38,23 @@ export default {
   },
 
   created() {
-    this.state.push("Fetching data from " + this.url);
+    this.state.push(this.t('deploy.state.fetching') + this.url);
     fetch(this.url)
       .then((response) => response.text())
       .then((data) => {
-        this.state.push("Data fetched successfully");
+        this.state.push(this.t('deploy.state.fetched'));
 
         try {
           const classroom = parse(data);
-          this.state.push("Data parsed successfully");
+          this.state.push(this.t('deploy.state.parsed'));
           this.createClass(classroom);
         } catch (error) {
-          this.state.push("Error parsing data");
+          this.state.push(this.t('deploy.state.parsingError'));
           console.error(error);
         }
       })
       .catch((error) => {
-        this.state.push("Error fetching data");
+        this.state.push(this.t('deploy.state.fetchingError'));
         console.error(error);
       });
   },
@@ -84,27 +92,7 @@ export default {
   <v-app>
     <v-app-bar color="surface-variant" title="edrys-lite">
       <template v-slot:append>
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" icon="mdi-dots-vertical"> </v-btn>
-          </template>
-
-          <v-list>
-            <v-list-item>
-              <v-list-item-title> User ID: </v-list-item-title>
-              <v-list-item-subtitle>
-                {{ peerID }}
-                <v-btn
-                  icon="mdi-content-copy"
-                  size="small"
-                  variant="flat"
-                  @click="copyPeerID()"
-                >
-                </v-btn>
-              </v-list-item-subtitle>
-            </v-list-item>
-          </v-list>
-        </v-menu>
+        <UserMenu />
       </template>
     </v-app-bar>
 
@@ -125,20 +113,20 @@ export default {
         style="
           top: 50%;
           left: 50%;
-
+          right: 50%;
           transform: translate(-50%, 50%);
           max-width: 800px;
+          direction: inherit;
         "
       >
         <v-card-text class="white--text">
-          Congratulations, your lab is ready
+          {{ t('deploy.overlay.isReady') }}
         </v-card-text>
 
         <v-divider></v-divider>
 
         <v-card-text>
-          You will be automatically redirected to the new classroom that has been created
-          at
+          {{ t('deploy.overlay.redirect') }}
           <br />
           <br />
 
@@ -147,22 +135,20 @@ export default {
           <br />
           <br />
 
-          You own this classroom and you are the only one who can modify it and you can
-          share the link with your students. The link is unique and recreating or
-          reloading this link will create a new room.
+          {{ t('deploy.overlay.info') }}
         </v-card-text>
         <v-divider></v-divider>
 
         <v-checkbox
           v-model="checkboxValue"
-          label="Don't show this message again"
+          :label="t('deploy.overlay.checkbox')"
         ></v-checkbox>
         <v-divider></v-divider>
         <v-card-text>
           <v-btn :href="classroom">
             <v-icon left>mdi-export-variant</v-icon>
 
-            Goto Classroom
+            {{ t('deploy.overlay.goto') }}
           </v-btn>
         </v-card-text>
       </v-card>

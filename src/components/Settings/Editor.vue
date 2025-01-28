@@ -12,7 +12,7 @@
         style="font-size: small; margin-bottom: 0.25rem"
         :style="errorMessage ? 'color: red;' : 'color: gray;'"
       >
-        {{ errorMessage || "Valid YAML or JSON configuration" }}
+        {{ errorMessage || t('settings.modules.editor.info') }}
       </div>
 
       <v-divider style="margin-bottom: 0.5rem"></v-divider>
@@ -29,6 +29,7 @@
 <script lang="ts">
 import { inject } from "vue";
 import { parse, stringify } from "../../ts/Utils";
+import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Editor",
@@ -64,9 +65,13 @@ export default {
     const prismHighlight = inject("prismHighlight");
     const prismLanguages = inject("prismLanguages");
 
+    const { t, locale } = useI18n();
+
     return {
       prismHighlight,
       prismLanguages,
+      t,
+      locale,
     };
   },
 

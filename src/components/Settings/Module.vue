@@ -3,7 +3,7 @@
     <!-- URL Panel -->
     <v-expansion-panel>
       <v-expansion-panel-title>
-        URL
+        {{ t('settings.modules.module.url.title') }}
         <template v-slot:actions>
           <v-icon> mdi-link </v-icon>
         </template>
@@ -11,7 +11,7 @@
       <v-expansion-panel-text>
         <v-text-field
           variant="underlined"
-          label="Module URL"
+          :label="t('settings.modules.module.url.urlLabel')"
           v-model="module.url"
           :disabled="writeProtection"
         ></v-text-field>
@@ -21,7 +21,7 @@
     <!-- Design Panel -->
     <v-expansion-panel>
       <v-expansion-panel-title>
-        Design
+        {{ t('settings.modules.module.design.title') }}
         <template v-slot:actions>
           <v-icon> mdi-pencil-ruler </v-icon>
         </template>
@@ -31,23 +31,23 @@
           <!-- Width Configuration -->
           <v-col cols="6">
             <v-container fluid>
-              <p>Width</p>
+              <p>{{ t('settings.modules.module.design.width.title') }}</p>
               <v-radio-group v-model="widthSelection" :disabled="writeProtection">
-                <v-radio label="Full (1000px)" value="full"></v-radio>
-                <v-radio label="Half (500px)" value="half"></v-radio>
-                <v-radio label="Quarter (250px)" value="third"></v-radio>
-                <v-radio label="Custom (px)" value="custom"></v-radio>
+                <v-radio :label="t('settings.modules.module.design.width.full')" value="full"></v-radio>
+                <v-radio :label="t('settings.modules.module.design.width.half')" value="half"></v-radio>
+                <v-radio :label="t('settings.modules.module.design.width.quarter')" value="third"></v-radio>
+                <v-radio :label="t('settings.modules.module.design.width.custom.title')" value="custom"></v-radio>
               </v-radio-group>
               <!-- Conditional Input for Custom Width -->
               <v-text-field
                 v-if="widthSelection === 'custom'"
                 variant="underlined"
-                label="Custom Width (px)"
+                :label="t('settings.modules.module.design.width.custom.label')"
                 v-model.number="customWidth"
                 :disabled="writeProtection"
                 type="number"
                 min="1"
-                hint="Enter custom width in pixels"
+                :hint="t('settings.modules.module.design.width.custom.hint')"
                 persistent-hint
               ></v-text-field>
             </v-container>
@@ -56,24 +56,24 @@
           <!-- Height Configuration -->
           <v-col cols="6">
             <v-container fluid>
-              <p>Height</p>
+              <p>{{ t('settings.modules.module.design.height.title') }}</p>
               <v-radio-group v-model="heightSelection" :disabled="writeProtection">
-                <v-radio label="HUGE (830px)" value="huge"></v-radio>
-                <v-radio label="Tall (720px)" value="tall"></v-radio>
-                <v-radio label="Medium (410px)" value="medium"></v-radio>
-                <v-radio label="Short (200px)" value="short"></v-radio>
-                <v-radio label="Custom (px)" value="custom"></v-radio>
+                <v-radio :label="t('settings.modules.module.design.height.huge')" value="huge"></v-radio>
+                <v-radio :label="t('settings.modules.module.design.height.tall')"  value="tall"></v-radio>
+                <v-radio :label="t('settings.modules.module.design.height.medium')"  value="medium"></v-radio>
+                <v-radio :label="t('settings.modules.module.design.height.short')"  value="short"></v-radio>
+                <v-radio :label="t('settings.modules.module.design.height.custom.title')"  value="custom"></v-radio>
               </v-radio-group>
               <!-- Conditional Input for Custom Height -->
               <v-text-field
                 v-if="heightSelection === 'custom'"
                 variant="underlined"
-                label="Custom Height (px)"
+                :label="t('settings.modules.module.design.height.custom.label')"
                 v-model.number="customHeight"
                 :disabled="writeProtection"
                 type="number"
                 min="1"
-                hint="Enter custom height in pixels"
+                :hint="t('settings.modules.module.design.height.custom.hint')"
                 persistent-hint
               ></v-text-field>
             </v-container>
@@ -84,7 +84,7 @@
 
     <!-- Editor Components -->
     <Editor
-      title="General settings"
+      :title="t('settings.modules.module.generalSettings')"
       icon="mdi-script-text"
       v-model:config="module.config"
       v-model:error="error.config"
@@ -92,7 +92,7 @@
     ></Editor>
 
     <Editor
-      title="Student settings"
+      :title="t('settings.modules.module.studentSettings')"
       icon="mdi-account-circle-outline"
       v-model:config="module.studentConfig"
       v-model:error="error.studentConfig"
@@ -100,7 +100,7 @@
     ></Editor>
 
     <Editor
-      title="Teacher settings"
+      :title="t('settings.modules.module.teacherSettings')"
       icon="mdi-clipboard-account-outline"
       v-model:config="module.teacherConfig"
       v-model:error="error.teacherConfig"
@@ -108,7 +108,7 @@
     ></Editor>
 
     <Editor
-      title="Station settings"
+      :title="t('settings.modules.module.stationSettings')"
       icon="mdi-router-wireless"
       v-model:config="module.stationConfig"
       v-model:error="error.stationConfig"
@@ -118,7 +118,7 @@
     <!-- Show In Panel -->
     <v-expansion-panel>
       <v-expansion-panel-title>
-        Show in
+        {{ t('settings.modules.module.showIn.title') }}
         <template v-slot:actions>
           <v-icon> mdi-eye </v-icon>
         </template>
@@ -126,7 +126,7 @@
       <v-expansion-panel-text>
         <v-text-field
           variant="underlined"
-          label="Comma separated list of rooms, or: lobby, * for all, station, (role specific teacher-only, station-only)"
+          :label="t('settings.modules.module.showIn.label')"
           v-model="module.showInCustom"
           :disabled="writeProtection"
         ></v-text-field>
@@ -137,6 +137,7 @@
 
 <script lang="ts">
 import Editor from "./Editor.vue";
+import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Settings-Module",
@@ -154,6 +155,11 @@ export default {
       type: Boolean,
       required: true,
     },
+  },
+
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
   },
 
   data() {

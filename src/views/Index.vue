@@ -9,11 +9,18 @@ import {
 } from "../ts/Utils";
 
 import Footer from "../components/Footer.vue";
+import UserMenu from '../components/UserMenu.vue';
+import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Index",
 
-  components: { Footer },
+  components: { Footer, UserMenu },
+
+  setup() {
+    const { t, locale } = useI18n();
+    return { t, locale };
+  },
 
   data() {
     const database = new Database();
@@ -107,27 +114,7 @@ export default {
   <v-app>
     <v-app-bar color="surface-variant" title="edrys-lite">
       <template v-slot:append>
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" icon="mdi-dots-vertical"> </v-btn>
-          </template>
-
-          <v-list>
-            <v-list-item>
-              <v-list-item-title> User ID: </v-list-item-title>
-              <v-list-item-subtitle>
-                {{ peerID }}
-                <v-btn
-                  icon="mdi-content-copy"
-                  size="small"
-                  variant="flat"
-                  @click="copyPeerID()"
-                >
-                </v-btn>
-              </v-list-item-subtitle>
-            </v-list-item>
-          </v-list>
-        </v-menu>
+        <UserMenu />
       </template>
     </v-app-bar>
 
@@ -157,11 +144,11 @@ export default {
                   !classroom?.data.members.teacher.includes(peerID)
                 "
               >
-                Write Protection
+              {{ t('index.classroom.writeProtection') }} 
                 <v-switch
                   :model-value="!!classroom.hash"
                   color="primary"
-                  :label="!!classroom.hash ? 'on' : 'off'"
+                  :label="!!classroom.hash ? t('index.classroom.actions.on') : t('index.classroom.actions.off')"
                   style="padding-top: 20px; z-index: 200"
                   @change="switchClassroomProtection(classroom.id, !classroom.hash)"
                 ></v-switch>
@@ -176,13 +163,9 @@ export default {
               ></v-img>
               <v-card-title>{{ classroom.data?.name }}</v-card-title>
               <v-card-subtitle>
-                <span v-if="classroom?.data.createdBy === peerID"
-                  >You own this class</span
-                >
-                <span v-else-if="classroom?.data?.members?.teacher.includes(peerID)"
-                  >You're a teacher here</span
-                >
-                <span v-else>You're a student here</span>
+                <span v-if="classroom?.data.createdBy === peerID">{{ t('index.classroom.ownership.owner') }}</span>
+                <span v-else-if="classroom?.data?.members?.teacher.includes(peerID)">{{ t('index.classroom.ownership.teacher') }}</span>
+                <span v-else>{{ t('index.classroom.ownership.student') }}</span>
               </v-card-subtitle>
 
               <v-card-text>
@@ -192,18 +175,18 @@ export default {
               </v-card-text>
 
               <v-card-actions>
-                <v-btn icon title="fork" @click="forkClass(classroom)">
+                <v-btn icon :title="t('index.classroom.actions.fork')" @click="forkClass(classroom)">
                   <v-icon>mdi-source-fork</v-icon>
                 </v-btn>
 
                 <v-menu>
                   <template v-slot:activator="{ props }">
-                    <v-btn color="" v-bind="props" icon="mdi-delete"> </v-btn>
+                    <v-btn color="" v-bind="props" icon="mdi-delete" :title="t('index.classroom.actions.delete')"> </v-btn>
                   </template>
 
                   <v-list>
                     <v-list-item>
-                      <v-list-item-title> Are you sure? </v-list-item-title>
+                      <v-list-item-title> {{ t('index.classroom.actions.deleteConfirm') }} </v-list-item-title>
 
                       <v-btn
                         color="red"
@@ -212,7 +195,7 @@ export default {
                         class="float-right"
                         style="margin-top: 10px"
                       >
-                        Yes, delete forever</v-btn
+                      {{ t('index.classroom.actions.deleteForever') }}</v-btn
                       >
                     </v-list-item>
                   </v-list>
@@ -227,7 +210,7 @@ export default {
                   style="color: white"
                 >
                   <v-btn icon title="open">
-                    <v-icon>mdi-arrow-right-bold</v-icon>
+                    <v-icon>{{ ['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left-bold' : 'mdi-arrow-right-bold' }}</v-icon>
                   </v-btn>
                 </a>
               </v-card-actions>
@@ -242,8 +225,8 @@ export default {
               @click="createClass()"
               variant="elevated"
             >
-              <v-card-title>Create a class</v-card-title>
-              <v-card-subtitle>Start teaching now</v-card-subtitle>
+              <v-card-title>{{ t('index.classroom.create') }}</v-card-title>
+              <v-card-subtitle>{{ t('index.classroom.startTeaching') }}</v-card-subtitle>
               <v-card-actions>
                 <v-spacer></v-spacer>
                 <v-btn icon>

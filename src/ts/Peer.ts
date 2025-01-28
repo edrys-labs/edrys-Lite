@@ -1,8 +1,6 @@
-import { getPeerID, hashJsonObject, getShortPeerID } from './Utils'
-
+import { getPeerID, hashJsonObject, deepEqual, getShortPeerID } from './Utils'
 import * as Y from 'yjs'
 // @ts-ignore
-// import * as YP from 'y-protocols/awareness.js'
 import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
 
 function LOG(...args: any[]) {
@@ -20,6 +18,8 @@ let heartbeatID: ReturnType<typeof setInterval> | null
 
 export default class Peer {
   private provider: EdrysWebrtcProvider
+  
+  private t: (key: string) => string  
 
   private y: {
     doc: Y.Doc
@@ -54,7 +54,8 @@ export default class Peer {
   constructor(
     setup: { id: string; data: any; timestamp: number; hash: string | null },
     stationID?: string,
-    password?: string
+    t?: (key: string) => string,  // Translation function parameter
+    password?: string,
   ) {
     const doc = new Y.Doc()
 
@@ -74,6 +75,8 @@ export default class Peer {
       this.peerID = STATION + ' ' + stationID
     }
 
+    this.t = t || ((key: string) => key)  
+
     // Initialize local state within a transaction
     this.y.doc.transact(() => {
       this.initUser(this.role, false)
@@ -88,9 +91,7 @@ export default class Peer {
     this.connectProvider(room, password)
 
     // Ensure cleanup on page unload
-    window.addEventListener('beforeunload', () => {
-      this.stop()
-    })
+    window.addEventListener('beforeunload', this.stop)
   }
 
   /**
@@ -185,6 +186,13 @@ export default class Peer {
         this.connected = true
         LOG('synced', event)
         this.update('connected')
+
+        if (!this.allowedToParticipate()) {
+          this.update(
+            'popup',
+            this.t('peer.feedback.noAccess')
+          )
+        }
       }
     }, 5000)
   }
@@ -252,6 +260,82 @@ export default class Peer {
     }, 'removePeers')
   }
 
+  logSetupChanges(oldSetup: any, newSetup: any) {
+    if (oldSetup === null) {
+      return
+    }
+
+    if (!deepEqual(oldSetup.modules, newSetup.modules)) {
+      this.update(
+        'popup',
+        this.t('peer.feedback.moduleChanges')
+      )
+    }
+
+    if (!deepEqual(oldSetup.members, newSetup.members)) {
+      const id = getPeerID(false)
+
+      // the owner and stations are not affected by member changes
+      if (newSetup.createdBy === id || this.isStation()) {
+        return
+      }
+
+      if (
+        oldSetup.members.teacher.includes(id) &&
+        !newSetup.members.teacher.includes(id)
+      ) {
+        this.update('popup', this.t('peer.feedback.removedTeacher'))
+        this.user().set('role', 'student')
+      }
+
+      if (
+        !oldSetup.members.teacher.includes(id) &&
+        newSetup.members.teacher.includes(id)
+      ) {
+        this.update('popup', this.t('peer.feedback.addedTeacher'))
+        this.user().set('role', 'teacher')
+        return
+      }
+
+      if (
+        oldSetup.members.teacher.includes(id) &&
+        newSetup.members.teacher.includes(id)
+      ) {
+        return
+      }
+
+      const isInOldSetup = oldSetup.members.student.includes(id)
+      const oldOpen =
+        oldSetup.members.student.length === 0 ||
+        oldSetup.members.student.includes('*')
+
+      const isInNewSetup = newSetup.members.student.includes(id)
+      const newOpen =
+        newSetup.members.student.length === 0 ||
+        newSetup.members.student.includes('*')
+
+      if ((oldOpen || !isInOldSetup) && isInNewSetup) {
+        this.update('popup', this.t('peer.feedback.addedStudent'))
+
+        return
+      }
+
+      if (!oldOpen && newOpen) {
+        this.update('popup', this.t('peer.feedback.addedStudent'))
+        return
+      }
+
+      if (!oldOpen && isInOldSetup && !isInNewSetup) {
+        this.update('popup', this.t('peer.feedback.removedStudent'))
+        return
+      }
+
+      if (oldOpen && !newOpen && !isInNewSetup) {
+        this.update('popup', this.t('peer.feedback.removedStudent'))
+      }
+    }
+  }
+
   /**
    * Initializes the setup map with proper conflict resolution.
    */
@@ -262,17 +346,36 @@ export default class Peer {
     this.y.doc.transact(() => {
       if (force) {
         LOG('Force update new configuration')
+
+        this.logSetupChanges(data, this.lab.data)
+
         this.y.setup.set('config', this.lab.data)
         this.y.setup.set('timestamp', this.lab.timestamp)
+
+        if (!this.allowedToParticipate()) {
+          this.update(
+            'popup',
+            this.t('peer.feedback.noAccess')
+          )
+        }
       }
 
       // If my setup is older than the current setup
       else if (this.lab.timestamp < timestamp) {
         LOG('receiving initial lab configuration')
 
+        this.logSetupChanges(this.lab.data, data)
+
         this.lab.data = data
         this.lab.timestamp = timestamp
         this.update('setup')
+
+        if (!this.allowedToParticipate()) {
+          this.update(
+            'popup',
+            this.t('peer.feedback.noAccess')
+          )
+        }
       }
       // If the received setup is not up to date
       else if (this.lab.timestamp !== timestamp && this.lab.timestamp > 0) {
@@ -433,6 +536,44 @@ export default class Peer {
 
     if (deadPeers.length > 0) {
       this.removePeers(deadPeers)
+    } else {
+      this.checkForDeadStations()
+    }
+  }
+
+  // This is simply a fix, since stations need to have at least one station user
+  checkForDeadStations() {
+    const rooms = this.y.rooms.toJSON()
+    const stations = Object.keys(rooms).filter((id) =>
+      id.toLocaleLowerCase().startsWith('station')
+    )
+
+    if (stations.length > 0) {
+      const deadStation: string[] = []
+      const users = this.y.users.toJSON()
+
+      for (const station of stations) {
+        let found = false
+        for (const id in users) {
+          if (users[id].room === station) {
+            found = true
+            break
+          }
+        }
+
+        if (!found) {
+          deadStation.push(station)
+        }
+      }
+
+      if (deadStation.length > 0) {
+        this.y.doc.transact(() => {
+          for (const station of deadStation) {
+            LOG('Removing dead station', station)
+            this.y.rooms.delete(station)
+          }
+        }, 'checkForDeadStations')
+      }
     }
   }
 
@@ -471,7 +612,7 @@ export default class Peer {
    * @param message Optional message data.
    */
   async update(
-    event: 'setup' | 'room' | 'message' | 'connected' | 'chat',
+    event: 'setup' | 'room' | 'message' | 'connected' | 'chat' | 'popup',
     message?: any
   ) {
     const callback = this.callback[event]
@@ -528,6 +669,15 @@ export default class Peer {
         }
         break
       }
+
+      case 'popup': {
+        if (callback) {
+          callback(message)
+          this.callbackUpdate[event] = false
+        } else {
+          this.callbackUpdate[event] = true
+        }
+      }
     }
   }
 
@@ -536,7 +686,7 @@ export default class Peer {
    * @param event The event type.
    * @param callback The callback function.
    */
-  on(event: 'setup' | 'room' | 'connected', callback: any) {
+  on(event: 'setup' | 'room' | 'connected' | 'popup', callback: any) {
     if (callback) {
       this.callback[event] = callback
 
@@ -548,6 +698,34 @@ export default class Peer {
     }
   }
 
+  allowedToParticipate(id?: string) {
+    if (id === undefined) id = getPeerID(false)
+
+    if (
+      this.lab.data.members.student.length === 0 ||
+      this.lab.data.members.student.includes('*')
+    ) {
+      return true
+    }
+
+    if (
+      this.lab.data.members.teacher.includes(id) ||
+      this.lab.data.members.student.includes(id)
+    ) {
+      return true
+    }
+
+    if (this.lab.data.createdBy === id) {
+      return true
+    }
+
+    if (this.isStation()) {
+      return true
+    }
+
+    return false
+  }
+
   /**
    * Broadcasts a message to a room or specific user.
    * @param room The room to broadcast to.
@@ -555,6 +733,12 @@ export default class Peer {
    */
   broadcast(room: string, msg: any) {
     if (!this.connected) {
+      return
+    }
+
+    // prevent broadcast from unauthorized users
+    if (!this.allowedToParticipate()) {
+      console.warn(this.t('peer.feedback.unauthorized'))
       return
     }
 
@@ -592,15 +776,27 @@ export default class Peer {
       clearInterval(heartbeatID)
       heartbeatID = null
     }
+
+    // Remove beforeunload listener for this peer instance
+    window.removeEventListener('beforeunload', this.stop)
+
+    // Remove user from Yjs users map within a transaction
     this.y.doc.transact(() => {
       this.y.users.delete(this.peerID)
     }, 'stop')
 
-    this.provider.disconnect()
-    this.provider.destroy()
+    // Disconnect and destroy the provider with cleanup
+    if (this.provider) {
+      this.provider.disconnect()
+      this.provider.destroy() // Ensure this calls our improved destroy
+    }
 
+    // Clear callbacks to release references
     this.callback = {}
     this.callbackUpdate = {}
+
+    // Additional cleanup for Yjs document if necessary
+    this.y.doc.destroy()
   }
 
   /**
@@ -668,6 +864,13 @@ export default class Peer {
    * @param data The update data.
    */
   updateState(data: Uint8Array) {
+    if (!this.allowedToParticipate()) {
+      console.warn(
+        this.t('peer.feedback.notPropagated')
+      )
+      return
+    }
+
     this.y.doc.transact(
       () => {
         Y.applyUpdate(this.y.doc, data)

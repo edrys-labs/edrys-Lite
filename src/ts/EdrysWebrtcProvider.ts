@@ -44,13 +44,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
     this._bcChannel = new BroadcastChannel(`custom-webrtc-provider-${roomName}`)
 
     // Listen for BroadcastChannel messages
-    this._bcChannel.addEventListener('message', (event) => {
-      const message = event.data
-      if (this._isDuplicateMessage(message)) return
-      if (this._messageListener) {
-        this._messageListener(message)
-      }
-    })
+    this._bcChannel.addEventListener('message', this._bcChannelListener)
 
     // Listen for new peer connections
     this.on('peers', (event) => {
@@ -62,6 +56,14 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
     // Assign own unique user ID
     this.userid = options.userid || this.doc.clientID.toString()
+  }
+
+  _bcChannelListener(event) {
+    const message = event.data
+    if (this._isDuplicateMessage(message)) return
+    if (this._messageListener) {
+      this._messageListener(message)
+    }
   }
 
   /**
@@ -250,7 +252,10 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
    */
   destroy() {
     super.destroy()
+
+    this._bcChannel.removeEventListener('message', this._bcChannelListener)
     this._bcChannel.close()
+
     this._messageListener = null
     this._leaveListener = null
 
@@ -258,5 +263,10 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
       clearInterval(this._cleanupInterval)
       this._cleanupInterval = null
     }
+
+    this._setupPeers.clear()
+
+    // Clear any other lingering data
+    this._processedMessages.clear()
   }
 }

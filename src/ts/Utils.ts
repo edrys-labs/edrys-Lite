@@ -345,23 +345,44 @@ export function getShortPeerID(id: string) {
   return id
 }
 
+export function getBasePeerID(id: string) {
+  const ids = id.split('_')
+
+  // peerID_sessionID
+  if (ids.length == 2) {
+    return ids[0]
+  }
+
+  return id
+}
+
 export function clone(object: any) {
   if (object !== undefined) return JSON.parse(JSON.stringify(object))
 }
 
 export function removeKeysStartingWithSecret(obj: any) {
-  for (let key in obj) {
-    if (typeof obj[key] === 'object') {
-      // Recursively call the function if the value is an object or an array
-      removeKeysStartingWithSecret(obj[key])
-
-      if (JSON.stringify(obj[key]) === '{}') {
-        delete obj[key]
+  if (!obj) return;
+  
+  if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      if (typeof obj[i] === 'object') {
+        removeKeysStartingWithSecret(obj[i]);
       }
     }
-    // If the key starts with "secret", delete the key-value pair
-    if (key.toLocaleLowerCase().startsWith('secret')) {
-      delete obj[key]
+    return;
+  }
+
+  for (let key in obj) {
+    if (typeof obj[key] === 'object') {
+      removeKeysStartingWithSecret(obj[key]);
+      if (Array.isArray(obj[key])) {
+        obj[key] = obj[key].filter(item => item !== undefined);
+      } else if (Object.keys(obj[key]).length === 0) {
+        delete obj[key];
+      }
+    }
+    if (key.toLowerCase().startsWith('secret')) {
+      delete obj[key];
     }
   }
 }
