@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Classroom from '../../../src/views/Classroom.vue';
+import { i18n, messages } from '../../setup';
 
 // Mock dependencies
 vi.mock('../../../src/ts/Database', () => ({
@@ -27,6 +28,7 @@ vi.mock('../../../src/ts/Utils', () => ({
   clone: vi.fn(obj => JSON.parse(JSON.stringify(obj))),
   getPeerID: vi.fn(() => 'test-peer-id'),
   getShortPeerID: vi.fn(() => 'test-user'),
+  getBasePeerID: vi.fn(id => id?.split('-')[0] || id),
   deepEqual: vi.fn(),
   copyToClipboard: vi.fn()
 }));
@@ -39,7 +41,8 @@ const mockCommunication = {
   gotoRoom: vi.fn(),
   addRoom: vi.fn(),
   sendMessage: vi.fn(),
-  newSetup: vi.fn()
+  newSetup: vi.fn(),
+  allowedToParticipate: vi.fn().mockReturnValue(true)  
 };
 
 // Update the Peer mock to return our mockCommunication
@@ -58,24 +61,78 @@ describe('Classroom View', () => {
       },
       global: {
         stubs: {
-          'v-app': true,
-          'v-layout': true,
-          'v-app-bar': true,
+          'v-app': {
+            template: '<div class="v-app"><slot /></div>'
+          },
+          'v-layout': {
+            template: '<div class="v-layout"><slot /></div>'
+          },
+          'v-app-bar': {
+            template: '<div class="v-app-bar"><slot /></div>'
+          },
           'v-app-bar-nav-icon': true,
           'v-app-bar-title': true,
           'v-main': true,
-          'v-navigation-drawer': true,
-          'v-dialog': true,
-          'v-list': true,
-          'v-list-item': true,
-          'v-btn': {
-            template: '<button @click="$emit(\'click\')"><slot /></button>'
+          'v-navigation-drawer': {
+            template: `
+              <nav class="v-navigation-drawer">
+                <div class="v-navigation-drawer-prepend">
+                  <slot name="prepend" />
+                </div>
+                <slot />
+                <div class="v-navigation-drawer-append">
+                  <slot name="append" />
+                </div>
+              </nav>
+            `
           },
-          'v-icon': true,
+          'v-dialog': {
+            template: '<div class="v-dialog"><slot /></div>'
+          },
+          'v-list': {
+            template: '<div class="v-list"><slot /></div>'
+          },
+          'v-list-item': {
+            template: `
+              <div class="v-list-item">
+                <slot />
+                <div class="v-list-item-append">
+                  <slot name="append" />
+                </div>
+              </div>
+            `
+          },
+          'v-list-item-title': {
+            template: '<div class="v-list-item-title"><slot /></div>'
+          },
+          'v-list-item-subtitle': {
+            template: '<div class="v-list-item-subtitle"><slot /></div>'
+          },
+          'v-btn': {
+            template: '<button class="v-btn" :title="$attrs.title" :class="$attrs.class" @click="$emit(\'click\')"><slot /><i v-if="$attrs.icon" :class="$attrs.icon"></i></button>'
+          },
+          'v-icon': {
+            template: '<i :class="$attrs.icon"><slot /></i>'
+          },
           'v-spacer': true,
           'v-divider': true,
           'v-menu': true,
           'v-badge': true,
+          'v-overlay': {
+            template: '<div class="v-overlay"><slot /></div>'
+          },
+          'v-card': {
+            template: '<div class="v-card"><slot /></div>'
+          },
+          'v-card-text': {
+            template: '<div class="v-card-text"><slot /></div>'
+          },
+          'v-form': {
+            template: '<form class="v-form"><slot /></form>'
+          },
+          'v-text-field': {
+            template: '<div class="v-text-field"><slot /></div>'
+          },
           Settings: true,
           Chat: true,
           Modules: true,
@@ -216,4 +273,55 @@ describe('Classroom View', () => {
     expect(sessionStorage.getItem(`station_test-class`)).toBe('new-station');
     expect(reloadMock).toHaveBeenCalled();
   });
+
+  describe('translations', () => {
+    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', async (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+      
+      // Test station mode translations
+      const stationWrapper = createWrapper({ station: true });
+      await stationWrapper.vm.$nextTick();
+      
+      const translations = messages[locale].classroom;
+      
+      // Check station mode text
+      const cardTexts = stationWrapper.findAll('.v-card-text');
+      expect(cardTexts[0].text()).toContain(translations.station.mode);
+
+      // Check station mode form content
+      const form = stationWrapper.find('.v-form');
+      expect(form.exists()).toBe(true);
+
+      // Check that station label is used somewhere in the template
+      expect(stationWrapper.html()).toContain(translations.station.label);
+
+      // Check station mode description
+      expect(cardTexts[1].text()).toContain(translations.station.modeDescription);
+
+      // Check exit station mode button
+      const lastCardText = stationWrapper.findAll('.v-card-text').at(-1);
+      const exitButton = lastCardText.find('.v-btn');
+      expect(exitButton.text()).toContain(translations.station.exit);
+
+      // Create a new wrapper for side menu tests (classroom mode)
+      const menuWrapper = createWrapper();
+      await menuWrapper.vm.$nextTick();
+
+      menuWrapper.vm.showSideMenu = true;
+      await menuWrapper.vm.$nextTick();
+
+      // Check side menu texts
+      const sideMenuTranslations = translations.sideMenu;
+      
+      expect(menuWrapper.html()).toContain(sideMenuTranslations.onlineUsers);
+
+      menuWrapper.vm.isOwner = true;
+      await menuWrapper.vm.$nextTick();
+      
+      expect(menuWrapper.html()).toContain(sideMenuTranslations.settings);
+      expect(menuWrapper.html()).toContain(sideMenuTranslations.newRoom);
+    });
+  });
 });
+
+

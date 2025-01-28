@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Checks from '../../../src/components/Checks.vue';
+import { i18n, messages } from '../../setup';
 
 describe('Checks Component', () => {
   let wrapper: any;
@@ -15,6 +16,30 @@ describe('Checks Component', () => {
           ...states,
         },
       },
+      global: {
+        stubs: {
+          'v-overlay': {
+            template: '<div class="v-overlay"><slot /></div>',
+            inheritAttrs: false
+          },
+          'v-container': {
+            template: '<div class="v-container"><slot /></div>'
+          },
+          'v-row': {
+            template: '<div class="v-row"><slot /></div>'
+          },
+          'v-col': {
+            template: '<div class="v-col"><slot /></div>'
+          },
+          'v-progress-circular': {
+            template: '<div class="v-progress-circular"><slot /></div>'
+          },
+          'v-icon': {
+            template: '<span class="v-icon" :icon="icon"><slot /></span>',
+            props: ['icon']
+          }
+        }
+      }
     });
   };
 
@@ -30,8 +55,8 @@ describe('Checks Component', () => {
 
   test('renders correctly with initial states', () => {
     wrapper = createWrapper();
-    expect(wrapper.find('v-overlay').exists()).toBe(true);
-    expect(wrapper.find('v-progress-circular').exists()).toBe(true);
+    expect(wrapper.find('.v-overlay').exists()).toBe(true);
+    expect(wrapper.find('.v-progress-circular').exists()).toBe(true);
     expect(wrapper.findAll('[icon="mdi-close"]')).toHaveLength(3);
   });
 
@@ -170,5 +195,18 @@ describe('Checks Component', () => {
       },
     });
     expect(wrapper.vm.model).toBe(false);
+  });
+
+  describe('translations', () => {
+    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+      wrapper = createWrapper();
+
+      const translations = messages[locale];
+      expect(wrapper.text()).toContain(translations.checks.webRTCSupport);
+      expect(wrapper.text()).toContain(translations.checks.configLoaded);
+      expect(wrapper.text()).toContain(translations.checks.connected['1']);
+      expect(wrapper.text()).toContain(translations.checks.connected['2']);
+    });
   });
 });

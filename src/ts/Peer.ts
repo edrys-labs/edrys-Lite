@@ -702,7 +702,7 @@ export default class Peer {
 
     // prevent broadcast from unauthorized users
     if (!this.allowedToParticipate()) {
-      console.warn(this.t('peer.feedback.noAccess'))
+      console.warn(this.t('peer.feedback.unauthorized'))
       return
     }
 
@@ -818,7 +818,7 @@ export default class Peer {
   updateState(data: Uint8Array) {
     if (!this.allowedToParticipate()) {
       console.warn(
-        this.t('peer.feedback.noAccess')
+        this.t('peer.feedback.notPropagated')
       )
       return
     }

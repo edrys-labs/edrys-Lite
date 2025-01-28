@@ -1,6 +1,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Members from '../../../../src/components/Settings/Members.vue';
+import { i18n, messages } from '../../../setup';
 
 describe('Members Settings Component', () => {
   const mockMembers = {
@@ -24,7 +25,7 @@ describe('Members Settings Component', () => {
           'v-btn': true,
           'v-divider': true,
           'v-textarea': {
-            template: '<textarea class="v-textarea" :value="modelValue" :disabled="$attrs.disabled" @input="$emit(\'update:modelValue\', $event.target.value)"></textarea>',
+            template: '<textarea class="v-textarea" :value="modelValue" :disabled="$attrs.disabled" :label="$attrs.label" @input="$emit(\'update:modelValue\', $event.target.value)"></textarea>',
             props: ['modelValue'],
             inheritAttrs: false
           }
@@ -56,5 +57,27 @@ describe('Members Settings Component', () => {
     const wrapper = createWrapper({ writeProtection: true });
     const textarea = wrapper.find('.v-textarea');
     expect((textarea.element as HTMLTextAreaElement).disabled).toBe(true);
+  });
+
+
+  describe('translations', () => {
+    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+      const wrapper = createWrapper();
+      
+      const translations = messages[locale].settings.members;
+
+      const alerts = wrapper.findAll('.v-alert');
+      const inputs = wrapper.findAll('.v-textarea');
+
+      const alertText = alerts.find(alert => alert.attributes('text')  === translations.info);
+      expect(alertText).toBeTruthy();
+
+      const teacherIdsInput = inputs.find(input => input.attributes('label') === translations.teacherIds);
+      expect(teacherIdsInput).toBeTruthy();
+
+      const studentsIdsInput = inputs.find(input => input.attributes('label') === translations.studentIds);
+      expect(studentsIdsInput).toBeTruthy();
+    });
   });
 });

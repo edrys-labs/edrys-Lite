@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Share from '../../../../src/components/Settings/Share.vue';
+import { i18n, messages } from '../../../setup';
 
 describe('Share Settings Component', () => {
   const mockConfig = {
@@ -84,11 +85,11 @@ describe('Share Settings Component', () => {
             template: '<button class="v-btn" @click="$emit(\'click\')"><slot /></button>'
           },
           'v-file-input': {
-            template: '<input type="file" class="v-file-input" :disabled="$attrs.disabled" @change="$emit(\'update:modelValue\', $event.target.files[0])" />',
+            template: '<input type="file" class="v-file-input" :disabled="$attrs.disabled" :label="$attrs.label" @change="$emit(\'update:modelValue\', $event.target.files[0])" />',
             inheritAttrs: false
           },
           'v-text-field': {
-            template: '<input type="text" class="v-text-field" :disabled="$attrs.disabled" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+            template: '<input type="text" class="v-text-field" :disabled="$attrs.disabled" :label="$attrs.label" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
             props: ['modelValue'],
             inheritAttrs: false
           },
@@ -139,7 +140,7 @@ describe('Share Settings Component', () => {
     
     // Trigger the file input change by directly calling the component method
     wrapper.vm.selectedFile = file;
-    await wrapper.vm.restoreFile();
+    wrapper.vm.restoreFile();
     
     // Wait for the FileReader mock to complete
     await new Promise(resolve => setTimeout(resolve, 0));
@@ -155,5 +156,37 @@ describe('Share Settings Component', () => {
     
     expect((fileInput.element as HTMLInputElement).disabled).toBe(true);
     expect((urlInput.element as HTMLInputElement).disabled).toBe(true);
+  });
+
+  describe('translations', () => {
+    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+      const wrapper = createWrapper();
+      
+      const buttons = wrapper.findAll('.v-btn');
+      const inputs = wrapper.findAll('input');
+      
+      const translations = messages[locale].settings.share;
+
+      // Check yaml button text
+      const yamlButton = buttons.find(btn => btn.text() === translations.downloadYml);
+      expect(yamlButton).toBeTruthy();
+      
+      // Check json button text
+      const jsonButton = buttons.find(btn => btn.text() === translations.downloadJson);
+      expect(jsonButton).toBeTruthy();
+      
+      // Check file input label
+      const fileInput = inputs.find(input => input.attributes('label') === translations.restoreFromFile);
+      expect(fileInput).toBeTruthy();
+      
+      // Check URL input label
+      const urlInput = inputs.find(input => input.attributes('label') === translations.restoreFromUrl);
+      expect(urlInput).toBeTruthy();
+      
+      // Check explore button text
+      const exploreButton = buttons.find(btn => btn.text() === translations.explore);
+      expect(exploreButton).toBeTruthy();
+    });
   });
 });

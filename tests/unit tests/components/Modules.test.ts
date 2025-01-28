@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Modules from '../../../src/components/Modules.vue';
-import Module from '../../../src/components/Module.vue';
+import { i18n, messages } from '../../setup';
 
 // Mock Muuri
 vi.mock('muuri', () => {
@@ -94,7 +94,7 @@ describe('Modules Component', () => {
 
   test('renders correct number of modules based on filter', () => {
     wrapper = createWrapper({ role: 'teacher' });
-    const modules = wrapper.findAllComponents(Module);
+    const modules = wrapper.findAllComponents({ name: 'Module' });
     expect(modules).toHaveLength(1);
   });
 
@@ -113,7 +113,7 @@ describe('Modules Component', () => {
     });
     
     expect(wrapper.vm.roomName).toBe('Station 1');
-    const modules = wrapper.findAllComponents(Module);
+    const modules = wrapper.findAllComponents({ name: 'Module' });
     expect(modules).toHaveLength(2); 
   });
 
@@ -128,14 +128,14 @@ describe('Modules Component', () => {
       role: 'student',
       scrapedModules_: teacherOnlyModule,
     });
-    expect(wrapper.findAllComponents(Module)).toHaveLength(1);
+    expect(wrapper.findAllComponents({ name: 'Module' })).toHaveLength(1);
     
     // Test as teacher
     wrapper = createWrapper({
       role: 'teacher',
       scrapedModules_: teacherOnlyModule,
     });
-    expect(wrapper.findAllComponents(Module)).toHaveLength(2);
+    expect(wrapper.findAllComponents({ name: 'Module' })).toHaveLength(2);
   });
 
   test('calculates correct module sizes', () => {
@@ -207,8 +207,6 @@ describe('Modules Component', () => {
 
   test('shows empty state message when no modules', () => {
     wrapper = createWrapper({ scrapedModules_: [] });
-    console.log(wrapper.html());
-
     expect(wrapper.find('.v-card-text').exists()).toBe(true);
   });
 
@@ -238,5 +236,27 @@ describe('Modules Component', () => {
     
     expect(removeEventListenerSpy).toHaveBeenCalledWith('message', expect.any(Function));
     expect(mockCommunication.on).toHaveBeenCalledWith('message', undefined);
+  });
+
+  describe('translations', () => {
+    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', async (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+      const wrapper = createWrapper({ scrapedModules_: [] });
+      
+      const translations = messages[locale].modules.noModules;
+
+      // Check empty state message for teacher or station
+      await wrapper.setProps({ role: 'teacher' });
+      expect(wrapper.find('.v-card-text').text()).toContain(translations['1']);
+      expect(wrapper.find('.v-card-text').text()).toContain(translations['2']);
+
+      await wrapper.setProps({ role: 'station' });
+      expect(wrapper.find('.v-card-text').text()).toContain(translations['1']);
+      expect(wrapper.find('.v-card-text').text()).toContain(translations['2']);
+
+      // Check empty state message for student
+      await wrapper.setProps({ role: 'student' });
+      expect(wrapper.find('.v-card-text').text()).toContain(translations['3']);
+    });
   });
 });

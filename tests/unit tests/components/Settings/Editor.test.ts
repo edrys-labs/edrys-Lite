@@ -1,6 +1,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Editor from '../../../../src/components/Settings/Editor.vue';
+import { i18n, messages } from '../../../setup';
 
 describe('Editor Component', () => {
   const mockPrismHighlight = vi.fn((code) => code);
@@ -106,5 +107,18 @@ describe('Editor Component', () => {
     expect(consoleSpy).toHaveBeenCalled();
     
     consoleSpy.mockRestore();
+  });
+
+  describe('translations', () => {
+    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+      const wrapper = createWrapper();
+
+      const translations = messages[locale].settings.modules.editor;
+
+      const infoDiv = wrapper.findAll('div').find(div => div.text() === translations.info);
+
+      expect(infoDiv).toBeTruthy();
+    });
   });
 });

@@ -2,6 +2,7 @@ import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Chat from '../../../src/components/Chat.vue';
 import markdownit from 'markdown-it';
+import { i18n, messages } from '../../setup';
 
 // Mock prism dependencies
 const mockPrismHighlight = vi.fn((code) => code);
@@ -76,6 +77,7 @@ describe('Chat Component', () => {
           prismHighlight: mockPrismHighlight,
           prismLanguages: mockPrismLanguages,
         },
+        plugins: [i18n],
         stubs,
       },
     });
@@ -235,5 +237,22 @@ describe('Chat Component', () => {
     
     // Restore original value
     window.innerWidth = originalInnerWidth;
+  });
+
+  describe('translations', () => {
+    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', async (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+      const wrapper = createWrapper();
+      
+      const translations = messages[locale].chat;
+
+      // Check truncation message
+      await wrapper.setProps({ truncated: true });
+      expect(wrapper.html()).toContain(translations.deletedMessage);
+
+      // Check send button text
+      const sendButton = wrapper.find('.v-btn');
+      expect(sendButton.text()).toBe(translations.sendButton);
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Footer from '../../../src/components/Footer.vue';
+import { i18n, messages } from '../../setup';
 
 // Create stub components with templates to render content
 const stubs = {
@@ -11,7 +12,7 @@ const stubs = {
     template: '<div class="v-row" v-bind="$attrs"><slot /></div>',
   },
   'v-tooltip': {
-    template: '<div class="v-tooltip" v-bind="$attrs"><slot name="activator" :props="{}" /></div>',
+    template: '<div class="v-tooltip" v-bind="$attrs" :text="$attrs.text"><slot name="activator" :props="{}" /></div>',
   },
   'v-btn': {
     template: '<button class="v-btn" v-bind="$attrs"><slot /></button>',
@@ -59,21 +60,6 @@ describe('Footer Component', () => {
     });
   });
 
-  test('tooltips have correct text', () => {
-    const tooltips = wrapper.findAll('.v-tooltip');
-    expect(tooltips).toHaveLength(3);
-    
-    const tooltipTexts = [
-      'edrys-Lite on GitHub',
-      'View the Documentation',
-      'Explore Classrooms'
-    ];
-    
-    tooltips.forEach((tooltip, index) => {
-      expect(tooltip.attributes('text')).toBe(tooltipTexts[index]);
-    });
-  });
-
   test('buttons have correct density', () => {
     const buttons = wrapper.findAll('.v-btn');
     buttons.forEach(btn => {
@@ -92,5 +78,25 @@ describe('Footer Component', () => {
     const row = wrapper.find('.v-row');
     expect(row.attributes('justify')).toBe('center');
     expect(row.attributes('no-gutters')).toBe('');
+  });
+
+  describe('translations', () => {
+    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', async (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+      await wrapper.vm.$nextTick();
+
+      const translations = messages[locale].footer;
+
+      const tooltips = wrapper.findAll('.v-tooltip');
+
+      // Check GitHub button tooltip
+      expect(tooltips[0].attributes('text')).toBe(translations.github);
+
+      // Check Docs button tooltip
+      expect(tooltips[1].attributes('text')).toBe(translations.docs);
+
+      // Check Explore button tooltip
+      expect(tooltips[2].attributes('text')).toBe(translations.explore);
+    });
   });
 });

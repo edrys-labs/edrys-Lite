@@ -2,6 +2,7 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import Deploy from '../../../src/views/Deploy.vue';
 import { copyToClipboard } from '../../../src/ts/Utils';
+import { i18n, messages } from '../../setup';
 
 // Mock fetch API
 global.fetch = vi.fn();
@@ -45,8 +46,12 @@ describe('Deploy View', () => {
       },
       global: {
         stubs: {
-          'v-app': true,
-          'v-app-bar': true,
+          'v-app': {
+            template: '<div class="v-app"><slot /></div>'
+          },
+          'v-app-bar': {
+            template: '<div class="v-app-bar"><slot /></div>'
+          },
           'v-main': {
             template: '<div class="v-main"><slot /></div>'
           },
@@ -57,9 +62,11 @@ describe('Deploy View', () => {
           'v-list': true,
           'v-list-item': true,
           'v-btn': {
-            template: '<button @click="$emit(\'click\')"><slot /></button>'
+            template: '<button class="v-btn" @click="$emit(\'click\')"><slot /></button>'
           },
-          'v-icon': true,
+          'v-icon': {
+            template: '<i :class="$attrs.icon"><slot /></i>'
+          },
           'v-overlay': {
             template: '<div class="v-overlay" v-if="modelValue"><slot /></div>',
             props: ['modelValue']
@@ -67,13 +74,16 @@ describe('Deploy View', () => {
           'v-card': {
             template: '<div class="v-card"><slot /><slot name="text" /></div>'
           },
-          'v-card-text': true,
+          'v-card-text': {
+            template: '<div class="v-card-text"><slot /></div>'
+          },
           'v-divider': true,
           'v-checkbox': {
-            template: '<input type="checkbox" v-model="modelValue" />',
+            template: '<label class="v-checkbox"><input type="checkbox" v-model="modelValue" />{{ $attrs.label }}</label>',
             props: ['modelValue']
           },
-          Footer: true
+          Footer: true,
+          UserMenu: true
         }
       }
     });
@@ -174,5 +184,45 @@ describe('Deploy View', () => {
     
     await wrapper.setData({ checkboxValue: false });
     expect(localStorage.getItem('deployed')).toBe('false');
+  });
+
+  describe('translations', () => {
+    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', async (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+      const translations = messages[locale].deploy;
+      
+      const wrapper = createWrapper({ url: 'https://test.com/classroom' });
+
+      // Wait for component to mount and fetch data
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      // Test initial state messages
+      const stateMessages = wrapper.findAll('.v-container div');
+      expect(stateMessages[0].text()).toContain(translations.state.waiting);
+      expect(stateMessages[1].text()).toContain(translations.state.fetching);
+
+      // Set component as ready to test overlay content
+      await wrapper.setData({ ready: true });
+      await wrapper.vm.$nextTick();
+
+      // Test overlay content
+      const overlayContent = wrapper.find('.v-overlay');
+      expect(overlayContent.exists()).toBe(true);
+
+      // Check card texts
+      const cardTexts = wrapper.findAll('.v-card-text');
+      expect(cardTexts[0].text()).toContain(translations.overlay.isReady);
+      expect(cardTexts[1].text()).toContain(translations.overlay.redirect);
+      expect(cardTexts[1].text()).toContain(translations.overlay.info);
+
+      // Check checkbox label
+      const checkbox = wrapper.find('.v-checkbox');
+      expect(checkbox.text()).toContain(translations.overlay.checkbox);
+
+      // Check goto button text
+      const gotoButton = wrapper.find('.v-btn');
+      expect(gotoButton.text()).toContain(translations.overlay.goto);
+    });
   });
 });

@@ -3,6 +3,7 @@ import Peer from '../../../src/ts/Peer';
 import * as Y from 'yjs';
 import { EdrysWebrtcProvider } from '../../../src/ts/EdrysWebrtcProvider';
 import { getPeerID, getShortPeerID } from '../../../src/ts/Utils';
+import { i18n, messages } from '../../setup';
 
 // Mock dependencies
 vi.mock('../../../src/ts/EdrysWebrtcProvider', () => {
@@ -48,7 +49,7 @@ describe('Peer Class', () => {
       hash: null,
     };
 
-    peer = new Peer(setup);
+    peer = new Peer(setup, undefined, i18n.global.t);
   });
 
   afterEach(() => {
@@ -197,7 +198,7 @@ describe('Peer Class', () => {
       peer.broadcast('Lobby', { data: 'test' });
       
       expect(consoleSpy).toHaveBeenCalledWith(
-        'Unauthorized user trying to broadcast message, contact admin for access'
+        messages.en.peer.feedback.unauthorized
       );
       
       peer['allowedToParticipate'] = originalAllowedToParticipate;
@@ -212,7 +213,7 @@ describe('Peer Class', () => {
       peer.updateState(new Uint8Array());
       
       expect(consoleSpy).toHaveBeenCalledWith(
-        'Your state changes will not be propagated to other users, contact admin for lab access'
+        messages.en.peer.feedback.notPropagated
       );
       
       peer['allowedToParticipate'] = originalAllowedToParticipate;
@@ -326,6 +327,63 @@ describe('Peer Class', () => {
       expect(peer['provider'].destroy).toHaveBeenCalled();
       expect(peer['callback']).toEqual({});
       expect(peer['callbackUpdate']).toEqual({});
+    });
+  });
+
+
+  describe('translations', () => {
+    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', (locale)  => {      
+      i18n.global.locale.value = locale;      
+      const testPeer = new Peer(setup, undefined, i18n.global.t);
+      const updateSpy = vi.spyOn(testPeer as any, 'update');
+      
+      // Test noAccess translation
+      testPeer['allowedToParticipate'] = () => false;
+      
+      // Test unauthorized setup state
+      testPeer.initSetup(true);
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.noAccess);
+      
+      // Test unauthorized state update message
+      testPeer.updateState(new Uint8Array());
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.noAccess);
+      
+      // Test module changes message
+      testPeer.logSetupChanges(
+        { modules: [1], members: {} },
+        { modules: [2], members: {} }
+      );
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.moduleChanges);
+      
+      // Test member role change messages
+      const testId = 'test-id';
+      vi.mocked(getPeerID).mockReturnValue(testId);
+      
+      testPeer.logSetupChanges(
+        { members: { teacher: [testId], student: [] } },
+        { members: { teacher: [], student: [] } }
+      );
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.removedTeacher);
+      
+      testPeer.logSetupChanges(
+        { members: { teacher: [], student: [] } },
+        { members: { teacher: [testId], student: [] } }
+      );
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.addedTeacher);
+      
+      testPeer.logSetupChanges(
+        { members: { teacher: [], student: [testId] } },
+        { members: { teacher: [], student: ['test-id-2'] } }
+      );
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.removedStudent);
+      
+      testPeer.logSetupChanges(
+        { members: { teacher: [], student: [] } },
+        { members: { teacher: [], student: [testId] } }
+      );
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.addedStudent);
+      
+      updateSpy.mockRestore();
     });
   });
 });
