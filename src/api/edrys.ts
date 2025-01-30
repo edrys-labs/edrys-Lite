@@ -250,6 +250,31 @@ window['Edrys'] = {
 
     return state
   },
+
+  // To initialize Google Translate Widget
+  initTranslator(config = {
+    pageLanguage: 'en',
+    includedLanguages: 'en,de,uk,ar,fr,es,de,it,pt,ru,zh-CN,ja,ko',
+    layout: 'SIMPLE',
+    autoDisplay: true
+  }) {
+    const div = document.createElement('div');
+    div.id = 'google_translate_element';
+    document.body.insertBefore(div, document.body.firstChild);
+
+    window['googleTranslateElementInit'] = () => {
+      new (window as any).google.translate.TranslateElement({
+        pageLanguage: config.pageLanguage,
+        includedLanguages: config.includedLanguages,
+        layout: (window as any).google.translate.TranslateElement.InlineLayout[config.layout],
+        autoDisplay: config.autoDisplay
+      }, 'google_translate_element');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+    document.head.appendChild(script);
+  },
 }
 
 const edrysProxyValidator = (path) => ({
