@@ -258,22 +258,64 @@ window['Edrys'] = {
     layout: 'SIMPLE',
     autoDisplay: true
   }) {
-    const div = document.createElement('div');
-    div.id = 'google_translate_element';
-    document.body.insertBefore(div, document.body.firstChild);
+    // Container for both button and translate element
+    const container = document.createElement('div');
+    container.className = 'translate-container';
+    container.style.position = 'fixed';
+    container.style.top = '10px';
+    container.style.right = '10px';
+    container.style.zIndex = '1000';
+    
+    // Translate button
+    const button = document.createElement('button');
+    button.id = 'translate-button';
+    button.innerHTML = '🌐';
+    button.style.padding = '8px';
+    button.style.cursor = 'pointer';
+    button.style.borderRadius = '4px';
+    button.style.border = '1px solid';
+    button.title = 'Enable translation (uses Google Translate - may send page content to Google servers)';
+    
+    // Google Translate div
+    const translateDiv = document.createElement('div');
+    translateDiv.id = 'google_translate_element';
+    translateDiv.style.display = 'none';
+    translateDiv.style.marginTop = '10px';
+    
+    container.appendChild(button);
+    container.appendChild(translateDiv);
+    document.body.appendChild(container);
 
-    window['googleTranslateElementInit'] = () => {
-      new (window as any).google.translate.TranslateElement({
-        pageLanguage: config.pageLanguage,
-        includedLanguages: config.includedLanguages,
-        layout: (window as any).google.translate.TranslateElement.InlineLayout[config.layout],
-        autoDisplay: config.autoDisplay
-      }, 'google_translate_element');
+    button.onclick = () => {
+      translateDiv.style.display = 'block';
+      button.style.display = 'none';
+      
+      // Initialize Google Translate only when button is clicked
+      if (!window['googleTranslateElementInit']) {
+        window['googleTranslateElementInit'] = () => {
+          new (window as any).google.translate.TranslateElement({
+            pageLanguage: config.pageLanguage,
+            includedLanguages: config.includedLanguages,
+            layout: (window as any).google.translate.TranslateElement.InlineLayout[config.layout],
+            autoDisplay: config.autoDisplay
+          }, 'google_translate_element');
+
+          // Style the widget
+          const style = document.createElement('style');
+          style.textContent = `
+            .goog-te-gadget-simple {
+              padding: 5px !important;
+              border-radius: 4px !important;
+            }
+          `;
+          document.head.appendChild(style);
+        };
+
+        const script = document.createElement('script');
+        script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+        document.head.appendChild(script);
+      }
     };
-
-    const script = document.createElement('script');
-    script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
-    document.head.appendChild(script);
   },
 }
 
