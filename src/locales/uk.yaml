@@ -11,6 +11,7 @@ index:
     create: "Створити клас"
     startTeaching: "Почати викладання"
     writeProtection: "Захист від запису"
+    newClass: "Мій новий клас"
     ownership:
       owner: "Ви власник цього класу"
       teacher: "Ви тут викладач"

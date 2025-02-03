@@ -12,6 +12,7 @@ index:
     create: "Create a class"
     startTeaching: "Start teaching now"
     writeProtection: "Write Protection"
+    newClass: "My New Class"
     ownership:
       owner: "You own this class"
       teacher: "You're a teacher here"

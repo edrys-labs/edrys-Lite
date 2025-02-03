@@ -78,7 +78,7 @@ export default {
         id,
         createdBy: getPeerID(false),
         dateCreated: new Date().getTime(),
-        name: "My New Class",
+        name: this.t('index.classroom.newClass'),
         meta: {
           logo: "",
           description: "",

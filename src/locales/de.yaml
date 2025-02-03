@@ -11,6 +11,7 @@ index:
     create: "Klasse erstellen"
     startTeaching: "Jetzt unterrichten"
     writeProtection: "Schreibschutz"
+    newClass: "Meine neue Klasse"
     ownership:
       owner: "Sie besitzen diese Klasse"
       teacher: "Sie sind hier Lehrer"

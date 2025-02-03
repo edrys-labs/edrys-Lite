@@ -11,6 +11,7 @@ index:
     create: "إنشاء فصل دراسي"
     startTeaching: "ابدأ التدريس الآن"
     writeProtection: "حماية الكتابة"
+    newClass: "فصلي الجديد"
     ownership:
       owner: "أنت تمتلك هذا الفصل"
       teacher: "أنت معلم هنا"
