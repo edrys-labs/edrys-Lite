@@ -543,7 +543,7 @@ export default {
         <v-list nav v-for="(room, name, i) in getRooms()" :key="i" density="compact">
           <v-list-item
             :prepend-icon="name === 'Lobby' ? 'mdi-account-group' : 'mdi-forum'"
-            :title="name"
+            :title="name === 'Lobby' ? t('classroom.sideMenu.lobby') : name.includes('Station') ? t('classroom.sideMenu.station') : t('classroom.sideMenu.room')"
             style="
               background-color: lightgray;
               padding-top: 0px;
@@ -569,7 +569,7 @@ export default {
               <v-icon :icon="icon"></v-icon>
             </template>
 
-            <v-list-item-title v-text="user"></v-list-item-title>
+            <v-list-item-title>{{ user.includes('Station') ? user.replace('Station', t('classroom.sideMenu.station')) : user }}</v-list-item-title>
           </v-list-item>
         </v-list>
 

@@ -29,6 +29,9 @@ classroom:
       "1": "Name ist erforderlich"
       "2": "Name ist bereits vergeben"
   sideMenu:
+    lobby: "Lobby"
+    station: "Station"
+    room: "Raum"
     onlineUsers: "Online-Benutzer"
     settings: "Einstellungen"
     newRoom: "Neuer Raum"

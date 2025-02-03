@@ -29,6 +29,9 @@ classroom:
       "1": "الاسم مطلوب"
       "2": "هذا الاسم محجوز"
   sideMenu:
+    lobby: "الردهة"
+    station: "المحطة"
+    room: "الغرفة"
     onlineUsers: "المستخدمون المتصلون"
     settings: "الإعدادات"
     newRoom: "غرفة جديدة"
