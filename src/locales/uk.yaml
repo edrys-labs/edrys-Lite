@@ -29,7 +29,7 @@ classroom:
       "1": "Потрібно вказати назву"
       "2": "Назва вже зайнята"
   sideMenu:
-    onlineUsers: "онлайн-користувачі"
+    onlineUsers: "Користувачів онлайн"
     settings: "Налаштування"
     newRoom: "Нова кімната"
   popup:
@@ -53,7 +53,7 @@ settings:
     title: "Налаштування"
     writeProtection: "Захист від запису:"
     Main: "Головне"
-    Members: "Учасники"
+    Members: "Користувачі"
     Modules: "Модулі"
     Stations: "Станції"
     Share: "Поділитися"
@@ -71,7 +71,7 @@ settings:
     roomsNum: "Кількість кімнат за замовчуванням (необов'язково)"
     selfAssign: "Увімкнути самостійне призначення"
   members:
-    info: "Запросіть своїх користувачів, поділившись цим посиланням: "
+    info: "Поділіться цим посиланням, щоб запросити нових користувачів: "
     teacherIds: "Список ідентифікаторів вчителів, розділених комами. Кожен вчитель може змінювати курс."
     studentIds: "Список ідентифікаторів студентів, розділених комами, залиште порожнім або додайте *, щоб вказати всіх. Студент може взаємодіяти з модулями."
   modules:
@@ -79,7 +79,7 @@ settings:
     deleteConfirm: "Так"
     url: "URL модуля"
     add: "Додати"
-    explore: "Досліджуйте на Github"
+    explore: "Дізнайтеся більше на github"
     noDescription: "Немає опису"
     module:
       url:
@@ -107,22 +107,22 @@ settings:
             label: "Користувацька висота (px)"
             hint: "Введіть користувацьку висоту в пікселях"
       generalSettings: "Загальні налаштування"
-      studentSettings: "Налаштування студента"
-      teacherSettings: "Налаштування вчителя"
-      stationSettings: "Налаштування станції"
+      studentSettings: "Налаштування для студентів"
+      teacherSettings: "Налаштування для вчителів"
+      stationSettings: "Налаштування режиму станції"
       showIn:
         title: "Показати в"
         label: "Список кімнат, розділених комами, або: lobby, * для всіх, station, (рольово-специфічний teacher-only, station-only)"
     editor:
       info: "Дійсна конфігурація YAML або JSON"
   stations:
-    info: "Щоб додати нову станцію, просто відкрийте це посилання на пристрої клієнта: "
+    info: "Якщо ви хочете перейти в режим станції, то використайте наступне посилання: "
   share:
     downloadYml: "Завантажити файл класу (.yml)"
     downloadJson: "Завантажити файл класу (.json)"
-    restoreFromFile: "Відновити клас з файлу (yaml, json)"
-    restoreFromUrl: "Відновити клас з URL (http, https)"
-    explore: "Досліджуйте на Github"
+    restoreFromFile: "Відновити клас за допомогою файлу (yaml, json)"
+    restoreFromUrl: "Відновити клас за допомогою URL-адреси (http, https)"
+    explore: "Дізнайтеся більше на github"
 
 chat:
   deletedMessage: "попередні повідомлення були видалені ..."
