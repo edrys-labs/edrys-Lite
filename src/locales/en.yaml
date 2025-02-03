@@ -2,6 +2,10 @@ general:
   userId: "User ID"
   userRole: "User Role"
   language: "Language"
+  roles:
+    teacher: "Teacher"
+    student: "Student"
+    station: "Station"
 
 index:
   classroom:

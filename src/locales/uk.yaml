@@ -2,6 +2,10 @@ general:
   userId: "ID користувача"
   userRole: "Роль користувача"
   language: "Мова"
+  roles:
+    teacher: "Вчитель"
+    student: "Студент"
+    station: "Станція"
 index:
   classroom:
     create: "Створити клас"

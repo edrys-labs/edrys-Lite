@@ -2,6 +2,10 @@ general:
   userId: "Benutzer-ID"
   userRole: "Benutzerrolle"
   language: "Sprache"
+  roles:
+    teacher: "Lehrer"
+    student: "Schüler"
+    station: "Station"
 index:
   classroom:
     create: "Klasse erstellen"

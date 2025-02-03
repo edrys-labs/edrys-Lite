@@ -469,7 +469,7 @@ export default {
             <v-list-item>
               <v-list-item-title>{{ t('general.userRole') }}:</v-list-item-title>
               <v-list-item-subtitle>
-                {{ getRole() }}
+                {{ getRole() === 'teacher' ? t('general.roles.teacher') : (getRole() === 'student' ? t('general.roles.student') : t('general.roles.station')) }}
               </v-list-item-subtitle>
             </v-list-item>
           </template>

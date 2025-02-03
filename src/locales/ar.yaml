@@ -2,6 +2,10 @@ general:
   userId: "معرف المستخدم"
   userRole: "دور المستخدم"
   language: "لغة"
+  roles:
+    teacher: "معلم"
+    student: "طالب"
+    station: "محطة"
 index:
   classroom:
     create: "إنشاء فصل دراسي"
