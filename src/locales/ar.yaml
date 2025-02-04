@@ -120,7 +120,9 @@ settings:
       stationSettings: "إعدادات المحطة"
       showIn:
         title: "إظهار في"
-        label: "قائمة مفصولة بفواصل من الغرف، أو: lobby، * للكل، station، (دور محدد teacher-only, station-only)"
+        label: "قائمة مفصولة بفواصل من الغرف، أو: الردهة، * للجميع، المحطة، (دور محدد: فقط للمعلم، فقط للمحطة)"
+        teacherOnly: "فقط للمعلم"
+        stationOnly: "فقط للمحطة"
     editor:
       info: "تكوين YAML أو JSON صالح"
   stations:

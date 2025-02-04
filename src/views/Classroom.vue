@@ -394,6 +394,12 @@ export default {
       if (!this.liveClassProxy) return false;
       return Object.keys(this.liveClassProxy.rooms).includes("Station " + name);
     },
+
+    translateRoomName(name: string): string {
+      if (name === 'Lobby') return this.t('classroom.sideMenu.lobby');
+      if (name.includes('Station')) return name.replace('Station', this.t('classroom.sideMenu.station'));
+      return name.replace('Room', this.t('classroom.sideMenu.room'));
+    },
   },
 
   components: {
@@ -543,7 +549,7 @@ export default {
         <v-list nav v-for="(room, name, i) in getRooms()" :key="i" density="compact">
           <v-list-item
             :prepend-icon="name === 'Lobby' ? 'mdi-account-group' : 'mdi-forum'"
-            :title="name === 'Lobby' ? t('classroom.sideMenu.lobby') : name.includes('Station') ? t('classroom.sideMenu.station') : t('classroom.sideMenu.room')"
+            :title="translateRoomName(name)"
             style="
               background-color: lightgray;
               padding-top: 0px;
@@ -569,7 +575,7 @@ export default {
               <v-icon :icon="icon"></v-icon>
             </template>
 
-            <v-list-item-title>{{ user.includes('Station') ? user.replace('Station', t('classroom.sideMenu.station')) : user }}</v-list-item-title>
+            <v-list-item-title>{{ user && user.includes('Station') ? user.replace('Station', t('classroom.sideMenu.station')) : user }}</v-list-item-title>
           </v-list-item>
         </v-list>
 

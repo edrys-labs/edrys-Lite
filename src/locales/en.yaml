@@ -124,7 +124,9 @@ settings:
       stationSettings: "Station Settings"
       showIn:
         title: "Show in"
-        label: "Comma separated list of rooms, or: lobby, * for all, station, (role specific teacher-only, station-only)"
+        label: "Comma separated list of rooms, or: lobby, * for all, station, (role specific: teacher-only, station-only)"
+        teacherOnly: "teacher-only"
+        stationOnly: "station-only"
     editor:
       info: "Valid YAML or JSON configuration"
   stations:

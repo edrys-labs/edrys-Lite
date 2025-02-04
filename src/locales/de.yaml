@@ -120,7 +120,9 @@ settings:
       stationSettings: "Stationseinstellungen"
       showIn:
         title: "Anzeigen in"
-        label: "Durch Kommas getrennte Liste von Räumen oder: Lobby, * für alle, station, (rollenspezifisch teacher-only, station-only)"
+        label: "Durch Kommas getrennte Liste von Räumen oder: Lobby, * für alle, Station, (rollenspezifisch: nur Lehrer, nur Station)"
+        teacherOnly: "nur Lehrer"
+        stationOnly: "nur Station"
     editor:
       info: "Gültige YAML- oder JSON-Konfiguration"
   stations:
