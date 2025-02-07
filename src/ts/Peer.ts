@@ -13,13 +13,15 @@ function LOG(...args: any[]) {
 
 const LOBBY = 'Lobby'
 const STATION = 'Station'
+const HEARTBEAT = 2500
+const TIMEOUT = 7500
 
 let heartbeatID: ReturnType<typeof setInterval> | null
 
 export default class Peer {
   private provider: EdrysWebrtcProvider
-  
-  private t: (key: string) => string  
+
+  private t: (key: string) => string
 
   private y: {
     doc: Y.Doc
@@ -30,6 +32,16 @@ export default class Peer {
   }
 
   private role: 'student' | 'teacher' | 'station' = 'student'
+
+  private userState?: {
+    displayName: string
+    room: string
+    role: 'student' | 'teacher' | 'station'
+    dateJoined: number
+    logicalClock: number
+    handRaised: boolean
+    connections: { id: string; target: any }[]
+  }
 
   private lab: {
     id: string
@@ -54,8 +66,8 @@ export default class Peer {
   constructor(
     setup: { id: string; data: any; timestamp: number; hash: string | null },
     stationID?: string,
-    t?: (key: string) => string,  // Translation function parameter
-    password?: string,
+    t?: (key: string) => string, // Translation function parameter
+    password?: string
   ) {
     const doc = new Y.Doc()
 
@@ -75,7 +87,7 @@ export default class Peer {
       this.peerID = STATION + ' ' + stationID
     }
 
-    this.t = t || ((key: string) => key)  
+    this.t = t || ((key: string) => key)
 
     // Initialize local state within a transaction
     this.y.doc.transact(() => {
@@ -188,10 +200,7 @@ export default class Peer {
         this.update('connected')
 
         if (!this.allowedToParticipate()) {
-          this.update(
-            'popup',
-            this.t('peer.feedback.noAccess')
-          )
+          this.update('popup', this.t('peer.feedback.noAccess'))
         }
       }
     }, 5000)
@@ -227,7 +236,26 @@ export default class Peer {
    * Returns the current user data.
    */
   user() {
-    return this.y.users.get(this.peerID)
+    let user = this.y.users.get(this.peerID)
+
+    if (!user) {
+      console.warn('User not found', this.peerID)
+
+      user = new Y.Map()
+
+      this.userState.logicalClock++
+      user.set('displayName', this.userState.displayName)
+      user.set('room', this.userState.room)
+      user.set('role', this.userState.role)
+      user.set('dateJoined', this.userState.dateJoined)
+      user.set('logicalClock', this.userState.logicalClock)
+      user.set('handRaised', this.userState.handRaised)
+      user.set('connections', this.userState.connections)
+
+      this.y.users.set(this.peerID, user)
+    }
+
+    return user
   }
 
   /**
@@ -254,6 +282,7 @@ export default class Peer {
           }
 
           delete this.logicalClocks[id]
+          this.provider.removePeer(id)
           // Continue without breaking to remove all specified peers
         }
       }
@@ -266,10 +295,7 @@ export default class Peer {
     }
 
     if (!deepEqual(oldSetup.modules, newSetup.modules)) {
-      this.update(
-        'popup',
-        this.t('peer.feedback.moduleChanges')
-      )
+      this.update('popup', this.t('peer.feedback.moduleChanges'))
     }
 
     if (!deepEqual(oldSetup.members, newSetup.members)) {
@@ -285,6 +311,7 @@ export default class Peer {
         !newSetup.members.teacher.includes(id)
       ) {
         this.update('popup', this.t('peer.feedback.removedTeacher'))
+        this.userState.role = 'student'
         this.user().set('role', 'student')
       }
 
@@ -293,6 +320,7 @@ export default class Peer {
         newSetup.members.teacher.includes(id)
       ) {
         this.update('popup', this.t('peer.feedback.addedTeacher'))
+        this.userState.role = 'teacher'
         this.user().set('role', 'teacher')
         return
       }
@@ -353,10 +381,7 @@ export default class Peer {
         this.y.setup.set('timestamp', this.lab.timestamp)
 
         if (!this.allowedToParticipate()) {
-          this.update(
-            'popup',
-            this.t('peer.feedback.noAccess')
-          )
+          this.update('popup', this.t('peer.feedback.noAccess'))
         }
       }
 
@@ -371,10 +396,7 @@ export default class Peer {
         this.update('setup')
 
         if (!this.allowedToParticipate()) {
-          this.update(
-            'popup',
-            this.t('peer.feedback.noAccess')
-          )
+          this.update('popup', this.t('peer.feedback.noAccess'))
         }
       }
       // If the received setup is not up to date
@@ -406,13 +428,25 @@ export default class Peer {
     this.y.doc.transact(() => {
       const userSettings = new Y.Map()
       const timeNow = Date.now()
-      userSettings.set('displayName', getShortPeerID(this.peerID))
-      userSettings.set('room', this.isStation() ? this.peerID : LOBBY)
-      userSettings.set('role', this.role)
-      userSettings.set('dateJoined', timeNow)
-      userSettings.set('logicalClock', 0)
-      userSettings.set('handRaised', false)
-      userSettings.set('connections', [{ id: '', target: {} }])
+
+      this.userState = {
+        displayName: getShortPeerID(this.peerID),
+        room: this.isStation() ? this.peerID : LOBBY,
+        role: this.role,
+        dateJoined: timeNow,
+        logicalClock: 0,
+        handRaised: false,
+        connections: [{ id: '', target: {} }],
+      }
+
+      userSettings.set('displayName', this.userState.displayName)
+      userSettings.set('room', this.userState.room)
+      userSettings.set('role', this.userState.role)
+      userSettings.set('dateJoined', this.userState.dateJoined)
+      userSettings.set('logicalClock', this.userState.logicalClock)
+      userSettings.set('handRaised', this.userState.handRaised)
+      userSettings.set('connections', this.userState.connections)
+
       this.y.users.set(this.peerID, userSettings)
     }, 'initUser')
 
@@ -424,7 +458,7 @@ export default class Peer {
       } else {
         LOG('user not found', this.peerID)
       }
-    }, 5000)
+    }, HEARTBEAT)
 
     if (withObserver) {
       this.y.users.observeDeep((events) => {
@@ -435,6 +469,11 @@ export default class Peer {
             event.changes.keys.has('logicalClock')
           )
         })
+
+        if (!this.y.users.has(this.peerID)) {
+          // this will read the user to the room
+          this.user()
+        }
 
         if (!onlyClockEvents) {
           this.update('room')
@@ -484,6 +523,7 @@ export default class Peer {
                 LOG('current room was deleted, moving to lobby')
                 this.y.doc.transact(() => {
                   this.ticktack()
+                  this.userState.room = LOBBY
                   this.user().set('room', LOBBY)
                 }, 'moveToLobby')
               }
@@ -512,7 +552,6 @@ export default class Peer {
     const timeNow = Date.now()
     const users = this.y.users.toJSON()
     const deadPeers: string[] = []
-    const timeout = 15000
 
     for (const id in users) {
       if (id === this.peerID) continue
@@ -528,7 +567,7 @@ export default class Peer {
         if (user.logicalClock != this.logicalClocks[id].clock) {
           this.logicalClocks[id].clock = user.logicalClock
           this.logicalClocks[id].lastModified = timeNow
-        } else if (timeNow - this.logicalClocks[id].lastModified > timeout) {
+        } else if (timeNow - this.logicalClocks[id].lastModified > TIMEOUT) {
           deadPeers.push(id)
         }
       }
@@ -834,13 +873,15 @@ export default class Peer {
    */
   gotoRoom(room: string) {
     this.y.doc.transact(() => {
+      this.userState.room = room
       this.user().set('room', room)
       this.ticktack()
     }, 'gotoRoom')
   }
 
   ticktack() {
-    this.user().set('logicalClock', (this.user().get('logicalClock') || 0) + 1)
+    this.userState.logicalClock++
+    this.user().set('logicalClock', this.userState.logicalClock)
   }
 
   /**
@@ -865,9 +906,7 @@ export default class Peer {
    */
   updateState(data: Uint8Array) {
     if (!this.allowedToParticipate()) {
-      console.warn(
-        this.t('peer.feedback.notPropagated')
-      )
+      console.warn(this.t('peer.feedback.notPropagated'))
       return
     }
 
