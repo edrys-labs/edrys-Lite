@@ -31,6 +31,16 @@ export default class Peer {
 
   private role: 'student' | 'teacher' | 'station' = 'student'
 
+  private userState?: {
+    displayName: string
+    room: string
+    role: 'student' | 'teacher' | 'station'
+    dateJoined: number
+    logicalClock: number
+    handRaised: boolean
+    connections: { id: string; target: any }[]
+  }
+
   private lab: {
     id: string
     data: any
@@ -224,7 +234,26 @@ export default class Peer {
    * Returns the current user data.
    */
   user() {
-    return this.y.users.get(this.peerID)
+    let user = this.y.users.get(this.peerID)
+
+    if (!user) {
+      console.warn('User not found', this.peerID)
+
+      user = new Y.Map()
+
+      this.userState.logicalClock++
+      user.set('displayName', this.userState.displayName)
+      user.set('room', this.userState.room)
+      user.set('role', this.userState.role)
+      user.set('dateJoined', this.userState.dateJoined)
+      user.set('logicalClock', this.userState.logicalClock)
+      user.set('handRaised', this.userState.handRaised)
+      user.set('connections', this.userState.connections)
+
+      this.y.users.set(this.peerID, user)
+    }
+
+    return user
   }
 
   /**
@@ -280,6 +309,7 @@ export default class Peer {
         !newSetup.members.teacher.includes(id)
       ) {
         this.update('popup', this.t('peer.feedback.removedTeacher'))
+        this.userState.role = 'student'
         this.user().set('role', 'student')
       }
 
@@ -288,6 +318,7 @@ export default class Peer {
         newSetup.members.teacher.includes(id)
       ) {
         this.update('popup', this.t('peer.feedback.addedTeacher'))
+        this.userState.role = 'teacher'
         this.user().set('role', 'teacher')
         return
       }
@@ -395,13 +426,25 @@ export default class Peer {
     this.y.doc.transact(() => {
       const userSettings = new Y.Map()
       const timeNow = Date.now()
-      userSettings.set('displayName', getShortPeerID(this.peerID))
-      userSettings.set('room', this.isStation() ? this.peerID : LOBBY)
-      userSettings.set('role', this.role)
-      userSettings.set('dateJoined', timeNow)
-      userSettings.set('logicalClock', 0)
-      userSettings.set('handRaised', false)
-      userSettings.set('connections', [{ id: '', target: {} }])
+
+      this.userState = {
+        displayName: getShortPeerID(this.peerID),
+        room: this.isStation() ? this.peerID : LOBBY,
+        role: this.role,
+        dateJoined: timeNow,
+        logicalClock: 0,
+        handRaised: false,
+        connections: [{ id: '', target: {} }],
+      }
+
+      userSettings.set('displayName', this.userState.displayName)
+      userSettings.set('room', this.userState.room)
+      userSettings.set('role', this.userState.role)
+      userSettings.set('dateJoined', this.userState.dateJoined)
+      userSettings.set('logicalClock', this.userState.logicalClock)
+      userSettings.set('handRaised', this.userState.handRaised)
+      userSettings.set('connections', this.userState.connections)
+
       this.y.users.set(this.peerID, userSettings)
     }, 'initUser')
 
@@ -426,14 +469,8 @@ export default class Peer {
         })
 
         if (!this.y.users.has(this.peerID)) {
-          alert(
-            'Self was removed from users, re-adding with last state and updated clock.'
-          )
-
-          console.warn(
-            'Self was removed from users, re-adding with last state.',
-            this.user()
-          )
+          // this will read the user to the room
+          this.user()
         }
 
         if (!onlyClockEvents) {
@@ -484,6 +521,7 @@ export default class Peer {
                 LOG('current room was deleted, moving to lobby')
                 this.y.doc.transact(() => {
                   this.ticktack()
+                  this.userState.room = LOBBY
                   this.user().set('room', LOBBY)
                 }, 'moveToLobby')
               }
@@ -834,13 +872,15 @@ export default class Peer {
    */
   gotoRoom(room: string) {
     this.y.doc.transact(() => {
+      this.userState.room = room
       this.user().set('room', room)
       this.ticktack()
     }, 'gotoRoom')
   }
 
   ticktack() {
-    this.user().set('logicalClock', (this.user().get('logicalClock') || 0) + 1)
+    this.userState.logicalClock++
+    this.user().set('logicalClock', this.userState.logicalClock)
   }
 
   /**
