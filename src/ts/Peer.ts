@@ -429,6 +429,11 @@ export default class Peer {
           alert(
             'Self was removed from users, re-adding with last state and updated clock.'
           )
+
+          console.warn(
+            'Self was removed from users, re-adding with last state.',
+            this.user()
+          )
         }
 
         if (!onlyClockEvents) {
