@@ -425,6 +425,12 @@ export default class Peer {
           )
         })
 
+        if (!this.y.users.has(this.peerID)) {
+          alert(
+            'Self was removed from users, re-adding with last state and updated clock.'
+          )
+        }
+
         if (!onlyClockEvents) {
           this.update('room')
         }
