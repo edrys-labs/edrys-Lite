@@ -131,23 +131,31 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
         console.error(`Error with peer ${peerId}:`, err)
       })
 
-      peer.on('close', () => {
-        console.log(`Connection closed with peer ${peerId}`)
-        this._setupPeers.delete(peerId)
+      peer.on('iceconnectionstatechange', () => {
+        console.warn(`ICE state for peer ${peerId}:`, peer.iceConnectionState)
+      })
 
-        const remoteUserId = this._peerUserIds.get(peerId)
-        if (remoteUserId) {
-          // Invoke all registered leave callbacks with the remoteUserId
-          if (this._leaveListener) this._leaveListener(remoteUserId)
-
-          // Remove mappings
-          this._peerUserIds.delete(peerId)
-          this._userIdToPeer.delete(remoteUserId)
-        }
+      peer.on('close', (msg) => {
+        console.log(`Connection closed with peer ${peerId}`, msg)
+        return
       })
     } else {
       // Retry after a delay if the connection is not yet established
       setTimeout(() => this._setupPeerListeners(peerId), 100)
+    }
+  }
+
+  removePeer(peerId: string) {
+    this._setupPeers.delete(peerId)
+
+    const remoteUserId = this._peerUserIds.get(peerId)
+    if (remoteUserId) {
+      // Invoke all registered leave callbacks with the remoteUserId
+      if (this._leaveListener) this._leaveListener(remoteUserId)
+
+      // Remove mappings
+      this._peerUserIds.delete(peerId)
+      this._userIdToPeer.delete(remoteUserId)
     }
   }
 
