@@ -133,14 +133,10 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
       peer.on('iceconnectionstatechange', () => {
         console.warn(`ICE state for peer ${peerId}:`, peer.iceConnectionState)
-
-        alert('ICE state for peer ' + peerId + ': ' + peer.iceConnectionState)
       })
 
       peer.on('close', (msg) => {
         console.log(`Connection closed with peer ${peerId}`, msg)
-
-        alert('Connection closed with peer ' + peerId)
       })
     } else {
       // Retry after a delay if the connection is not yet established

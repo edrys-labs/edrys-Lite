@@ -13,6 +13,8 @@ function LOG(...args: any[]) {
 
 const LOBBY = 'Lobby'
 const STATION = 'Station'
+const HEARTBEAT = 2500
+const TIMEOUT = 7500
 
 let heartbeatID: ReturnType<typeof setInterval> | null
 
@@ -456,7 +458,7 @@ export default class Peer {
       } else {
         LOG('user not found', this.peerID)
       }
-    }, 5000)
+    }, HEARTBEAT)
 
     if (withObserver) {
       this.y.users.observeDeep((events) => {
@@ -550,7 +552,6 @@ export default class Peer {
     const timeNow = Date.now()
     const users = this.y.users.toJSON()
     const deadPeers: string[] = []
-    const timeout = 15000
 
     for (const id in users) {
       if (id === this.peerID) continue
@@ -566,7 +567,7 @@ export default class Peer {
         if (user.logicalClock != this.logicalClocks[id].clock) {
           this.logicalClocks[id].clock = user.logicalClock
           this.logicalClocks[id].lastModified = timeNow
-        } else if (timeNow - this.logicalClocks[id].lastModified > timeout) {
+        } else if (timeNow - this.logicalClocks[id].lastModified > TIMEOUT) {
           deadPeers.push(id)
         }
       }
