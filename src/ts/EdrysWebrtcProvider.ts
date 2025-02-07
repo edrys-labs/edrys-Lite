@@ -21,6 +21,11 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
   private _leaveListener: Function | null = null
   public userid: string
 
+  private _messageBuffer: Map<
+    string,
+    Array<{ timestamp: number; message: Uint8Array }>
+  > = new Map()
+
   constructor(roomName: string, doc: any, options: any) {
     super(roomName, doc, options)
     // Map of processed messages: messageId -> receivedTimestamp
@@ -121,6 +126,9 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
         console.log(`Connected to peer ${peerId}`)
         // Send own unique ID to the peer
         this._sendOwnId(peer)
+
+        // Check if buffered messages for this peer exist
+        this._flushBufferedMessages(peerId, peer)
       })
 
       peer.on('data', (data) => {
@@ -131,23 +139,58 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
         console.error(`Error with peer ${peerId}:`, err)
       })
 
-      peer.on('close', () => {
-        console.log(`Connection closed with peer ${peerId}`)
-        this._setupPeers.delete(peerId)
+      peer.on('iceconnectionstatechange', () => {
+        console.warn(`ICE state for peer ${peerId}:`, peer.iceConnectionState)
+      })
 
-        const remoteUserId = this._peerUserIds.get(peerId)
-        if (remoteUserId) {
-          // Invoke all registered leave callbacks with the remoteUserId
-          if (this._leaveListener) this._leaveListener(remoteUserId)
-
-          // Remove mappings
-          this._peerUserIds.delete(peerId)
-          this._userIdToPeer.delete(remoteUserId)
-        }
+      peer.on('close', (msg) => {
+        console.log(`Connection closed with peer ${peerId}`, msg)
       })
     } else {
       // Retry after a delay if the connection is not yet established
       setTimeout(() => this._setupPeerListeners(peerId), 100)
+    }
+  }
+
+  removePeer(peerId: string) {
+    this._setupPeers.delete(peerId)
+
+    this._cleanBuffer(peerId)
+
+    const remoteUserId = this._peerUserIds.get(peerId)
+    if (remoteUserId) {
+      // Invoke all registered leave callbacks with the remoteUserId
+      if (this._leaveListener) this._leaveListener(remoteUserId)
+
+      // Remove mappings
+      this._peerUserIds.delete(peerId)
+      this._userIdToPeer.delete(remoteUserId)
+    }
+  }
+
+  /**
+   * Cleans up the buffered messages for a given dropped peer.
+   * This method removes all buffered messages associated with the target user
+   * corresponding to the dropped peer.
+   *
+   * @param peerId - The ID of the dropped peer.
+   */
+  private _cleanBuffer(peerId: string): void {
+    // Retrieve the target user ID for the given peer.
+    const targetUserId = this._peerUserIds.get(peerId)
+    if (!targetUserId) {
+      console.warn(
+        `No target user associated with peer ${peerId}. Buffer cleanup skipped.`
+      )
+      return
+    }
+
+    // If there are any buffered messages for the target user, delete them.
+    if (this._messageBuffer.has(targetUserId)) {
+      this._messageBuffer.delete(targetUserId)
+      console.log(
+        `Buffered messages for user ${targetUserId} have been cleared after dropping peer ${peerId}.`
+      )
     }
   }
 
@@ -227,15 +270,89 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
         const peer = this._userIdToPeer.get(targetUserId)
         if (peer && peer.connected) {
           peer.send(encodedMessage)
+        } else {
+          this._bufferMessage(targetUserId, encodedMessage)
         }
       } else {
         this.room.webrtcConns.forEach((conn) => {
           const peer = conn.peer
           if (peer && peer.connected) {
             peer.send(encodedMessage)
+          } else {
+            this._bufferMessage(
+              this._peerUserIds.get(conn.remotePeerId),
+              encodedMessage
+            )
           }
         })
       }
+    }
+  }
+
+  /**
+   * Buffers a message for a target user if the peer is not connected.
+   * @param targetUserId - user ID of the target user.
+   * @param encodedMessage - the encoded message to buffer.
+   */
+  private _bufferMessage(
+    targetUserId: string,
+    encodedMessage: Uint8Array
+  ): void {
+    const timestamp = Date.now()
+
+    // Create a buffer for the target user if it doesn't exist
+    if (!this._messageBuffer.has(targetUserId)) {
+      this._messageBuffer.set(targetUserId, [])
+    }
+
+    // Push the message to the buffer
+    this._messageBuffer
+      .get(targetUserId)!
+      .push({ timestamp, message: encodedMessage })
+
+    console.log(
+      `Buffered message for user ${targetUserId} - Size: ${
+        this._messageBuffer.get(targetUserId)!.length
+      }`
+    )
+  }
+
+  /**
+   * Flushes any buffered messages for a given peer once the connection is re-established.
+   *
+   * @param peerId - The ID of the peer whose connection is now active.
+   * @param peer - The active peer connection object.
+   */
+  private _flushBufferedMessages(peerId: string, peer: any): void {
+    // Retrieve the target user ID associated with this peer.
+    const targetUserId = this._peerUserIds.get(peerId)
+    if (!targetUserId) {
+      console.warn(
+        `No target user ID found for peer ${peerId}. Unable to flush buffered messages.`
+      )
+      return
+    }
+
+    // Retrieve any buffered messages for this target user.
+    const bufferedMessages = this._messageBuffer.get(targetUserId)
+    if (bufferedMessages && bufferedMessages.length > 0) {
+      console.log(
+        `Flushing ${bufferedMessages.length} buffered message(s) for user ${targetUserId}.`
+      )
+
+      // Iterate over each buffered message and send it.
+      bufferedMessages.forEach(({ message }) => {
+        if (peer.connected) {
+          peer.send(message)
+        } else {
+          console.warn(`Peer ${peerId} is no longer connected. Aborting flush.`)
+        }
+      })
+
+      // Clear the buffer for this target user after successfully sending the messages.
+      this._messageBuffer.delete(targetUserId)
+    } else {
+      console.log(`No buffered messages for user ${targetUserId}.`)
     }
   }
 
@@ -268,5 +385,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
     // Clear any other lingering data
     this._processedMessages.clear()
+
+    this._messageBuffer.clear()
   }
 }
