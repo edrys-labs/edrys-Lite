@@ -250,6 +250,27 @@ window['Edrys'] = {
 
     return state
   },
+
+  // Streaming methods
+  async sendStream(stream: MediaStream) {
+    const streamServer = new StreamServer(this, stream);
+    
+    return {
+      stop: () => {
+        streamServer.stop();
+      }
+    };
+  },
+
+  onStream(handler) {
+    const streamClient = new StreamClient(this, handler);
+    
+    return {
+      stop: () => {
+        streamClient.stop();
+      }
+    };
+  },
 }
 
 const edrysProxyValidator = (path) => ({
