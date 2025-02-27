@@ -19,6 +19,7 @@ import * as Y from 'yjs'
 // import * as YP from 'y-protocols/awareness.js'
 // import { RoomAwarenessManager } from './awarenessManager'
 import { unpack, pack } from 'msgpackr'
+import { StreamServer, StreamClient } from './streamHandler'
 
 const EXTERN = 'extern'
 // var awareness: any
