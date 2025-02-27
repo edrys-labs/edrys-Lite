@@ -2,20 +2,6 @@
  * Handles WebRTC streaming functionality for Edrys
  */
 
-export const RTCConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun.goldi-labs.de:3478" },
-    { urls: "stun:stun.openrelay.metered.ca:80" },
-    {
-      urls: "turn:turn.goldi-labs.de:3478",
-      username: "goldi",
-      credential: "goldi",
-    },
-  ],
-  iceTransportPolicy: "all" as RTCIceTransportPolicy,
-  iceCandidatePoolSize: 10,
-};
 
 async function addPendingIceCandidates(peerConnection, pendingCandidates) {
   if (peerConnection.remoteDescription && pendingCandidates.length > 0) {
@@ -64,14 +50,15 @@ export class StreamServer {
   private pendingCandidates = new Map();
   private peerConnections = new Map();
   private sessionId;
+  private rtcConfig: RTCConfiguration;
 
-  constructor(context, stream) {
+  constructor(context, stream, rtcConfig: RTCConfiguration) {
     this.context = context;
     this.stream = stream;
+    this.rtcConfig = rtcConfig;
     this.sessionId = Date.now().toString();
     streamSessions.set(this.sessionId, this);
 
-    // Set up the handlers for server-side streaming
     this.setupMessageHandlers();
   }
 
@@ -104,7 +91,7 @@ export class StreamServer {
     const message = {
       roomId: this.context.class_id,
       peerId: this.context.username,
-      sessionId: this.sessionId, // Include session ID in credentials
+      sessionId: this.sessionId, 
       settings: {
         mirrorX: this.context.module.stationConfig?.mirrorX ?? false,
         mirrorY: this.context.module.stationConfig?.mirrorY ?? false,
@@ -131,62 +118,55 @@ export class StreamServer {
   private async handleSignaling(from, body) {
     let peerConnection = this.peerConnections.get(from);
 
-    if (
-      !peerConnection ||
-      peerConnection.connectionState === "closed" ||
-      peerConnection.connectionState === "failed"
-    ) {
-      peerConnection = this.createNewPeerConnection(from);
-    }
-
     try {
       if (body.type === "offer") {
-        // Only process offer in stable state
-        if (peerConnection.signalingState === "stable") {
-          //console.log(`Server processing offer from peer: ${from}`);
-
-          await peerConnection
-            .setRemoteDescription(new RTCSessionDescription(body.sdp))
-            .catch((err) => {
-              console.error(`Error setting remote description: ${err}`);
-              throw err;
-            });
-
-          // Process any pending candidates
-          this.pendingCandidates.set(
-            from,
-            await addPendingIceCandidates(
-              peerConnection,
-              this.pendingCandidates.get(from) || []
-            )
-          );
-
-          const answer = await peerConnection.createAnswer().catch((err) => {
-            console.error(`Error creating answer: ${err}`);
+        //console.log(`Server processing offer from peer: ${from}, signaling state: ${peerConnection?.signalingState || 'no connection'}`);
+        
+        // Always create a new connection for each new offer
+        peerConnection = this.createNewPeerConnection(from);
+        
+        await peerConnection
+          .setRemoteDescription(new RTCSessionDescription(body.sdp))
+          .catch((err) => {
+            console.error(`Error setting remote description: ${err}`);
             throw err;
           });
 
-          await peerConnection.setLocalDescription(answer).catch((err) => {
-            console.error(`Error setting local description: ${err}`);
-            throw err;
-          });
+        // Process any pending candidates
+        this.pendingCandidates.set(
+          from,
+          await addPendingIceCandidates(
+            peerConnection,
+            this.pendingCandidates.get(from) || []
+          )
+        );
 
-          // Send answer back with session ID
-          this.context.sendMessage("webrtc-signal", {
-            type: "answer",
-            sdp: answer,
-            sessionId: this.sessionId,
-            targetPeerId: from,
-            fromPeerId: this.context.username,
-          });
+        const answer = await peerConnection.createAnswer().catch((err) => {
+          console.error(`Error creating answer: ${err}`);
+          throw err;
+        });
 
-          //console.log(`Server sent answer to peer: ${from}`);
-        } else {
-          console.warn(
-            `Server ignoring offer from ${from}, signaling state: ${peerConnection.signalingState}`
-          );
-        }
+        await peerConnection.setLocalDescription(answer).catch((err) => {
+          console.error(`Error setting local description: ${err}`);
+          throw err;
+        });
+
+        // Send answer back with session ID
+        this.context.sendMessage("webrtc-signal", {
+          type: "answer",
+          sdp: answer,
+          sessionId: this.sessionId,
+          targetPeerId: from,
+          fromPeerId: this.context.username,
+        });
+
+        //console.log(`Server sent answer to peer: ${from}`);
       } else if (body.type === "ice-candidate") {
+        if (!peerConnection) {
+          //console.log(`Received ICE candidate but no connection exists for peer: ${from}, creating new connection`);
+          peerConnection = this.createNewPeerConnection(from);
+        }
+        
         if (!this.pendingCandidates.has(from)) {
           this.pendingCandidates.set(from, []);
         }
@@ -202,22 +182,21 @@ export class StreamServer {
       }
     } catch (err) {
       console.error(`Error in server signal handling for peer ${from}:`, err);
-      if (peerConnection.signalingState !== "stable") {
-        try {
-          await peerConnection
-            .setLocalDescription({ type: "rollback" })
-            .catch((e) => console.warn(`Rollback failed: ${e}`));
-        } catch (e) {
-          console.log(`Server rollback failed for peer ${from}:`, e);
-        }
-      }
+      // Signal the client to reconnect
+      this.context.sendMessage("webrtc-signal", {
+        type: "reconnect",
+        sessionId: this.sessionId,
+        targetPeerId: from,
+        fromPeerId: this.context.username,
+      });
     }
   }
 
   private createNewPeerConnection(peerId) {
+    // Always close any existing connection
     if (this.peerConnections.has(peerId)) {
       const oldConnection = this.peerConnections.get(peerId);
-      if (oldConnection.connectionState !== "closed") {
+      if (oldConnection) {
         try {
           oldConnection.close();
         } catch (e) {
@@ -227,7 +206,7 @@ export class StreamServer {
     }
 
     //console.log(`Server creating new connection for peer: ${peerId}`);
-    const peerConnection = new RTCPeerConnection(RTCConfiguration);
+    const peerConnection = new RTCPeerConnection(this.rtcConfig);
     this.peerConnections.set(peerId, peerConnection);
     this.pendingCandidates.set(peerId, []);
 
@@ -249,12 +228,23 @@ export class StreamServer {
       }
     };
 
-    // Connection state handlers
+    // Connection state handlers 
     peerConnection.oniceconnectionstatechange = () => {
       //console.log(`Server ICE state for ${peerId}: ${peerConnection.iceConnectionState}`);
-      if (peerConnection.iceConnectionState === "failed") {
+      if (peerConnection.iceConnectionState === "failed" || 
+          peerConnection.iceConnectionState === "disconnected") {
         //console.log(`Server trying to restart ICE for peer ${peerId}`);
         peerConnection.restartIce();
+        
+        // If we're disconnected, ask client to reconnect
+        if (peerConnection.iceConnectionState === "disconnected") {
+          this.context.sendMessage("webrtc-signal", {
+            type: "reconnect",
+            sessionId: this.sessionId,
+            targetPeerId: peerId,
+            fromPeerId: this.context.username,
+          });
+        }
       }
     };
 
@@ -264,10 +254,17 @@ export class StreamServer {
 
     peerConnection.onconnectionstatechange = () => {
       //console.log(`Server connection state for ${peerId}: ${peerConnection.connectionState}`);
-      if (peerConnection.connectionState === "failed") {
-        //console.log(`Connection to ${peerId} failed, removing connection`);
-        this.peerConnections.delete(peerId);
-        this.pendingCandidates.delete(peerId);
+      if (peerConnection.connectionState === "failed" || 
+          peerConnection.connectionState === "disconnected") {
+        //console.log(`Connection to ${peerId} failed or disconnected`);
+        
+        // Notify client to reconnect
+        this.context.sendMessage("webrtc-signal", {
+          type: "reconnect",
+          sessionId: this.sessionId,
+          targetPeerId: peerId,
+          fromPeerId: this.context.username,
+        });
       }
     };
 
@@ -303,12 +300,13 @@ export class StreamClient {
   private sessionId;
   private peerId;
   private reconnectTimer;
+  private rtcConfig: RTCConfiguration;
 
-  constructor(context, handler) {
+  constructor(context, handler, rtcConfig: RTCConfiguration) {
     this.context = context;
     this.handler = handler;
-
-    // Set up the handlers for client-side streaming
+    this.rtcConfig = rtcConfig;
+    
     this.setupMessageHandlers();
 
     // Request stream to initiate connection
@@ -319,6 +317,7 @@ export class StreamClient {
     // Listen for stream credentials
     this.context.onMessage(({ subject, body }) => {
       if (subject === "streamCredentials") {
+        //console.log("Client received stream credentials");
         // Store session ID to match signals to the correct stream
         this.sessionId = body.sessionId;
         this.peerId = body.peerId;
@@ -329,25 +328,42 @@ export class StreamClient {
         body.sessionId === this.sessionId
       ) {
         //console.log("Stream stopped by server, will try to reconnect");
-        // Clean up and try to reconnect
-        if (this.peerConnection) {
-          this.peerConnection.close();
-          this.peerConnection = null;
-        }
-
-        // Attempt to reconnect after a delay
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = setTimeout(() => {
-          this.requestStream();
-        }, 1000);
+        this.cleanupAndReconnect();
       } else if (
         subject === "webrtc-signal" &&
-        body.targetPeerId === this.context.username &&
-        body.sessionId === this.sessionId
+        body.targetPeerId === this.context.username
       ) {
-        this.handleSignaling(body);
+        // Match to session
+        if (body.sessionId === this.sessionId) {
+          if (body.type === "reconnect") {
+            //console.log("Received reconnect signal from server");
+            this.cleanupAndReconnect();
+          } else {
+            this.handleSignaling(body);
+          }
+        }
       }
     });
+  }
+
+  private cleanupAndReconnect() {
+    // Clean up and try to reconnect
+    if (this.peerConnection) {
+      try {
+        this.peerConnection.close();
+      } catch (e) {
+        console.error("Error closing connection:", e);
+      }
+      this.peerConnection = null;
+    }
+    this.pendingIceCandidates = [];
+
+    // Attempt to reconnect after a delay
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = setTimeout(() => {
+      //console.log("Client attempting to reconnect...");
+      this.requestStream();
+    }, 2000); 
   }
 
   private requestStream() {
@@ -393,13 +409,18 @@ export class StreamClient {
 
   private async connectToPeer({ roomId, peerId, settings, sessionId }) {
     if (this.peerConnection) {
-      //console.log("Client closing existing connection");
-      this.peerConnection.close();
+      //console.log("Client closing existing connection before creating new one");
+      try {
+        this.peerConnection.close();
+      } catch (e) {
+        console.error("Error closing connection:", e);
+      }
       this.pendingIceCandidates = [];
     }
 
-    //console.log(`Client connecting to peer: ${peerId}`);
-    this.peerConnection = new RTCPeerConnection(RTCConfiguration);
+    //console.log(`Client connecting to peer: ${peerId} with sessionId: ${sessionId}`);
+    
+    this.peerConnection = new RTCPeerConnection(this.rtcConfig);
 
     this.setupConnectionStateHandlers(settings);
 
@@ -410,21 +431,23 @@ export class StreamClient {
         offerToReceiveVideo: true,
       });
 
-      if (this.peerConnection.signalingState === "stable") {
-        //console.log("Client setting local description");
-        await this.peerConnection.setLocalDescription(offer);
+      //console.log(`Client setting local description: ${offer.type}`);
+      await this.peerConnection.setLocalDescription(offer);
 
-        // Send offer with session ID
-        this.context.sendMessage("webrtc-signal", {
-          type: "offer",
-          sdp: offer,
-          sessionId: sessionId,
-          targetPeerId: peerId,
-          fromPeerId: this.context.username,
-        });
-      }
+      // Send offer with session ID
+      //console.log(`Client sending offer to peer: ${peerId}`);
+      this.context.sendMessage("webrtc-signal", {
+        type: "offer",
+        sdp: offer,
+        sessionId: sessionId,
+        targetPeerId: peerId,
+        fromPeerId: this.context.username,
+      });
+      
     } catch (err) {
-      console.error("Error creating client offer:", err);
+      //console.error("Error in client connectToPeer:", err);
+      // Try to reconnect on error
+      this.cleanupAndReconnect();
     }
   }
 
@@ -441,24 +464,23 @@ export class StreamClient {
         pc.connectionState === "failed" ||
         pc.connectionState === "disconnected"
       ) {
-        //console.log("Client connection failed, attempting to reconnect");
-        // Try to reconnect after a delay
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = setTimeout(() => {
-          this.requestStream();
-        }, 2000);
+        //console.log("Client connection failed/disconnected, attempting to reconnect");
+        this.cleanupAndReconnect();
       }
     };
 
     pc.oniceconnectionstatechange = () => {
       //console.log(`Client ICE state: ${pc.iceConnectionState}`);
-      if (pc.iceConnectionState === "failed") {
-        pc.restartIce();
+      if (pc.iceConnectionState === "failed" || 
+          pc.iceConnectionState === "disconnected") {
+        //console.log("Client ICE connection failed/disconnected");
+        this.cleanupAndReconnect();
       }
     };
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
+        //console.log("Client sending ICE candidate");
         this.context.sendMessage("webrtc-signal", {
           type: "ice-candidate",
           candidate: event.candidate,

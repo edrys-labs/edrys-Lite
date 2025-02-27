@@ -82,6 +82,7 @@ window['Edrys'] = {
   module: undefined,
   class_id: undefined,
   debug: false,
+  rtcConfig: null,
 
   onReady(handler) {
     callback.onReady = true
@@ -254,24 +255,43 @@ window['Edrys'] = {
 
   // Streaming methods
   async sendStream(stream: MediaStream) {
-    const streamServer = new StreamServer(this, stream);
-    
+    const config = await this.getWebRTCConfig();
+    const streamServer = new StreamServer(this, stream, config);
     return {
-      stop: () => {
-        streamServer.stop();
-      }
+      stop: () => streamServer.stop()
     };
   },
 
   onStream(handler) {
-    const streamClient = new StreamClient(this, handler);
-    
-    return {
-      stop: () => {
-        streamClient.stop();
-      }
-    };
+    return this.getWebRTCConfig().then(config => {
+      const streamClient = new StreamClient(this, handler, config);
+      return {
+        stop: () => streamClient.stop()
+      };
+    });
   },
+
+  async getWebRTCConfig(): Promise<RTCConfiguration> {
+    // Request WebRTC config if not already available
+    if (!this.rtcConfig) {
+      window.parent.postMessage({
+        event: 'requestWebRTCConfig'
+      }, this.origin);
+
+      // Wait for config response
+      this.rtcConfig = await new Promise<RTCConfiguration>(resolve => {
+        const handler = (e: MessageEvent) => {
+          if (e.data.event === 'webrtcConfig') {
+            window.removeEventListener('message', handler);
+            resolve(e.data.config);
+          }
+        };
+        window.addEventListener('message', handler);
+      });
+    }
+    return this.rtcConfig;
+  },
+
 }
 
 const edrysProxyValidator = (path) => ({
@@ -453,6 +473,9 @@ window.addEventListener(
       case 'echo':
         console.log('ECHO:', e.data)
         break
+      case 'webrtcConfig':
+        window['Edrys'].rtcConfig = e.data.config;
+        break;
       default:
         break
     }

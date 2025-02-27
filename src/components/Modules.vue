@@ -298,6 +298,15 @@ export default {
             this.communication.update("room");
           }, 100);
           break;
+        case "requestWebRTCConfig":
+          // Get config from Peer and send back to iframe
+          this.communication.getWebRTCConfig().then(config => {
+            e.source.postMessage({
+              event: "webrtcConfig",
+              config: config
+            }, "*");
+          });
+          break;
         default:
           console.warn("Unknown event", e.data);
           break;
