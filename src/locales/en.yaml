@@ -91,7 +91,7 @@ settings:
     deleteConfirm: "Yes"
     url: "Module URL"
     add: "Add"
-    explore: "Explore on Github"
+    explore: "Explore modules"
     noDescription: "No description"
     module:
       url:
@@ -129,6 +129,14 @@ settings:
         stationOnly: "station-only"
     editor:
       info: "Valid YAML or JSON configuration"
+    modulesExplorer:
+      title: "Modules Explorer"
+      error: "Unable to fetch modules"
+      text: "Please try again later, or explore the modules on "
+      tooltip:
+        add : "Add Module"
+        info: "Learn more"
+      more: "Explore more"
   stations:
     info: "To add a new station, simply open this link on the client device: "
   share:

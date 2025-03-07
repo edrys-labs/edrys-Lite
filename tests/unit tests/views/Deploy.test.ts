@@ -187,8 +187,8 @@ describe('Deploy View', () => {
   });
 
   describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
       const translations = messages[locale].deploy;
       
       const wrapper = createWrapper({ url: 'https://test.com/classroom' });

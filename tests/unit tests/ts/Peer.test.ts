@@ -332,7 +332,7 @@ describe('Peer Class', () => {
 
 
   describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', (locale)  => {      
+    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', (locale)  => {      
       i18n.global.locale.value = locale;      
       const testPeer = new Peer(setup, undefined, i18n.global.t);
       const updateSpy = vi.spyOn(testPeer as any, 'update');
