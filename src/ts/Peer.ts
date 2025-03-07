@@ -16,7 +16,27 @@ const STATION = 'Station'
 
 let heartbeatID: ReturnType<typeof setInterval> | null
 
-const RTCConfiguration = JSON.parse(process.env.WEBRTC_CONFIG || '{}')
+const backupConfig = {
+  iceServers: [
+    {
+      urls: 'stun:stun.l.google.com:19302',
+    },
+    {
+      urls: 'stun:stun1.l.google.com:19302',
+    },
+    {
+      urls: 'stun:stun2.l.google.com:19302',
+    },
+    {
+      urls: 'stun:stun3.l.google.com:19302',
+    },
+    {
+      urls: 'stun:stun4.l.google.com:19302',
+    },
+  ]
+}
+
+const RTCConfiguration = JSON.parse(process.env.WEBRTC_CONFIG).config || backupConfig
 const SignallingServer = [
   process.env.WEBRTC_SIGNALING || 'wss://rooms.deno.dev',
 ]

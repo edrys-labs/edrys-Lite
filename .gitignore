@@ -11,3 +11,4 @@ parcel-bundle-reports/
 e2e tests/
 tests-examples/
 playwright.config.ts
+.env
