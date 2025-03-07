@@ -57,6 +57,7 @@ export default defineComponent({
         { title: 'Deutsch', value: 'de' },
         { title: 'Українська', value: 'uk' },
         { title: 'العربية', value: 'ar' },
+        { title: 'Español', value: 'es' },
       ],
     };
   },

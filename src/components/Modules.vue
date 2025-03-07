@@ -7,6 +7,7 @@ import en from '../locales/en.yaml';
 import de from '../locales/de.yaml';
 import uk from '../locales/uk.yaml';
 import ar from '../locales/ar.yaml';
+import es from '../locales/es.yaml';
 
 export default {
   components: { Module },
@@ -53,7 +54,7 @@ export default {
 
     // Get all translations for all locales
     allMessages() {
-      return { en, de, uk, ar };
+      return { en, de, uk, ar, es };
     },
 
     // Translations for roles

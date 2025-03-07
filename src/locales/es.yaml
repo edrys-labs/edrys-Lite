@@ -1,0 +1,243 @@
+general:
+  userId: "ID de Usuario"
+  userRole: "Rol de Usuario"
+  language: "Idioma"
+  roles:
+    teacher: "Profesor"
+    student: "Estudiante"
+    station: "Estación"
+
+index:
+  classroom:
+    create: "Crear una clase"
+    startTeaching: "Empieza a enseñar ahora"
+    writeProtection: "Protección de escritura"
+    newClass: "Mi Nueva Clase"
+    ownership:
+      owner: "Eres propietario de esta clase"
+      teacher: "Eres profesor aquí"
+      student: "Eres estudiante aquí"
+    actions:
+      delete: "Eliminar"
+      deleteConfirm: "¿Estás seguro?"
+      deleteForever: "Sí, eliminar para siempre"
+      fork: "Bifurcar"
+      open: "Abrir"
+      on: "activado"
+      off: "desactivado"
+
+classroom:
+  station:
+    mode: "Modo Estación Activo"
+    label: "Nombre de la Estación"
+    modeDescription: "Este navegador está funcionando como una estación y listo para servir a los estudiantes"
+    exit: "Salir del Modo Estación"
+    rules:
+      "1": "El nombre es requerido"
+      "2": "El nombre ya está en uso"
+  sideMenu:
+    lobby: "Vestíbulo"
+    station: "Estación"
+    room: "Sala"
+    onlineUsers: "usuarios en línea"
+    settings: "Configuración"
+    newRoom: "Nueva sala"
+  popup:
+    close: "Cerrar"
+
+deploy:
+  state:
+    waiting: "Por favor espera mientras se cargan tus aulas, serás redirigido ..."
+    fetching: "Obteniendo datos de "
+    fetched: "Datos obtenidos exitosamente"
+    parsed: "Datos analizados exitosamente"
+    parsingError: "Error al analizar datos"
+    fetchingError: "Error al obtener datos"
+  overlay:
+    isReady: "Felicitaciones, tu laboratorio está listo"
+    redirect: "Serás redirigido automáticamente al nuevo aula que se ha creado en"
+    info: "Eres propietario de esta aula y eres el único que puede modificarla y puedes compartir el enlace con tus estudiantes. El enlace es único y recrear o recargar este enlace creará una nueva sala."
+    checkbox: "No mostrar este mensaje de nuevo"
+    goto: "Ir al Aula"
+
+settings:
+  general:
+    title: "Configuración"
+    writeProtection: "Protección de escritura:"
+    Main: "Principal"
+    Members: "Miembros"
+    Modules: "Módulos"
+    Stations: "Estaciones"
+    Share: "Compartir"
+    actions:
+      on: "ACTIVADO"
+      off: "DESACTIVADO"
+      save: "Guardar"
+      delete: "Eliminar Clase"
+      deleteConfirm: "¿Estás seguro?"
+      deleteForever: "Sí, eliminar para siempre"
+  main:
+    className: "Nombre de la Clase"
+    logoUrl: "URL del Logo"
+    description: "Descripción"
+    roomsNum: "Número predeterminado de salas (opcional)"
+    selfAssign: "Habilitar auto-asignación"
+  members:
+    info: "Invita a tus usuarios compartiendo este enlace: "
+    teacherIds: "Lista de IDs de profesores, separados por comas. Cada profesor puede modificar el curso."
+    studentIds: "Lista de IDs de estudiantes, separados por comas, dejar vacío o agregar un * para todos. Los estudiantes pueden interactuar con los módulos."
+  modules:
+    delete: "¿Eliminar el módulo y su configuración?"
+    deleteConfirm: "Sí"
+    url: "URL del Módulo"
+    add: "Agregar"
+    explore: "Explorar en Github"
+    noDescription: "Sin descripción"
+    module:
+      url:
+        title: "URL"
+        urlLabel: "URL del Módulo"
+      design:
+        title: "Diseño"
+        width:
+          title: "Ancho"
+          full: "Completo (1000px)"
+          half: "Mitad (500px)"
+          quarter: "Cuarto (250px)"
+          custom:
+            title: "Personalizado (px)"
+            label: "Ancho Personalizado (px)"
+            hint: "Ingrese ancho personalizado en píxeles"
+        height:
+          title: "Altura"
+          huge: "Enorme (830px)"
+          tall: "Alto (720px)"
+          medium: "Medio (410px)"
+          short: "Corto (200px)"
+          custom:
+            title: "Personalizado (px)"
+            label: "Altura Personalizada (px)"
+            hint: "Ingrese altura personalizada en píxeles"
+      generalSettings: "Configuración General"
+      studentSettings: "Configuración de Estudiantes"
+      teacherSettings: "Configuración de Profesores"
+      stationSettings: "Configuración de Estaciones"
+      showIn:
+        title: "Mostrar en"
+        label: "Lista de salas separadas por comas, o: vestíbulo, * para todas, estación, (específico del rol: solo-profesor, solo-estación)"
+        teacherOnly: "solo-profesor"
+        stationOnly: "solo-estación"
+    editor:
+      info: "Configuración YAML o JSON válida"
+  stations:
+    info: "Para agregar una nueva estación, simplemente abre este enlace en el dispositivo cliente: "
+  share:
+    downloadYml: "Descargar archivo de clase (.yml)"
+    downloadJson: "Descargar archivo de clase (.json)"
+    restoreFromFile: "Restaurar clase desde archivo (yaml, json)"
+    restoreFromUrl: "Restaurar clase desde URL (http, https)"
+    explore: "Explorar en Github"
+
+chat:
+  deletedMessage: "mensajes anteriores han sido eliminados ..."
+  sendButton: "Enviar"
+
+checks:
+  webRTCSupport: "Soporte WebRTC"
+  configLoaded: "Configuración cargada"
+  connected: 
+    1: "Conectado a la red peer 2 peer ("
+    2: "seg.)"
+
+footer:
+  github: "edrys-Lite en GitHub"
+  docs: "Ver la Documentación"
+  explore: "Explorar Aulas"
+
+modules:
+  noModules:
+    1: "Lo siento, parece que no has cargado ningún "
+    2: " módulo. Agrega algunos en la configuración de la clase para comenzar."
+    3: "Lo siento, parece que los creadores de la clase aún no han agregado ningún módulo."
+
+logger:
+  title: "Registrador"
+  recording: "Grabando"
+  showingLogs: "Mostrando Registros de"
+  loadPrevious: "Cargar Registros Anteriores"
+  stationName: "Nombre de la Estación"
+  dataOptions: "Opciones de Datos"
+  options:
+    memory: "Uso de Memoria"
+    network: "Datos de Red"
+    console: "Registros de Consola"
+    station: "Datos de Estación"
+  minimize: "Minimizar (sigue ejecutándose en segundo plano)"
+  close: "Cerrar"
+  actions:
+    start: "Iniciar"
+    stop: "Detener"
+    load: "Cargar"
+    clear: "Limpiar"
+  tabs:
+    memory:
+      title: "Uso de Memoria"
+      noData: "Haz clic en Iniciar para monitorear el uso de memoria, o carga registros existentes."
+      start: "Comenzó a monitorear el uso de memoria..."
+      stop: "Detuvo el monitoreo de uso de memoria."
+      norecords: "No se registraron datos de memoria."
+      notSupported: "¡La API de memoria de rendimiento no está soportada en este navegador!"
+      chart:
+        title: "Gráfico de Uso de Memoria"
+        refresh: "Actualizar Gráfico"
+        x: "Tiempo"
+        y: "Uso de Memoria (MB)"
+      usedJSHeapSize: "Tamaño de Montón JS Usado"
+      totalJSHeapSize: "Tamaño Total de Montón JS"
+      jsHeapSizeLimit: "Límite de Tamaño de Montón JS"
+      chartTitle: "Gráfico de Uso de Memoria"
+      refreshChart: "Actualizar Gráfico"
+    network:
+      title: "Datos de Red"
+      noData: "Haz clic en Iniciar para monitorear datos de red, o carga registros existentes."
+      start: "Comenzó a monitorear datos de red..."
+      stop: "Detuvo el monitoreo de datos de red."
+      norecords: "No se registraron datos de red."
+      request: "Solicitud"
+      response: "Respuesta"
+      status: "Estado"
+      options: "Opciones"
+      event: "Evento"
+      type: "Tipo"
+      url: "URL"
+    console:
+      title: "Registros de Consola"
+      noData: "Haz clic en Iniciar para monitorear registros de consola, o carga registros existentes."
+      start: "Comenzó a monitorear registros de consola..."
+      stop: "Detuvo el monitoreo de registros de consola."
+      norecords: "No se registraron registros de consola."
+    station:
+      title: "Datos de Estación"
+      noData: "Haz clic en Iniciar para monitorear la actividad de usuarios en estaciones."
+      start: "Comenzó a monitorear datos de estación..."
+      stop: "Detuvo el monitoreo de datos de estación."
+      norecords: "No se registraron datos de estación."
+      user: "Usuario"
+      event: "Evento"
+      station: "Estación"
+  closeDialog:
+    title: "Cerrar el Registrador detendrá su ejecución, ¿estás seguro?"
+    cancel: "Cancelar"
+    confirm: "Cerrar"
+
+peer:
+  feedback:
+    noAccess: "No tienes acceso a este laboratorio, solo puedes ver"
+    unauthorized: "Usuario no autorizado intentando transmitir mensaje, contacta al administrador para obtener acceso"
+    notPropagated: "Tus cambios de estado no se propagarán a otros usuarios, contacta al administrador para obtener acceso al laboratorio"
+    userNotFound: "usuario no encontrado"
+    removedTeacher: "Has sido removido como profesor..."
+    addedTeacher: "Has sido agregado como profesor..."
+    addedStudent: "Has sido agregado como estudiante..."
+    removedStudent: "Has sido removido como estudiante..."
+    moduleChanges: "Las definiciones de módulos han cambiado, es mejor recargar la página para capturar todos los cambios..."
