@@ -91,7 +91,7 @@ settings:
     deleteConfirm: "Sí"
     url: "URL del Módulo"
     add: "Agregar"
-    explore: "Explorar en Github"
+    explore: "Explorar módulos"
     noDescription: "Sin descripción"
     module:
       url:
@@ -129,6 +129,14 @@ settings:
         stationOnly: "solo-estación"
     editor:
       info: "Configuración YAML o JSON válida"
+    modulesExplorer:
+      title: "Explorador de Módulos"
+      error: "No se pueden obtener módulos"
+      text: "Por favor, inténtalo de nuevo más tarde, o explora los módulos en "
+      tooltip:
+        add : "Agregar Módulo"
+        info: "Información del Módulo"
+      more: "Explorar más"
   stations:
     info: "Para agregar una nueva estación, simplemente abre este enlace en el dispositivo cliente: "
   share:

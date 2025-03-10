@@ -6,6 +6,7 @@ general:
     teacher: "معلم"
     student: "طالب"
     station: "محطة"
+
 index:
   classroom:
     create: "إنشاء فصل دراسي"
@@ -24,6 +25,7 @@ index:
       open: "فتح"
       on: "مشغّل"
       off: "متوقف"
+
 classroom:
   station:
     mode: "وضع المحطة نشط"
@@ -42,6 +44,7 @@ classroom:
     newRoom: "غرفة جديدة"
   popup:
     close: "إغلاق"
+
 deploy:
   state:
     waiting: "يرجى الانتظار بينما يتم تحميل فصلك الدراسي، سيتم توجيهك ..."
@@ -56,6 +59,7 @@ deploy:
     info: "أنت تمتلك هذا الفصل الدراسي وأنت الوحيد الذي يمكنه تعديله ويمكنك مشاركة الرابط مع طلابك. الرابط فريد وإعادة إنشاء أو إعادة تحميل هذا الرابط سينشئ غرفة جديدة."
     checkbox: "لا تظهر هذه الرسالة مرة أخرى"
     goto: "الانتقال إلى الفصل الدراسي"
+
 settings:
   general:
     title: "الإعدادات"
@@ -87,7 +91,7 @@ settings:
     deleteConfirm: "نعم"
     url: "رابط الوحدة"
     add: "إضافة"
-    explore: "استكشاف على Github"
+    explore: "استكشاف الوحدات"
     noDescription: "لا يوجد وصف"
     module:
       url:
@@ -125,6 +129,14 @@ settings:
         stationOnly: "فقط للمحطة"
     editor:
       info: "تكوين YAML أو JSON صالح"
+    modulesExplorer:
+      title: "مستكشف الوحدات"
+      error: "تعذر جلب الوحدات"
+      text: "يرجى المحاولة مرة أخرى في وقت لاحق، أو استكشاف الوحدات على "
+      tooltip:
+        add : "إضافة وحدة"
+        info: "مزيد من المعلومات"
+      more: "استكشاف المزيد"
   stations:
     info: "لإضافة محطة جديدة، فقط افتح هذا الرابط على جهاز العميل: "
   share:

@@ -6,6 +6,7 @@ general:
     teacher: "Lehrer"
     student: "Schüler"
     station: "Station"
+
 index:
   classroom:
     create: "Klasse erstellen"
@@ -24,6 +25,7 @@ index:
       open: "Öffnen"
       on: "an"
       off: "aus"
+
 classroom:
   station:
     mode: "Station-Modus aktiv"
@@ -42,6 +44,7 @@ classroom:
     newRoom: "Neuer Raum"
   popup:
     close: "Schließen"
+    
 deploy:
   state:
     waiting: "Bitte warten Sie, während Ihr Klassenzimmer geladen wird, Sie werden umgeleitet ..."
@@ -56,6 +59,7 @@ deploy:
     info: "Sie besitzen dieses Klassenzimmer und sind der einzige, der es ändern kann, und Sie können den Link mit Ihren Schülern teilen. Der Link ist einzigartig und das Erstellen oder Neuladen dieses Links erstellt einen neuen Raum."
     checkbox: "Diese Nachricht nicht mehr anzeigen"
     goto: "Zum Klassenzimmer"
+
 settings:
   general:
     title: "Einstellungen"
@@ -87,7 +91,7 @@ settings:
     deleteConfirm: "Ja"
     url: "Modul-URL"
     add: "Hinzufügen"
-    explore: "Auf Github erkunden"
+    explore: "Module erkunden"
     noDescription: "Keine Beschreibung"
     module:
       url:
@@ -125,6 +129,14 @@ settings:
         stationOnly: "nur Station"
     editor:
       info: "Gültige YAML- oder JSON-Konfiguration"
+    modulesExplorer:
+      title: "Module Explorer"
+      error: "Module konnten nicht abgerufen werden"
+      text: "Bitte versuchen Sie es später erneut oder erkunden Sie die Module auf "
+      tooltip:
+        add : "Modul hinzufügen"
+        info: "Mehr erfahren"
+      more: "Mehr erkunden"
   stations:
     info: "Um eine neue Station hinzuzufügen, öffnen Sie diesen Link einfach auf dem Client-Gerät: "
   share:

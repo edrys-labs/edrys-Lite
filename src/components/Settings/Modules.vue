@@ -103,10 +103,16 @@
   </v-list>
 
   <v-divider class="pb-2"></v-divider>
-  <v-btn href="https://github.com/topics/edrys-module?q=edrys-lite" target="_blank">
-    <v-icon left> mdi-github </v-icon>
+  <v-btn variant="outlined" @click="isOpenModulesExplorer = true">
+    <v-icon class="mr-2" left> mdi-compass </v-icon>
     {{ t('settings.modules.explore') }}
   </v-btn>
+
+  <ModulesExplorer
+    v-if="isOpenModulesExplorer"
+    @close="isOpenModulesExplorer = false"
+    @add-module="addModuleFromExplorer"
+  ></ModulesExplorer>
 </template>
 
 <script lang="ts">
@@ -114,6 +120,7 @@ import { scrapeModule, validateUrl } from "../../ts/Utils";
 import draggable from "vuedraggable";
 import Module from "./Module.vue";
 import { useI18n } from 'vue-i18n';
+import ModulesExplorer from "./ModulesExplorer.vue";  
 
 export default {
   name: "Settings-Modules",
@@ -163,6 +170,8 @@ export default {
       moduleImportUrl: "",
       errors,
       colors: {},
+
+      isOpenModulesExplorer: false,
     };
   },
 
@@ -257,6 +266,12 @@ export default {
       this.errors.splice(index, 1);
     },
 
+    async addModuleFromExplorer(moduleUrl: string) {
+      this.moduleImportUrl = moduleUrl;
+      await this.loadURL();
+      this.isOpenModulesExplorer = false;
+    },
+
     async loadURL() {
       const module = {
         url: this.moduleImportUrl,
@@ -284,7 +299,11 @@ export default {
       this.moduleImportUrl = "";
     },
   },
-  components: { Module, draggable },
+  components: { 
+    Module, 
+    draggable,
+    ModulesExplorer
+  },
 };
 </script>
 
