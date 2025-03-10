@@ -33,10 +33,16 @@ const backupConfig = {
     {
       urls: 'stun:stun4.l.google.com:19302',
     },
-  ]
+  ],
+  iceTransportPolicy: 'all',
+  iceCandidatePoolSize: 10,
+  bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require',
 }
 
-const RTCConfiguration = process.env.WEBRTC_CONFIG ? JSON.parse(process.env.WEBRTC_CONFIG).config : backupConfig
+const RTCConfiguration = process.env.WEBRTC_CONFIG
+  ? JSON.parse(process.env.WEBRTC_CONFIG).config
+  : backupConfig
 const SignallingServer = [
   process.env.WEBRTC_SIGNALING || 'wss://rooms.deno.dev',
 ]
@@ -132,7 +138,7 @@ export default class Peer {
         userid: this.peerID,
         peerOpts: RTCConfiguration,
       })
-      
+
       // Handle awareness updates
       // this.provider.awareness.on(
       //   'update',
