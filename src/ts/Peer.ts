@@ -132,6 +132,12 @@ export default class Peer {
    */
   private connectProvider(room: string, password?: string) {
     try {
+      // Disconnect existing provider if it exists
+      if (this.provider) {
+        this.provider.disconnect()
+        this.provider.destroy()
+      }
+
       this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
         signaling: SignallingServer, // 'wss://edrys-lite-signal-sever.deno.dev/' + room],
         password: password || 'password',
