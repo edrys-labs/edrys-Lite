@@ -44,6 +44,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
     this._bcChannel = new BroadcastChannel(`custom-webrtc-provider-${roomName}`)
 
     // Listen for BroadcastChannel messages
+    this._bcChannelListener = this._bcChannelListener.bind(this)
     this._bcChannel.addEventListener('message', this._bcChannelListener)
 
     // Listen for new peer connections
