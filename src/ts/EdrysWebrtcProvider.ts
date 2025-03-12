@@ -99,7 +99,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
   }
 
   /**
-   * Setup event listeners for a peer connection, with reconnection and ICE restart logic.
+   * Setup event listeners for a peer connection, including robust error logging.
    * @param {string} peerId - The ID of the peer.
    * @param {number} attempt - The current reconnection attempt count.
    */
@@ -114,20 +114,19 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
     if (conn && conn.peer) {
       const peer = conn.peer
 
-      // Prevent multiple listener setups
+      // Prevent multiple listener setups for the same peer
       if (this._setupPeers.has(peerId)) return
       this._setupPeers.add(peerId)
 
-      // Handle successful connection
       peer.on('connect', () => {
         console.log(`Connected to peer ${peerId}`)
-        // Reset attempt counter on successful connection
+        // Reset attempt counter on successful connection.
         attempt = 0
-        // Send own unique ID to the peer
+        // Send own unique ID to the peer.
         this._sendOwnId(peer)
       })
 
-      // Monitor ICE connection state changes and trigger restart if needed
+      // Monitor ICE state changes and attempt ICE restart if necessary.
       peer.on('iceconnectionstatechange', () => {
         const state = peer.iceConnectionState
         console.log(`ICE state for peer ${peerId} changed to ${state}`)
@@ -135,25 +134,32 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
           console.log(
             `ICE state for peer ${peerId} is ${state}. Attempting ICE restart...`
           )
-          // Check if ICE restart is supported on this peer connection
           if (peer.restartIce) {
             peer.restartIce()
           }
         }
       })
 
-      // Listen for incoming data
+      // Listen for incoming data.
       peer.on('data', (data) => {
         this._handleIncomingData(data, peerId, peer)
       })
 
-      // Listen for errors
+      // Expanded error handler with detailed error logging.
       peer.on('error', (err) => {
-        console.error(`Error with peer ${peerId}:`, err)
-        // Optionally, you might add a reconnection attempt here as well
+        const errorDetails = {
+          message: err.message || 'No error message',
+          code: err.code || 'No error code',
+          stack: err.stack || 'No stack trace available',
+          peerId: peerId,
+          timestamp: new Date().toISOString(),
+        }
+        console.error(`Error with peer ${peerId}:`, errorDetails)
+
+        // Optionally, trigger a reconnection or additional cleanup steps here.
       })
 
-      // Handle connection closure and schedule reconnection
+      // Handle connection closure and schedule reconnection.
       peer.on('close', () => {
         console.log(`Connection closed with peer ${peerId}`)
         this._setupPeers.delete(peerId)
@@ -165,18 +171,17 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
           this._userIdToPeer.delete(remoteUserId)
         }
 
-        // Exponential backoff for reconnection: delay doubles each attempt up to a cap
-        const baseDelay = 1000 // 1 second
-        const maxDelay = 30000 // 30 seconds maximum
+        // Exponential backoff for reconnection: delay doubles each attempt up to a cap.
+        const baseDelay = 1000 // 1 second.
+        const maxDelay = 30000 // 30 seconds maximum delay.
         const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
         console.log(`Reconnection attempt for peer ${peerId} in ${delay}ms`)
         setTimeout(() => {
-          // Increment attempt count for the next retry.
           this._setupPeerListeners(peerId, attempt + 1)
         }, delay)
       })
     } else {
-      // If the connection isn't established yet, try again shortly with the same attempt count.
+      // If connection is not yet established, try again shortly with the same attempt count.
       setTimeout(() => this._setupPeerListeners(peerId, attempt), 100)
     }
   }
