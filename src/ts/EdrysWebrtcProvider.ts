@@ -99,10 +99,11 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
   }
 
   /**
-   * Setup event listeners for a peer connection.
+   * Setup event listeners for a peer connection, with reconnection retry logic.
    * @param {string} peerId - The ID of the peer.
+   * @param {number} attempt - The current reconnection attempt count.
    */
-  _setupPeerListeners(peerId) {
+  _setupPeerListeners(peerId, attempt = 0) {
     if (!this.room) return
 
     // Find the connection with the matching remotePeerId
@@ -120,7 +121,9 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
       peer.on('connect', () => {
         console.log(`Connected to peer ${peerId}`)
-        // Send own unique ID to the peer
+        // Reset attempt counter on successful connection.
+        attempt = 0
+        // Send own unique ID to the peer.
         this._sendOwnId(peer)
       })
 
@@ -130,6 +133,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
       peer.on('error', (err) => {
         console.error(`Error with peer ${peerId}:`, err)
+        // Optionally, you can also trigger a reconnection here if needed.
       })
 
       peer.on('close', () => {
@@ -138,17 +142,24 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
         const remoteUserId = this._peerUserIds.get(peerId)
         if (remoteUserId) {
-          // Invoke all registered leave callbacks with the remoteUserId
           if (this._leaveListener) this._leaveListener(remoteUserId)
-
-          // Remove mappings
           this._peerUserIds.delete(peerId)
           this._userIdToPeer.delete(remoteUserId)
         }
+
+        // Exponential backoff: double the delay each attempt, with a cap.
+        const baseDelay = 1000 // 1 second
+        const maxDelay = 30000 // 30 seconds maximum delay
+        const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
+        console.log(`Reconnection attempt for peer ${peerId} in ${delay}ms`)
+        setTimeout(() => {
+          // Increment attempt count for the next retry.
+          this._setupPeerListeners(peerId, attempt + 1)
+        }, delay)
       })
     } else {
-      // Retry after a delay if the connection is not yet established
-      setTimeout(() => this._setupPeerListeners(peerId), 100)
+      // If connection is not yet established, try again shortly with the same attempt count.
+      setTimeout(() => this._setupPeerListeners(peerId, attempt), 100)
     }
   }
 
