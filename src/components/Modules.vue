@@ -3,6 +3,12 @@ import Module from "./Module.vue";
 import Muuri from "muuri";
 import { useI18n } from 'vue-i18n';
 
+import en from '../locales/en.yaml';
+import de from '../locales/de.yaml';
+import uk from '../locales/uk.yaml';
+import ar from '../locales/ar.yaml';
+import es from '../locales/es.yaml';
+
 export default {
   components: { Module },
 
@@ -41,9 +47,35 @@ export default {
     roomName() {
       return this.liveClassProxy.users[this.username]?.room || "Station " + this.username;
     },
+
     modulesType() {
       return this.roomName.startsWith("Station ") ? "station" : "chat";
     },
+
+    // Get all translations for all locales
+    allMessages() {
+      return { en, de, uk, ar, es };
+    },
+
+    // Translations for roles
+    roleTranslations() {
+      return {
+        teacher: Object.values(this.allMessages).map(msgs => 
+          (msgs as any).settings.modules.module.showIn.teacherOnly
+        ),
+        station: Object.values(this.allMessages).map(msgs => 
+          (msgs as any).settings.modules.module.showIn.stationOnly
+        )
+      };
+    },
+
+    // Translations for room prefixes
+    roomPrefixTranslations() {
+      return Object.values(this.allMessages).map(msgs => 
+        (msgs as any).classroom.sideMenu.room
+      );
+    },
+
     scrapedModulesFilter() {
       setTimeout(() => {
         this.gridUpdate();
@@ -54,27 +86,30 @@ export default {
           ? m.showInCustom.split(",").map((e) => e.trim())
           : m.shownIn;
 
-        const isInRoom = showIn
-          .map((e) => e.toLowerCase().replace(/\*/g, ".*"))
-          .map((e) => new RegExp(e))
-          .map((e) => this.roomName.toLowerCase().match(e) !== null)
-          .includes(true);
+        const translatedRoomNames = {
+          [this.t('classroom.sideMenu.lobby').toLowerCase()]: 'lobby',
+          [this.t('classroom.sideMenu.station').toLowerCase()]: 'station',
+        };
 
-        if (showIn.includes("teacher-only")) {
+        const normalizedShowIn = showIn.map(room => this.normalizeRoomName(room, translatedRoomNames));
+
+        const isInRoom = this.checkRoomMatch(normalizedShowIn, this.roomName.toLowerCase());
+
+        if (this.roleTranslations.teacher.some(trans => normalizedShowIn.includes(trans))) {
           return (
-            (showIn.includes(this.modulesType) || isInRoom || showIn == "*") &&
+            (normalizedShowIn.includes(this.modulesType) || isInRoom || normalizedShowIn == "*") &&
             this.role == "teacher"
           );
         }
 
-        if (showIn.includes("station-only")) {
+        if (this.roleTranslations.station.some(trans => normalizedShowIn.includes(trans))) {
           return (
-            (showIn.includes(this.modulesType) || isInRoom || showIn == "*") &&
+            (normalizedShowIn.includes(this.modulesType) || isInRoom || normalizedShowIn == "*") &&
             this.role == "station"
           );
         }
-
-        return showIn.includes(this.modulesType) || isInRoom || showIn == "*";
+        
+        return normalizedShowIn.includes(this.modulesType) || isInRoom || normalizedShowIn == "*";
       });
     },
   },
@@ -264,6 +299,15 @@ export default {
             this.communication.update("room");
           }, 100);
           break;
+        case "requestWebRTCConfig":
+          // Get config from Peer and send back to iframe
+          this.communication.getWebRTCConfig().then(config => {
+            e.source.postMessage({
+              event: "webrtcConfig",
+              config: config
+            }, "*");
+          });
+          break;
         default:
           console.warn("Unknown event", e.data);
           break;
@@ -280,6 +324,26 @@ export default {
           module: module_url,
         });
       }
+    },
+
+    // Returns room english name
+    normalizeRoomName(room: string, translatedNames: Record<string, string>) {
+      for (const prefix of this.roomPrefixTranslations) {
+        if (room.startsWith(prefix)) {
+          const roomNumber = room.split(' ').pop();
+          return `room ${roomNumber}`;
+        }
+      }
+      return translatedNames[room.toLowerCase()] || room;
+    },
+
+    // Check if the room name matches the showIn field
+    checkRoomMatch(normalizedShowIn: string[], currentRoom: string) {
+      return normalizedShowIn
+        .map(e => e.toLowerCase().replace(/\*/g, ".*"))
+        .map(e => new RegExp(e))
+        .map(e => currentRoom.match(e) !== null)
+        .includes(true);
     },
   },
 };

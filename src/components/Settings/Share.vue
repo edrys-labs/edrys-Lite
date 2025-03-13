@@ -52,8 +52,8 @@
   </v-row>
 
   <v-divider class="pb-2"></v-divider>
-  <v-btn href="https://github.com/topics/edrys-lab" target="_blank">
-    <v-icon left> mdi-github </v-icon>
+  <v-btn variant="outlined" href="https://github.com/topics/edrys-lab" target="_blank">
+    <v-icon class="mr-2" left> mdi-github </v-icon>
     {{ t('settings.share.explore') }}
   </v-btn>
 </template>

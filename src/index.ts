@@ -62,18 +62,26 @@ import {
   VWindow,
   VWindowItem,
   VSnackbar,
+  VColorPicker,
 } from '../node_modules/vuetify/lib/components/index.mjs'
 import * as directives from '../node_modules/vuetify/lib/directives/index.mjs'
 import { createVueI18nAdapter } from '../node_modules/vuetify/lib/locale/adapters/vue-i18n.mjs'
 import { createI18n, useI18n } from 'vue-i18n'
-import { en, de, uk, ar } from '../node_modules/vuetify/lib/locale/index.mjs'
+import { en, de, uk, ar, es } from '../node_modules/vuetify/lib/locale/index.mjs'
 import enTranslations from '@/locales/en.yaml'
 import deTranslations from '@/locales/de.yaml'
 import ukTranslations from '@/locales/uk.yaml'
 import arTranslations from '@/locales/ar.yaml'
+import esTranslations from '@/locales/es.yaml'
 
 // import highlighting library (you can use any library you want just return html string)
-// @ts-ignore
+// Extend Window interface to include Prism
+declare global {
+  interface Window {
+    Prism: any;
+  }
+}
+
 import Prism from 'prismjs/prism'
 window.Prism = Prism
 
@@ -99,7 +107,7 @@ var app
 // Get browser language and set it as default if supported
 const getBrowserLocale = () => {
   const browserLang = navigator.language.split('-')[0]
-  const supportedLocales = ['en', 'de', 'uk', 'ar']
+  const supportedLocales = ['en', 'de', 'uk', 'ar', 'es']
   return supportedLocales.includes(browserLang) ? browserLang : 'en'
 }
 
@@ -118,6 +126,7 @@ const i18n = createI18n({
     de: { $vuetify: { ...de }, ...deTranslations },
     uk: { $vuetify: { ...uk }, ...ukTranslations },
     ar: { $vuetify: { ...ar }, ...arTranslations },
+    es: { $vuetify: { ...es }, ...esTranslations },
   }
 })
 
@@ -180,6 +189,7 @@ const vuetify = createVuetify({
     VWindowItem,
     // others
     PrismEditor,
+    VColorPicker,
   },
   directives: { ...directives },
   icons: {

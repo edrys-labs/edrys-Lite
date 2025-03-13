@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Browser based edrys-clone that uses the WebTorrent network sharing labs",
   "scripts": {
+    "postinstall": "patch-package",
     "test": "npx vitest",
     "sw": "npx workbox injectManifest workbox-config.js",
     "build": "rm -rf .parcel-cache && rm -rf dist && npm run build:edrys && npx parcel build src/index.html --log-level verbose  --no-scope-hoist --no-source-maps --public-url ./",
@@ -38,6 +39,7 @@
     "parcel": "^2.13.2",
     "parcel-plugin-bundle-visualiser": "^0.8.2",
     "parcel-reporter-static-files-copy": "^1.5.3",
+    "patch-package": "^8.0.0",
     "process": "^0.11.10",
     "vitest": "^2.1.8",
     "vue-prism-editor": "^2.0.0-alpha.2",

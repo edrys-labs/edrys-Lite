@@ -107,8 +107,8 @@ describe('UserMenu Component', () => {
   });
 
   describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
       const translations = messages[locale].general;
       
       const wrapper = createWrapper();
@@ -121,14 +121,15 @@ describe('UserMenu Component', () => {
       // Check language options exist
       const select = wrapper.find('.v-select');
       const options = select.findAll('option');
-      expect(options.length).toBe(4); // en, de, uk, ar
+      expect(options.length).toBe(5); // en, de, uk, ar, es
 
       // Test each language option exists
       const languageOptions = [
         { title: 'English', value: 'en' },
         { title: 'Deutsch', value: 'de' },
         { title: 'Українська', value: 'uk' },
-        { title: 'العربية', value: 'ar' }
+        { title: 'العربية', value: 'ar' },
+        { title: 'Español', value: 'es' }
       ];
 
       languageOptions.forEach(lang => {

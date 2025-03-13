@@ -20,6 +20,7 @@ const mockClose = vi.fn();
 global.BroadcastChannel = vi.fn().mockImplementation(() => ({
   postMessage: mockPostMessage,
   addEventListener: mockAddEventListener,
+  removeEventListener: mockAddEventListener,
   close: mockClose,
 }));
 
@@ -88,8 +89,11 @@ describe('EdrysWebrtcProvider', () => {
     const message = { type: 'test', content: 'hello' };
     const event = { data: message };
 
-    // Simulate broadcast channel message
-    mockAddEventListener.mock.calls[0][1](event);
+    // Get the listener and bind it to the provider
+    const listener = mockAddEventListener.mock.calls[0][1].bind(provider);
+
+    // Call the bound listener
+    listener(event);
 
     expect(mockCallback).toHaveBeenCalledWith(message);
   });

@@ -131,8 +131,8 @@ describe('Modules Settings Component', () => {
   });
 
   describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
       const wrapper = createWrapper();
       
       const translations = messages[locale].settings.modules;

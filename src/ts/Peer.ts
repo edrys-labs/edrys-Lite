@@ -16,10 +16,41 @@ const STATION = 'Station'
 
 let heartbeatID: ReturnType<typeof setInterval> | null
 
+const backupConfig = {
+  iceServers: [
+    {
+      urls: 'stun:stun.l.google.com:19302',
+    },
+    {
+      urls: 'stun:stun1.l.google.com:19302',
+    },
+    {
+      urls: 'stun:stun2.l.google.com:19302',
+    },
+    {
+      urls: 'stun:stun3.l.google.com:19302',
+    },
+    {
+      urls: 'stun:stun4.l.google.com:19302',
+    },
+  ],
+  iceTransportPolicy: 'all',
+  iceCandidatePoolSize: 10,
+  bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require',
+}
+
+const RTCConfiguration = process.env.WEBRTC_CONFIG
+  ? JSON.parse(process.env.WEBRTC_CONFIG).config
+  : backupConfig
+const SignallingServer = JSON.parse(
+  process.env.WEBRTC_SIGNALING || '["wss://rooms.deno.dev"]'
+)
+
 export default class Peer {
   private provider: EdrysWebrtcProvider
-  
-  private t: (key: string) => string  
+
+  private t: (key: string) => string
 
   private y: {
     doc: Y.Doc
@@ -54,8 +85,8 @@ export default class Peer {
   constructor(
     setup: { id: string; data: any; timestamp: number; hash: string | null },
     stationID?: string,
-    t?: (key: string) => string,  // Translation function parameter
-    password?: string,
+    t?: (key: string) => string, // Translation function parameter
+    password?: string
   ) {
     const doc = new Y.Doc()
 
@@ -75,7 +106,7 @@ export default class Peer {
       this.peerID = STATION + ' ' + stationID
     }
 
-    this.t = t || ((key: string) => key)  
+    this.t = t || ((key: string) => key)
 
     // Initialize local state within a transaction
     this.y.doc.transact(() => {
@@ -101,11 +132,17 @@ export default class Peer {
    */
   private connectProvider(room: string, password?: string) {
     try {
+      // Disconnect existing provider if it exists
+      if (this.provider) {
+        this.provider.disconnect()
+        this.provider.destroy()
+      }
+
       this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
-        signaling: [process.env.WEBRTC_SIGNALING || 'wss://rooms.deno.dev'], // 'wss://edrys-lite-signal-sever.deno.dev/' + room],
+        signaling: SignallingServer, // 'wss://edrys-lite-signal-sever.deno.dev/' + room],
         password: password || 'password',
         userid: this.peerID,
-        peerOpts: JSON.parse(process.env.WEBRTC_CONFIG || '{}'),
+        peerOpts: RTCConfiguration,
       })
 
       // Handle awareness updates
@@ -188,10 +225,7 @@ export default class Peer {
         this.update('connected')
 
         if (!this.allowedToParticipate()) {
-          this.update(
-            'popup',
-            this.t('peer.feedback.noAccess')
-          )
+          this.update('popup', this.t('peer.feedback.noAccess'))
         }
       }
     }, 5000)
@@ -266,10 +300,7 @@ export default class Peer {
     }
 
     if (!deepEqual(oldSetup.modules, newSetup.modules)) {
-      this.update(
-        'popup',
-        this.t('peer.feedback.moduleChanges')
-      )
+      this.update('popup', this.t('peer.feedback.moduleChanges'))
     }
 
     if (!deepEqual(oldSetup.members, newSetup.members)) {
@@ -353,10 +384,7 @@ export default class Peer {
         this.y.setup.set('timestamp', this.lab.timestamp)
 
         if (!this.allowedToParticipate()) {
-          this.update(
-            'popup',
-            this.t('peer.feedback.noAccess')
-          )
+          this.update('popup', this.t('peer.feedback.noAccess'))
         }
       }
 
@@ -371,10 +399,7 @@ export default class Peer {
         this.update('setup')
 
         if (!this.allowedToParticipate()) {
-          this.update(
-            'popup',
-            this.t('peer.feedback.noAccess')
-          )
+          this.update('popup', this.t('peer.feedback.noAccess'))
         }
       }
       // If the received setup is not up to date
@@ -865,9 +890,7 @@ export default class Peer {
    */
   updateState(data: Uint8Array) {
     if (!this.allowedToParticipate()) {
-      console.warn(
-        this.t('peer.feedback.notPropagated')
-      )
+      console.warn(this.t('peer.feedback.notPropagated'))
       return
     }
 
@@ -970,5 +993,12 @@ export default class Peer {
         isTransactionDone = true
       }, 'awaitTransact')
     })
+  }
+
+  /**
+   * Gets the WebRTC configuration.
+   */
+  async getWebRTCConfig(): Promise<RTCConfiguration> {
+    return RTCConfiguration
   }
 }

@@ -2,11 +2,17 @@ general:
   userId: "معرف المستخدم"
   userRole: "دور المستخدم"
   language: "لغة"
+  roles:
+    teacher: "معلم"
+    student: "طالب"
+    station: "محطة"
+
 index:
   classroom:
     create: "إنشاء فصل دراسي"
     startTeaching: "ابدأ التدريس الآن"
     writeProtection: "حماية الكتابة"
+    newClass: "فصلي الجديد"
     ownership:
       owner: "أنت تمتلك هذا الفصل"
       teacher: "أنت معلم هنا"
@@ -19,6 +25,7 @@ index:
       open: "فتح"
       on: "مشغّل"
       off: "متوقف"
+
 classroom:
   station:
     mode: "وضع المحطة نشط"
@@ -29,11 +36,15 @@ classroom:
       "1": "الاسم مطلوب"
       "2": "هذا الاسم محجوز"
   sideMenu:
+    lobby: "الردهة"
+    station: "المحطة"
+    room: "الغرفة"
     onlineUsers: "المستخدمون المتصلون"
     settings: "الإعدادات"
     newRoom: "غرفة جديدة"
   popup:
     close: "إغلاق"
+
 deploy:
   state:
     waiting: "يرجى الانتظار بينما يتم تحميل فصلك الدراسي، سيتم توجيهك ..."
@@ -48,6 +59,7 @@ deploy:
     info: "أنت تمتلك هذا الفصل الدراسي وأنت الوحيد الذي يمكنه تعديله ويمكنك مشاركة الرابط مع طلابك. الرابط فريد وإعادة إنشاء أو إعادة تحميل هذا الرابط سينشئ غرفة جديدة."
     checkbox: "لا تظهر هذه الرسالة مرة أخرى"
     goto: "الانتقال إلى الفصل الدراسي"
+
 settings:
   general:
     title: "الإعدادات"
@@ -79,8 +91,17 @@ settings:
     deleteConfirm: "نعم"
     url: "رابط الوحدة"
     add: "إضافة"
-    explore: "استكشاف على Github"
+    explore: "استكشاف الوحدات"
     noDescription: "لا يوجد وصف"
+    tooltip: 
+      config: "تكوين الوحدة"
+      manualConfig: "التكوين اليدوي"
+      delete: "حذف الوحدة"
+    moduleConfig:
+      title: "تكوين الوحدة"
+      save: "حفظ التكوين"
+      cancel: "إلغاء"
+      noSchema: "هذه الوحدة لا توفر مخططًا صالحًا للتكوين"
     module:
       url:
         title: "رابط"
@@ -112,9 +133,19 @@ settings:
       stationSettings: "إعدادات المحطة"
       showIn:
         title: "إظهار في"
-        label: "قائمة مفصولة بفواصل من الغرف، أو: lobby، * للكل، station، (دور محدد teacher-only, station-only)"
+        label: "قائمة مفصولة بفواصل من الغرف، أو: الردهة، * للجميع، المحطة، (دور محدد: فقط للمعلم، فقط للمحطة)"
+        teacherOnly: "فقط للمعلم"
+        stationOnly: "فقط للمحطة"
     editor:
       info: "تكوين YAML أو JSON صالح"
+    modulesExplorer:
+      title: "مستكشف الوحدات"
+      error: "تعذر جلب الوحدات"
+      text: "يرجى المحاولة مرة أخرى في وقت لاحق، أو استكشاف الوحدات على "
+      tooltip:
+        add : "إضافة وحدة"
+        info: "مزيد من المعلومات"
+      more: "استكشاف المزيد"
   stations:
     info: "لإضافة محطة جديدة، فقط افتح هذا الرابط على جهاز العميل: "
   share:

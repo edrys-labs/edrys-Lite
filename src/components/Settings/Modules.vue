@@ -31,51 +31,74 @@
           </v-list-item-subtitle>
 
           <template v-slot:append>
-            <v-menu :close-on-content-click="false">
+            <v-tooltip location="top">
               <template v-slot:activator="{ props }">
                 <v-btn
-                  icon="mdi-cog"
+                  v-if="scrapedModules[index]?.moduleConfig"
+                  icon="mdi-playlist-edit"
                   variant="text"
                   v-bind="props"
-                  :style="validate_config(index) ? '' : 'color: red'"
+                  @click="openConfigDialog(index)"
                 ></v-btn>
               </template>
+              <span>{{ t('settings.modules.tooltip.config') }}</span>
+            </v-tooltip>
+            
+            <v-tooltip location="top">
+              <template v-slot:activator="{ props: tooltipProps }">
+                <v-menu :close-on-content-click="false">
+                  <template v-slot:activator="{ props: menuProps }">
+                    <v-btn
+                      icon="mdi-cog"
+                      variant="text"
+                      v-bind="{ ...tooltipProps, ...menuProps }"
+                      :style="validate_config(index) ? '' : 'color: red'"
+                    ></v-btn>
+                  </template>
 
-              <Module
-                v-model:module="config.modules[index]"
-                v-model:error="errors[index]"
-                :writeProtection="writeProtection"
-              ></Module>
-            </v-menu>
-
-            <v-menu>
-              <template v-slot:activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  icon="mdi-delete"
-                  variant="text"
-                  :disabled="writeProtection"
-                ></v-btn>
+                  <Module
+                    v-model:module="config.modules[index]"
+                    v-model:error="errors[index]"
+                    :writeProtection="writeProtection"
+                  ></Module>
+                </v-menu>
               </template>
+              <span>{{ t('settings.modules.tooltip.manualConfig') }}</span>
+            </v-tooltip>
 
-              <v-list>
-                <v-list-item>
-                  <v-list-item-title>
-                    {{ t('settings.modules.delete') }}
-                  </v-list-item-title>
+            <v-tooltip location="top">
+              <template v-slot:activator="{ props: tooltipProps }">
+                <v-menu>
+                  <template v-slot:activator="{ props: menuProps }">
+                    <v-btn
+                      v-bind="{ ...tooltipProps, ...menuProps }"
+                      icon="mdi-delete"
+                      variant="text"
+                      :disabled="writeProtection"
+                    ></v-btn>
+                  </template>
 
-                  <v-btn
-                    color="red"
-                    depressed
-                    @click="deleteModule(index)"
-                    class="float-right"
-                    style="margin-top: 10px"
-                  >
-                    {{ t('settings.modules.deleteConfirm') }}
-                  </v-btn>
-                </v-list-item>
-              </v-list>
-            </v-menu>
+                  <v-list>
+                    <v-list-item>
+                      <v-list-item-title>
+                        {{ t('settings.modules.delete') }}
+                      </v-list-item-title>
+
+                      <v-btn
+                        color="red"
+                        depressed
+                        @click="deleteModule(index)"
+                        class="float-right"
+                        style="margin-top: 10px"
+                      >
+                        {{ t('settings.modules.deleteConfirm') }}
+                      </v-btn>
+                    </v-list-item>
+                  </v-list>
+                </v-menu>
+              </template>
+              <span>{{ t('settings.modules.tooltip.delete') }}</span>
+            </v-tooltip>
           </template>
         </v-list-item>
       </template>
@@ -102,11 +125,37 @@
     </v-list-item>
   </v-list>
 
+  <v-dialog 
+    v-model="isConfigDialogOpen" 
+    max-width="800px"
+    scrollable
+    persistent
+  >
+    <ModuleConfigForm
+      v-if="activeModuleIndex !== null"
+      :moduleName="scrapedModules[activeModuleIndex]?.name"
+      :moduleConfig="scrapedModules[activeModuleIndex]?.moduleConfig"
+      :currentConfig="config.modules[activeModuleIndex]?.config"
+      :currentStudentConfig="config.modules[activeModuleIndex]?.studentConfig"
+      :currentTeacherConfig="config.modules[activeModuleIndex]?.teacherConfig"
+      :currentStationConfig="config.modules[activeModuleIndex]?.stationConfig"
+      :writeProtection="writeProtection"
+      @save="updateModuleConfig($event, activeModuleIndex)"
+      @close="closeConfigDialog"
+    />
+  </v-dialog>
+
   <v-divider class="pb-2"></v-divider>
-  <v-btn href="https://github.com/topics/edrys-module?q=edrys-lite" target="_blank">
-    <v-icon left> mdi-github </v-icon>
+  <v-btn variant="outlined" @click="isOpenModulesExplorer = true">
+    <v-icon class="mr-2" left> mdi-compass </v-icon>
     {{ t('settings.modules.explore') }}
   </v-btn>
+
+  <ModulesExplorer
+    v-if="isOpenModulesExplorer"
+    @close="isOpenModulesExplorer = false"
+    @add-module="addModuleFromExplorer"
+  ></ModulesExplorer>
 </template>
 
 <script lang="ts">
@@ -114,6 +163,8 @@ import { scrapeModule, validateUrl } from "../../ts/Utils";
 import draggable from "vuedraggable";
 import Module from "./Module.vue";
 import { useI18n } from 'vue-i18n';
+import ModulesExplorer from "./ModulesExplorer.vue";  
+import ModuleConfigForm from "./ModuleConfigForm.vue";
 
 export default {
   name: "Settings-Modules",
@@ -163,6 +214,10 @@ export default {
       moduleImportUrl: "",
       errors,
       colors: {},
+
+      isOpenModulesExplorer: false,
+      isConfigDialogOpen: false,
+      activeModuleIndex: null,
     };
   },
 
@@ -257,6 +312,12 @@ export default {
       this.errors.splice(index, 1);
     },
 
+    async addModuleFromExplorer(moduleUrl: string) {
+      this.moduleImportUrl = moduleUrl;
+      await this.loadURL();
+      this.isOpenModulesExplorer = false;
+    },
+
     async loadURL() {
       const module = {
         url: this.moduleImportUrl,
@@ -283,8 +344,31 @@ export default {
 
       this.moduleImportUrl = "";
     },
+
+    openConfigDialog(index) {
+      this.activeModuleIndex = index;
+      this.isConfigDialogOpen = true;
+    },
+    
+    closeConfigDialog() {
+      this.isConfigDialogOpen = false;
+      this.activeModuleIndex = null;
+    },
+    
+    updateModuleConfig(formValues, index) {
+      Object.entries(formValues).forEach(([configType, value]) => {
+        this.config.modules[index][configType] = value;
+      });
+      
+      this.closeConfigDialog();
+    },
   },
-  components: { Module, draggable },
+  components: { 
+    Module, 
+    draggable,
+    ModulesExplorer,
+    ModuleConfigForm
+  },
 };
 </script>
 

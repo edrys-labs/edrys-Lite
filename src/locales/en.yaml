@@ -2,12 +2,17 @@ general:
   userId: "User ID"
   userRole: "User Role"
   language: "Language"
+  roles:
+    teacher: "Teacher"
+    student: "Student"
+    station: "Station"
 
 index:
   classroom:
     create: "Create a class"
     startTeaching: "Start teaching now"
     writeProtection: "Write Protection"
+    newClass: "My New Class"
     ownership:
       owner: "You own this class"
       teacher: "You're a teacher here"
@@ -31,6 +36,9 @@ classroom:
       "1": "Name is required"
       "2": "Name is already taken"
   sideMenu:
+    lobby: "Lobby"
+    station: "Station"
+    room: "Room"
     onlineUsers: "online users"
     settings: "Settings"
     newRoom: "New room"
@@ -83,8 +91,17 @@ settings:
     deleteConfirm: "Yes"
     url: "Module URL"
     add: "Add"
-    explore: "Explore on Github"
+    explore: "Explore modules"
     noDescription: "No description"
+    tooltip: 
+      config: "Module Configuration"
+      manualConfig: "Manual Configuration"
+      delete: "Delete Module"
+    moduleConfig:
+      title: "Module Configuration"
+      save: "Save Configuration"
+      cancel: "Cancel"
+      noSchema: "This module doesn't provide a valid configuration schema"
     module:
       url:
         title: "URL"
@@ -116,9 +133,19 @@ settings:
       stationSettings: "Station Settings"
       showIn:
         title: "Show in"
-        label: "Comma separated list of rooms, or: lobby, * for all, station, (role specific teacher-only, station-only)"
+        label: "Comma separated list of rooms, or: lobby, * for all, station, (role specific: teacher-only, station-only)"
+        teacherOnly: "teacher-only"
+        stationOnly: "station-only"
     editor:
       info: "Valid YAML or JSON configuration"
+    modulesExplorer:
+      title: "Modules Explorer"
+      error: "Unable to fetch modules"
+      text: "Please try again later, or explore the modules on "
+      tooltip:
+        add : "Add Module"
+        info: "Learn more"
+      more: "Explore more"
   stations:
     info: "To add a new station, simply open this link on the client device: "
   share:

@@ -238,9 +238,111 @@ describe('Modules Component', () => {
     expect(mockCommunication.on).toHaveBeenCalledWith('message', undefined);
   });
 
+  describe('scrapedModulesFilter', () => {
+    test('handles translated room names correctly', async () => {
+      const modulesWithTranslatedRooms = [
+        {
+          name: 'Module 1',
+          showInCustom: 'Вестибюль', 
+        },
+        {
+          name: 'Module 2',
+          showInCustom: 'Кімната 1', 
+        },
+        {
+          name: 'Module 3',
+          showInCustom: 'Станція 1', 
+        }
+      ];
+
+      i18n.global.locale.value = 'uk';
+      
+      wrapper = createWrapper({
+        scrapedModules_: modulesWithTranslatedRooms,
+        liveClassProxy: {
+          users: {
+            'test-user': { room: 'Room 1' }
+          }
+        }
+      });
+
+      // Should show Module 2 since user is in Room 1
+      expect(wrapper.findAllComponents({ name: 'Module' })).toHaveLength(1);
+
+      // Update room to Lobby
+      await wrapper.setProps({
+        liveClassProxy: {
+          users: {
+            'test-user': { room: 'Lobby' }
+          }
+        }
+      });
+      
+      // Should show Module 1 since user is in Lobby
+      expect(wrapper.findAllComponents({ name: 'Module' })).toHaveLength(1);
+    });
+
+    test('handles role-specific modules with translations', async () => {
+      const modulesWithRoles = [
+        {
+          name: 'Teacher Module',
+          showInCustom: `${i18n.global.t('settings.modules.module.showIn.teacherOnly')}, Lobby`
+        },
+        {
+          name: 'Station Module',
+          showInCustom: `${i18n.global.t('settings.modules.module.showIn.stationOnly')}, station`
+        }
+      ];
+
+      // Test as teacher
+      wrapper = createWrapper({
+        role: 'teacher',
+        scrapedModules_: modulesWithRoles,
+        liveClassProxy: {
+          users: {
+            'test-user': { room: 'Lobby' }
+          }
+        }
+      });
+      expect(wrapper.findAllComponents({ name: 'Module' })).toHaveLength(1);
+
+      // Test as station
+      wrapper = createWrapper({
+        role: 'station',
+        scrapedModules_: modulesWithRoles,
+        liveClassProxy: {
+          users: {
+            'test-user': { room: 'station' }
+          }
+        }
+      });
+      expect(wrapper.findAllComponents({ name: 'Module' })).toHaveLength(1);
+
+      // Test as student (should see neither)
+      wrapper = createWrapper({
+        role: 'student',
+        scrapedModules_: modulesWithRoles
+      });
+      expect(wrapper.findAllComponents({ name: 'Module' })).toHaveLength(0);
+    });
+
+    test('handles wildcard (*) in module visibility', () => {
+      const modulesWithWildcard = [{
+        name: 'Everywhere Module',
+        showInCustom: '*'
+      }];
+
+      wrapper = createWrapper({
+        scrapedModules_: modulesWithWildcard,
+      });
+
+      expect(wrapper.findAllComponents({ name: 'Module' })).toHaveLength(1);
+    });
+  });
+
   describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar';
+    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
+      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
       const wrapper = createWrapper({ scrapedModules_: [] });
       
       const translations = messages[locale].modules.noModules;

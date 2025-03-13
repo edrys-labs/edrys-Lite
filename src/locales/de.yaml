@@ -2,11 +2,17 @@ general:
   userId: "Benutzer-ID"
   userRole: "Benutzerrolle"
   language: "Sprache"
+  roles:
+    teacher: "Lehrer"
+    student: "Schüler"
+    station: "Station"
+
 index:
   classroom:
     create: "Klasse erstellen"
     startTeaching: "Jetzt unterrichten"
     writeProtection: "Schreibschutz"
+    newClass: "Meine neue Klasse"
     ownership:
       owner: "Sie besitzen diese Klasse"
       teacher: "Sie sind hier Lehrer"
@@ -19,6 +25,7 @@ index:
       open: "Öffnen"
       on: "an"
       off: "aus"
+
 classroom:
   station:
     mode: "Station-Modus aktiv"
@@ -29,11 +36,15 @@ classroom:
       "1": "Name ist erforderlich"
       "2": "Name ist bereits vergeben"
   sideMenu:
+    lobby: "Lobby"
+    station: "Station"
+    room: "Raum"
     onlineUsers: "Online-Benutzer"
     settings: "Einstellungen"
     newRoom: "Neuer Raum"
   popup:
     close: "Schließen"
+    
 deploy:
   state:
     waiting: "Bitte warten Sie, während Ihr Klassenzimmer geladen wird, Sie werden umgeleitet ..."
@@ -48,6 +59,7 @@ deploy:
     info: "Sie besitzen dieses Klassenzimmer und sind der einzige, der es ändern kann, und Sie können den Link mit Ihren Schülern teilen. Der Link ist einzigartig und das Erstellen oder Neuladen dieses Links erstellt einen neuen Raum."
     checkbox: "Diese Nachricht nicht mehr anzeigen"
     goto: "Zum Klassenzimmer"
+
 settings:
   general:
     title: "Einstellungen"
@@ -79,8 +91,17 @@ settings:
     deleteConfirm: "Ja"
     url: "Modul-URL"
     add: "Hinzufügen"
-    explore: "Auf Github erkunden"
+    explore: "Module erkunden"
     noDescription: "Keine Beschreibung"
+    tooltip: 
+      config: "Modulkonfiguration"
+      manualConfig: "Manuelle Konfiguration"
+      delete: "Modul löschen"
+    moduleConfig:
+      title: "Modulkonfiguration"
+      save: "Konfiguration speichern"
+      cancel: "Abbrechen"
+      noSchema: "Dieses Modul stellt kein gültiges Konfigurationsschema bereit"
     module:
       url:
         title: "URL"
@@ -112,9 +133,19 @@ settings:
       stationSettings: "Stationseinstellungen"
       showIn:
         title: "Anzeigen in"
-        label: "Durch Kommas getrennte Liste von Räumen oder: Lobby, * für alle, station, (rollenspezifisch teacher-only, station-only)"
+        label: "Durch Kommas getrennte Liste von Räumen oder: Lobby, * für alle, Station, (rollenspezifisch: nur Lehrer, nur Station)"
+        teacherOnly: "nur Lehrer"
+        stationOnly: "nur Station"
     editor:
       info: "Gültige YAML- oder JSON-Konfiguration"
+    modulesExplorer:
+      title: "Module Explorer"
+      error: "Module konnten nicht abgerufen werden"
+      text: "Bitte versuchen Sie es später erneut oder erkunden Sie die Module auf "
+      tooltip:
+        add : "Modul hinzufügen"
+        info: "Mehr erfahren"
+      more: "Mehr erkunden"
   stations:
     info: "Um eine neue Station hinzuzufügen, öffnen Sie diesen Link einfach auf dem Client-Gerät: "
   share:

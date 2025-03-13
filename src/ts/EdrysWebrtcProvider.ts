@@ -44,6 +44,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
     this._bcChannel = new BroadcastChannel(`custom-webrtc-provider-${roomName}`)
 
     // Listen for BroadcastChannel messages
+    this._bcChannelListener = this._bcChannelListener.bind(this)
     this._bcChannel.addEventListener('message', this._bcChannelListener)
 
     // Listen for new peer connections
@@ -98,10 +99,11 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
   }
 
   /**
-   * Setup event listeners for a peer connection.
+   * Setup event listeners for a peer connection, including robust error logging.
    * @param {string} peerId - The ID of the peer.
+   * @param {number} attempt - The current reconnection attempt count.
    */
-  _setupPeerListeners(peerId) {
+  _setupPeerListeners(peerId, attempt = 0) {
     if (!this.room) return
 
     // Find the connection with the matching remotePeerId
@@ -112,42 +114,75 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
     if (conn && conn.peer) {
       const peer = conn.peer
 
-      // Ensure we don't add multiple listeners
+      // Prevent multiple listener setups for the same peer
       if (this._setupPeers.has(peerId)) return
-
       this._setupPeers.add(peerId)
 
       peer.on('connect', () => {
         console.log(`Connected to peer ${peerId}`)
-        // Send own unique ID to the peer
+        // Reset attempt counter on successful connection.
+        attempt = 0
+        // Send own unique ID to the peer.
         this._sendOwnId(peer)
       })
 
+      // Monitor ICE state changes and attempt ICE restart if necessary.
+      peer.on('iceconnectionstatechange', () => {
+        const state = peer.iceConnectionState
+        console.log(`ICE state for peer ${peerId} changed to ${state}`)
+        if (state === 'failed' || state === 'disconnected') {
+          console.log(
+            `ICE state for peer ${peerId} is ${state}. Attempting ICE restart...`
+          )
+          if (peer.restartIce) {
+            peer.restartIce()
+          }
+        }
+      })
+
+      // Listen for incoming data.
       peer.on('data', (data) => {
         this._handleIncomingData(data, peerId, peer)
       })
 
+      // Expanded error handler with detailed error logging.
       peer.on('error', (err) => {
-        console.error(`Error with peer ${peerId}:`, err)
+        const errorDetails = {
+          message: err.message || 'No error message',
+          code: err.code || 'No error code',
+          stack: err.stack || 'No stack trace available',
+          peerId: peerId,
+          timestamp: new Date().toISOString(),
+        }
+        console.error(`Error with peer ${peerId}:`, errorDetails)
+
+        // Optionally, trigger a reconnection or additional cleanup steps here.
       })
 
+      // Handle connection closure and schedule reconnection.
       peer.on('close', () => {
         console.log(`Connection closed with peer ${peerId}`)
         this._setupPeers.delete(peerId)
 
         const remoteUserId = this._peerUserIds.get(peerId)
         if (remoteUserId) {
-          // Invoke all registered leave callbacks with the remoteUserId
           if (this._leaveListener) this._leaveListener(remoteUserId)
-
-          // Remove mappings
           this._peerUserIds.delete(peerId)
           this._userIdToPeer.delete(remoteUserId)
         }
+
+        // Exponential backoff for reconnection: delay doubles each attempt up to a cap.
+        const baseDelay = 1000 // 1 second.
+        const maxDelay = 30000 // 30 seconds maximum delay.
+        const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
+        console.log(`Reconnection attempt for peer ${peerId} in ${delay}ms`)
+        setTimeout(() => {
+          this._setupPeerListeners(peerId, attempt + 1)
+        }, delay)
       })
     } else {
-      // Retry after a delay if the connection is not yet established
-      setTimeout(() => this._setupPeerListeners(peerId), 100)
+      // If connection is not yet established, try again shortly with the same attempt count.
+      setTimeout(() => this._setupPeerListeners(peerId, attempt), 100)
     }
   }
 
