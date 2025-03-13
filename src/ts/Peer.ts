@@ -43,9 +43,9 @@ const backupConfig = {
 const RTCConfiguration = process.env.WEBRTC_CONFIG
   ? JSON.parse(process.env.WEBRTC_CONFIG).config
   : backupConfig
-const SignallingServer = [
-  process.env.WEBRTC_SIGNALING || 'wss://rooms.deno.dev',
-]
+const SignallingServer = JSON.parse(
+  process.env.WEBRTC_SIGNALING || '["wss://rooms.deno.dev"]'
+)
 
 export default class Peer {
   private provider: EdrysWebrtcProvider
