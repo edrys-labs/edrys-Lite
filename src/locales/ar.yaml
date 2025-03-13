@@ -93,6 +93,15 @@ settings:
     add: "إضافة"
     explore: "استكشاف الوحدات"
     noDescription: "لا يوجد وصف"
+    tooltip: 
+      config: "تكوين الوحدة"
+      manualConfig: "التكوين اليدوي"
+      delete: "حذف الوحدة"
+    moduleConfig:
+      title: "تكوين الوحدة"
+      save: "حفظ التكوين"
+      cancel: "إلغاء"
+      noSchema: "هذه الوحدة لا توفر مخططًا صالحًا للتكوين"
     module:
       url:
         title: "رابط"

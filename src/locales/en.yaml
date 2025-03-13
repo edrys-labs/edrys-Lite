@@ -93,6 +93,15 @@ settings:
     add: "Add"
     explore: "Explore modules"
     noDescription: "No description"
+    tooltip: 
+      config: "Module Configuration"
+      manualConfig: "Manual Configuration"
+      delete: "Delete Module"
+    moduleConfig:
+      title: "Module Configuration"
+      save: "Save Configuration"
+      cancel: "Cancel"
+      noSchema: "This module doesn't provide a valid configuration schema"
     module:
       url:
         title: "URL"
