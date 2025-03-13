@@ -62,6 +62,7 @@ import {
   VWindow,
   VWindowItem,
   VSnackbar,
+  VColorPicker,
 } from '../node_modules/vuetify/lib/components/index.mjs'
 import * as directives from '../node_modules/vuetify/lib/directives/index.mjs'
 import { createVueI18nAdapter } from '../node_modules/vuetify/lib/locale/adapters/vue-i18n.mjs'
@@ -188,6 +189,7 @@ const vuetify = createVuetify({
     VWindowItem,
     // others
     PrismEditor,
+    VColorPicker,
   },
   directives: { ...directives },
   icons: {

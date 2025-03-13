@@ -176,6 +176,7 @@ export async function scrapeModule(module) {
           shownIn: yaml['show-in'] || ['*'],
           srcdoc: 'data:text/html,' + escape(code),
           origin: '*',
+          moduleConfig: yaml['module-config'] || '',
         }
       } catch (error) {
         console.warn('loading yaml:', error)
@@ -202,6 +203,7 @@ export async function scrapeModule(module) {
           shownIn: (meta['show-in'] || '*').replace(/\s+/g, '').split(','), // or 'station'
           srcdoc: 'data:text/html,' + escape(replace(content, module.url)),
           origin: '*',
+          moduleConfig: meta['module-config'] || '', 
         }
       }
 
@@ -213,6 +215,7 @@ export async function scrapeModule(module) {
           description: meta['description'],
           icon: meta['icon'] || 'mdi-package',
           shownIn: (meta['show-in'] || '*').replace(/\s+/g, '').split(','), // or 'station'
+          moduleConfig: meta['module-config'] || '',
         }
       } catch (error) {
         throw new Error(

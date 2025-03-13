@@ -93,6 +93,15 @@ settings:
     add: "Hinzufügen"
     explore: "Module erkunden"
     noDescription: "Keine Beschreibung"
+    tooltip: 
+      config: "Modulkonfiguration"
+      manualConfig: "Manuelle Konfiguration"
+      delete: "Modul löschen"
+    moduleConfig:
+      title: "Modulkonfiguration"
+      save: "Konfiguration speichern"
+      cancel: "Abbrechen"
+      noSchema: "Dieses Modul stellt kein gültiges Konfigurationsschema bereit"
     module:
       url:
         title: "URL"

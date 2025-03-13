@@ -93,6 +93,15 @@ settings:
     add: "Додати"
     explore: "Досліджуйте модулі"
     noDescription: "Немає опису"
+    tooltip: 
+      config: "Конфігурація модуля"
+      manualConfig: "Ручна конфігурація"
+      delete: "Видалити модуль"
+    moduleConfig:
+      title: "Конфігурація модуля"
+      save: "Зберегти конфігурацію"
+      cancel: "Скасувати"
+      noSchema: "Цей модуль не надає дійсну схему конфігурації"
     module:
       url:
         title: "URL"
