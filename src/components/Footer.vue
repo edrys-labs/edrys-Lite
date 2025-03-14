@@ -41,7 +41,7 @@ export default {
           <v-btn
             density="compact"
             icon="mdi-information"
-            href="https://github.com/edrys-labs/documentation"
+            href="https://LiaScript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md"
             target="_"
             class="mx-2"
             v-bind="props"
