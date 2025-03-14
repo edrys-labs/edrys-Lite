@@ -203,7 +203,7 @@ export async function scrapeModule(module) {
           shownIn: (meta['show-in'] || '*').replace(/\s+/g, '').split(','), // or 'station'
           srcdoc: 'data:text/html,' + escape(replace(content, module.url)),
           origin: '*',
-          moduleConfig: meta['module-config'] || '', 
+          moduleConfig: meta['module-config'] || '',
         }
       }
 
@@ -364,28 +364,29 @@ export function clone(object: any) {
 }
 
 export function removeKeysStartingWithSecret(obj: any) {
-  if (!obj) return;
-  
+  if (obj === null || obj === undefined) return
+
   if (Array.isArray(obj)) {
     for (let i = 0; i < obj.length; i++) {
-      if (typeof obj[i] === 'object') {
-        removeKeysStartingWithSecret(obj[i]);
+      if (obj[i] !== null && typeof obj[i] === 'object') {
+        removeKeysStartingWithSecret(obj[i])
       }
     }
-    return;
+    return
   }
 
   for (let key in obj) {
-    if (typeof obj[key] === 'object') {
-      removeKeysStartingWithSecret(obj[key]);
+    // Only process non-null objects
+    if (obj[key] !== null && typeof obj[key] === 'object') {
+      removeKeysStartingWithSecret(obj[key])
       if (Array.isArray(obj[key])) {
-        obj[key] = obj[key].filter(item => item !== undefined);
+        obj[key] = obj[key].filter((item) => item !== undefined)
       } else if (Object.keys(obj[key]).length === 0) {
-        delete obj[key];
+        delete obj[key]
       }
     }
     if (key.toLowerCase().startsWith('secret')) {
-      delete obj[key];
+      delete obj[key]
     }
   }
 }
