@@ -307,7 +307,7 @@ export function validateUrl(string: string) {
   return false
 }
 
-export function infoHash(length = 16) {
+export function infoHash(length = 20) {
   let chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 
   // Pick characters randomly
