@@ -53,3 +53,5 @@ Group coursework: Dynamic breakout rooms and easy jumping between rooms
 ## 📚 Documentation
 
 For more information, please refer to the [official documentation](https://github.com/edrys-labs/documentation).
+
+or as LiaScript: https://liascript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md
