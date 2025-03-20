@@ -28,7 +28,7 @@
     "@vue/test-utils": "^2.4.6",
     "assert": "^2.1.0",
     "buffer": "^6.0.3",
-    "caniuse-lite": "^1.0.30001686",
+    "caniuse-lite": "^1.0.30001706",
     "create-vuetify": "^1.1.0",
     "dexie": "^3.2.4",
     "events": "^3.3.0",
@@ -44,7 +44,7 @@
     "vitest": "^2.1.8",
     "vue-prism-editor": "^2.0.0-alpha.2",
     "vuedraggable": "^4.1.0",
-    "vuetify": "^3.7.3",
+    "vuetify": "^3.7.18",
     "y-protocols": "^1.0.6",
     "yjs": "^13.6.20"
   },
