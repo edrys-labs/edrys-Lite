@@ -58,7 +58,7 @@ export class EdrysWebsocketProvider {
       console.log(`Y-WebSocket status: ${event.status}`)
       if (event.status === 'connected') {
         // Send initial user ID message after connection
-        this._sendOwnId()
+        //this._sendOwnId() // No longer needed
       }
     })
   }
@@ -93,29 +93,14 @@ export class EdrysWebsocketProvider {
     }
   }
 
-  _sendOwnId() {
-    const encoder = encoding.createEncoder()
-    encoding.writeVarUint(encoder, MESSAGE_TYPE_ID)
-    encoding.writeVarString(encoder, this.userid)
-    const encodedMessage = encoding.toUint8Array(encoder)
-
-    // Send the message through the Y-WebSocket provider's connection
-    if (this.provider.ws) {
-      this.provider.ws.send(encodedMessage)
-    } else {
-      console.warn('WebSocket connection not available to send ID.')
-    }
-  }
-
   /**
    * Send a custom JSON message to the server.
    * @param {string} message - The topic of the message.
    * @param {string} [targetUserId=null] - The target user's ID. If null, broadcast to all.
    */
   sendMessage(message: any, targetUserId: string | null = null) {
-    if (!message.id) {
-      message.id = generateUniqueId()
-    }
+    // Ensure each message has a unique ID based on timestamp
+    message.id = Date.now().toString() + '-' + generateUniqueId()
 
     // Add message to history
     this._addMessageToHistory(message)
