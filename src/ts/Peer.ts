@@ -2,6 +2,7 @@ import { getPeerID, hashJsonObject, deepEqual, getShortPeerID } from './Utils'
 import * as Y from 'yjs'
 // @ts-ignore
 import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
+import { EdrysWebsocketProvider } from './EdrysWebsocketProvider'
 
 function LOG(...args: any[]) {
   console.log(
@@ -48,7 +49,7 @@ const SignallingServer = JSON.parse(
 )
 
 export default class Peer {
-  private provider: EdrysWebrtcProvider
+  private provider: EdrysWebrtcProvider | EdrysWebsocketProvider
 
   private t: (key: string) => string
 
@@ -86,7 +87,8 @@ export default class Peer {
     setup: { id: string; data: any; timestamp: number; hash: string | null },
     stationID?: string,
     t?: (key: string) => string, // Translation function parameter
-    password?: string
+    password?: string,
+    useWebsocket: boolean = true // New flag to choose provider
   ) {
     const doc = new Y.Doc()
 
@@ -119,7 +121,7 @@ export default class Peer {
     // Set up persistence before connecting
     const room = this.lab.id + (this.lab.hash || '')
 
-    this.connectProvider(room, password)
+    this.connectProvider(room, password, useWebsocket)
 
     // Ensure cleanup on page unload
     window.addEventListener('beforeunload', this.stop)
@@ -130,7 +132,11 @@ export default class Peer {
    * @param room The room identifier.
    * @param password The password for the room.
    */
-  private connectProvider(room: string, password?: string) {
+  private connectProvider(
+    room: string,
+    password?: string,
+    useWebsocket: boolean = false
+  ) {
     try {
       // Disconnect existing provider if it exists
       if (this.provider) {
@@ -138,24 +144,29 @@ export default class Peer {
         this.provider.destroy()
       }
 
-      this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
-        signaling: SignallingServer, // 'wss://edrys-lite-signal-sever.deno.dev/' + room],
-        password: password || 'password',
-        userid: this.peerID,
-        peerOpts: RTCConfiguration,
-      })
+      if (useWebsocket) {
+        this.provider = new EdrysWebsocketProvider(room, this.y.doc, {
+          serverUrl: 'ws://localhost:1234', // Use the first signaling server as websocket server
+          userid: this.peerID,
+        })
+      } else {
+        this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
+          signaling: SignallingServer, // 'wss://edrys-lite-signal-sever.deno.dev/' + room],
+          password: password || 'password',
+          userid: this.peerID,
+          peerOpts: RTCConfiguration,
+        })
+      }
 
-      // Handle awareness updates
-      // this.provider.awareness.on(
-      //   'update',
-      //   this.handleAwarenessUpdate.bind(this)
-      // )
-
+      console.warn(this.provider)
       // Handle provider status events
-      this.provider.on('status', this.handleStatus.bind(this))
-
-      // Handle synced events
-      this.provider.on('synced', this.handleSynced.bind(this))
+      if ('on' in this.provider) {
+        this.provider.on('status', this.handleStatus.bind(this))
+      } else {
+        this.handleStatus({
+          status: 'connected',
+        })
+      }
 
       // Register the onLeave callback
       this.provider.onLeave((userid) => {
@@ -172,41 +183,6 @@ export default class Peer {
       // Implement retry logic or other recovery mechanisms if necessary
     }
   }
-
-  /**
-   * Handles awareness updates only if the document is ready.
-   */
-  // private handleAwarenessUpdate(
-  //   {
-  //     added,
-  //     updated,
-  //     removed,
-  //   }: { added: number[]; updated: number[]; removed: number[] },
-  //   origin: any
-  // ) {
-  //   if (!this.isReady) return // Ignore updates until ready
-
-  //   if (added.length > 0 || updated.length > 0) {
-  //     if (!this.connected) {
-  //       this.connected = true
-  //       this.update('connected')
-  //     }
-  //   }
-
-  //   if (removed.length > 0) {
-  //     // Collect peerIDs of removed users
-  //     const removedPeerIDs = removed
-  //       .map((clientId) => {
-  //         const state = this.provider.awareness.getStates().get(clientId)
-  //         return state?.userid || null
-  //       })
-  //       .filter((id): id is string => id !== null)
-
-  //     if (removedPeerIDs.length > 0) {
-  //       this.removePeers(removedPeerIDs)
-  //     }
-  //   }
-  // }
 
   /**
    * Handles provider status changes.
