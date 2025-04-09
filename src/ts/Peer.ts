@@ -745,6 +745,8 @@ export default class Peer {
 
     const users = this.y.users.toJSON()
 
+    console.warn('Broadcasting message', msg)
+
     // Send to one user only
     if (msg.user) {
       if (msg.user === this.peerID) {
@@ -759,6 +761,7 @@ export default class Peer {
     for (const id in users) {
       if (users[id].room === room && id !== this.peerID) {
         try {
+          console.warn('Sending message to', id, msg)
           this.provider.sendMessage(msg, id)
         } catch (e: any) {
           LOG('warning', e.message)

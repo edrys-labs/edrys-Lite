@@ -5,6 +5,8 @@ import { encoding, decoding } from 'lib0'
 const MESSAGE_TYPE_CUSTOM = 42
 const MESSAGE_TYPE_ID = 43
 const MESSAGE_EXPIRATION_TIME = 10000 // 10 seconds
+const MAX_MESSAGES = 50
+const CUSTOM_MESSAGE_FIELD = 'customMessage'
 
 function generateUniqueId() {
   return Math.random().toString(36).substr(2, 9) + Date.now().toString(36)
@@ -19,6 +21,7 @@ export class EdrysWebsocketProvider {
   public userid: string
   private provider: WebsocketProvider
   private doc: Y.Doc
+  private _messageHistory: any[] = [] // Array to store message history
 
   constructor(roomName: string, doc: Y.Doc, options: any) {
     this.doc = doc
@@ -114,21 +117,38 @@ export class EdrysWebsocketProvider {
       message.id = generateUniqueId()
     }
 
+    // Add message to history
+    this._addMessageToHistory(message)
+
     // Send via BroadcastChannel for other tabs
     this._bcChannel.postMessage(message)
 
-    // Encode for WebSocket
-    const encoder = encoding.createEncoder()
-    encoding.writeVarUint(encoder, MESSAGE_TYPE_CUSTOM)
-    encoding.writeVarString(encoder, JSON.stringify(message))
-    const encodedMessage = encoding.toUint8Array(encoder)
+    // Update awareness state with the message
+    const awareness = this.provider.awareness
+    const localState = awareness.getLocalState() || {}
+    awareness.setLocalState({
+      ...localState,
+      [CUSTOM_MESSAGE_FIELD]: message,
+    })
+  }
 
-    // Send the message through the Y-WebSocket provider's connection
-    if (this.provider.ws) {
-      this.provider.ws.send(encodedMessage)
-    } else {
-      console.warn('WebSocket connection not available to send message.')
+  /**
+   * Adds a message to the history and maintains the message limit.
+   * @param {any} message - The message to add.
+   */
+  _addMessageToHistory(message: any) {
+    this._messageHistory.push(message)
+    if (this._messageHistory.length > MAX_MESSAGES) {
+      this._messageHistory.shift() // Remove the oldest message
     }
+  }
+
+  /**
+   * Gets the message history.
+   * @returns {any[]} - The array of messages.
+   */
+  getMessageHistory() {
+    return this._messageHistory
   }
 
   /**
@@ -138,32 +158,38 @@ export class EdrysWebsocketProvider {
   onMessage(callback) {
     this._messageListener = callback
 
-    // Override the providers message callback
-    this.provider.on('message', (messageEvent: MessageEvent) => {
-      try {
-        const decoder = decoding.createDecoder(
-          new Uint8Array(messageEvent.data)
-        )
-        const messageType = decoding.readVarUint(decoder)
+    // Listen for awareness updates
+    this.provider.awareness.on(
+      'update',
+      ({ added, updated, removed }, origin) => {
+        // Process updates only if they originate from a remote client
+        if (origin !== this.provider) {
+          const states = this.provider.awareness.getStates()
+          states.forEach((state, clientID) => {
+            if (clientID !== this.doc.clientID && state[CUSTOM_MESSAGE_FIELD]) {
+              const message = state[CUSTOM_MESSAGE_FIELD]
 
-        if (messageType === MESSAGE_TYPE_CUSTOM) {
-          const messageContent = decoding.readVarString(decoder)
-          const message = JSON.parse(messageContent)
+              if (this._isDuplicateMessage(message)) return
 
-          if (this._isDuplicateMessage(message)) return
+              // Add message to history
+              this._addMessageToHistory(message)
 
-          if (this._messageListener) {
-            this._messageListener(message)
-          }
-        } else if (messageType === MESSAGE_TYPE_ID) {
-          // Handle user ID messages if needed
-          const remoteUserId = decoding.readVarString(decoder)
-          console.log(`Received user ID: ${remoteUserId}`)
+              if (this._messageListener) {
+                this._messageListener(message)
+              }
+
+              // Clear the custom message field after processing
+              const awareness = this.provider.awareness
+              const localState = awareness.getLocalState() || {}
+              awareness.setLocalState({
+                ...localState,
+                [CUSTOM_MESSAGE_FIELD]: null,
+              })
+            }
+          })
         }
-      } catch (e) {
-        console.error('Failed to parse incoming message:', e)
       }
-    })
+    )
   }
 
   /**
