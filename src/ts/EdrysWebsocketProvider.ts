@@ -15,7 +15,7 @@ function generateUniqueId() {
 export class EdrysWebsocketProvider {
   private _messageListener: Function | null = null
   private _bcChannel: BroadcastChannel
-  private _processedMessages: Map<string, number>
+  private _processedMessageIds = new Set<string>() // Optimize duplicate detection
   private _cleanupInterval: number | null = null
   private _leaveListener: Function | null = null
   public userid: string
@@ -27,19 +27,24 @@ export class EdrysWebsocketProvider {
     this.doc = doc
     this.userid = options.userid || this.doc.clientID.toString()
 
-    // Initialize Y-WebSocket provider
+    // Initialize Y-WebSocket provider with improved options
     this.provider = new WebsocketProvider(
       options.serverUrl || 'wss://demos.yjs.dev',
       roomName,
       this.doc,
       {
         connect: true,
-        params: { userid: this.userid }, // Pass userid as a query parameter
+        params: { userid: this.userid },
+        // Reduce awareness sync interval from default 30s
+
+        resyncInterval: 5000, // How often to resync state (ms)
+        maxBackoffTime: 2000, // Max reconnection delay (ms)
       }
     )
 
-    // Map of processed messages: messageId -> receivedTimestamp
-    this._processedMessages = new Map()
+    // Immediately set basic awareness to trigger presence detection
+    this._initializeAwareness()
+
     // Start periodic cleanup of old messages
     this._cleanupInterval = window.setInterval(
       () => this._cleanupProcessedMessages(),
@@ -63,33 +68,57 @@ export class EdrysWebsocketProvider {
     })
   }
 
-  _bcChannelListener(event) {
+  // New method to immediately set awareness
+  private _initializeAwareness() {
+    const awareness = this.provider.awareness
+    const localState = awareness.getLocalState() || {}
+
+    // Set minimum required state to make client visible immediately
+    awareness.setLocalState({
+      ...localState,
+      user: {
+        id: this.userid,
+        name: this.userid,
+      },
+    })
+  }
+
+  _bcChannelListener(event: MessageEvent): void {
     const message = event.data
+    // Only process messages that have an ID
+    if (!message || !message.id) return
+
     if (this._isDuplicateMessage(message)) return
+
+    // Add message to history before processing
+    this._addMessageToHistory(message)
+
     if (this._messageListener) {
       this._messageListener(message)
     }
   }
 
-  _isDuplicateMessage(message) {
+  _isDuplicateMessage(message: any): boolean {
     if (!message || !message.id) {
       return false
     }
 
-    if (this._processedMessages.has(message.id)) {
+    // Faster lookup with Set
+    if (this._processedMessageIds.has(message.id)) {
       return true
     }
 
-    this._processedMessages.set(message.id, Date.now())
+    // Store only ID, not timestamp for better memory usage
+    this._processedMessageIds.add(message.id)
     return false
   }
 
   _cleanupProcessedMessages() {
-    const now = Date.now()
-    for (const [id, timestamp] of this._processedMessages.entries()) {
-      if (now - timestamp > MESSAGE_EXPIRATION_TIME) {
-        this._processedMessages.delete(id)
-      }
+    // If size exceeds threshold, clear half of the oldest messages
+    // This avoids iterating through the entire set every cleanup cycle
+    if (this._processedMessageIds.size > 1000) {
+      const idsToKeep = Array.from(this._processedMessageIds).slice(-500)
+      this._processedMessageIds = new Set(idsToKeep)
     }
   }
 
@@ -140,41 +169,39 @@ export class EdrysWebsocketProvider {
    * Register a callback to handle incoming custom messages.
    * @param {function({topic: string, body: any, userid: string}): void} callback
    */
-  onMessage(callback) {
+  onMessage(callback: Function): void {
     this._messageListener = callback
 
-    // Listen for awareness updates
-    this.provider.awareness.on(
-      'update',
-      ({ added, updated, removed }, origin) => {
-        // Process updates only if they originate from a remote client
-        if (origin !== this.provider) {
-          const states = this.provider.awareness.getStates()
-          states.forEach((state, clientID) => {
-            if (clientID !== this.doc.clientID && state[CUSTOM_MESSAGE_FIELD]) {
-              const message = state[CUSTOM_MESSAGE_FIELD]
+    // More efficient awareness update handling
+    this.provider.awareness.on('update', ({ added, updated }) => {
+      if (added.length === 0 && updated.length === 0) return
 
-              if (this._isDuplicateMessage(message)) return
+      const states = this.provider.awareness.getStates()
+      // Only process clients that were just added or updated
+      const changedClients = [...added, ...updated]
 
-              // Add message to history
-              this._addMessageToHistory(message)
+      for (const clientID of changedClients) {
+        // Skip our own client
+        if (clientID === this.doc.clientID) continue
 
-              if (this._messageListener) {
-                this._messageListener(message)
-              }
+        const state = states.get(clientID)
+        if (
+          !state ||
+          !state[CUSTOM_MESSAGE_FIELD] ||
+          !state[CUSTOM_MESSAGE_FIELD].id
+        )
+          continue
 
-              // Clear the custom message field after processing
-              const awareness = this.provider.awareness
-              const localState = awareness.getLocalState() || {}
-              awareness.setLocalState({
-                ...localState,
-                [CUSTOM_MESSAGE_FIELD]: null,
-              })
-            }
-          })
+        const message = state[CUSTOM_MESSAGE_FIELD]
+        if (this._isDuplicateMessage(message)) continue
+
+        this._addMessageToHistory(message)
+
+        if (this._messageListener) {
+          this._messageListener(message)
         }
       }
-    )
+    })
   }
 
   /**
@@ -216,6 +243,6 @@ export class EdrysWebsocketProvider {
       this._cleanupInterval = null
     }
 
-    this._processedMessages.clear()
+    this._processedMessageIds.clear()
   }
 }
