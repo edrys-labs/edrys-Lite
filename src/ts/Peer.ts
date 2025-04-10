@@ -146,7 +146,7 @@ export default class Peer {
 
       if (useWebsocket) {
         this.provider = new EdrysWebsocketProvider(room, this.y.doc, {
-          serverUrl: 'wss://edrys-websocket.herokuapp.com', // Use the first signaling server as websocket server
+          serverUrl: 'wss://edrys-websocket-0cf1c04ff535.herokuapp.com/', // Use the first signaling server as websocket server
           userid: this.peerID,
         })
       } else {
