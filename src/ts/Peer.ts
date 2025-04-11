@@ -1,4 +1,10 @@
-import { getPeerID, hashJsonObject, deepEqual, getShortPeerID } from './Utils'
+import {
+  getPeerID,
+  hashJsonObject,
+  deepEqual,
+  getShortPeerID,
+  throttle,
+} from './Utils' // or any other throttle utility
 import * as Y from 'yjs'
 // @ts-ignore
 import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
@@ -494,6 +500,10 @@ export default class Peer {
       }
     }, 'initRooms')
 
+    const throttledUpdate = throttle(() => {
+      this.update('room')
+    }, 333) // Adjust the delay as needed
+
     this.y.rooms.observeDeep((events) => {
       // Handle room deletions from root-level changes
       events.forEach((event) => {
@@ -518,7 +528,7 @@ export default class Peer {
       })
 
       // Only trigger one update per batch of changes
-      this.update('room')
+      throttledUpdate()
     })
   }
 

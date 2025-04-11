@@ -253,7 +253,20 @@ export function download(filename, text) {
   document.body.removeChild(element)
 }
 
-export function debounce(func, wait, immediate) {
+export function throttle(func, limit) {
+  let inThrottle
+  return function () {
+    const args = arguments
+    const context = this
+    if (!inThrottle) {
+      func.apply(context, args)
+      inThrottle = true
+      setTimeout(() => (inThrottle = false), limit)
+    }
+  }
+}
+
+export function debounce(func, wait, immediate?) {
   /**
    * https://davidwalsh.name/javascript-debounce-function
    */
