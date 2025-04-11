@@ -1,5 +1,5 @@
 <script lang="ts">
-import { useI18n } from 'vue-i18n';
+import { useI18n } from "vue-i18n";
 
 export default {
   name: "Footer",
@@ -56,6 +56,20 @@ export default {
             density="compact"
             icon="mdi-share-circle"
             href="https://github.com/topics/edrys-lab"
+            target="_"
+            class="mx-2"
+            v-bind="props"
+          >
+          </v-btn>
+        </template>
+      </v-tooltip>
+
+      <v-tooltip text="blog" location="top">
+        <template v-slot:activator="{ props }">
+          <v-btn
+            density="compact"
+            icon="mdi-rss-box"
+            href="https://edrys-labs.github.io/blog"
             target="_"
             class="mx-2"
             v-bind="props"
