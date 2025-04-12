@@ -29,7 +29,7 @@
     "assert": "^2.1.0",
     "buffer": "^6.0.3",
     "caniuse-lite": "^1.0.30001713",
-    "create-vuetify": "^1.1.0",
+    "create-vuetify": "^2.4.0",
     "dexie": "^4.0.11",
     "events": "^3.3.0",
     "js-yaml": "^4.1.0",
