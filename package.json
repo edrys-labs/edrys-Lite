@@ -34,7 +34,7 @@
     "events": "^3.3.0",
     "js-yaml": "^4.1.0",
     "markdown-it": "^14.0.0",
-    "minify": "^9.2.0",
+    "minify": "^14.0.0",
     "object-hash": "^3.0.0",
     "parcel": "^2.14.1",
     "parcel-plugin-bundle-visualiser": "^1.2.0",
