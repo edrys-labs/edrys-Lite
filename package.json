@@ -12,7 +12,8 @@
     "minify:css": "find dist -name \"*.css\" -print0 | xargs -0 -P 4 -I {} sh -c 'before=$(wc -c < {}); npx minify --css {} > {}.min && after=$(wc -c < {}.min); if [ ${after} -lt ${before} ]; then mv {}.min {}; reduction=$((${before}-${after})); percent=$(awk \"BEGIN {printf \\\"%.2f\\\", ${reduction}/${before}*100}\"); echo \"{} reduced from ${before} to ${after} bytes (${percent}% reduction)\"; else rm {}.min; echo \"{} no reduction achieved, file size unchanged\"; fi'",
     "build:edrys": "npx parcel build src/api/edrys.ts --no-scope-hoist --no-source-maps && mv dist/edrys.* dist/module/",
     "watch:edrys": "npx parcel build src/api/edrys.ts --no-scope-hoist && mv dist/edrys.* dist/module/",
-    "analyze": "rm -rf dist && npx parcel build --no-source-maps --reporter @parcel/reporter-bundle-analyzer src/index.html && firefox parcel-bundle-reports/default.html"
+    "analyze": "rm -rf dist && npx parcel build --no-source-maps --reporter @parcel/reporter-bundle-analyzer src/index.html && firefox parcel-bundle-reports/default.html",
+    "websocket-server": "npx @y/websocket-server"
   },
   "author": "André Dietrich",
   "license": "Mozilla Public License Version 2.0",
@@ -26,6 +27,7 @@
     "@types/node": "^22.14.1",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/test-utils": "^2.4.6",
+    "@y/websocket-server": "^0.1.1",
     "assert": "^2.1.0",
     "buffer": "^6.0.3",
     "caniuse-lite": "^1.0.30001713",
@@ -46,6 +48,7 @@
     "vuedraggable": "^4.1.0",
     "vuetify": "^3.7.18",
     "y-protocols": "^1.0.6",
+    "y-websocket": "^3.0.0",
     "yjs": "^13.6.20"
   },
   "dependencies": {

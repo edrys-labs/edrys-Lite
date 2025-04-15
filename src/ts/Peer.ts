@@ -8,6 +8,7 @@ import {
 import * as Y from 'yjs'
 // @ts-ignore
 import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
+import { EdrysWebsocketProvider } from './EdrysWebsocketProvider'
 
 function LOG(...args: any[]) {
   console.log(

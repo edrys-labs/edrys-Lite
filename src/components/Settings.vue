@@ -4,7 +4,8 @@ import Members from "./Settings/Members.vue";
 import Modules from "./Settings/Modules.vue";
 import Stations from "./Settings/Stations.vue";
 import Share from "./Settings/Share.vue";
-import { useI18n } from 'vue-i18n';
+import { useI18n } from "vue-i18n";
+import Communication from "./Settings/Communication.vue";
 
 export default {
   name: "Settings",
@@ -73,17 +74,22 @@ export default {
       deep: true,
     },
   },
-  components: { Main, Members, Modules, Stations, Share },
+  components: { Main, Members, Modules, Stations, Share, Communication },
 };
 </script>
 
 <template>
   <v-card>
     <v-toolbar dark flat>
-      <v-toolbar-title>{{ t('settings.general.title') }}</v-toolbar-title>
+      <v-toolbar-title>{{ t("settings.general.title") }}</v-toolbar-title>
 
       <span class="text-decoration-underline text-medium-emphasis"
-        >{{ t('settings.general.writeProtection') }} {{ writeProtection ? t('settings.general.actions.on') : t('settings.general.actions.off') }}</span
+        >{{ t("settings.general.writeProtection") }}
+        {{
+          writeProtection
+            ? t("settings.general.actions.on")
+            : t("settings.general.actions.off")
+        }}</span
       >
       <v-spacer></v-spacer>
 
@@ -95,23 +101,27 @@ export default {
         <v-tabs v-model="tab" fixed-tabs center-active show-arrows>
           <v-tab :active="tab == 0">
             <v-icon left style="margin-right: 15px"> mdi-book-open-outline </v-icon>
-            {{ t('settings.general.Main') }}
+            {{ t("settings.general.Main") }}
           </v-tab>
           <v-tab :active="tab == 1">
             <v-icon left style="margin-right: 15px"> mdi-account-group </v-icon>
-            {{ t('settings.general.Members') }}
+            {{ t("settings.general.Members") }}
           </v-tab>
           <v-tab :active="tab == 2">
             <v-icon left style="margin-right: 15px"> mdi-view-dashboard </v-icon>
-            {{ t('settings.general.Modules') }}
+            {{ t("settings.general.Modules") }}
           </v-tab>
           <v-tab :active="tab == 3">
             <v-icon left style="margin-right: 15px"> mdi-router-wireless </v-icon>
-            {{ t('settings.general.Stations') }}
+            {{ t("settings.general.Stations") }}
           </v-tab>
           <v-tab :active="tab == 4">
             <v-icon left style="margin-right: 15px"> mdi-share-variant </v-icon>
-            {{ t('settings.general.Share') }}
+            {{ t("settings.general.Share") }}
+          </v-tab>
+          <v-tab :active="tab == 5">
+            <v-icon left style="margin-right: 15px"> mdi-share-variant </v-icon>
+            {{ t("settings.general.Share") }}
           </v-tab>
         </v-tabs>
       </template>
@@ -145,6 +155,13 @@ export default {
         <v-window-item>
           <Share :config="config" :writeProtection="writeProtection"></Share>
         </v-window-item>
+
+        <v-window-item>
+          <Communication
+            :config="config"
+            :writeProtection="writeProtection"
+          ></Communication>
+        </v-window-item>
       </v-window>
     </v-card-text>
 
@@ -156,7 +173,7 @@ export default {
         :disabled="writeProtection"
       >
         <v-icon left> mdi-upload </v-icon>
-        {{ t('settings.general.actions.save') }}
+        {{ t("settings.general.actions.save") }}
         <v-badge
           overlap
           dot
@@ -175,13 +192,15 @@ export default {
             style="margin-top: 30px; margin-right: 10px; margin-left: 30px"
             class="float-right"
           >
-            {{ t('settings.general.actions.delete') }}
+            {{ t("settings.general.actions.delete") }}
           </v-btn>
         </template>
 
         <v-list>
           <v-list-item>
-            <v-list-item-title> {{ t('settings.general.actions.deleteConfirm') }} </v-list-item-title>
+            <v-list-item-title>
+              {{ t("settings.general.actions.deleteConfirm") }}
+            </v-list-item-title>
 
             <v-btn
               color="red"
@@ -190,7 +209,7 @@ export default {
               class="float-right"
               style="margin-top: 10px"
             >
-              {{ t('settings.general.actions.deleteForever') }}</v-btn
+              {{ t("settings.general.actions.deleteForever") }}</v-btn
             >
           </v-list-item>
         </v-list>

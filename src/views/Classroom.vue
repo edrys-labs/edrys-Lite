@@ -4,8 +4,8 @@ import Chat from "../components/Chat.vue";
 import Checks from "../components/Checks.vue";
 import Modules from "../components/Modules.vue";
 import Logger from "../components/Logger.vue";
-import UserMenu from '../components/UserMenu.vue';
-import { useI18n } from 'vue-i18n';
+import UserMenu from "../components/UserMenu.vue";
+import { useI18n } from "vue-i18n";
 
 import { Database, DatabaseItem } from "../ts/Database";
 import {
@@ -160,7 +160,7 @@ export default {
             ? this.configuration
             : { id: this.id, data: null, timestamp: 0, hash: this.hash },
           this.stationName,
-          this.t    
+          this.t
         );
 
         this.communication.on("setup", async (configuration: DatabaseItem) => {
@@ -396,9 +396,10 @@ export default {
     },
 
     translateRoomName(name: string): string {
-      if (name === 'Lobby') return this.t('classroom.sideMenu.lobby');
-      if (name.includes('Station')) return name.replace('Station', this.t('classroom.sideMenu.station'));
-      return name.replace('Room', this.t('classroom.sideMenu.room'));
+      if (name === "Lobby") return this.t("classroom.sideMenu.lobby");
+      if (name.includes("Station"))
+        return name.replace("Station", this.t("classroom.sideMenu.station"));
+      return name.replace("Room", this.t("classroom.sideMenu.room"));
     },
   },
 
@@ -473,9 +474,15 @@ export default {
         <UserMenu>
           <template v-slot:user-role>
             <v-list-item>
-              <v-list-item-title>{{ t('general.userRole') }}:</v-list-item-title>
+              <v-list-item-title>{{ t("general.userRole") }}:</v-list-item-title>
               <v-list-item-subtitle>
-                {{ getRole() === 'teacher' ? t('general.roles.teacher') : (getRole() === 'student' ? t('general.roles.student') : t('general.roles.station')) }}
+                {{
+                  getRole() === "teacher"
+                    ? t("general.roles.teacher")
+                    : getRole() === "student"
+                    ? t("general.roles.student")
+                    : t("general.roles.station")
+                }}
               </v-list-item-subtitle>
             </v-list-item>
           </template>
@@ -490,7 +497,9 @@ export default {
             class="text-center"
             style="margin-top: calc(50vh - 100px)"
           >
-            <v-card-text class="white--text"> {{ t('classroom.station.mode') }} </v-card-text>
+            <v-card-text class="white--text">
+              {{ t("classroom.station.mode") }}
+            </v-card-text>
 
             <v-divider></v-divider>
 
@@ -507,14 +516,14 @@ export default {
                 ></v-text-field>
               </v-form>
 
-              {{ t('classroom.station.modeDescription') }}
+              {{ t("classroom.station.modeDescription") }}
             </v-card-text>
             <v-divider></v-divider>
             <v-card-text>
               <v-btn :href="'/?/classroom/' + id">
                 <v-icon left>mdi-export-variant</v-icon>
 
-                {{ t('classroom.station.exit') }}
+                {{ t("classroom.station.exit") }}
               </v-btn>
             </v-card-text>
           </v-card>
@@ -528,7 +537,8 @@ export default {
               </v-list-item-title>
 
               <v-list-item-subtitle>
-                {{ t('classroom.sideMenu.onlineUsers') }} {{ Object.keys(liveClassProxy?.users || {}).length }}
+                {{ t("classroom.sideMenu.onlineUsers") }}
+                {{ Object.keys(liveClassProxy?.users || {}).length }}
               </v-list-item-subtitle>
 
               <template v-slot:append>
@@ -559,7 +569,11 @@ export default {
           >
             <template v-slot:append>
               <v-btn
-                :icon="['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left-circle' : 'mdi-arrow-right-circle'"
+                :icon="
+                  ['ar', 'he', 'fa', 'ur'].includes(locale)
+                    ? 'mdi-arrow-left-circle'
+                    : 'mdi-arrow-right-circle'
+                "
                 variant="text"
                 @click="gotoRoom(name)"
               ></v-btn>
@@ -575,7 +589,11 @@ export default {
               <v-icon :icon="icon"></v-icon>
             </template>
 
-            <v-list-item-title>{{ user && user.includes('Station') ? user.replace('Station', t('classroom.sideMenu.station')) : user }}</v-list-item-title>
+            <v-list-item-title>{{
+              user && user.includes("Station")
+                ? user.replace("Station", t("classroom.sideMenu.station"))
+                : user
+            }}</v-list-item-title>
           </v-list-item>
         </v-list>
 
@@ -583,7 +601,7 @@ export default {
           <div class="pa-2">
             <v-btn depressed block class="mb-2" @click="addRoom" v-if="isOwner">
               <v-icon left>mdi-forum</v-icon>
-              {{ t('classroom.sideMenu.newRoom') }}
+              {{ t("classroom.sideMenu.newRoom") }}
             </v-btn>
           </div>
         </template>
@@ -671,7 +689,9 @@ export default {
       {{ popup.message }}
 
       <template v-slot:actions>
-        <v-btn variant="text" color="pink" @click="closePopup(popup.id)"> {{ t('classroom.popup.close') }} </v-btn>
+        <v-btn variant="text" color="pink" @click="closePopup(popup.id)">
+          {{ t("classroom.popup.close") }}
+        </v-btn>
       </template>
     </v-snackbar>
   </v-app>
