@@ -155,6 +155,15 @@ settings:
     restoreFromFile: "Restaurar clase desde archivo (yaml, json)"
     restoreFromUrl: "Restaurar clase desde URL (http, https)"
     explore: "Explorar en Github"
+  communication:
+    labels:
+      method: "Método de Comunicación"
+      websocketServer: "URL del Servidor Websocket"
+      webrtcSignaling: "URL del Servidor de Señalización WebRTC"
+      webrtcConfig: "Configuración WebRTC (JSON)"
+    alert:
+      first: "El cambio en el método de comunicación afectará cómo la aplicación se conecta a otros usuarios."
+      second: "Usar WebRTC permite conexiones directas entre pares, mientras que Websocket requiere un servidor para retransmitir mensajes."
 
 chat:
   deletedMessage: "mensajes anteriores han sido eliminados ..."

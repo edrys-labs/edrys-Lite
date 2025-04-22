@@ -177,8 +177,12 @@ export default class Peer {
 
       if (this.providerType === 'WebRTC') {
         LOG('Connecting using WebRTC provider')
+        
+        // Use configured signaling server if available, otherwise use default
+        const signalingServers = this.lab.data?.communicationConfig?.signalingServer || SignallingServer
+
         this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
-          signaling: SignallingServer,
+          signaling: signalingServers,
           password: password || 'password',
           userid: this.peerID,
           peerOpts: this.webrtcConfig,
@@ -297,7 +301,6 @@ export default class Peer {
     LOG('Synced event received', event)
 
     // Observe setup changes if not already observing
-    // Instead of checking a non-existent _observers property, add a flag to track if we've set observers
     if (!this._hasSetupObserver) {
       this.y.setup.observe(this.handleSetupChange.bind(this))
       this._hasSetupObserver = true;
@@ -321,7 +324,7 @@ export default class Peer {
           this.initSetup(true)
         }
       }
-    }, 4000)
+    }, 5000)
   }
 
   /**

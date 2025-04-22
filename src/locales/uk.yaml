@@ -155,6 +155,15 @@ settings:
     restoreFromFile: "Відновити клас за допомогою файлу (yaml, json)"
     restoreFromUrl: "Відновити клас за допомогою URL-адреси (http, https)"
     explore: "Дізнайтеся більше на github"
+  communication:
+    labels:
+      method: "Спосіб зв'язку"
+      websocketServer: "URL-адреса Websocket-сервера"
+      webrtcSignaling: "URL-адреса WebRTC-сервера"
+      webrtcConfig: "Конфігурація WebRTC (JSON)"
+    alert:
+      first: "Зміна способу зв'язку вплине на те, як програма підключається до інших користувачів."
+      second: "Використання WebRTC дозволяє прямі з'єднання між користувачами, тоді як Websocket вимагає сервера для передачі повідомлень."
 
 chat:
   deletedMessage: "попередні повідомлення були видалені ..."

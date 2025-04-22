@@ -155,6 +155,15 @@ settings:
     restoreFromFile: "Restore class from file (yaml, json)"
     restoreFromUrl: "Restore class from URL (http, https)"
     explore: "Explore on Github"
+  communication:
+    labels:
+      method: "Communication Method"
+      websocketServer: "Websocket Server URL"
+      webrtcSignaling: "WebRTC Signaling Server URL"
+      webrtcConfig: "WebRTC Configuration (JSON)"
+    alert:
+      first: "Changing the communication method will affect how the application connects to other peers."
+      second: "Using WebRTC allows for direct peer-to-peer connections, while Websocket requires a server to relay messages."
 
 chat:
   deletedMessage: "previous messages have been deleted ..."

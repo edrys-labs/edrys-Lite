@@ -155,6 +155,15 @@ settings:
     restoreFromFile: "استعادة الفصل من الملف (yaml، json)"
     restoreFromUrl: "استعادة الفصل من الرابط (http، https)"
     explore: "استكشاف على Github"
+  communication:
+    labels:
+      method: "طريقة الاتصال"
+      websocketServer: "رابط خادم Websocket"
+      webrtcSignaling: "رابط خادم WebRTC"
+      webrtcConfig: "تكوين WebRTC (JSON)"
+    alert:
+      first: "تغيير طريقة الاتصال سيؤثر على كيفية اتصال التطبيق بالمستخدمين الآخرين."
+      second: "استخدام WebRTC يسمح بالاتصالات المباشرة من نظير إلى نظير، بينما يتطلب Websocket خادمًا لإعادة توجيه الرسائل."
 
 chat:
   deletedMessage: "تم حذف الرسائل السابقة ..."

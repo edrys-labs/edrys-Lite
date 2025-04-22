@@ -3,7 +3,7 @@
     <v-select
       v-model="communicationMethod"
       :items="['WebRTC', 'Websocket']"
-      label="Communication Method"
+      :label="$t('settings.communication.labels.method')"
       @change="updateConfig"
       :disabled="writeProtection"
     ></v-select>
@@ -11,21 +11,30 @@
     <v-text-field
       v-if="communicationMethod === 'Websocket'"
       v-model="websocketUrl"
-      label="Websocket Server URL"
+      :label="$t('settings.communication.labels.websocketServer')"
       placeholder="wss://demos.yjs.dev"
       @change="updateConfig"
       :disabled="writeProtection"
     ></v-text-field>
 
-    <v-textarea
-      v-if="communicationMethod === 'WebRTC'"
-      v-model="webrtcConfig"
-      label="WebRTC Configuration (JSON)"
-      placeholder='{"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}'
-      rows="5"
-      @change="updateConfig"
-      :disabled="writeProtection"
-    ></v-textarea>
+    <template v-if="communicationMethod === 'WebRTC'">
+      <v-text-field
+        v-model="signalingServer"
+        :label="$t('settings.communication.labels.webrtcSignaling')"
+        placeholder="wss://rooms.deno.dev"
+        @change="updateConfig"
+        :disabled="writeProtection"
+      ></v-text-field>
+
+      <v-textarea
+        v-model="webrtcConfig"
+        :label="$t('settings.communication.labels.webrtcConfig')"
+        placeholder='{"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}'
+        rows="5"
+        @change="updateConfig"
+        :disabled="writeProtection"
+      ></v-textarea>
+    </template>
     
     <v-alert
       type="info"
@@ -36,8 +45,9 @@
       icon="mdi-information-outline"
       class="mt-4"
     >
-      Changing the communication method will affect how the application connects to other peers.
-      Using WebRTC allows for direct peer-to-peer connections, while Websocket requires a server to relay messages.
+      {{ $t("settings.communication.alert.first") }}
+      <br />
+      {{ $t("settings.communication.alert.second") }}
     </v-alert>
   </v-container>
 </template>
@@ -62,6 +72,7 @@ export default {
       communicationMethod: "WebRTC", // Default to WebRTC
       websocketUrl: "",
       webrtcConfig: "",
+      signalingServer: "",
     };
   },
 
@@ -72,6 +83,16 @@ export default {
     }
     if (this.config.websocketUrl) {
       this.websocketUrl = this.config.websocketUrl;
+    }
+    if (this.config.signalingServer) {
+      if (Array.isArray(this.config.signalingServer)) {
+        this.signalingServer = this.config.signalingServer[0] || "wss://rooms.deno.dev";
+      } else {
+        this.signalingServer = this.config.signalingServer;
+      }
+    } else {
+      // Default signaling server
+      this.signalingServer = "wss://rooms.deno.dev";
     }
     if (this.config.webrtcConfig) {
       this.webrtcConfig = typeof this.config.webrtcConfig === 'string' 
@@ -88,7 +109,6 @@ export default {
       }, null, 2);
     }
     
-    // Update config on initial creation to ensure it's set
     this.$nextTick(() => {
       this.updateConfig();
     });
@@ -96,11 +116,27 @@ export default {
 
   methods: {
     updateConfig() {
+      let webrtcConfigValue = this.webrtcConfig;
+      
+      try {
+        if (typeof this.webrtcConfig === 'string') {
+          webrtcConfigValue = JSON.parse(this.webrtcConfig);
+        }
+      } catch (e) {
+        console.error('Invalid WebRTC config JSON:', e);
+      }
+
+      let signalingServerValue = this.signalingServer?.trim() || "wss://rooms.deno.dev";
+      
+      // Store the signaling server as an array for consistency with the WebRTC provider
+      const signalingServerArray = [signalingServerValue];
+      
       // Update the parent component with the new values
       this.$emit('update:config', {
         communicationMethod: this.communicationMethod,
         websocketUrl: this.websocketUrl,
-        webrtcConfig: this.webrtcConfig,
+        webrtcConfig: webrtcConfigValue,
+        signalingServer: signalingServerArray,
       });
     },
   },
@@ -118,6 +154,14 @@ export default {
         }
         if (newConfig.websocketUrl !== undefined) {
           this.websocketUrl = newConfig.websocketUrl;
+        }
+        if (newConfig.signalingServer !== undefined) {
+          if (Array.isArray(newConfig.signalingServer)) {
+            // Just take the first server if there are multiple
+            this.signalingServer = newConfig.signalingServer[0] || "";
+          } else {
+            this.signalingServer = newConfig.signalingServer;
+          }
         }
         if (newConfig.webrtcConfig !== undefined) {
           this.webrtcConfig = typeof newConfig.webrtcConfig === 'string' 
