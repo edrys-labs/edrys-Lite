@@ -69,6 +69,7 @@ settings:
     Modules: "Модулі"
     Stations: "Станції"
     Share: "Поділитися"
+    Communication: "Спілкування"
     actions:
       on: "УВІМК"
       off: "ВИМК"
@@ -162,9 +163,12 @@ chat:
 checks:
   webRTCSupport: "Підтримка WebRTC"
   configLoaded: "Конфігурація завантажена"
+  usingWebsocket: "Використовується WebSocket-з'єднання"
   connected: 
     1: "Підключено до пірингової мережі ("
     2: "сек.)"
+    webrtc: "Підключення до мережі P2P ("
+    websocket: "Підключено до WebSocket-сервера ("
 
 footer:
   github: "edrys-Lite на GitHub"
@@ -258,3 +262,4 @@ peer:
     addedStudent: "Вас додано як студента..."
     removedStudent: "Вас видалено як студента..."
     moduleChanges: "Визначення модулів змінено, краще перезавантажте сторінку, щоб застосувати всі зміни..."
+    communicationChanges: "Налаштування зв'язку було оновлено. Ваша сторінка перезавантажиться автоматично через кілька секунд..."

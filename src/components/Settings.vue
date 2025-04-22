@@ -60,6 +60,20 @@ export default {
     updateMembers(members) {
       this.config.members = members;
     },
+    updateCommunicationConfig(commConfig) {
+      // Ensure communicationConfig exists in the config object
+      if (!this.config.communicationConfig) {
+        this.config.communicationConfig = {};
+      }
+
+      // Update the config with the values from communication component
+      this.config.communicationConfig = {
+        ...this.config.communicationConfig,
+        ...commConfig,
+      };
+
+      this.configChanged = true;
+    },
   },
 
   watch: {
@@ -120,8 +134,8 @@ export default {
             {{ t("settings.general.Share") }}
           </v-tab>
           <v-tab :active="tab == 5">
-            <v-icon left style="margin-right: 15px"> mdi-share-variant </v-icon>
-            {{ t("settings.general.Share") }}
+            <v-icon left style="margin-right: 15px"> mdi-access-point-network </v-icon>
+            {{ t("settings.general.Communication") }}
           </v-tab>
         </v-tabs>
       </template>
@@ -158,7 +172,8 @@ export default {
 
         <v-window-item>
           <Communication
-            :config="config"
+            :config="config.communicationConfig || {}"
+            @update:config="updateCommunicationConfig"
             :writeProtection="writeProtection"
           ></Communication>
         </v-window-item>

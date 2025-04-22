@@ -36,12 +36,9 @@ export default {
     const data: any = null;
     const communication: Peer | null = null;
 
-    //setTimeout(this.init, 100);
-
     let webRTCSupport = false;
     // @ts-ignore
     if (navigator.mediaDevices && navigator?.mediaDevices?.getUserMedia) {
-      // WebRTC is supported
       webRTCSupport = true;
     }
 
@@ -137,7 +134,7 @@ export default {
       });
     },
 
-    async init() {
+    async init() {      
       await this.database.setProtection(this.id, !!this.hash);
 
       const config = await this.database.get(this.id);
@@ -146,26 +143,31 @@ export default {
         this.scrapedModules.length === 0 ||
         !this.configuration ||
         !this.configuration.data ||
-        !deepEqual(this.configuration?.data?.modules, config?.data.modules);
+        (config && config.data && !deepEqual(this.configuration?.data?.modules, config?.data.modules));
 
-      this.configuration = config;
+      this.configuration = config || { id: this.id, data: null, timestamp: 0, hash: this.hash };
 
       if (!!this.hash && this.configuration?.hash !== this.hash) {
-        this.configuration = null;
+        console.log("Hash mismatch, resetting configuration");
+        this.configuration = { id: this.id, data: null, timestamp: 0, hash: this.hash };
       }
-
-      if (!this.communication) {
+      
+      // Get communication config from configuration (no URL parameter handling)
+      const communicationConfig = this.configuration?.data?.communicationConfig || {};
+      
+      if (!this.communication) {        
+        // Initialize with the communication settings from database
         this.communication = new Peer(
-          this.configuration
-            ? this.configuration
-            : { id: this.id, data: null, timestamp: 0, hash: this.hash },
+          this.configuration,
           this.stationName,
-          this.t
+          this.t,
+          null, // password
+          communicationConfig
         );
 
+        const self = this;
         this.communication.on("setup", async (configuration: DatabaseItem) => {
           await self.database.put(clone(configuration));
-
           self.init();
         });
 
@@ -267,25 +269,6 @@ export default {
       setTimeout(() => {
         this.communication.update("room");
       }, 1000);
-
-      /*
-      setTimeout(() => {
-        self.communication = new Comm2(
-          this.id,
-          this.room.data.meta.defaultNumberOfRooms,
-          this.stationName
-        );
-
-        self.communication.on("update", (config: any) => {
-          self.liveClassProxy = config.data;
-        });
-
-        self.liveClassProxy = self.communication.getDoc();
-        self.states.connectedToNetwork = true;
-
-        self.componentKey++;
-      }, Math.random() * 1000 + 1000);
-      */
     },
 
     saveClass(configuration: any) {
@@ -295,18 +278,24 @@ export default {
         this.configuration.data.modules,
         configuration.modules
       );
+      
+      // Check if communication settings have changed
+      const communicationChanged = configuration.communicationConfig && 
+        (!this.configuration.data.communicationConfig ||
+         !deepEqual(this.configuration.data.communicationConfig, configuration.communicationConfig));
 
       this.configuration.data = clone(configuration);
       this.data = clone(configuration);
 
-      this.database.update(clone(this.configuration)).then(async (id) => {
+      this.database.update(clone(this.configuration)).then(async (id) => {        
         const config = await this.database.get(id);
+        
         this.communication?.newSetup(config);
       });
-
+      
       this.getRole();
-
-      if (hardReload) this.scrapeModules();
+      
+      if (hardReload && !communicationChanged) this.scrapeModules();
     },
 
     usersInRoom(name: string): [string, string, string][] {
@@ -338,8 +327,6 @@ export default {
         }
       }
 
-      //console.log("usersInRoom() called");
-
       return users;
     },
 
@@ -355,7 +342,6 @@ export default {
     gotoRoom(name: string) {
       this.communication?.gotoRoom(name);
 
-      // sometimes the room is not correctly initialized
       setTimeout(() => {
         this.communication?.update("room");
       }, 1000);
@@ -383,7 +369,7 @@ export default {
         (rule) => rule(this.stationNameInput) === true
       );
       if (!isValid) {
-        return; // If validation fails, do not submit
+        return;
       }
 
       sessionStorage.setItem(`station_${this.id}`, this.stationNameInput);
@@ -422,7 +408,6 @@ export default {
       <v-app-bar color="surface-variant">
         <template v-slot:prepend>
           <v-app-bar-nav-icon @click="showSideMenu = !showSideMenu"></v-app-bar-nav-icon>
-          <!-- remove underline from link -->
 
           <v-app-bar-title
             tag="a"

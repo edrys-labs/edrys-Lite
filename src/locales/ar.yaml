@@ -69,6 +69,7 @@ settings:
     Modules: "الوحدات"
     Stations: "المحطات"
     Share: "مشاركة"
+    Communication: "الاتصال"
     actions:
       on: "تشغيل"
       off: "إيقاف"
@@ -162,9 +163,12 @@ chat:
 checks:
   webRTCSupport: "دعم WebRTC"
   configLoaded: "تم تحميل التكوين"
+  usingWebsocket: "استخدام اتصال WebSocket"
   connected: 
     1: "متصل بشبكة الند للند ("
     2: "ثانية.)"
+    webrtc: "متصل بشبكة P2P ("
+    websocket: "متصل بخادم WebSocket ("
 
 footer:
   github: "edrys-Lite على GitHub"
@@ -258,3 +262,4 @@ peer:
     addedStudent: "تمت إضافتك كطالب..."
     removedStudent: "تم إزالتك كطالب..."
     moduleChanges: "تم تغيير تعريفات الوحدات، من الأفضل إعادة تحميل الصفحة لتطبيق جميع التغييرات..."
+    communicationChanges: "تم تحديث إعدادات الاتصال. ستقوم صفحتك بإعادة التحميل تلقائيًا في غضون بضع ثوانٍ..."

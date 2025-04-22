@@ -69,6 +69,7 @@ settings:
     Modules: "Modules"
     Stations: "Stations"
     Share: "Share"
+    Communication: "Communication"
     actions:
       on: "ON"
       off: "OFF"
@@ -162,9 +163,12 @@ chat:
 checks:
   webRTCSupport: "WebRTC-support"
   configLoaded: "Configuration loaded"
+  usingWebsocket: "Using WebSocket Connection"
   connected: 
     1: "Connected to peer 2 peer network ("
     2: "sec.)"
+    webrtc: "Connected to P2P network ("
+    websocket: "Connected to WebSocket server ("
 
 footer:
   github: "edrys-Lite on GitHub"
@@ -258,3 +262,4 @@ peer:
     addedStudent: "You have been added as a student..."
     removedStudent: "You have been removed as a student..."  
     moduleChanges: "Module definitions have changed, you better reload the page to capture all changes..."
+    communicationChanges: "Communication settings have been updated. Your page will reload automatically in a few seconds."

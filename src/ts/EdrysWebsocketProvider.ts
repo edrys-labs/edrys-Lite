@@ -18,10 +18,13 @@ export class EdrysWebsocketProvider {
   private _processedMessages: Map<string, number>
   private _cleanupInterval: number | null = null
   private _leaveListener: Function | null = null
+  private _syncedListener: Function | null = null 
+  private _statusListener: Function | null = null 
   public userid: string
   private provider: WebsocketProvider
   private doc: Y.Doc
   private _messageHistory: any[] = [] // Array to store message history
+  private _hasBeenConnected: boolean = false // Track if we've ever been connected
 
   constructor(roomName: string, doc: Y.Doc, options: any) {
     this.doc = doc
@@ -56,11 +59,55 @@ export class EdrysWebsocketProvider {
     // Handle provider connection status
     this.provider.on('status', (event: { status: string }) => {
       console.log(`Y-WebSocket status: ${event.status}`)
+
+      // Forward status event to listeners
+      if (this._statusListener) {
+        this._statusListener(event)
+      }
+
       if (event.status === 'connected') {
-        // Send initial user ID message after connection
-        //this._sendOwnId() // No longer needed
+        this._hasBeenConnected = true
+
+        // Trigger synced event after connected 
+        setTimeout(() => {
+          if (this._syncedListener) {
+            //console.log('WebSocket provider emitting synced event')
+            this._syncedListener({ synced: true })
+          }
+        }, 1000)
       }
     })
+
+    // Handle sync events
+    this.provider.on('sync', (isSynced: boolean) => {
+      //console.log(`WebSocket provider sync state: ${isSynced ? 'synced' : 'not synced'}`)
+
+      if (isSynced && this._hasBeenConnected) {
+        if (this._syncedListener) {
+          //console.log('WebSocket provider emitting synced event after sync')
+          this._syncedListener({ synced: true })
+        }
+      }
+    })
+  }
+
+  // Add event handler for custom events
+  on(eventName: string, callback: Function) {
+    if (eventName === 'status') {
+      this._statusListener = callback
+    } else if (eventName === 'synced') {
+      this._syncedListener = callback
+
+      // If we're already connected, trigger synced event immediately
+      if (this._hasBeenConnected) {
+        setTimeout(() => {
+          if (this._syncedListener) {
+            //console.log('WebSocket provider emitting immediate synced event')
+            this._syncedListener({ synced: true })
+          }
+        }, 500)
+      }
+    }
   }
 
   _bcChannelListener(event) {
