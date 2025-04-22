@@ -80,9 +80,9 @@ export default {
       // Always detect communication method when checking
       this.detectCommunicationMethod();
 
-      // If method is not yet determined, keep overlay visible
+      // If method is not yet determined, default to 'WebRTC'
       if (this.communicationMethod === null) {
-        return true;
+        this.communicationMethod = 'WebRTC';
       }
       
       // Start counting if config loaded but not connected

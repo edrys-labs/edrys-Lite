@@ -7,6 +7,8 @@ const MESSAGE_TYPE_ID = 43
 const MESSAGE_EXPIRATION_TIME = 10000 // 10 seconds
 const MAX_MESSAGES = 50
 const CUSTOM_MESSAGE_FIELD = 'customMessage'
+const HEARTBEAT_INTERVAL = 5000 // 5 seconds for heartbeat
+const PEER_TIMEOUT = 15000 // 15 seconds to consider a peer disconnected
 
 function generateUniqueId() {
   return Math.random().toString(36).substr(2, 9) + Date.now().toString(36)
@@ -17,14 +19,17 @@ export class EdrysWebsocketProvider {
   private _bcChannel: BroadcastChannel
   private _processedMessages: Map<string, number>
   private _cleanupInterval: number | null = null
+  private _heartbeatInterval: number | null = null
   private _leaveListener: Function | null = null
   private _syncedListener: Function | null = null 
   private _statusListener: Function | null = null 
+  private _lastHeartbeats: Map<string, number> = new Map() // Track last heartbeat time for each user
   public userid: string
   private provider: WebsocketProvider
   private doc: Y.Doc
   private _messageHistory: any[] = [] // Array to store message history
   private _hasBeenConnected: boolean = false // Track if we've ever been connected
+  private _connectedUsers: Set<string> = new Set() // Track connected users
 
   constructor(roomName: string, doc: Y.Doc, options: any) {
     this.doc = doc
@@ -43,10 +48,17 @@ export class EdrysWebsocketProvider {
 
     // Map of processed messages: messageId -> receivedTimestamp
     this._processedMessages = new Map()
+    
     // Start periodic cleanup of old messages
     this._cleanupInterval = window.setInterval(
       () => this._cleanupProcessedMessages(),
       MESSAGE_EXPIRATION_TIME
+    )
+
+    // Start heartbeat mechanism
+    this._heartbeatInterval = window.setInterval(
+      () => this._sendHeartbeat(),
+      HEARTBEAT_INTERVAL
     )
 
     // Initialize BroadcastChannel for tab communication
@@ -71,7 +83,6 @@ export class EdrysWebsocketProvider {
         // Trigger synced event after connected 
         setTimeout(() => {
           if (this._syncedListener) {
-            //console.log('WebSocket provider emitting synced event')
             this._syncedListener({ synced: true })
           }
         }, 1000)
@@ -80,15 +91,79 @@ export class EdrysWebsocketProvider {
 
     // Handle sync events
     this.provider.on('sync', (isSynced: boolean) => {
-      //console.log(`WebSocket provider sync state: ${isSynced ? 'synced' : 'not synced'}`)
-
       if (isSynced && this._hasBeenConnected) {
         if (this._syncedListener) {
-          //console.log('WebSocket provider emitting synced event after sync')
           this._syncedListener({ synced: true })
         }
       }
     })
+
+    // Set up awareness update handling
+    this.provider.awareness.on('update', ({ added, updated, removed }) => {
+      // Add any new users to our connected set
+      added.forEach(clientId => {
+        const state = this.provider.awareness.getStates().get(clientId)
+        if (state && state.user && state.user.id !== this.userid) {
+          this._connectedUsers.add(state.user.id)
+          this._lastHeartbeats.set(state.user.id, Date.now())
+        }
+      })
+
+      // Process updates to detect heartbeats and custom messages
+      updated.forEach(clientId => {
+        const state = this.provider.awareness.getStates().get(clientId)
+        if (state) {
+          // Track heartbeat for this user
+          if (state.user && state.user.id !== this.userid) {
+            this._lastHeartbeats.set(state.user.id, Date.now())
+            this._connectedUsers.add(state.user.id)
+          }
+
+          // Process custom message if present
+          if (state[CUSTOM_MESSAGE_FIELD]) {
+            const message = state[CUSTOM_MESSAGE_FIELD]
+            if (!this._isDuplicateMessage(message)) {
+              this._addMessageToHistory(message)
+              if (this._messageListener) {
+                this._messageListener(message)
+              }
+            }
+          }
+        }
+      })
+
+      // Handle removed users
+      removed.forEach(clientId => {
+        const states = this.provider.awareness.getStates()
+        if (!states.has(clientId)) {
+          // Find the user ID if it exists in our tracking
+          const userIdToRemove = Array.from(this._lastHeartbeats.keys()).find(
+            userId => {
+              // Try to find the user ID associated with this client ID
+              // This is approximate since we don't have a direct clientId -> userId mapping
+              const matchingState = Array.from(states.entries()).find(
+                ([otherClientId, state]) => 
+                  state.user && state.user.id === userId
+              )
+              return !matchingState // If no state with this userId exists, it might be the one to remove
+            }
+          )
+
+          if (userIdToRemove) {
+            this._lastHeartbeats.delete(userIdToRemove)
+            this._connectedUsers.delete(userIdToRemove)
+            
+            // Notify about user leaving
+            if (this._leaveListener) {
+              this._leaveListener(userIdToRemove)
+            }
+          }
+        }
+      })
+    })
+
+    // Set up disconnect detection through heartbeats
+    setInterval(() => this._checkHeartbeats(), PEER_TIMEOUT / 2)
   }
 
   // Add event handler for custom events
@@ -102,12 +177,54 @@ export class EdrysWebsocketProvider {
       if (this._hasBeenConnected) {
         setTimeout(() => {
           if (this._syncedListener) {
-            //console.log('WebSocket provider emitting immediate synced event')
             this._syncedListener({ synced: true })
           }
         }, 500)
       }
     }
+  }
+
+  /**
+   * Sends a heartbeat to let other peers know we're still connected
+   */
+  _sendHeartbeat() {
+    const awareness = this.provider.awareness
+    const localState = awareness.getLocalState() || {}
+    
+    // Update our state with current timestamp for heartbeat
+    awareness.setLocalState({
+      ...localState,
+      user: {
+        ...(localState.user || {}),
+        id: this.userid,
+        heartbeat: Date.now()
+      }
+    })
+  }
+
+  /**
+   * Checks for peers that haven't sent a heartbeat recently and considers them disconnected
+   */
+  _checkHeartbeats() {
+    const now = Date.now()
+    const disconnectedUsers: string[] = []
+    
+    this._lastHeartbeats.forEach((lastTime, userId) => {
+      if (now - lastTime > PEER_TIMEOUT) {
+        disconnectedUsers.push(userId)
+      }
+    })
+    
+    // Process disconnected users
+    disconnectedUsers.forEach(userId => {
+      this._lastHeartbeats.delete(userId)
+      this._connectedUsers.delete(userId)
+      
+      // Notify about user leaving
+      if (this._leaveListener && userId !== this.userid) {
+        this._leaveListener(userId)
+      }
+    })
   }
 
   _bcChannelListener(event) {
@@ -189,39 +306,6 @@ export class EdrysWebsocketProvider {
    */
   onMessage(callback) {
     this._messageListener = callback
-
-    // Listen for awareness updates
-    this.provider.awareness.on(
-      'update',
-      ({ added, updated, removed }, origin) => {
-        // Process updates only if they originate from a remote client
-        if (origin !== this.provider) {
-          const states = this.provider.awareness.getStates()
-          states.forEach((state, clientID) => {
-            if (clientID !== this.doc.clientID && state[CUSTOM_MESSAGE_FIELD]) {
-              const message = state[CUSTOM_MESSAGE_FIELD]
-
-              if (this._isDuplicateMessage(message)) return
-
-              // Add message to history
-              this._addMessageToHistory(message)
-
-              if (this._messageListener) {
-                this._messageListener(message)
-              }
-
-              // Clear the custom message field after processing
-              const awareness = this.provider.awareness
-              const localState = awareness.getLocalState() || {}
-              awareness.setLocalState({
-                ...localState,
-                [CUSTOM_MESSAGE_FIELD]: null,
-              })
-            }
-          })
-        }
-      }
-    )
   }
 
   /**
@@ -263,6 +347,13 @@ export class EdrysWebsocketProvider {
       this._cleanupInterval = null
     }
 
+    if (this._heartbeatInterval) {
+      clearInterval(this._heartbeatInterval)
+      this._heartbeatInterval = null
+    }
+
     this._processedMessages.clear()
+    this._lastHeartbeats.clear()
+    this._connectedUsers.clear()
   }
 }
