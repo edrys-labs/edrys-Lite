@@ -6,6 +6,7 @@ import Stations from "./Settings/Stations.vue";
 import Share from "./Settings/Share.vue";
 import { useI18n } from "vue-i18n";
 import Communication from "./Settings/Communication.vue";
+import { decodeCommConfig, encodeCommConfig } from "../ts/Utils";
 
 export default {
   name: "Settings",
@@ -60,18 +61,16 @@ export default {
     updateMembers(members) {
       this.config.members = members;
     },
-    updateCommunicationConfig(commConfig) {
-      // Ensure communicationConfig exists in the config object
-      if (!this.config.communicationConfig) {
-        this.config.communicationConfig = {};
+    updateCommunicationConfig(encodedConfig) {
+      // Check if the configuration has actually changed
+      const currentConfig = this.config.communicationConfig;
+
+      if (currentConfig === encodedConfig) {
+        return;
       }
 
-      // Update the config with the values from communication component
-      this.config.communicationConfig = {
-        ...this.config.communicationConfig,
-        ...commConfig,
-      };
-
+      // Store the encoded config and mark as changed
+      this.config.communicationConfig = encodedConfig;
       this.configChanged = true;
     },
   },
@@ -88,6 +87,16 @@ export default {
       deep: true,
     },
   },
+
+  computed: {
+    decodedCommunicationConfig() {
+      const encodedConfig = this.config.communicationConfig;
+      if (!encodedConfig) return {};
+
+      return decodeCommConfig(encodedConfig) || {};
+    },
+  },
+
   components: { Main, Members, Modules, Stations, Share, Communication },
 };
 </script>
@@ -175,6 +184,7 @@ export default {
             :config="config.communicationConfig || {}"
             @update:config="updateCommunicationConfig"
             :writeProtection="writeProtection"
+            :classId="config.id || ''"
           ></Communication>
         </v-window-item>
       </v-window>

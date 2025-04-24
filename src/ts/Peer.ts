@@ -4,7 +4,10 @@ import {
   deepEqual,
   getShortPeerID,
   throttle,
-} from './Utils' // or any other throttle utility
+  compareCommunicationConfig, 
+  updateUrlWithCommConfig,
+  decodeCommConfig
+} from './Utils' 
 import * as Y from 'yjs'
 // @ts-ignore
 import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
@@ -59,6 +62,7 @@ export default class Peer {
   private providerType: 'WebRTC' | 'Websocket' = 'WebRTC'
   private websocketUrl: string = 'wss://demos.yjs.dev'
   private webrtcConfig: any = RTCConfiguration
+  private signalingServer: string[] = SignallingServer
   private _hasSetupObserver: boolean = false; 
 
   private t: (key: string) => string
@@ -96,14 +100,9 @@ export default class Peer {
   constructor(
     setup: { id: string; data: any; timestamp: number; hash: string | null },
     stationID?: string,
-    t?: (key: string) => string, // Translation function parameter
+    t?: (key: string) => string, 
     password?: string,
-    communicationConfig?: {
-      communicationMethod?: 'WebRTC' | 'Websocket'
-      websocketUrl?: string
-      webrtcConfig?: string | object
-    }
-  ) {
+  ) {    
     const doc = new Y.Doc()
 
     this.y = {
@@ -124,23 +123,32 @@ export default class Peer {
 
     this.t = t || ((key: string) => key)
 
-    // Apply communication configuration if provided
-    if (communicationConfig) {
-      if (communicationConfig.communicationMethod) {
-        this.providerType = communicationConfig.communicationMethod
-      }
-      if (communicationConfig.websocketUrl) {
-        this.websocketUrl = communicationConfig.websocketUrl
-      }
-      if (communicationConfig.webrtcConfig) {
-        if (typeof communicationConfig.webrtcConfig === 'string') {
+    // Apply communication configuration from setup.data if it exists
+    if (setup.data && setup.data.communicationConfig) {
+      const encodedConfig = setup.data.communicationConfig;
+      const commConfig = decodeCommConfig(encodedConfig);
+      
+      if (commConfig) {
+        if (commConfig.communicationMethod) {
+          this.providerType = commConfig.communicationMethod;
+        }
+        
+        if (commConfig.websocketUrl && this.providerType === 'Websocket') {
+          this.websocketUrl = commConfig.websocketUrl;
+        }
+        
+        if (commConfig.signalingServer && this.providerType === 'WebRTC') {
+          this.signalingServer = Array.isArray(commConfig.signalingServer) ? 
+            commConfig.signalingServer : [commConfig.signalingServer];
+        }
+        
+        if (commConfig.webrtcConfig && this.providerType === 'WebRTC') {
           try {
-            this.webrtcConfig = JSON.parse(communicationConfig.webrtcConfig)
+            this.webrtcConfig = typeof commConfig.webrtcConfig === 'string' ? 
+              JSON.parse(commConfig.webrtcConfig) : commConfig.webrtcConfig;
           } catch (e) {
-            console.error('Invalid WebRTC config JSON:', e)
+            console.error('Invalid WebRTC config JSON:', e);
           }
-        } else {
-          this.webrtcConfig = communicationConfig.webrtcConfig
         }
       }
     }
@@ -178,11 +186,8 @@ export default class Peer {
       if (this.providerType === 'WebRTC') {
         LOG('Connecting using WebRTC provider')
         
-        // Use configured signaling server if available, otherwise use default
-        const signalingServers = this.lab.data?.communicationConfig?.signalingServer || SignallingServer
-
         this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
-          signaling: signalingServers,
+          signaling: this.signalingServer,
           password: password || 'password',
           userid: this.peerID,
           peerOpts: this.webrtcConfig,
@@ -195,6 +200,7 @@ export default class Peer {
         this.provider.on('synced', this.handleSynced.bind(this))
       } else if (this.providerType === 'Websocket') {
         LOG('Connecting using WebSocket provider')
+        
         this.provider = new EdrysWebsocketProvider(room, this.y.doc, {
           serverUrl: this.websocketUrl,
           userid: this.peerID,
@@ -322,7 +328,7 @@ export default class Peer {
         if (!timestamp && this.lab.timestamp > 0 && this.lab.data) {
           LOG('Initializing setup from local data during sync')
           this.initSetup(true)
-        }
+        } 
       }
     }, 5000)
   }
@@ -375,26 +381,38 @@ export default class Peer {
   }
 
   logSetupChanges(oldSetup: any, newSetup: any) {
-    if (oldSetup === null) {
-      return
-    }
-
-    if (!deepEqual(oldSetup.modules, newSetup.modules)) {
-      this.update('popup', this.t('peer.feedback.moduleChanges'))
+    if (oldSetup === null || !oldSetup || !newSetup) {
+      return;
     }
     
-    // Check for communication config changes
-    if (newSetup.communicationConfig && 
-        (!oldSetup.communicationConfig || 
-         !deepEqual(oldSetup.communicationConfig, newSetup.communicationConfig))) {
+    // Skip showing the module changes popup for initial setup when joining a new session
+    const isJoiningSession = oldSetup.modules === undefined || oldSetup.modules?.length === 0;
+    
+    const oldEncodedConfig = oldSetup.communicationConfig || null;
+    const newEncodedConfig = newSetup.communicationConfig || null;
+    
+    // Decode configs for comparison 
+    const oldCommConfig = oldEncodedConfig ? decodeCommConfig(oldEncodedConfig) : null;
+    const newCommConfig = newEncodedConfig ? decodeCommConfig(newEncodedConfig) : null;
+    
+    if (!compareCommunicationConfig(oldCommConfig, newCommConfig)) {
+      // Update URL hash with new communication config if it exists
+      if (newCommConfig) {
+        updateUrlWithCommConfig(newCommConfig);
+      }
       
-      this.update('popup', this.t('peer.feedback.communicationChanges'))
+      this.update('popup', this.t('peer.feedback.communicationChanges'));
       
-      // For all users: Trigger page reload after a short delay
       setTimeout(() => {
-        LOG('Communication config changed, reloading page for all users');
         window.location.reload();
       }, 3000);
+      
+      return; 
+    }
+    
+    // Only show module changes popup if this isn't initial setup and modules have actually changed
+    if (!isJoiningSession && !deepEqual(oldSetup.modules, newSetup.modules)) {
+      this.update('popup', this.t('peer.feedback.moduleChanges'));
     }
 
     if (!deepEqual(oldSetup.members, newSetup.members)) {

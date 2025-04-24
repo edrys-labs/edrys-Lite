@@ -164,6 +164,11 @@ settings:
     alert:
       first: "El cambio en el método de comunicación afectará cómo la aplicación se conecta a otros usuarios."
       second: "Usar WebRTC permite conexiones directas entre pares, mientras que Websocket requiere un servidor para retransmitir mensajes."
+    shareLink:
+      title: "Enlace Compartible con Configuración de Comunicación"
+      description: "Genera un enlace con tu configuración de comunicación actual incrustada. Comparte esto con estudiantes para una conectividad óptima."
+      generate: "Generar Enlace Compartible"
+      linkLabel: "Enlace Compartible"
 
 chat:
   deletedMessage: "mensajes anteriores han sido eliminados ..."

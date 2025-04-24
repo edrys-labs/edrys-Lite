@@ -15,6 +15,11 @@ import {
   getPeerID,
   getShortPeerID,
   getBasePeerID,
+  extractCommunicationConfigFromUrl,
+  compareCommunicationConfig,
+  cleanUrlAfterCommConfigExtraction,
+  encodeCommConfig,
+  decodeCommConfig
 } from "../ts/Utils";
 import { onMounted } from "vue";
 import Peer from "../ts/Peer";
@@ -108,6 +113,8 @@ export default {
       isLoggerVisible: false,
       isLoggerMinimized: false,
       isLoggerRunning: false,
+
+      urlCommunicationConfig: null, // Stores URL-provided communication config 
     };
   },
   watch: {
@@ -134,39 +141,68 @@ export default {
       });
     },
 
-    async init() {      
+    async init() {
+      // Extract communication config from URL and decode it if needed
+      const urlCommConfig = extractCommunicationConfigFromUrl();
+      
+      // Encode the URL config for storage
+      if (urlCommConfig) {
+        this.urlCommunicationConfig = encodeCommConfig(urlCommConfig);
+        cleanUrlAfterCommConfigExtraction();
+      }
+
       await this.database.setProtection(this.id, !!this.hash);
 
       const config = await this.database.get(this.id);
-
+      
       const hardReload =
         this.scrapedModules.length === 0 ||
         !this.configuration ||
         !this.configuration.data ||
-        (config && config.data && !deepEqual(this.configuration?.data?.modules, config?.data.modules));
+        (config &&
+          config.data &&
+          !deepEqual(this.configuration?.data?.modules, config?.data.modules));
 
-      this.configuration = config || { id: this.id, data: null, timestamp: 0, hash: this.hash };
+      this.configuration =
+        config || { id: this.id, data: null, timestamp: 0, hash: this.hash };
 
       if (!!this.hash && this.configuration?.hash !== this.hash) {
         console.log("Hash mismatch, resetting configuration");
-        this.configuration = { id: this.id, data: null, timestamp: 0, hash: this.hash };
+        this.configuration = {
+          id: this.id,
+          data: null,
+          timestamp: 0,
+          hash: this.hash,
+        };
       }
       
-      // Get communication config from configuration (no URL parameter handling)
-      const communicationConfig = this.configuration?.data?.communicationConfig || {};
-      
-      if (!this.communication) {        
-        // Initialize with the communication settings from database
+      // Create a minimal valid configuration structure if needed
+      if (!this.configuration.data) {
+        this.configuration.data = {
+          name: "Connecting to classroom...",
+          members: { student: ["*"], teacher: [] },
+          modules: [],
+          meta: { defaultNumberOfRooms: 0 },
+          createdBy: ""
+        };
+      }
+
+      const configurationCopy = JSON.parse(JSON.stringify(this.configuration));
+
+      // Add URL communication config to the copy if available
+      if (this.urlCommunicationConfig) {
+        configurationCopy.data.communicationConfig = this.urlCommunicationConfig;
+      }
+
+      if (!this.communication) {                
         this.communication = new Peer(
-          this.configuration,
+          configurationCopy,
           this.stationName,
           this.t,
-          null, // password
-          communicationConfig
+          null // password
         );
-
-        const self = this;
-        this.communication.on("setup", async (configuration: DatabaseItem) => {
+        
+        this.communication.on("setup", async (configuration: DatabaseItem) => {          
           await self.database.put(clone(configuration));
           self.init();
         });
@@ -194,7 +230,7 @@ export default {
         this.data = clone(this.configuration.data);
 
         this.getRole();
-
+        
         if (hardReload) {
           this.scrapeModules();
         }
@@ -274,19 +310,27 @@ export default {
     saveClass(configuration: any) {
       this.$refs.Settings.close = true;
 
-      const hardReload = !deepEqual(
+      // Get the current encoded config
+      const oldEncodedConfig = this.configuration?.data?.communicationConfig || null;
+      const newEncodedConfig = configuration.communicationConfig || null;
+      
+      // Decode for comparison
+      const oldConfig = oldEncodedConfig ? decodeCommConfig(oldEncodedConfig) : null;
+      const newConfig = newEncodedConfig ? decodeCommConfig(newEncodedConfig) : null;
+      
+      // Check if communication settings have changed
+      const communicationChanged = !compareCommunicationConfig(oldConfig, newConfig);
+      
+      // Check if modules have changed
+      const modulesChanged = !deepEqual(
         this.configuration.data.modules,
         configuration.modules
       );
       
-      // Check if communication settings have changed
-      const communicationChanged = configuration.communicationConfig && 
-        (!this.configuration.data.communicationConfig ||
-         !deepEqual(this.configuration.data.communicationConfig, configuration.communicationConfig));
-
       this.configuration.data = clone(configuration);
       this.data = clone(configuration);
 
+      // Save to database
       this.database.update(clone(this.configuration)).then(async (id) => {        
         const config = await this.database.get(id);
         
@@ -295,7 +339,10 @@ export default {
       
       this.getRole();
       
-      if (hardReload && !communicationChanged) this.scrapeModules();
+      // Only reload the modules if they've changed
+      if (modulesChanged && !communicationChanged) {
+        this.scrapeModules();
+      }
     },
 
     usersInRoom(name: string): [string, string, string][] {

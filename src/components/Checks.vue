@@ -1,5 +1,6 @@
 <script lang="ts">
 import { useI18n } from 'vue-i18n';
+import { decodeCommConfig } from '../ts/Utils';
 
 export default {
   name: "Checks",
@@ -26,7 +27,6 @@ export default {
   },
 
   mounted() {
-    // Immediately schedule the first detection
     this.$nextTick(() => {
       this.detectCommunicationMethod();
     });
@@ -41,15 +41,21 @@ export default {
     detectCommunicationMethod() {
       try {
         // Get communication method directly from parent configuration
-        if (this.$parent?.configuration?.data?.communicationConfig?.communicationMethod) {
-          const configMethod = this.$parent.configuration.data.communicationConfig.communicationMethod;
+        const encodedConfig = this.$parent?.configuration?.data?.communicationConfig;
+        
+        if (encodedConfig) {
+          const commConfig = decodeCommConfig(encodedConfig);
           
-          // Only update if it's different to prevent unnecessary re-renders
-          if (this.communicationMethod !== configMethod) {
-            this.communicationMethod = configMethod;
+          if (commConfig && commConfig.communicationMethod) {
+            const configMethod = commConfig.communicationMethod;
             
-            // Re-evaluate the check with the new method
-            this.model = this.check();
+            // Only update if it's different to prevent unnecessary re-renders
+            if (this.communicationMethod !== configMethod) {
+              this.communicationMethod = configMethod;
+              
+              // Re-evaluate the check with the new method
+              this.model = this.check();
+            }
           }
         }
       } catch (e) {
@@ -61,14 +67,15 @@ export default {
       if (this.checkRunning) return;
       
       this.checkRunning = true;
+      
       const incrementer = () => {
-        this.counter++;
-        setTimeout(() => {
+        const incrementTimer = setInterval(() => {
           if (this.states.connectedToNetwork) {
+            clearInterval(incrementTimer);
             this.counter = 0;
             this.checkRunning = false;
           } else {
-            incrementer();
+            this.counter++;
           }
         }, 1000);
       };

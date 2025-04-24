@@ -73,7 +73,7 @@ describe('Settings Component', () => {
   test('renders all tabs', () => {
     const wrapper = createWrapper();
     const tabs = wrapper.findAll('.v-tab');
-    expect(tabs).toHaveLength(5);
+    expect(tabs).toHaveLength(6);
   });
 
   test('emits close event', async () => {

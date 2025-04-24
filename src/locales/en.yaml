@@ -164,6 +164,11 @@ settings:
     alert:
       first: "Changing the communication method will affect how the application connects to other peers."
       second: "Using WebRTC allows for direct peer-to-peer connections, while Websocket requires a server to relay messages."
+    shareLink:
+      title: "Shareable Link with Communication Settings"
+      description: "Generate a link with your current communication settings embedded. Share this with students for optimal connectivity."
+      generate: "Generate Shareable Link"
+      linkLabel: "Shareable Link"
 
 chat:
   deletedMessage: "previous messages have been deleted ..."

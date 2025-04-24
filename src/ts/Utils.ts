@@ -434,3 +434,165 @@ export async function hashJsonObject(jsonObject: any) {
   const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
   return hashHex
 }
+
+/**
+ * Compares two communication config objects for equality
+ * @param oldConfig The old communication config
+ * @param newConfig The new communication config
+ * @returns True if the configs are equal, false otherwise
+ */
+export function compareCommunicationConfig(oldConfig: any, newConfig: any): boolean {
+  if (!oldConfig && !newConfig) return true;
+  
+  if (!oldConfig || !newConfig) return false;
+  
+  if (oldConfig.communicationMethod !== newConfig.communicationMethod) return false;
+  
+  // Compare websocket URL for websocket method
+  if (oldConfig.communicationMethod === 'Websocket' && 
+      oldConfig.websocketUrl !== newConfig.websocketUrl) {
+    return false;
+  }
+  
+  // Compare signaling server for WebRTC method
+  if (oldConfig.communicationMethod === 'WebRTC') {
+    const oldSignaling = Array.isArray(oldConfig.signalingServer) ? 
+      oldConfig.signalingServer : [oldConfig.signalingServer];
+    const newSignaling = Array.isArray(newConfig.signalingServer) ? 
+      newConfig.signalingServer : [newConfig.signalingServer];
+    
+    if (oldSignaling[0] !== newSignaling[0]) return false;
+    
+    const oldConfigStr = typeof oldConfig.webrtcConfig === 'string' ? 
+      oldConfig.webrtcConfig : JSON.stringify(oldConfig.webrtcConfig);
+    const newConfigStr = typeof newConfig.webrtcConfig === 'string' ? 
+      newConfig.webrtcConfig : JSON.stringify(newConfig.webrtcConfig);
+    
+    try {
+      const oldParsed = typeof oldConfig.webrtcConfig === 'string' ? 
+        JSON.parse(oldConfig.webrtcConfig) : oldConfig.webrtcConfig;
+      const newParsed = typeof newConfig.webrtcConfig === 'string' ? 
+        JSON.parse(newConfig.webrtcConfig) : newConfig.webrtcConfig;
+        
+      return deepEqual(oldParsed, newParsed);
+    } catch (e) {
+      // If JSON parsing fails, fall back to string comparison
+      return oldConfigStr === newConfigStr;
+    }
+  }
+  
+  return true;
+}
+
+/*
+  * Extracts the communication configuration from the URL.
+  * @returns {Object|null} The parsed communication configuration object, or null if not found.
+*/
+export function extractCommunicationConfigFromUrl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  let commParam = urlParams.get("comm");
+  
+  if (!commParam) {
+    // If not found, check if it's embedded in the path
+    // The URL format might be /?/classroom/id?comm=xyz
+    const searchPath = window.location.search.slice(1);
+    const pathQuerySplit = searchPath.split('?');
+    
+    if (pathQuerySplit.length > 1) {
+      const embeddedParams = new URLSearchParams('?' + pathQuerySplit[1]);
+      commParam = embeddedParams.get("comm");
+    }
+  }
+  
+  // If still not found, check for hash fragments
+  if (!commParam && window.location.hash) {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    commParam = hashParams.get("comm");
+  }
+  
+  if (commParam) {
+    try {
+      // Decode the base64 and parse the JSON
+      const jsonConfig = decodeURIComponent(atob(commParam));
+      const decodedConfig = JSON.parse(jsonConfig);
+
+      return decodedConfig;
+    } catch (e) {
+      console.error("Failed to decode communication config from URL:", e);
+    }
+  }
+  return null;
+}
+
+/**
+   * Updates the URL hash with the current communication config
+   */
+export function updateUrlWithCommConfig(commConfig: any) {
+  try {
+    const configToEncode = { ...commConfig };
+    
+    const jsonConfig = JSON.stringify(configToEncode);
+    const encodedConfig = btoa(encodeURIComponent(jsonConfig));
+    
+    const url = new URL(window.location.href);
+    url.hash = `comm=${encodedConfig}`;
+    
+    window.history.replaceState(null, '', url.toString());
+  } catch (e) {
+    console.error('Error updating URL with comm config:', e);
+  }
+}
+
+/**
+ * Cleans the URL by removing the communication config hash parameter
+ * and updates browser history without causing a page reload
+ */
+export function cleanUrlAfterCommConfigExtraction() {
+  if (window.location.hash && window.location.hash.includes('comm=')) {
+    const url = new URL(window.location.href);
+    
+    url.hash = '';
+    
+    window.history.replaceState(
+      {},
+      document.title,
+      url.pathname + url.search
+    );
+  }
+}
+
+/**
+ * Encodes a communication config object for secure storage
+ * @param config The communication configuration object
+ * @returns Base64 encoded string of the config
+ */
+export function encodeCommConfig(config: any) {
+  try {
+    if (!config) return null;
+    
+    const cleanConfig = { ...config };
+
+    const jsonConfig = JSON.stringify(cleanConfig);
+    return btoa(encodeURIComponent(jsonConfig));
+  } catch (e) {
+    console.error("Failed to encode communication config:", e);
+    return null;
+  }
+}
+
+/**
+ * Decodes a communication config string back to an object
+ * @param encodedConfig The encoded config string
+ * @returns Decoded configuration object, or null if invalid
+ */
+export function decodeCommConfig(encodedConfig: string) {
+  try {
+    if (!encodedConfig) return null;
+    
+    const jsonConfig = decodeURIComponent(atob(encodedConfig));
+    return JSON.parse(jsonConfig);
+  } catch (e) {
+    console.error("Failed to decode communication config:", e);
+    return null;
+  }
+}

@@ -164,6 +164,11 @@ settings:
     alert:
       first: "Änderung der Kommunikationsmethode beeinflusst, wie die Anwendung mit anderen Peers verbindet."
       second: "WebRTC ermöglicht direkte Peer-to-Peer-Verbindungen, während Websocket einen Server zur Nachrichtenübermittlung benötigt."
+    shareLink:
+      title: "Teilbarer Link mit Kommunikationseinstellungen"
+      description: "Generieren Sie einen Link mit Ihren aktuellen Kommunikationseinstellungen. Teilen Sie diesen mit Schülern für optimale Konnektivität."
+      generate: "Teilbaren Link generieren"
+      linkLabel: "Teilbarer Link"
 
 chat:
   deletedMessage: "vorherige Nachrichten wurden gelöscht ..."
