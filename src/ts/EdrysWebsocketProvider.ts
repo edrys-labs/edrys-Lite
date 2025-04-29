@@ -89,7 +89,6 @@ export class EdrysWebsocketProvider {
       }
     })
 
-    // Handle sync events
     this.provider.on('sync', (isSynced: boolean) => {
       if (isSynced && this._hasBeenConnected) {
         if (this._syncedListener) {
@@ -98,9 +97,10 @@ export class EdrysWebsocketProvider {
       }
     })
 
-    // Set up awareness update handling
+    // Dedicated handler for custom messages to avoid processing the same message multiple times
+    let lastMessageProcessed: string | null = null;
+
     this.provider.awareness.on('update', ({ added, updated, removed }) => {
-      // Add any new users to our connected set
       added.forEach(clientId => {
         const state = this.provider.awareness.getStates().get(clientId)
         if (state && state.user && state.user.id !== this.userid) {
@@ -119,11 +119,20 @@ export class EdrysWebsocketProvider {
             this._connectedUsers.add(state.user.id)
           }
 
-          // Process custom message if present
-          if (state[CUSTOM_MESSAGE_FIELD]) {
+          // Process custom message if present and not from this client
+          if (state[CUSTOM_MESSAGE_FIELD] && 
+              state.user && 
+              state.user.id !== this.userid) {
             const message = state[CUSTOM_MESSAGE_FIELD]
-            if (!this._isDuplicateMessage(message)) {
+            
+            // Skip if we've already processed this message or if it's a duplicate
+            if (message.id && 
+                message.id !== lastMessageProcessed && 
+                !this._isDuplicateMessage(message)) {
+              
+              lastMessageProcessed = message.id;
               this._addMessageToHistory(message)
+              
               if (this._messageListener) {
                 this._messageListener(message)
               }
@@ -245,6 +254,14 @@ export class EdrysWebsocketProvider {
     }
 
     this._processedMessages.set(message.id, Date.now())
+    
+    // Check message history for duplicates
+    for (const historyMsg of this._messageHistory) {
+      if (historyMsg.id === message.id) {
+        return true
+      }
+    }
+    
     return false
   }
 
@@ -263,22 +280,41 @@ export class EdrysWebsocketProvider {
    * @param {string} [targetUserId=null] - The target user's ID. If null, broadcast to all.
    */
   sendMessage(message: any, targetUserId: string | null = null) {
-    // Ensure each message has a unique ID based on timestamp
-    message.id = Date.now().toString() + '-' + generateUniqueId()
+    if (!message.id) {
+      message.id = Date.now().toString() + '-' + generateUniqueId()
+    }
 
-    // Add message to history
+    if (!message.sender) {
+      message.sender = this.userid
+    }
+
     this._addMessageToHistory(message)
 
-    // Send via BroadcastChannel for other tabs
     this._bcChannel.postMessage(message)
 
-    // Update awareness state with the message
     const awareness = this.provider.awareness
     const localState = awareness.getLocalState() || {}
+    
     awareness.setLocalState({
       ...localState,
+      user: {
+        ...(localState.user || {}),
+        id: this.userid,
+      },
       [CUSTOM_MESSAGE_FIELD]: message,
     })
+
+    // Remove the message from awareness after a short delay
+    // This prevents the message from being resent on future awareness updates
+    setTimeout(() => {
+      const currentState = awareness.getLocalState() || {}
+      if (currentState[CUSTOM_MESSAGE_FIELD]?.id === message.id) {
+        awareness.setLocalState({
+          ...currentState,
+          [CUSTOM_MESSAGE_FIELD]: null,
+        })
+      }
+    }, 1000)
   }
 
   /**
@@ -355,5 +391,6 @@ export class EdrysWebsocketProvider {
     this._processedMessages.clear()
     this._lastHeartbeats.clear()
     this._connectedUsers.clear()
+    this._messageHistory = []
   }
 }
