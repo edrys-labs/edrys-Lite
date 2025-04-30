@@ -181,7 +181,7 @@ export default {
 
         <v-window-item>
           <Communication
-            :config="config.communicationConfig || {}"
+            :config="config.communicationConfig || ''"
             @update:config="updateCommunicationConfig"
             :writeProtection="writeProtection"
             :classId="config.id || ''"

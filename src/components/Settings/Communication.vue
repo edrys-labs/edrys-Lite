@@ -1,5 +1,19 @@
 <template>
   <v-container>
+    <v-alert
+      type="info"
+      variant="outlined"
+      prominent
+      density="compact"
+      color="primary"
+      icon="mdi-information-outline"
+      class="my-4"
+    >
+      {{ $t("settings.communication.alert.first") }}
+      <br />
+      {{ $t("settings.communication.alert.second") }}
+    </v-alert>
+
     <v-select
       v-model="communicationMethod"
       :items="['WebRTC', 'Websocket']"
@@ -35,20 +49,6 @@
         :disabled="writeProtection"
       ></v-textarea>
     </template>
-
-    <v-alert
-      type="info"
-      variant="outlined"
-      prominent
-      density="compact"
-      color="primary"
-      icon="mdi-information-outline"
-      class="mt-4"
-    >
-      {{ $t("settings.communication.alert.first") }}
-      <br />
-      {{ $t("settings.communication.alert.second") }}
-    </v-alert>
     
     <v-divider class="my-4"></v-divider>
     
@@ -183,7 +183,6 @@ export default {
     async generateShareableLink() {
       this.generatingLink = true;
       try {
-        // Get the current configuration and prepare for encoding in URL
         let configToEncode = {
           communicationMethod: this.communicationMethod,
           websocketUrl: this.communicationMethod === 'Websocket' ? this.websocketUrl : undefined,
@@ -193,12 +192,9 @@ export default {
         };
         
         // Clean up undefined values
-        Object.keys(configToEncode).forEach(key => 
-          configToEncode[key] === undefined && delete configToEncode[key]
-        );
+        Object.keys(configToEncode).forEach(key => configToEncode[key] === undefined && delete configToEncode[key]);
         
-        const jsonConfig = JSON.stringify(configToEncode);
-        const encodedConfig = btoa(encodeURIComponent(jsonConfig));
+        const encodedConfig = encodeCommConfig(configToEncode);
         
         const urlBase = window.location.origin + window.location.pathname;
         this.shareableLink = `${urlBase}?/classroom/${this.classId}#comm=${encodedConfig}`;

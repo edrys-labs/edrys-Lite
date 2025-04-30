@@ -260,12 +260,13 @@ describe('Utils', () => {
         signalingServer: ['wss://test.com'],
         webrtcConfig: { iceServers: [{ urls: 'stun:test.com' }] }
       };
-      const encodedConfig = btoa(encodeURIComponent(JSON.stringify(mockConfig)));
+      const encodedConfig = encodeCommConfig(mockConfig);
 
       test('should extract config from query parameter', () => {
         Object.defineProperty(window, 'location', {
           value: {
-            search: `?comm=${encodedConfig}`
+            search: `?comm=${encodedConfig}`,
+            hash: ''
           },
           writable: true
         });
@@ -306,7 +307,8 @@ describe('Utils', () => {
       test('should return null for invalid config', () => {
         Object.defineProperty(window, 'location', {
           value: {
-            search: '?comm=invalid-config'
+            search: '?comm=invalid-config',
+            hash: ''
           },
           writable: true
         });
@@ -333,7 +335,8 @@ describe('Utils', () => {
           value: {
             href: 'http://localhost/test',
             origin: 'http://localhost',
-            pathname: '/test'
+            pathname: '/test',
+            search: ''
           },
           writable: true
         });
@@ -348,18 +351,21 @@ describe('Utils', () => {
 
         const url = mockReplaceState.mock.calls[0][2];
         const hash = new URL(url).hash;
-        const extractedConfig = JSON.parse(
-          decodeURIComponent(atob(hash.split('=')[1]))
-        );
+        const extractedConfig = decodeCommConfig(hash.split('=')[1]);
         expect(extractedConfig).toEqual(config);
       });
 
       test('should handle config encoding errors gracefully', () => {
         const consoleSpy = vi.spyOn(console, 'error');
-        const circularConfig = { self: {} };
-        circularConfig.self = circularConfig;
+        
+        // Create a non-circular but invalid config that will fail when stringified
+        const invalidConfig = {};
+        Object.defineProperty(invalidConfig, 'problematic', {
+          get() { throw new Error('Test error'); },
+          enumerable: true // This makes it participate in JSON stringify
+        });
 
-        updateUrlWithCommConfig(circularConfig);
+        updateUrlWithCommConfig(invalidConfig as any);
 
         expect(consoleSpy).toHaveBeenCalledWith(
           'Error updating URL with comm config:',
@@ -454,6 +460,7 @@ describe('Utils', () => {
       });
       
       test('handles complex configurations correctly', () => {
+        // Use a complex config that only contains the expected keys our mapping handles
         const complexConfig = {
           communicationMethod: 'WebRTC',
           signalingServer: ['wss://primary.signal', 'wss://backup.signal'],
@@ -466,17 +473,17 @@ describe('Utils', () => {
             iceTransportPolicy: 'all',
             bundlePolicy: 'max-bundle'
           },
-          additionalInfo: {
-            description: 'Test configuration',
-            isCustom: true,
-            timestamp: Date.now()
-          }
+          websocketUrl: 'wss://example.com/ws'
         };
         
         const encoded = encodeCommConfig(complexConfig);
         const decoded = decodeCommConfig(encoded as string);
         
-        expect(decoded).toEqual(complexConfig);
+        // Compare only mapped properties since additionalInfo was removed in mapping
+        expect(decoded.communicationMethod).toEqual(complexConfig.communicationMethod);
+        expect(decoded.signalingServer).toEqual(complexConfig.signalingServer);
+        expect(decoded.webrtcConfig).toEqual(complexConfig.webrtcConfig);
+        expect(decoded.websocketUrl).toEqual(complexConfig.websocketUrl);
       });
     });
   });

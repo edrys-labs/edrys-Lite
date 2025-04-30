@@ -1,6 +1,6 @@
 import * as YAML from 'js-yaml'
-
 import SecureLS from 'secure-ls'
+import LZString from 'lz-string'
 
 function loadResource(type, url, base) {
   if (url.match(/(https?)?:\/\//i)) {
@@ -512,10 +512,7 @@ export function extractCommunicationConfigFromUrl() {
   
   if (commParam) {
     try {
-      // Decode the base64 and parse the JSON
-      const jsonConfig = decodeURIComponent(atob(commParam));
-      const decodedConfig = JSON.parse(jsonConfig);
-
+      const decodedConfig = decodeCommConfig(commParam);
       return decodedConfig;
     } catch (e) {
       console.error("Failed to decode communication config from URL:", e);
@@ -530,9 +527,11 @@ export function extractCommunicationConfigFromUrl() {
 export function updateUrlWithCommConfig(commConfig: any) {
   try {
     const configToEncode = { ...commConfig };
+    const encodedConfig = encodeCommConfig(configToEncode);
     
-    const jsonConfig = JSON.stringify(configToEncode);
-    const encodedConfig = btoa(encodeURIComponent(jsonConfig));
+    if (!encodedConfig) {
+      throw new Error("Encoding communication config returned null");
+    }
     
     const url = new URL(window.location.href);
     url.hash = `comm=${encodedConfig}`;
@@ -569,11 +568,16 @@ export function cleanUrlAfterCommConfigExtraction() {
 export function encodeCommConfig(config: any) {
   try {
     if (!config) return null;
+    // Map long keys to short ones
+    const shortConfig: any = {};
+    if (config.communicationMethod) { shortConfig.m = config.communicationMethod; }
+    if (config.websocketUrl) { shortConfig.w = config.websocketUrl; }
+    if (config.webrtcConfig) { shortConfig.c = config.webrtcConfig; }
+    if (config.signalingServer) { shortConfig.s = config.signalingServer; }
     
-    const cleanConfig = { ...config };
-
-    const jsonConfig = JSON.stringify(cleanConfig);
-    return btoa(encodeURIComponent(jsonConfig));
+    const jsonConfig = JSON.stringify(shortConfig);
+    // Compress and encode for URL safety
+    return LZString.compressToEncodedURIComponent(jsonConfig);
   } catch (e) {
     console.error("Failed to encode communication config:", e);
     return null;
@@ -588,9 +592,15 @@ export function encodeCommConfig(config: any) {
 export function decodeCommConfig(encodedConfig: string) {
   try {
     if (!encodedConfig) return null;
-    
-    const jsonConfig = decodeURIComponent(atob(encodedConfig));
-    return JSON.parse(jsonConfig);
+    const jsonConfig = LZString.decompressFromEncodedURIComponent(encodedConfig);
+    const shortConfig = JSON.parse(jsonConfig);
+    // Reverse the key mapping
+    const config: any = {};
+    if (shortConfig.m) { config.communicationMethod = shortConfig.m; }
+    if (shortConfig.w) { config.websocketUrl = shortConfig.w; }
+    if (shortConfig.c) { config.webrtcConfig = shortConfig.c; }
+    if (shortConfig.s) { config.signalingServer = shortConfig.s; }
+    return config;
   } catch (e) {
     console.error("Failed to decode communication config:", e);
     return null;
