@@ -39,6 +39,7 @@ describe('Communication Component', () => {
   });
 
   afterEach(() => {
+    vi.clearAllMocks();
     vi.clearAllTimers();
     vi.useRealTimers();
     if (wrapper) wrapper.unmount();
@@ -89,12 +90,12 @@ describe('Communication Component', () => {
   };
 
   describe('Initialization', () => {
-    test('initializes with default WebRTC config when no config is provided', () => {
+    test('initializes with empty WebRTC config when no config is provided', () => {
       wrapper = createWrapper();
       
       expect(wrapper.vm.communicationMethod).toBe('WebRTC');
-      expect(wrapper.vm.signalingServer).toBe('wss://rooms.deno.dev');
-      expect(JSON.parse(wrapper.vm.webrtcConfig)).toHaveProperty('iceServers');
+      expect(wrapper.vm.signalingServer).toBe('');
+      expect(wrapper.vm.webrtcConfig).toBe('');
     });
 
     test('initializes with WebRTC config from encoded string', () => {
@@ -235,21 +236,25 @@ describe('Communication Component', () => {
     });
     
     test('does not trigger updates for configs we just emitted', async () => {
-      const updateConfigSpy = vi.spyOn(Communication.methods as any, 'updateConfig');
       wrapper = createWrapper('encodedWebRTC');
+      const originalUpdateConfig = wrapper.vm.updateConfig;
+      const updateConfigSpy = vi.fn();
       
-      // First update should work
-      await wrapper.vm.updateConfig();
-      expect(updateConfigSpy).toHaveBeenCalledTimes(1);
+      // Replace the method with the spy
+      wrapper.vm.updateConfig = updateConfigSpy;
       
-      // Set the same config back through props - should not trigger a second update
+      // Set the lastEmittedConfig to match what would be returned by encodeCommConfig
+      wrapper.vm.lastEmittedConfig = 'encodedWebRTC';
+      
+      // Set the same config back through props - should not trigger an update
       await wrapper.setProps({ config: 'encodedWebRTC' });
       await wrapper.vm.$nextTick();
       
-      // The update method should not be called a second time
-      expect(updateConfigSpy).toHaveBeenCalledTimes(1);
+      // The update method should not be called
+      expect(updateConfigSpy).not.toHaveBeenCalled();
       
-      updateConfigSpy.mockRestore();
+      // Restore the original method
+      wrapper.vm.updateConfig = originalUpdateConfig;
     });
   });
 
@@ -276,7 +281,6 @@ describe('Communication Component', () => {
       // Check shareable link section
       expect(wrapper.text()).toContain(translations.shareLink.title);
       expect(wrapper.text()).toContain(translations.shareLink.description);
-      expect(wrapper.text()).toContain(translations.shareLink.generate);
       
       // Switch to Websocket method to test those translations
       await wrapper.setData({ communicationMethod: 'Websocket' });

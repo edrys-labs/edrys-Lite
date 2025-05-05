@@ -1,19 +1,5 @@
 <template>
   <v-container>
-    <v-alert
-      type="info"
-      variant="outlined"
-      prominent
-      density="compact"
-      color="primary"
-      icon="mdi-information-outline"
-      class="my-4"
-    >
-      {{ $t("settings.communication.alert.first") }}
-      <br />
-      {{ $t("settings.communication.alert.second") }}
-    </v-alert>
-
     <v-select
       v-model="communicationMethod"
       :items="['WebRTC', 'Websocket']"
@@ -50,10 +36,10 @@
       ></v-textarea>
     </template>
     
-    <v-divider class="my-4"></v-divider>
+    <v-divider class="my-4 border-opacity-50" color="primary"></v-divider>
     
     <div v-if="!writeProtection">
-      <h3 class="text-h6 mb-2">{{ $t('settings.communication.shareLink.title') }}</h3>
+      <h3 class="text-h6 mb-2 font-weight-bold">{{ $t('settings.communication.shareLink.title') }}</h3>
       <p class="text-body-2 mb-3">{{ $t('settings.communication.shareLink.description') }}</p>
       
       <v-text-field
@@ -63,17 +49,21 @@
         :append-icon="copied ? 'mdi-check' : 'mdi-content-copy'"
         @click:append="copyShareableLink"
       ></v-text-field>
-      
-      <v-btn 
-        color="primary" 
-        class="mt-2" 
-        @click="generateShareableLink"
-        :loading="generatingLink"
-      >
-        <v-icon left>mdi-link-variant</v-icon>
-        {{ $t('settings.communication.shareLink.generate') }}
-      </v-btn>
     </div>
+
+    <v-alert
+      type="info"
+      variant="outlined"
+      prominent
+      density="compact"
+      color="primary"
+      icon="mdi-information-outline"
+      class="my-4"
+    >
+      {{ $t("settings.communication.alert.first") }}
+      <br />
+      {{ $t("settings.communication.alert.second") }}
+    </v-alert>
   </v-container>
 </template>
 
@@ -85,7 +75,7 @@ export default {
 
   props: {
     config: {
-      type: String,  
+      type: String,
       required: true,
     },
     writeProtection: {
@@ -106,7 +96,7 @@ export default {
       signalingServer: "",
       shareableLink: "",
       copied: false,
-      generatingLink: false,
+      lastEmittedConfig: "",
     };
   },
 
@@ -125,27 +115,15 @@ export default {
     }
     if (decodedConfig.signalingServer) {
       if (Array.isArray(decodedConfig.signalingServer)) {
-        this.signalingServer = decodedConfig.signalingServer[0] || "wss://rooms.deno.dev";
+        this.signalingServer = decodedConfig.signalingServer[0] || "";
       } else {
         this.signalingServer = decodedConfig.signalingServer;
       }
-    } else {
-      // Default signaling server
-      this.signalingServer = "wss://rooms.deno.dev";
     }
     if (decodedConfig.webrtcConfig) {
       this.webrtcConfig = typeof decodedConfig.webrtcConfig === 'string' 
         ? decodedConfig.webrtcConfig 
         : JSON.stringify(decodedConfig.webrtcConfig, null, 2);
-    } else {
-      // Set default WebRTC config
-      this.webrtcConfig = JSON.stringify({
-        iceServers: [
-          { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:stun1.l.google.com:19302" },
-          { urls: "stun:stun2.l.google.com:19302" },
-        ]
-      }, null, 2);
     }
   },
 
@@ -156,39 +134,49 @@ export default {
       let webrtcConfigValue = this.webrtcConfig;
       
       try {
-        if (typeof this.webrtcConfig === 'string') {
+        if (typeof this.webrtcConfig === 'string' && this.webrtcConfig.trim() !== '') {
           webrtcConfigValue = JSON.parse(this.webrtcConfig);
+        } else if (this.webrtcConfig.trim() === '') {
+          webrtcConfigValue = undefined;
         }
       } catch (e) {
         console.error('Invalid WebRTC config JSON:', e);
       }
 
-      let signalingServerValue = this.signalingServer?.trim() || "wss://rooms.deno.dev";
+      let signalingServerValue = this.signalingServer?.trim() || undefined;
       
-      // Store the signaling server as an array for consistency with the WebRTC provider
-      const signalingServerArray = [signalingServerValue];
+      // Store the signaling server as an array for consistency with the WebRTC provider, only if it has a value
+      const signalingServerArray = signalingServerValue ? [signalingServerValue] : undefined;
       
       const commConfig = {
         communicationMethod: this.communicationMethod,
-        websocketUrl: this.websocketUrl,
+        websocketUrl: this.websocketUrl.trim() || undefined,
         webrtcConfig: webrtcConfigValue,
         signalingServer: signalingServerArray,
       };
       
+      // Clean up undefined values
+      Object.keys(commConfig).forEach(key => commConfig[key] === undefined && delete commConfig[key]);
+      
       const encodedConfig = encodeCommConfig(commConfig);
+      this.lastEmittedConfig = encodedConfig;
       
       this.$emit('update:config', encodedConfig);
+      
+      // Regenerate the shareable link whenever the config changes
+      this.generateShareableLink();
     },
     
-    async generateShareableLink() {
-      this.generatingLink = true;
+    generateShareableLink() {
+      if (this.writeProtection) return;
+      
       try {
         let configToEncode = {
           communicationMethod: this.communicationMethod,
-          websocketUrl: this.communicationMethod === 'Websocket' ? this.websocketUrl : undefined,
-          webrtcConfig: this.communicationMethod === 'WebRTC' ? 
-            (typeof this.webrtcConfig === 'string' ? JSON.parse(this.webrtcConfig) : this.webrtcConfig) : undefined,
-          signalingServer: this.communicationMethod === 'WebRTC' ? [this.signalingServer] : undefined
+          websocketUrl: this.communicationMethod === 'Websocket' && this.websocketUrl ? this.websocketUrl : undefined,
+          webrtcConfig: this.communicationMethod === 'WebRTC' && this.webrtcConfig ? 
+            (typeof this.webrtcConfig === 'string' && this.webrtcConfig.trim() ? JSON.parse(this.webrtcConfig) : undefined) : undefined,
+          signalingServer: this.communicationMethod === 'WebRTC' && this.signalingServer ? [this.signalingServer] : undefined
         };
         
         // Clean up undefined values
@@ -200,9 +188,8 @@ export default {
         this.shareableLink = `${urlBase}?/classroom/${this.classId}#comm=${encodedConfig}`;
       } catch (e) {
         console.error('Error generating shareable link:', e);
-        this.shareableLink = 'Error generating link. Please check your configuration.';
+        this.shareableLink = this.$t('settings.communication.shareLink.error');
       }
-      this.generatingLink = false;
     },
     
     copyShareableLink() {
@@ -223,6 +210,18 @@ export default {
 
   watch: {
     communicationMethod() {
+      this.updateConfig();
+    },
+    
+    websocketUrl() {
+      this.updateConfig();
+    },
+    
+    signalingServer() {
+      this.updateConfig();
+    },
+    
+    webrtcConfig() {
       this.updateConfig();
     },
     
@@ -253,6 +252,9 @@ export default {
             ? decodedConfig.webrtcConfig 
             : JSON.stringify(decodedConfig.webrtcConfig, null, 2);
         }
+        
+        // Regenerate the shareable link when config changes from parent
+        this.generateShareableLink();
       }
     }
   },

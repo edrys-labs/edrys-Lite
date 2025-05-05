@@ -162,13 +162,13 @@ settings:
         webrtcSignaling: "WebRTC Signalisierungsserver-URL"
         webrtcConfig: "WebRTC-Konfiguration (JSON)"
     alert:
-      first: "Änderung der Kommunikationsmethode beeinflusst, wie die Anwendung mit anderen Peers verbindet."
-      second: "WebRTC ermöglicht direkte Peer-to-Peer-Verbindungen, während Websocket einen Server zur Nachrichtenübermittlung benötigt."
+      first: "Änderung der Kommunikationsmethode beeinflusst, wie die Anwendung mit anderen Peers verbindet. WebRTC ermöglicht direkte Peer-to-Peer-Verbindungen, während Websocket einen Server zur Nachrichtenübermittlung benötigt."
+      second: "Nach dem Ändern der Konfiguration wird ein neuer Link für das Klassenzimmer generiert. Dieser Link sollte mit Schülern geteilt werden, um sicherzustellen, dass sie mit den korrekten Einstellungen verbinden."
     shareLink:
       title: "Teilbarer Link mit Kommunikationseinstellungen"
       description: "Generieren Sie einen Link mit Ihren aktuellen Kommunikationseinstellungen. Teilen Sie diesen mit Schülern für optimale Konnektivität."
-      generate: "Teilbaren Link generieren"
       linkLabel: "Teilbarer Link"
+      error: "Fehler beim Generieren des Links, überprüfen Sie die Konfiguration"
 
 chat:
   deletedMessage: "vorherige Nachrichten wurden gelöscht ..."
