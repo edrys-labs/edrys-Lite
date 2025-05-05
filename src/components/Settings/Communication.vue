@@ -224,39 +224,6 @@ export default {
     webrtcConfig() {
       this.updateConfig();
     },
-    
-    // Watch for config changes from parent
-    config: {
-      handler(newConfig) {
-        if (!newConfig || this.lastEmittedConfig === newConfig) return;
-        
-        const decodedConfig = decodeCommConfig(newConfig) || {};
-        
-        // Update fields if config changed externally
-        if (decodedConfig.communicationMethod !== undefined) {
-          this.communicationMethod = decodedConfig.communicationMethod;
-        }
-        if (decodedConfig.websocketUrl !== undefined) {
-          this.websocketUrl = decodedConfig.websocketUrl;
-        }
-        if (decodedConfig.signalingServer !== undefined) {
-          if (Array.isArray(decodedConfig.signalingServer)) {
-            // Just take the first server if there are multiple
-            this.signalingServer = decodedConfig.signalingServer[0] || "";
-          } else {
-            this.signalingServer = decodedConfig.signalingServer;
-          }
-        }
-        if (decodedConfig.webrtcConfig !== undefined) {
-          this.webrtcConfig = typeof decodedConfig.webrtcConfig === 'string' 
-            ? decodedConfig.webrtcConfig 
-            : JSON.stringify(decodedConfig.webrtcConfig, null, 2);
-        }
-        
-        // Regenerate the shareable link when config changes from parent
-        this.generateShareableLink();
-      }
-    }
   },
 };
 </script>
