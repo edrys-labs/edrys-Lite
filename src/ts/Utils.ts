@@ -253,15 +253,30 @@ export function download(filename, text) {
   document.body.removeChild(element)
 }
 
-export function throttle(func, limit) {
-  let inThrottle
+export function throttle(func, limit, options = { trailing: true }) {
+  let lastFunc
+  let lastRan
+  let leading = true
+
   return function () {
-    const args = arguments
     const context = this
-    if (!inThrottle) {
+    const args = arguments
+
+    if (leading) {
       func.apply(context, args)
-      inThrottle = true
-      setTimeout(() => (inThrottle = false), limit)
+      lastRan = Date.now()
+      leading = false
+    } else {
+      clearTimeout(lastFunc)
+
+      if (options.trailing) {
+        lastFunc = setTimeout(function () {
+          if (Date.now() - lastRan >= limit) {
+            func.apply(context, args)
+            lastRan = Date.now()
+          }
+        }, limit - (Date.now() - lastRan))
+      }
     }
   }
 }

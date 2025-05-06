@@ -501,8 +501,13 @@ export default class Peer {
     }, 'initRooms')
 
     const throttledUpdate = throttle(() => {
-      this.update('room')
-    }, 333) // Adjust the delay as needed
+      if (this.connected) {
+        this.update('room')
+      } else {
+        // Queue the update to be processed after connection is established
+        setTimeout(() => this.update('room'), 500)
+      }
+    }, 500)
 
     this.y.rooms.observeDeep((events) => {
       // Handle room deletions from root-level changes
