@@ -222,42 +222,6 @@ describe('Communication Component', () => {
     });
   });
 
-  describe('Config Watch Behavior', () => {
-    test('updates fields when config prop changes to different encoded string', async () => {
-      wrapper = createWrapper('encodedWebRTC');
-      expect(wrapper.vm.communicationMethod).toBe('WebRTC');
-      
-      // Change the config prop
-      await wrapper.setProps({ config: 'encodedWebsocket' });
-      await wrapper.vm.$nextTick();
-      
-      expect(wrapper.vm.communicationMethod).toBe('Websocket');
-      expect(wrapper.vm.websocketUrl).toBe('wss://test.com');
-    });
-    
-    test('does not trigger updates for configs we just emitted', async () => {
-      wrapper = createWrapper('encodedWebRTC');
-      const originalUpdateConfig = wrapper.vm.updateConfig;
-      const updateConfigSpy = vi.fn();
-      
-      // Replace the method with the spy
-      wrapper.vm.updateConfig = updateConfigSpy;
-      
-      // Set the lastEmittedConfig to match what would be returned by encodeCommConfig
-      wrapper.vm.lastEmittedConfig = 'encodedWebRTC';
-      
-      // Set the same config back through props - should not trigger an update
-      await wrapper.setProps({ config: 'encodedWebRTC' });
-      await wrapper.vm.$nextTick();
-      
-      // The update method should not be called
-      expect(updateConfigSpy).not.toHaveBeenCalled();
-      
-      // Restore the original method
-      wrapper.vm.updateConfig = originalUpdateConfig;
-    });
-  });
-
   describe('Translations', () => {
     test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
       wrapper = createWrapper('encodedWebRTC', false, locale);

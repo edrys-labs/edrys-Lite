@@ -106,14 +106,15 @@ export default {
     <v-toolbar dark flat>
       <v-toolbar-title>{{ t("settings.general.title") }}</v-toolbar-title>
 
-      <span class="text-decoration-underline text-medium-emphasis"
-        >{{ t("settings.general.writeProtection") }}
+      <span class="text-decoration-underline text-medium-emphasis">
+        {{ t("settings.general.writeProtection") }}
         {{
           writeProtection
             ? t("settings.general.actions.on")
             : t("settings.general.actions.off")
-        }}</span
-      >
+        }}
+      </span>
+
       <v-spacer></v-spacer>
 
       <v-btn icon @click="$emit('close')">
