@@ -163,6 +163,25 @@
                   </div>
                 </div>
 
+                <!-- Code editor fields -->
+                <div v-else-if="fieldConfig.type === 'code-area'" class="mt-3">
+                  <div class="mb-2 custom-label">{{ field }}</div>
+                  <div class="code-editor-container">
+                    <prism-editor
+                      v-model="formValues[configType][field]"
+                      :highlight="highlighter"
+                      :readonly="writeProtection"
+                    ></prism-editor>
+                  </div>
+                  <div
+                    v-if="fieldConfig.hint"
+                    class="text-caption text-grey"
+                    style="margin-top: 5px"
+                  >
+                    {{ fieldConfig.hint }}
+                  </div>
+                </div>
+
                 <!-- String fields -->
                 <v-text-field
                   v-else
@@ -207,6 +226,7 @@
 <script lang="ts">
 import { useI18n } from "vue-i18n";
 import { parse } from "../../ts/Utils";
+import { inject } from "vue";
 
 export default {
   name: "ModuleConfigForm",
@@ -254,7 +274,10 @@ export default {
 
   setup() {
     const { t } = useI18n();
-    return { t };
+    const prismHighlight = inject("prismHighlight");
+    const prismLanguages = inject("prismLanguages");
+    
+    return { t, prismHighlight, prismLanguages };
   },
 
   data() {
@@ -337,6 +360,14 @@ export default {
       }
     },
 
+    highlighter(code) {
+      if (!this.prismHighlight || !this.prismLanguages.markdown) {
+        console.error("Prism not properly injected.");
+        return code;
+      }
+      return this.prismHighlight(code, this.prismLanguages.markdown, "markdown");
+    },
+    
     parseModuleConfig() {
       try {
         if (this.moduleConfig && this.moduleConfig.trim() !== "") {
@@ -390,6 +421,9 @@ export default {
                     break;
                   case "color":
                     initialValues[key] = "#000000";
+                    break;
+                  case "code-area":
+                    initialValues[key] = "";
                     break;
                   default:
                     initialValues[key] = "";
@@ -495,5 +529,18 @@ export default {
 .custom-label {
   font-size: 14px;
   opacity: 0.7;
+}
+
+.code-editor-container {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.code-editor-container :deep(.prism-editor__container) {
+  min-height: 100px;
+  font-family: monospace;
+  font-size: 14px;
 }
 </style>
