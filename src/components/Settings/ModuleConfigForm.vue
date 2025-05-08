@@ -48,7 +48,7 @@
                 <v-checkbox
                   v-if="fieldConfig.type === 'boolean'"
                   v-model="formValues[configType][field]"
-                  :label="field"
+                  :label="String(field)"
                   :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   color="primary"
@@ -56,11 +56,29 @@
                   class="config-checkbox"
                 ></v-checkbox>
 
+                <!-- Checkbox group fields -->
+                <div v-else-if="fieldConfig.type === 'checkboxes'" class="mt-3">
+                  <div class="mb-1 custom-label">{{ field }}</div>
+                  <div>
+                    <v-checkbox
+                      v-for="option in fieldConfig.options"
+                      :key="option"
+                      v-model="formValues[configType][field][option]"
+                      :label="option"
+                      :hint="fieldConfig.hint"
+                      :disabled="writeProtection"
+                      color="primary"
+                      density="compact"
+                      class="config-checkbox"
+                    ></v-checkbox>
+                  </div>
+                </div>
+
                 <!-- Radio Button fields -->
                 <div v-else-if="fieldConfig.type === 'radio-button'">
                   <v-radio-group
                     v-model="formValues[configType][field]"
-                    :label="field"
+                    :label="String(field)"
                     :disabled="writeProtection"
                     :hint="fieldConfig.hint"
                     density="compact"
@@ -82,7 +100,7 @@
                 <v-text-field
                   v-else-if="fieldConfig.type === 'number'"
                   v-model.number="formValues[configType][field]"
-                  :label="field"
+                  :label="String(field)"
                   type="number"
                   variant="outlined"
                   :disabled="writeProtection"
@@ -96,7 +114,7 @@
                 <v-textarea
                   v-else-if="fieldConfig.type === 'text-area'"
                   v-model="formValues[configType][field]"
-                  :label="field"
+                  :label="String(field)"
                   variant="outlined"
                   :disabled="writeProtection"
                   :hint="fieldConfig.hint"
@@ -109,7 +127,7 @@
                 <v-text-field
                   v-else-if="fieldConfig.type === 'date'"
                   v-model="formValues[configType][field]"
-                  :label="field"
+                  :label="String(field)"
                   type="date"
                   variant="outlined"
                   :disabled="writeProtection"
@@ -149,7 +167,7 @@
                 <v-text-field
                   v-else
                   v-model="formValues[configType][field]"
-                  :label="field"
+                  :label="String(field)"
                   variant="outlined"
                   :disabled="writeProtection"
                   :hint="fieldConfig.hint"
@@ -346,6 +364,14 @@ export default {
                   case "boolean":
                     initialValues[key] = false;
                     break;
+                  case "checkboxes":
+                    initialValues[key] = {};
+                    if (Array.isArray(fieldConfig.options)) {
+                      fieldConfig.options.forEach((option) => {
+                        initialValues[key][option] = false;
+                      });
+                    }
+                    break;
                   case "number":
                     initialValues[key] = 0;
                     break;
@@ -409,7 +435,7 @@ export default {
     },
 
     saveConfig() {
-      // Emit events for each config type that has values 
+      // Emit events for each config type that has values
       const configResult = {};
 
       Object.keys(this.configSchemas).forEach((configType) => {
