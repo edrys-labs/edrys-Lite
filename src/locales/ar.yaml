@@ -69,6 +69,7 @@ settings:
     Modules: "الوحدات"
     Stations: "المحطات"
     Share: "مشاركة"
+    Communication: "الاتصال"
     actions:
       on: "تشغيل"
       off: "إيقاف"
@@ -154,6 +155,20 @@ settings:
     restoreFromFile: "استعادة الفصل من الملف (yaml، json)"
     restoreFromUrl: "استعادة الفصل من الرابط (http، https)"
     explore: "استكشاف على Github"
+  communication:
+    labels:
+      method: "طريقة الاتصال"
+      websocketServer: "رابط خادم Websocket"
+      webrtcSignaling: "رابط خادم WebRTC"
+      webrtcConfig: "تكوين WebRTC (JSON)"
+    alert:
+      first: "تغيير طريقة الاتصال سيؤثر على كيفية اتصال التطبيق بالأقران الآخرين. استخدام WebRTC يسمح بالاتصالات المباشرة من الند للند، بينما يتطلب Websocket خادمًا لتوصيل الرسائل."
+      second: "بعد تغيير التكوين، سيتم إنشاء رابط جديد للفصل الدراسي. يجب مشاركة هذا الرابط مع الطلاب لضمان اتصالهم بالإعدادات الصحيحة."
+    shareLink:
+      title: "رابط قابل للمشاركة مع إعدادات الاتصال"
+      description: "إنشاء رابط يتضمن إعدادات الاتصال الحالية. شارك هذا مع الطلاب للحصول على اتصال مثالي."
+      linkLabel: "رابط قابل للمشاركة"
+      error: "خطأ في إنشاء الرابط القابل للمشاركة"
 
 chat:
   deletedMessage: "تم حذف الرسائل السابقة ..."
@@ -162,9 +177,12 @@ chat:
 checks:
   webRTCSupport: "دعم WebRTC"
   configLoaded: "تم تحميل التكوين"
+  usingWebsocket: "استخدام اتصال WebSocket"
   connected: 
     1: "متصل بشبكة الند للند ("
     2: "ثانية.)"
+    webrtc: "متصل بشبكة P2P ("
+    websocket: "متصل بخادم WebSocket ("
 
 footer:
   github: "edrys-Lite على GitHub"
@@ -258,3 +276,4 @@ peer:
     addedStudent: "تمت إضافتك كطالب..."
     removedStudent: "تم إزالتك كطالب..."
     moduleChanges: "تم تغيير تعريفات الوحدات، من الأفضل إعادة تحميل الصفحة لتطبيق جميع التغييرات..."
+    communicationChanges: "تم تحديث إعدادات الاتصال. ستقوم صفحتك بإعادة التحميل تلقائيًا في غضون بضع ثوانٍ..."

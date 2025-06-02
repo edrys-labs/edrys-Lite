@@ -1,5 +1,6 @@
 <script lang="ts">
 import { useI18n } from 'vue-i18n';
+import { decodeCommConfig } from '../ts/Utils';
 
 export default {
   name: "Checks",
@@ -13,35 +14,110 @@ export default {
 
   setup() {
     const { t, locale } = useI18n();
-
     return { t, locale };
   },
 
   data() {
-    return { model: this.check(), counter: 0 };
+    return { 
+      model: true, // Start with overlay visible
+      counter: 0,
+      communicationMethod: null, // Start with null to avoid showing any method until detected
+      checkRunning: false
+    };
+  },
+
+  mounted() {
+    this.$nextTick(() => {
+      this.detectCommunicationMethod();
+    });
+  },
+
+  beforeUnmount() {
+    this.checkRunning = false;
+    this.counter = 0;
   },
 
   methods: {
+    detectCommunicationMethod() {
+      try {
+        // Get communication method directly from parent configuration
+        const encodedConfig = this.$parent?.configuration?.data?.communicationConfig;
+        
+        if (encodedConfig) {
+          const commConfig = decodeCommConfig(encodedConfig);
+          
+          if (commConfig && commConfig.communicationMethod) {
+            const configMethod = commConfig.communicationMethod;
+            
+            // Only update if it's different to prevent unnecessary re-renders
+            if (this.communicationMethod !== configMethod) {
+              this.communicationMethod = configMethod;
+              
+              // Re-evaluate the check with the new method
+              this.model = this.check();
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error detecting communication method:', e);
+      }
+    },
+
     counterIncrement() {
-      setTimeout(() => {
-        this.counter++;
-        this.counterIncrement();
-      }, 1000);
+      if (this.checkRunning) return;
+      
+      this.checkRunning = true;
+      
+      const incrementer = () => {
+        const incrementTimer = setInterval(() => {
+          if (this.states.connectedToNetwork) {
+            clearInterval(incrementTimer);
+            this.counter = 0;
+            this.checkRunning = false;
+          } else {
+            this.counter++;
+          }
+        }, 1000);
+      };
+      
+      incrementer();
     },
 
     check() {
-      if (this.states.receivedConfiguration && !this.states.connectedToNetwork) {
+      // Always detect communication method when checking
+      this.detectCommunicationMethod();
+
+      // If method is not yet determined, default to 'WebRTC'
+      if (this.communicationMethod === null) {
+        this.communicationMethod = 'WebRTC';
+      }
+      
+      // Start counting if config loaded but not connected
+      if (this.states.receivedConfiguration && !this.states.connectedToNetwork && !this.checkRunning) {
         this.counterIncrement();
-      } else if (this.states.connectedToNetwork) {
-        this.counter = 0;
       }
 
+      // Only hide overlay when all checks pass
       return !(
-        this.states.connectedToNetwork &&
-        this.states.webRTCSupport &&
+        this.states.connectedToNetwork && 
+        (this.communicationMethod !== 'WebRTC' || this.states.webRTCSupport) && 
         this.states.receivedConfiguration
       );
     },
+  },
+
+  computed: {
+    connectivityLabel() {
+      if (!this.communicationMethod) return '';
+      
+      return this.communicationMethod === 'WebRTC' 
+        ? this.t('checks.connected.webrtc')
+        : this.t('checks.connected.websocket');
+    },
+    
+    showWebRTCCheck() {
+      return this.communicationMethod === 'WebRTC';
+    }
   },
 
   watch: {
@@ -51,11 +127,15 @@ export default {
       },
       deep: true,
     },
-  },
-
-  unmounted() {
-    this.counter = 0;
-  },
+    
+    // Watch parent configuration for changes
+    '$parent.configuration.data.communicationConfig': {
+      handler() {
+        this.detectCommunicationMethod();
+      },
+      deep: true
+    }
+  }
 };
 </script>
 
@@ -76,64 +156,70 @@ export default {
             align="center"
           ></v-progress-circular>
 
-          <div>
-            {{ t('checks.webRTCSupport') }}
+          <div v-if="communicationMethod !== null">
+            <div v-if="showWebRTCCheck">
+              {{ t('checks.webRTCSupport') }}
 
-            <v-btn
-              class="ma-5"
-              size="x-small"
-              color="success"
-              icon="mdi-check"
-              v-if="states.webRTCSupport === true"
-            ></v-btn>
+              <v-btn
+                class="ma-5"
+                size="x-small"
+                color="success"
+                icon="mdi-check"
+                v-if="states.webRTCSupport === true"
+              ></v-btn>
 
-            <v-btn
-              class="ma-5"
-              size="x-small"
-              color="error"
-              icon="mdi-close"
-              v-if="states.webRTCSupport === false"
-            ></v-btn>
-          </div>
+              <v-btn
+                class="ma-5"
+                size="x-small"
+                color="error"
+                icon="mdi-close"
+                v-if="states.webRTCSupport === false"
+              ></v-btn>
+            </div>
 
-          <div>
-            {{ t('checks.configLoaded') }}
+            <div v-if="!showWebRTCCheck">
+              <v-chip color="primary" class="ma-2">{{ t('checks.usingWebsocket') }}</v-chip>
+            </div>
 
-            <v-btn
-              class="ma-5"
-              size="x-small"
-              color="success"
-              icon="mdi-check"
-              v-if="states.receivedConfiguration === true"
-            ></v-btn>
+            <div>
+              {{ t('checks.configLoaded') }}
 
-            <v-btn
-              class="ma-5"
-              size="x-small"
-              color="error"
-              icon="mdi-close"
-              v-if="states.receivedConfiguration === false"
-            ></v-btn>
-          </div>
+              <v-btn
+                class="ma-5"
+                size="x-small"
+                color="success"
+                icon="mdi-check"
+                v-if="states.receivedConfiguration === true"
+              ></v-btn>
 
-          <div>
-            {{ t('checks.connected.1') }}{{ counter }} {{ t('checks.connected.2') }}
+              <v-btn
+                class="ma-5"
+                size="x-small"
+                color="error"
+                icon="mdi-close"
+                v-if="states.receivedConfiguration === false"
+              ></v-btn>
+            </div>
 
-            <v-btn
-              class="ma-5"
-              size="x-small"
-              color="success"
-              icon="mdi-check"
-              v-if="states.connectedToNetwork === true"
-            ></v-btn>
+            <div>
+              {{ connectivityLabel }} {{ counter }} {{ t('checks.connected.2') }}
 
-            <v-btn
-              class="ma-5"
-              size="x-small"
-              color="error"
-              icon="mdi-close"
-              v-if="states.connectedToNetwork === false"
-            ></v-btn>
+              <v-btn
+                class="ma-5"
+                size="x-small"
+                color="success"
+                icon="mdi-check"
+                v-if="states.connectedToNetwork === true"
+              ></v-btn>
+
+              <v-btn
+                class="ma-5"
+                size="x-small"
+                color="error"
+                icon="mdi-close"
+                v-if="states.connectedToNetwork === false"
+              ></v-btn>
+            </div>
           </div>
         </v-col>
       </v-row>

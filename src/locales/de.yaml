@@ -69,6 +69,7 @@ settings:
     Modules: "Module"
     Stations: "Stationen"
     Share: "Teilen"
+    Communication: "Kommunikation"
     actions:
       on: "AN"
       off: "AUS"
@@ -154,6 +155,20 @@ settings:
     restoreFromFile: "Klasse aus Datei wiederherstellen (yaml, json)"
     restoreFromUrl: "Klasse aus URL wiederherstellen (http, https)"
     explore: "Auf Github erkunden"
+  communication:
+    labels:
+        method: "Kommunikationsmethode"
+        websocketServer: "Websocket-Server-URL"
+        webrtcSignaling: "WebRTC Signalisierungsserver-URL"
+        webrtcConfig: "WebRTC-Konfiguration (JSON)"
+    alert:
+      first: "Änderung der Kommunikationsmethode beeinflusst, wie die Anwendung mit anderen Peers verbindet. WebRTC ermöglicht direkte Peer-to-Peer-Verbindungen, während Websocket einen Server zur Nachrichtenübermittlung benötigt."
+      second: "Nach dem Ändern der Konfiguration wird ein neuer Link für das Klassenzimmer generiert. Dieser Link sollte mit Schülern geteilt werden, um sicherzustellen, dass sie mit den korrekten Einstellungen verbinden."
+    shareLink:
+      title: "Teilbarer Link mit Kommunikationseinstellungen"
+      description: "Generieren Sie einen Link mit Ihren aktuellen Kommunikationseinstellungen. Teilen Sie diesen mit Schülern für optimale Konnektivität."
+      linkLabel: "Teilbarer Link"
+      error: "Fehler beim Generieren des Links, überprüfen Sie die Konfiguration"
 
 chat:
   deletedMessage: "vorherige Nachrichten wurden gelöscht ..."
@@ -162,9 +177,12 @@ chat:
 checks:
   webRTCSupport: "WebRTC-Unterstützung"
   configLoaded: "Konfiguration geladen"
+  usingWebsocket: "Verwende WebSocket-Verbindung"
   connected: 
     1: "Verbunden mit Peer-to-Peer-Netzwerk ("
     2: "Sek.)"
+    webrtc: "Verbunden mit P2P-Netzwerk ("
+    websocket: "Verbunden mit WebSocket-Server ("
 
 footer:
   github: "edrys-Lite auf GitHub"
@@ -258,3 +276,4 @@ peer:
     addedStudent: "Sie wurden als Student hinzugefügt..."
     removedStudent: "Sie wurden als Student entfernt..."
     moduleChanges: "Moduldefinitionen wurden geändert, laden Sie die Seite neu, um alle Änderungen zu übernehmen..."
+    communicationChanges: "Kommunikationsdefinitionen wurden geändert, die Seite wird neu geladen, um alle Änderungen zu übernehmen..."

@@ -13,13 +13,18 @@
  *  Edrys.onMessage(({from, subject, body}) => { // Called when a message is received in your room })
  *  Edrys.onUpdate(() => { // Called when any Edrys properties change })
  *  Edrys.onReady(() => { // Called when Edrys is ready })
+ *  Edrys.getState(key, type, value) // Get a state from the live class
+ *  Edrys.updateState(() => { // Update the state of the live class })
+ *  Edrys.clearState(key) // Clear a state from the live class
+ *  Edrys.sendStream(stream, options) // Send a MediaStream
+ *  Edrys.onStream(handler, options) // Receive a MediaStream
  */
 
 import * as Y from 'yjs'
 // import * as YP from 'y-protocols/awareness.js'
 // import { RoomAwarenessManager } from './awarenessManager'
 import { unpack, pack } from 'msgpackr'
-import { StreamServer, StreamClient } from './streamHandler'
+import { StreamServer, StreamClient, WebSocketStreamServer, WebSocketStreamClient } from './streamHandler'
 
 const EXTERN = 'extern'
 // var awareness: any
@@ -258,22 +263,44 @@ window['Edrys'] = {
   },
 
   // Streaming methods
-  async sendStream(stream: MediaStream) {
-    const config = await this.getWebRTCConfig()
-    const streamServer = new StreamServer(this, stream, config)
-    return {
-      stop: () => streamServer.stop(),
+  async sendStream(stream: MediaStream, options: any = {}) {
+    const method = options.method || 'webrtc'
+    
+    console.log(`Streaming using method: ${method}`)
+    
+    if (method === 'websocket') {
+      const wsServer = new WebSocketStreamServer(this, stream, options)
+      return {
+        stop: () => wsServer.stop()
+      }
+    } else {
+      const config = await this.getWebRTCConfig()
+      const streamServer = new StreamServer(this, stream, config)
+      return {
+        stop: () => streamServer.stop(),
+      }
     }
   },
 
-  onStream(handler) {
-    return this.getWebRTCConfig().then(async (config) => {
-      await delay(4000)
-      const streamClient = new StreamClient(this, handler, config)
-      return {
-        stop: () => streamClient.stop(),
-      }
-    })
+  onStream(handler, options: any = {}) {
+    const method = options.method || 'webrtc'
+    
+    console.log(`Receiving stream using method: ${method}`)
+    
+    if (method === 'websocket') {
+      const wsClient = new WebSocketStreamClient(this, handler, options)
+      return Promise.resolve({
+        stop: () => wsClient.stop()
+      })
+    } else {
+      return this.getWebRTCConfig().then(async (config) => {
+        await delay(4000)
+        const streamClient = new StreamClient(this, handler, config)
+        return {
+          stop: () => streamClient.stop(),
+        }
+      })
+    }
   },
 
   async getWebRTCConfig(): Promise<RTCConfiguration> {
