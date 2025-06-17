@@ -69,6 +69,7 @@ settings:
     Modules: "Modules"
     Stations: "Stations"
     Share: "Share"
+    Communication: "Communication"
     actions:
       on: "ON"
       off: "OFF"
@@ -154,6 +155,20 @@ settings:
     restoreFromFile: "Restore class from file (yaml, json)"
     restoreFromUrl: "Restore class from URL (http, https)"
     explore: "Explore on Github"
+  communication:
+    labels:
+      method: "Communication Method"
+      websocketServer: "Websocket Server URL"
+      webrtcSignaling: "WebRTC Signaling Server URL"
+      webrtcConfig: "WebRTC Configuration (JSON)"
+    alert:
+      first: "Changing the communication method will affect how the application connects to other peers. Using WebRTC allows for direct peer-to-peer connections, while Websocket requires a server to relay messages."
+      second: "After changing the configuration, a new link will be generated for the classroom. This link should be shared with students to ensure they connect with the correct settings."
+    shareLink:
+      title: "Shareable Link with Communication Settings"
+      description: "Generate a link with your current communication settings embedded. Share this with students for optimal connectivity."
+      linkLabel: "Shareable Link"
+      error: "Error generating link. Please check your configuration."
 
 chat:
   deletedMessage: "previous messages have been deleted ..."
@@ -162,9 +177,12 @@ chat:
 checks:
   webRTCSupport: "WebRTC-support"
   configLoaded: "Configuration loaded"
+  usingWebsocket: "Using WebSocket Connection"
   connected: 
     1: "Connected to peer 2 peer network ("
     2: "sec.)"
+    webrtc: "Connected to P2P network ("
+    websocket: "Connected to WebSocket server ("
 
 footer:
   github: "edrys-Lite on GitHub"
@@ -258,3 +276,4 @@ peer:
     addedStudent: "You have been added as a student..."
     removedStudent: "You have been removed as a student..."  
     moduleChanges: "Module definitions have changed, you better reload the page to capture all changes..."
+    communicationChanges: "Communication settings have been updated. Your page will reload automatically in a few seconds."

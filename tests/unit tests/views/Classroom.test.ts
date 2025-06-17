@@ -30,7 +30,14 @@ vi.mock('../../../src/ts/Utils', () => ({
   getShortPeerID: vi.fn(() => 'test-user'),
   getBasePeerID: vi.fn(id => id?.split('-')[0] || id),
   deepEqual: vi.fn(),
-  copyToClipboard: vi.fn()
+  copyToClipboard: vi.fn(),
+  extractCommunicationConfigFromUrl: vi.fn().mockReturnValue(null),
+  compareCommunicationConfig: vi.fn((oldConfig, newConfig) => {
+    if (!oldConfig && !newConfig) return true;
+    if (!oldConfig || !newConfig) return false;
+    return JSON.stringify(oldConfig) === JSON.stringify(newConfig);
+  }),
+  updateUrlWithCommConfig: vi.fn(),
 }));
 
 // Create a mock communication object that uses vi.fn() for all methods

@@ -69,6 +69,7 @@ settings:
     Modules: "Módulos"
     Stations: "Estaciones"
     Share: "Compartir"
+    Communication: "Comunicación"
     actions:
       on: "ACTIVADO"
       off: "DESACTIVADO"
@@ -154,6 +155,20 @@ settings:
     restoreFromFile: "Restaurar clase desde archivo (yaml, json)"
     restoreFromUrl: "Restaurar clase desde URL (http, https)"
     explore: "Explorar en Github"
+  communication:
+    labels:
+      method: "Método de Comunicación"
+      websocketServer: "URL del Servidor Websocket"
+      webrtcSignaling: "URL del Servidor de Señalización WebRTC"
+      webrtcConfig: "Configuración WebRTC (JSON)"
+    alert:
+      first: "El cambio en el método de comunicación afectará cómo la aplicación se conecta a otros usuarios. Usar WebRTC permite conexiones directas entre pares, mientras que Websocket requiere un servidor para retransmitir mensajes."
+      second: "Después de cambiar la configuración, se generará un nuevo enlace para el aula. Este enlace debe compartirse con los alumnos para garantizar que se conectan con la configuración correcta."
+    shareLink:
+      title: "Enlace Compartible con Configuración de Comunicación"
+      description: "Genera un enlace con tu configuración de comunicación actual incrustada. Comparte esto con estudiantes para una conectividad óptima."
+      linkLabel: "Enlace Compartible"
+      error: "Error al generar el enlace compartible"
 
 chat:
   deletedMessage: "mensajes anteriores han sido eliminados ..."
@@ -162,9 +177,12 @@ chat:
 checks:
   webRTCSupport: "Soporte WebRTC"
   configLoaded: "Configuración cargada"
+  usingWebsocket: "Usando conexión WebSocket"
   connected: 
     1: "Conectado a la red peer 2 peer ("
     2: "seg.)"
+    webrtc: "Conectado a la red P2P ("
+    websocket: "Conectado al servidor WebSocket ("
 
 footer:
   github: "edrys-Lite en GitHub"
@@ -258,3 +276,4 @@ peer:
     addedStudent: "Has sido agregado como estudiante..."
     removedStudent: "Has sido removido como estudiante..."
     moduleChanges: "Las definiciones de módulos han cambiado, es mejor recargar la página para capturar todos los cambios..."
+    communicationChanges: "Las definiciones de comunicación han cambiado, tu página se recargará automáticamente en unos segundos..."

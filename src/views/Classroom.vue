@@ -4,8 +4,8 @@ import Chat from "../components/Chat.vue";
 import Checks from "../components/Checks.vue";
 import Modules from "../components/Modules.vue";
 import Logger from "../components/Logger.vue";
-import UserMenu from '../components/UserMenu.vue';
-import { useI18n } from 'vue-i18n';
+import UserMenu from "../components/UserMenu.vue";
+import { useI18n } from "vue-i18n";
 
 import { Database, DatabaseItem } from "../ts/Database";
 import {
@@ -15,6 +15,11 @@ import {
   getPeerID,
   getShortPeerID,
   getBasePeerID,
+  extractCommunicationConfigFromUrl,
+  compareCommunicationConfig,
+  cleanUrlAfterCommConfigExtraction,
+  encodeCommConfig,
+  decodeCommConfig
 } from "../ts/Utils";
 import { onMounted } from "vue";
 import Peer from "../ts/Peer";
@@ -36,12 +41,9 @@ export default {
     const data: any = null;
     const communication: Peer | null = null;
 
-    //setTimeout(this.init, 100);
-
     let webRTCSupport = false;
     // @ts-ignore
     if (navigator.mediaDevices && navigator?.mediaDevices?.getUserMedia) {
-      // WebRTC is supported
       webRTCSupport = true;
     }
 
@@ -111,6 +113,8 @@ export default {
       isLoggerVisible: false,
       isLoggerMinimized: false,
       isLoggerRunning: false,
+
+      urlCommunicationConfig: null, // Stores URL-provided communication config 
     };
   },
   watch: {
@@ -138,34 +142,68 @@ export default {
     },
 
     async init() {
+      // Extract communication config from URL and decode it if needed
+      const urlCommConfig = extractCommunicationConfigFromUrl();
+      
+      // Encode the URL config for storage
+      if (urlCommConfig) {
+        this.urlCommunicationConfig = encodeCommConfig(urlCommConfig);
+        cleanUrlAfterCommConfigExtraction();
+      }
+
       await this.database.setProtection(this.id, !!this.hash);
 
       const config = await this.database.get(this.id);
-
+      
       const hardReload =
         this.scrapedModules.length === 0 ||
         !this.configuration ||
         !this.configuration.data ||
-        !deepEqual(this.configuration?.data?.modules, config?.data.modules);
+        (config &&
+          config.data &&
+          !deepEqual(this.configuration?.data?.modules, config?.data.modules));
 
-      this.configuration = config;
+      this.configuration =
+        config || { id: this.id, data: null, timestamp: 0, hash: this.hash };
 
       if (!!this.hash && this.configuration?.hash !== this.hash) {
-        this.configuration = null;
+        console.log("Hash mismatch, resetting configuration");
+        this.configuration = {
+          id: this.id,
+          data: null,
+          timestamp: 0,
+          hash: this.hash,
+        };
+      }
+      
+      // Create a minimal valid configuration structure if needed
+      if (!this.configuration.data) {
+        this.configuration.data = {
+          name: "Connecting to classroom...",
+          members: { student: ["*"], teacher: [] },
+          modules: [],
+          meta: { defaultNumberOfRooms: 0 },
+          createdBy: ""
+        };
       }
 
-      if (!this.communication) {
+      const configurationCopy = JSON.parse(JSON.stringify(this.configuration));
+
+      // Add URL communication config to the copy if available
+      if (this.urlCommunicationConfig) {
+        configurationCopy.data.communicationConfig = this.urlCommunicationConfig;
+      }
+
+      if (!this.communication) {                
         this.communication = new Peer(
-          this.configuration
-            ? this.configuration
-            : { id: this.id, data: null, timestamp: 0, hash: this.hash },
+          configurationCopy,
           this.stationName,
-          this.t    
+          this.t,
+          null // password
         );
-
-        this.communication.on("setup", async (configuration: DatabaseItem) => {
+        
+        this.communication.on("setup", async (configuration: DatabaseItem) => {          
           await self.database.put(clone(configuration));
-
           self.init();
         });
 
@@ -192,7 +230,7 @@ export default {
         this.data = clone(this.configuration.data);
 
         this.getRole();
-
+        
         if (hardReload) {
           this.scrapeModules();
         }
@@ -267,46 +305,44 @@ export default {
       setTimeout(() => {
         this.communication.update("room");
       }, 1000);
-
-      /*
-      setTimeout(() => {
-        self.communication = new Comm2(
-          this.id,
-          this.room.data.meta.defaultNumberOfRooms,
-          this.stationName
-        );
-
-        self.communication.on("update", (config: any) => {
-          self.liveClassProxy = config.data;
-        });
-
-        self.liveClassProxy = self.communication.getDoc();
-        self.states.connectedToNetwork = true;
-
-        self.componentKey++;
-      }, Math.random() * 1000 + 1000);
-      */
     },
 
     saveClass(configuration: any) {
       this.$refs.Settings.close = true;
 
-      const hardReload = !deepEqual(
+      // Get the current encoded config
+      const oldEncodedConfig = this.configuration?.data?.communicationConfig || null;
+      const newEncodedConfig = configuration.communicationConfig || null;
+      
+      // Decode for comparison
+      const oldConfig = oldEncodedConfig ? decodeCommConfig(oldEncodedConfig) : null;
+      const newConfig = newEncodedConfig ? decodeCommConfig(newEncodedConfig) : null;
+      
+      // Check if communication settings have changed
+      const communicationChanged = !compareCommunicationConfig(oldConfig, newConfig);
+      
+      // Check if modules have changed
+      const modulesChanged = !deepEqual(
         this.configuration.data.modules,
         configuration.modules
       );
-
+      
       this.configuration.data = clone(configuration);
       this.data = clone(configuration);
 
-      this.database.update(clone(this.configuration)).then(async (id) => {
+      // Save to database
+      this.database.update(clone(this.configuration)).then(async (id) => {        
         const config = await this.database.get(id);
+        
         this.communication?.newSetup(config);
       });
-
+      
       this.getRole();
-
-      if (hardReload) this.scrapeModules();
+      
+      // Only reload the modules if they've changed
+      if (modulesChanged && !communicationChanged) {
+        this.scrapeModules();
+      }
     },
 
     usersInRoom(name: string): [string, string, string][] {
@@ -338,8 +374,6 @@ export default {
         }
       }
 
-      //console.log("usersInRoom() called");
-
       return users;
     },
 
@@ -355,7 +389,6 @@ export default {
     gotoRoom(name: string) {
       this.communication?.gotoRoom(name);
 
-      // sometimes the room is not correctly initialized
       setTimeout(() => {
         this.communication?.update("room");
       }, 1000);
@@ -383,7 +416,7 @@ export default {
         (rule) => rule(this.stationNameInput) === true
       );
       if (!isValid) {
-        return; // If validation fails, do not submit
+        return;
       }
 
       sessionStorage.setItem(`station_${this.id}`, this.stationNameInput);
@@ -396,9 +429,10 @@ export default {
     },
 
     translateRoomName(name: string): string {
-      if (name === 'Lobby') return this.t('classroom.sideMenu.lobby');
-      if (name.includes('Station')) return name.replace('Station', this.t('classroom.sideMenu.station'));
-      return name.replace('Room', this.t('classroom.sideMenu.room'));
+      if (name === "Lobby") return this.t("classroom.sideMenu.lobby");
+      if (name.includes("Station"))
+        return name.replace("Station", this.t("classroom.sideMenu.station"));
+      return name.replace("Room", this.t("classroom.sideMenu.room"));
     },
   },
 
@@ -421,7 +455,6 @@ export default {
       <v-app-bar color="surface-variant">
         <template v-slot:prepend>
           <v-app-bar-nav-icon @click="showSideMenu = !showSideMenu"></v-app-bar-nav-icon>
-          <!-- remove underline from link -->
 
           <v-app-bar-title
             tag="a"
@@ -473,9 +506,15 @@ export default {
         <UserMenu>
           <template v-slot:user-role>
             <v-list-item>
-              <v-list-item-title>{{ t('general.userRole') }}:</v-list-item-title>
+              <v-list-item-title>{{ t("general.userRole") }}:</v-list-item-title>
               <v-list-item-subtitle>
-                {{ getRole() === 'teacher' ? t('general.roles.teacher') : (getRole() === 'student' ? t('general.roles.student') : t('general.roles.station')) }}
+                {{
+                  getRole() === "teacher"
+                    ? t("general.roles.teacher")
+                    : getRole() === "student"
+                    ? t("general.roles.student")
+                    : t("general.roles.station")
+                }}
               </v-list-item-subtitle>
             </v-list-item>
           </template>
@@ -490,7 +529,9 @@ export default {
             class="text-center"
             style="margin-top: calc(50vh - 100px)"
           >
-            <v-card-text class="white--text"> {{ t('classroom.station.mode') }} </v-card-text>
+            <v-card-text class="white--text">
+              {{ t("classroom.station.mode") }}
+            </v-card-text>
 
             <v-divider></v-divider>
 
@@ -507,14 +548,14 @@ export default {
                 ></v-text-field>
               </v-form>
 
-              {{ t('classroom.station.modeDescription') }}
+              {{ t("classroom.station.modeDescription") }}
             </v-card-text>
             <v-divider></v-divider>
             <v-card-text>
               <v-btn :href="'/?/classroom/' + id">
                 <v-icon left>mdi-export-variant</v-icon>
 
-                {{ t('classroom.station.exit') }}
+                {{ t("classroom.station.exit") }}
               </v-btn>
             </v-card-text>
           </v-card>
@@ -528,7 +569,8 @@ export default {
               </v-list-item-title>
 
               <v-list-item-subtitle>
-                {{ t('classroom.sideMenu.onlineUsers') }} {{ Object.keys(liveClassProxy?.users || {}).length }}
+                {{ t("classroom.sideMenu.onlineUsers") }}
+                {{ Object.keys(liveClassProxy?.users || {}).length }}
               </v-list-item-subtitle>
 
               <template v-slot:append>
@@ -559,7 +601,11 @@ export default {
           >
             <template v-slot:append>
               <v-btn
-                :icon="['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left-circle' : 'mdi-arrow-right-circle'"
+                :icon="
+                  ['ar', 'he', 'fa', 'ur'].includes(locale)
+                    ? 'mdi-arrow-left-circle'
+                    : 'mdi-arrow-right-circle'
+                "
                 variant="text"
                 @click="gotoRoom(name)"
               ></v-btn>
@@ -575,7 +621,11 @@ export default {
               <v-icon :icon="icon"></v-icon>
             </template>
 
-            <v-list-item-title>{{ user && user.includes('Station') ? user.replace('Station', t('classroom.sideMenu.station')) : user }}</v-list-item-title>
+            <v-list-item-title>{{
+              user && user.includes("Station")
+                ? user.replace("Station", t("classroom.sideMenu.station"))
+                : user
+            }}</v-list-item-title>
           </v-list-item>
         </v-list>
 
@@ -583,7 +633,7 @@ export default {
           <div class="pa-2">
             <v-btn depressed block class="mb-2" @click="addRoom" v-if="isOwner">
               <v-icon left>mdi-forum</v-icon>
-              {{ t('classroom.sideMenu.newRoom') }}
+              {{ t("classroom.sideMenu.newRoom") }}
             </v-btn>
           </div>
         </template>
@@ -671,7 +721,9 @@ export default {
       {{ popup.message }}
 
       <template v-slot:actions>
-        <v-btn variant="text" color="pink" @click="closePopup(popup.id)"> {{ t('classroom.popup.close') }} </v-btn>
+        <v-btn variant="text" color="pink" @click="closePopup(popup.id)">
+          {{ t("classroom.popup.close") }}
+        </v-btn>
       </template>
     </v-snackbar>
   </v-app>

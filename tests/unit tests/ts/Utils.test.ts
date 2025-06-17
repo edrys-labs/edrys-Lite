@@ -1,5 +1,20 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { validateUrl, infoHash, deepEqual, hashJsonObject, removeKeysStartingWithSecret, getPeerID, copyToClipboard, download } from '../../../src/ts/Utils';
+import { 
+  validateUrl, 
+  infoHash, 
+  deepEqual, 
+  hashJsonObject, 
+  removeKeysStartingWithSecret, 
+  getPeerID, 
+  copyToClipboard, 
+  download, 
+  compareCommunicationConfig, 
+  extractCommunicationConfigFromUrl, 
+  updateUrlWithCommConfig,
+  cleanUrlAfterCommConfigExtraction,
+  encodeCommConfig,
+  decodeCommConfig
+} from '../../../src/ts/Utils';
 
 vi.mock('js-yaml', () => ({
   load: vi.fn(),
@@ -181,6 +196,295 @@ describe('Utils', () => {
       download(fileName, content);
 
       expect(clickSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('Communication Configuration', () => {
+    describe('compareCommunicationConfig', () => {
+      test('should handle null or undefined configs', () => {
+        expect(compareCommunicationConfig(null, null)).toBe(true);
+        expect(compareCommunicationConfig(undefined, undefined)).toBe(true);
+        expect(compareCommunicationConfig(null, {})).toBe(false);
+        expect(compareCommunicationConfig({}, null)).toBe(false);
+      });
+
+      test('should compare WebSocket configurations', () => {
+        const config1 = {
+          communicationMethod: 'Websocket',
+          websocketUrl: 'wss://test1.com'
+        };
+        const config2 = {
+          communicationMethod: 'Websocket',
+          websocketUrl: 'wss://test2.com'
+        };
+
+        expect(compareCommunicationConfig(config1, config1)).toBe(true);
+        expect(compareCommunicationConfig(config1, config2)).toBe(false);
+      });
+
+      test('should compare WebRTC configurations', () => {
+        const config1 = {
+          communicationMethod: 'WebRTC',
+          signalingServer: ['wss://signal1.com'],
+          webrtcConfig: { iceServers: [{ urls: 'stun:stun1.com' }] }
+        };
+        const config2 = {
+          communicationMethod: 'WebRTC',
+          signalingServer: ['wss://signal1.com'],
+          webrtcConfig: { iceServers: [{ urls: 'stun:stun2.com' }] }
+        };
+
+        expect(compareCommunicationConfig(config1, config1)).toBe(true);
+        expect(compareCommunicationConfig(config1, config2)).toBe(false);
+      });
+
+      test('should handle string WebRTC configs', () => {
+        const config1 = {
+          communicationMethod: 'WebRTC',
+          signalingServer: ['wss://signal.com'],
+          webrtcConfig: JSON.stringify({ iceServers: [{ urls: 'stun:stun1.com' }] })
+        };
+        const config2 = {
+          communicationMethod: 'WebRTC',
+          signalingServer: ['wss://signal.com'],
+          webrtcConfig: { iceServers: [{ urls: 'stun:stun1.com' }] }
+        };
+
+        expect(compareCommunicationConfig(config1, config2)).toBe(true);
+      });
+    });
+
+    describe('extractCommunicationConfigFromUrl', () => {
+      const mockConfig = {
+        communicationMethod: 'WebRTC',
+        signalingServer: ['wss://test.com'],
+        webrtcConfig: { iceServers: [{ urls: 'stun:test.com' }] }
+      };
+      const encodedConfig = encodeCommConfig(mockConfig);
+
+      test('should extract config from query parameter', () => {
+        Object.defineProperty(window, 'location', {
+          value: {
+            search: `?comm=${encodedConfig}`,
+            hash: ''
+          },
+          writable: true
+        });
+
+        const result = extractCommunicationConfigFromUrl();
+        expect(result).toEqual(mockConfig);
+      });
+
+      test('should extract config from hash fragment', () => {
+        Object.defineProperty(window, 'location', {
+          value: {
+            search: '',
+            hash: `#comm=${encodedConfig}`
+          },
+          writable: true
+        });
+
+        const result = extractCommunicationConfigFromUrl();
+        expect(result).toEqual(mockConfig);
+      });
+
+      test('should extract config from embedded query parameter', () => {
+        Object.defineProperty(window, 'location', {
+          value: {
+            pathname: '/classroom/test',
+            search: `?/classroom/test?comm=${encodedConfig}`,
+            hash: '',
+            href: `http://localhost/classroom/test?/classroom/test?comm=${encodedConfig}`
+          },
+          writable: true,
+          configurable: true
+        });
+
+        const result = extractCommunicationConfigFromUrl();
+        expect(result).toEqual(mockConfig);
+      });
+
+      test('should return null for invalid config', () => {
+        Object.defineProperty(window, 'location', {
+          value: {
+            search: '?comm=invalid-config',
+            hash: ''
+          },
+          writable: true
+        });
+
+        const result = extractCommunicationConfigFromUrl();
+        expect(result).toBeNull();
+      });
+    });
+
+    describe('updateUrlWithCommConfig', () => {
+      test('should update URL hash with encoded config', () => {
+        const config = {
+          communicationMethod: 'WebRTC',
+          signalingServer: ['wss://test.com']
+        };
+
+        const mockReplaceState = vi.fn();
+        Object.defineProperty(window, 'history', {
+          value: { replaceState: mockReplaceState },
+          writable: true
+        });
+
+        Object.defineProperty(window, 'location', {
+          value: {
+            href: 'http://localhost/test',
+            origin: 'http://localhost',
+            pathname: '/test',
+            search: ''
+          },
+          writable: true
+        });
+
+        updateUrlWithCommConfig(config);
+
+        expect(mockReplaceState).toHaveBeenCalledWith(
+          null,
+          '',
+          expect.stringContaining('#comm=')
+        );
+
+        const url = mockReplaceState.mock.calls[0][2];
+        const hash = new URL(url).hash;
+        const extractedConfig = decodeCommConfig(hash.split('=')[1]);
+        expect(extractedConfig).toEqual(config);
+      });
+
+      test('should handle config encoding errors gracefully', () => {
+        const consoleSpy = vi.spyOn(console, 'error');
+        
+        // Create a non-circular but invalid config that will fail when stringified
+        const invalidConfig = {};
+        Object.defineProperty(invalidConfig, 'problematic', {
+          get() { throw new Error('Test error'); },
+          enumerable: true // This makes it participate in JSON stringify
+        });
+
+        updateUrlWithCommConfig(invalidConfig as any);
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error updating URL with comm config:',
+          expect.any(Error)
+        );
+
+        consoleSpy.mockRestore();
+      });
+    });
+
+    describe('cleanUrlAfterCommConfigExtraction', () => {
+      test('should remove comm parameter from URL hash', () => {
+        // Mock window.location and history
+        const mockReplaceState = vi.fn();
+        
+        // Save originals
+        const originalLocation = window.location;
+        const originalHistory = window.history;
+        
+        // Define URL with comm parameter in hash
+        Object.defineProperty(window, 'location', {
+          value: {
+            href: 'http://localhost/classroom/123#comm=abc123',
+            hash: '#comm=abc123',
+            pathname: '/classroom/123',
+            search: ''
+          },
+          writable: true,
+          configurable: true
+        });
+        
+        // Mock history.replaceState
+        Object.defineProperty(window, 'history', {
+          value: { replaceState: mockReplaceState },
+          writable: true,
+          configurable: true
+        });
+        
+        cleanUrlAfterCommConfigExtraction();
+        
+        // Check that replaceState was called with correct URL
+        expect(mockReplaceState).toHaveBeenCalledWith(
+          {},
+          document.title,
+          '/classroom/123'
+        );
+        
+        // Restore original values
+        Object.defineProperty(window, 'location', {
+          value: originalLocation,
+          writable: true,
+          configurable: true
+        });
+        
+        Object.defineProperty(window, 'history', {
+          value: originalHistory,
+          writable: true,
+          configurable: true
+        });
+      });
+    });
+
+    describe('encodeCommConfig & decodeCommConfig', () => {
+      test('encodes and decodes communication config correctly', () => {
+        const originalConfig = {
+          communicationMethod: 'WebRTC',
+          signalingServer: ['wss://test.server'],
+          webrtcConfig: { iceServers: [{ urls: 'stun:test.stun' }] }
+        };
+        
+        const encoded = encodeCommConfig(originalConfig);
+        
+        expect(typeof encoded).toBe('string');
+        expect(encoded.length).toBeGreaterThan(0);
+        
+        const decoded = decodeCommConfig(encoded as string);
+        
+        expect(decoded).toEqual(originalConfig);
+      });
+      
+      test('encodeCommConfig handles null/undefined input', () => {
+        expect(encodeCommConfig(null)).toBeNull();
+        expect(encodeCommConfig(undefined)).toBeNull();
+      });
+      
+      test('decodeCommConfig handles invalid input', () => {
+        expect(decodeCommConfig('invalid-base64!')).toBeNull();
+        
+        expect(decodeCommConfig('')).toBeNull();
+        
+        expect(decodeCommConfig(null as unknown as string)).toBeNull();
+      });
+      
+      test('handles complex configurations correctly', () => {
+        // Use a complex config that only contains the expected keys our mapping handles
+        const complexConfig = {
+          communicationMethod: 'WebRTC',
+          signalingServer: ['wss://primary.signal', 'wss://backup.signal'],
+          webrtcConfig: {
+            iceServers: [
+              { urls: 'stun:stun1.example.com' },
+              { urls: 'stun:stun2.example.com' },
+              { urls: 'turn:turn.example.com', username: 'test', credential: 'test123' }
+            ],
+            iceTransportPolicy: 'all',
+            bundlePolicy: 'max-bundle'
+          },
+          websocketUrl: 'wss://example.com/ws'
+        };
+        
+        const encoded = encodeCommConfig(complexConfig);
+        const decoded = decodeCommConfig(encoded as string);
+        
+        // Compare only mapped properties since additionalInfo was removed in mapping
+        expect(decoded.communicationMethod).toEqual(complexConfig.communicationMethod);
+        expect(decoded.signalingServer).toEqual(complexConfig.signalingServer);
+        expect(decoded.webrtcConfig).toEqual(complexConfig.webrtcConfig);
+        expect(decoded.websocketUrl).toEqual(complexConfig.websocketUrl);
+      });
     });
   });
 });

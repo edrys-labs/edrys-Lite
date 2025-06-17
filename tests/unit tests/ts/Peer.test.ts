@@ -2,33 +2,77 @@ import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest';
 import Peer from '../../../src/ts/Peer';
 import * as Y from 'yjs';
 import { EdrysWebrtcProvider } from '../../../src/ts/EdrysWebrtcProvider';
-import { getPeerID, getShortPeerID } from '../../../src/ts/Utils';
+import { EdrysWebsocketProvider } from '../../../src/ts/EdrysWebsocketProvider';
+import { getPeerID, getShortPeerID, decodeCommConfig, updateUrlWithCommConfig } from '../../../src/ts/Utils';
 import { i18n, messages } from '../../setup';
 
 // Mock dependencies
-vi.mock('../../../src/ts/EdrysWebrtcProvider', () => {
-  return {
-    EdrysWebrtcProvider: vi.fn().mockImplementation(() => ({
-      on: vi.fn(),
-      onLeave: vi.fn(),
-      onMessage: vi.fn(),
-      sendMessage: vi.fn(),
-      disconnect: vi.fn(),
-      destroy: vi.fn(),
-      awareness: {
-        on: vi.fn(),
-        getStates: vi.fn().mockReturnValue(new Map()),
-      },
-    })),
-  };
-});
+const mockWebsocketEvents = {
+  status: null,
+  synced: null,
+};
+
+const mockWebrtcEvents = {
+  status: null,
+  synced: null,
+};
+
+vi.mock('../../../src/ts/EdrysWebrtcProvider', () => ({
+  EdrysWebrtcProvider: vi.fn().mockImplementation(() => ({
+    on: vi.fn().mockImplementation((event, callback) => {
+      if (event === 'status') mockWebrtcEvents.status = callback;
+      if (event === 'synced') mockWebrtcEvents.synced = callback;
+    }),
+    onLeave: vi.fn(),
+    onMessage: vi.fn(),
+    sendMessage: vi.fn(),
+    disconnect: vi.fn(),
+    destroy: vi.fn(),
+  })),
+}));
+
+vi.mock('../../../src/ts/EdrysWebsocketProvider', () => ({
+  EdrysWebsocketProvider: vi.fn().mockImplementation(() => ({
+    on: vi.fn().mockImplementation((event, callback) => {
+      if (event === 'status') mockWebsocketEvents.status = callback;
+      if (event === 'synced') mockWebsocketEvents.synced = callback;
+    }),
+    onLeave: vi.fn(),
+    onMessage: vi.fn(),
+    sendMessage: vi.fn(),
+    disconnect: vi.fn(),
+    destroy: vi.fn(),
+  })),
+}));
 
 vi.mock('../../../src/ts/Utils', () => ({
-  getPeerID: vi.fn(() => 'peer-12345'),
-  getShortPeerID: vi.fn(() => 'peer-short'),
+  getPeerID: vi.fn(() => 'test-peer-id'),
+  getShortPeerID: vi.fn(() => 'test-user'),
   hashJsonObject: vi.fn().mockResolvedValue('test-hash'),
   deepEqual: vi.fn((obj1, obj2) => {
     return JSON.stringify(obj1) === JSON.stringify(obj2);
+  }),
+  throttle: vi.fn().mockImplementation((fn) => {
+    return function(...args) {
+      return fn.apply(this, args);
+    };
+  }),
+  compareCommunicationConfig: vi.fn((oldConfig, newConfig) => {
+    if (!oldConfig && !newConfig) return true;
+    if (!oldConfig || !newConfig) return false;
+    return JSON.stringify(oldConfig) === JSON.stringify(newConfig);
+  }),
+  updateUrlWithCommConfig: vi.fn(),
+  decodeCommConfig: vi.fn((encodedConfig) => {
+    if (!encodedConfig) return null;
+    if (encodedConfig === 'encodedWebRTC') {
+      return { communicationMethod: 'WebRTC', signalingServer: ['wss://test.com'] };
+    } else if (encodedConfig === 'encodedWebsocket') {
+      return { communicationMethod: 'Websocket', websocketUrl: 'wss://test.com' };
+    } else if (typeof encodedConfig === 'object') {
+      return encodedConfig;
+    }
+    return null;
   }),
 }));
 
@@ -37,7 +81,7 @@ describe('Peer Class', () => {
   let setup: any;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.useFakeTimers();
 
     setup = {
       id: 'lab1',
@@ -53,6 +97,7 @@ describe('Peer Class', () => {
   });
 
   afterEach(() => {
+    vi.clearAllTimers();
     vi.clearAllMocks();
   });
 
@@ -68,7 +113,7 @@ describe('Peer Class', () => {
 
     test('should initialize user with correct default values', () => {
       const user = peer.user();
-      expect(user.get('displayName')).toBe('peer-short');
+      expect(user.get('displayName')).toBe('test-user');
       expect(user.get('room')).toBe('Lobby');
       expect(user.get('role')).toBe('student');
       expect(user.get('dateJoined')).toBeDefined();
@@ -94,6 +139,140 @@ describe('Peer Class', () => {
           peerOpts: expect.any(Object),
         })
       );
+    });
+  });
+
+  // Communication Provider Management Tests
+  describe('Communication Provider Management', () => {
+    test('initializes with WebRTC provider by default', () => {
+      const peer = new Peer(setup);
+      expect(EdrysWebrtcProvider).toHaveBeenCalled();
+      expect(EdrysWebsocketProvider).not.toHaveBeenCalled();
+      expect(peer['providerType']).toBe('WebRTC');
+    });
+
+    test('initializes with WebSocket provider from encoded config', () => {
+      const wsConfig = {
+        ...setup,
+        data: {
+          ...setup.data,
+          communicationConfig: 'encodedWebsocket'
+        }
+      };
+      
+      const peer = new Peer(wsConfig);
+      expect(EdrysWebsocketProvider).toHaveBeenCalled();
+      expect(peer['providerType']).toBe('Websocket');
+      expect(peer['websocketUrl']).toBe('wss://test.com');
+    });
+
+    test('initializes with WebRTC provider from encoded config', () => {
+      const rtcConfig = {
+        ...setup,
+        data: {
+          ...setup.data,
+          communicationConfig: 'encodedWebRTC'
+        }
+      };
+      
+      const peer = new Peer(rtcConfig);
+      expect(EdrysWebrtcProvider).toHaveBeenCalled();
+      expect(peer['providerType']).toBe('WebRTC');
+      expect(peer['signalingServer']).toContain('wss://test.com');
+    });
+
+    test('switches provider at runtime', async () => {
+      const peer = new Peer(setup);
+      expect(peer['providerType']).toBe('WebRTC');
+      
+      // Mock providers
+      const mockDisconnect = vi.fn();
+      peer['provider'] = {
+        disconnect: mockDisconnect,
+        destroy: vi.fn(),
+      } as any;
+      
+      await peer.switchProvider({
+        communicationMethod: 'Websocket',
+        websocketUrl: 'wss://new.websocket'
+      });
+      
+      expect(mockDisconnect).toHaveBeenCalled();
+      expect(peer['providerType']).toBe('Websocket');
+      expect(peer['websocketUrl']).toBe('wss://new.websocket');
+    });
+
+    test('handles WebRTC configuration changes', async () => {
+      const peer = new Peer(setup);
+      const newConfig = { iceServers: [{ urls: 'stun:new.stun' }] };
+      
+      // Mock provider methods
+      const mockDisconnect = vi.fn();
+      peer['provider'] = {
+        disconnect: mockDisconnect,
+        destroy: vi.fn(),
+      } as any;
+      
+      await peer.switchProvider({
+        communicationMethod: 'WebRTC',
+        webrtcConfig: newConfig
+      });
+      
+      expect(mockDisconnect).toHaveBeenCalled();
+      expect(peer['webrtcConfig']).toEqual(newConfig);
+    });
+  });
+
+  // Provider Event Handling Tests
+  describe('Provider Event Handling', () => {
+    test('handles WebRTC provider events', async () => {
+      const peer = new Peer(setup);
+      const callback = vi.fn();
+      peer.on('connected', callback);
+      
+      // Simulate status event
+      mockWebrtcEvents.status?.({ status: 'connected' });
+      
+      // Need to wait for the connection timeout
+      vi.advanceTimersByTime(5000);
+      await Promise.resolve();
+      
+      expect(callback).toHaveBeenCalledWith(true);
+    });
+
+    test('handles WebSocket provider events', async () => {
+      // Create setup with basic member structure
+      const wsSetup = {
+        ...setup,
+        data: {
+          ...setup.data,
+          members: { student: ['*'], teacher: [] },
+          communicationConfig: {
+            communicationMethod: 'Websocket',
+            websocketUrl: 'wss://test.com'
+          }
+        }
+      };
+      
+      const peer = new Peer(wsSetup);
+      const callback = vi.fn();
+      peer.on('connected', callback);
+      
+      // Mock provider status event
+      peer['provider'] = {
+        on: vi.fn(),
+        disconnect: vi.fn(),
+        destroy: vi.fn(),
+      } as any;
+      
+      // Simulate connected status
+      peer['handleStatus']({ status: 'connected' });
+      
+      // Wait for connection timeout
+      vi.advanceTimersByTime(5000);
+      await Promise.resolve();
+      
+      expect(callback).toHaveBeenCalledWith(true);
     });
   });
 
@@ -233,7 +412,7 @@ describe('Peer Class', () => {
       expect(peer['y'].chat.get(0)).toEqual({
         msg: message,
         timestamp,
-        user: 'peer-short'
+        user: 'test-user'
       });
     });
 
@@ -279,6 +458,21 @@ describe('Peer Class', () => {
       peer.newSetup(oldConfig);
       expect(peer['y'].setup.get('timestamp')).toBeGreaterThan(oldConfig.timestamp);
       expect(peer['lab'].id).toBe(setup.id);
+    });
+
+    test('should handle communication config changes in setup', () => {
+      // Spy on utils and peer methods
+      const updateSpy = vi.spyOn(peer as any, 'update');
+      const updateUrlSpy = vi.mocked(updateUrlWithCommConfig);
+      
+      // Test communication config changes
+      peer.logSetupChanges(
+        { communicationConfig: 'encodedWebRTC' },
+        { communicationConfig: 'encodedWebsocket' }
+      );
+      
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages.en.peer.feedback.communicationChanges);
+      expect(updateUrlSpy).toHaveBeenCalled();
     });
   });
 
@@ -330,6 +524,31 @@ describe('Peer Class', () => {
     });
   });
 
+  // Module Change Tests
+  describe('Module Change Detection', () => {
+    test('should detect module changes correctly', () => {
+      const updateSpy = vi.spyOn(peer as any, 'update');
+
+      peer.logSetupChanges(
+        { modules: [{ url: 'module1' }], members: {} },
+        { modules: [{ url: 'module2' }], members: {} }
+      );
+
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages.en.peer.feedback.moduleChanges);
+    });
+
+    test('should not show module changes for initial setup', () => {
+      const updateSpy = vi.spyOn(peer as any, 'update');
+
+      peer.logSetupChanges(
+        { members: {} }, // No modules property (initial setup)
+        { modules: [{ url: 'module1' }], members: {} }
+      );
+
+      // Should not call update with module changes message
+      expect(updateSpy).not.toHaveBeenCalledWith('popup', messages.en.peer.feedback.moduleChanges);
+    });
+  });
 
   describe('translations', () => {
     test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', (locale)  => {      
@@ -382,6 +601,13 @@ describe('Peer Class', () => {
         { members: { teacher: [], student: [testId] } }
       );
       expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.addedStudent);
+
+      // Test communication method change message with encoded configs
+      testPeer.logSetupChanges(
+        { communicationConfig: 'encodedWebRTC' },
+        { communicationConfig: 'encodedWebsocket' }
+      );
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.communicationChanges);
       
       updateSpy.mockRestore();
     });
