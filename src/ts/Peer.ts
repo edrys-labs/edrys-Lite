@@ -57,10 +57,12 @@ const SignallingServer = JSON.parse(
   process.env.WEBRTC_SIGNALING || '["wss://rooms.deno.dev"]'
 )
 
+const WebSocketServer = process.env.WEBSOCKET_SERVER || 'wss://demos.yjs.dev'
+
 export default class Peer {
   private provider: EdrysWebrtcProvider | EdrysWebsocketProvider
   private providerType: 'WebRTC' | 'Websocket' = 'WebRTC'
-  private websocketUrl: string = 'wss://demos.yjs.dev'
+  private websocketUrl: string = WebSocketServer
   private webrtcConfig: any = RTCConfiguration
   private signalingServer: string[] = SignallingServer
   private _hasSetupObserver: boolean = false; 

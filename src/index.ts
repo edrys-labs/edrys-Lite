@@ -5,7 +5,7 @@ import Deploy from './views/Deploy.vue'
 
 // Vuetify
 import { createVuetify } from 'vuetify'
-import { mdi } from '../node_modules/vuetify/lib/iconsets/mdi.mjs'
+import { mdi } from '../node_modules/vuetify/lib/iconsets/mdi'
 import {
   VApp,
   VAppBar,
@@ -63,11 +63,11 @@ import {
   VWindowItem,
   VSnackbar,
   VColorPicker,
-} from '../node_modules/vuetify/lib/components/index.mjs'
-import * as directives from '../node_modules/vuetify/lib/directives/index.mjs'
-import { createVueI18nAdapter } from '../node_modules/vuetify/lib/locale/adapters/vue-i18n.mjs'
+} from '../node_modules/vuetify/lib/components/index'
+import * as directives from '../node_modules/vuetify/lib/directives/index'
+import { createVueI18nAdapter } from '../node_modules/vuetify/lib/locale/adapters/vue-i18n'
 import { createI18n, useI18n } from 'vue-i18n'
-import { en, de, uk, ar, es } from '../node_modules/vuetify/lib/locale/index.mjs'
+import { en, de, uk, ar, es } from '../node_modules/vuetify/lib/locale/index'
 import enTranslations from '@/locales/en.yaml'
 import deTranslations from '@/locales/de.yaml'
 import ukTranslations from '@/locales/uk.yaml'
@@ -78,7 +78,7 @@ import esTranslations from '@/locales/es.yaml'
 // Extend Window interface to include Prism
 declare global {
   interface Window {
-    Prism: any;
+    Prism: any
   }
 }
 
@@ -127,7 +127,7 @@ const i18n = createI18n({
     uk: { $vuetify: { ...uk }, ...ukTranslations },
     ar: { $vuetify: { ...ar }, ...arTranslations },
     es: { $vuetify: { ...es }, ...esTranslations },
-  }
+  },
 })
 
 const vuetify = createVuetify({
@@ -200,7 +200,7 @@ const vuetify = createVuetify({
   },
   locale: {
     adapter: createVueI18nAdapter({ i18n, useI18n }),
-  }
+  },
 })
 
 const pathToRegex = (path) =>
