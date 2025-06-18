@@ -305,12 +305,12 @@ export default class Peer {
     setTimeout(() => {
       if (!this.connected) {
         this.connected = true
-        LOG('synced', event)
-        this.update('connected')
 
         if (!this.allowedToParticipate()) {
           this.update('popup', this.t('peer.feedback.noAccess'))
         }
+        LOG('synced', event)
+        this.update('connected')
       }
     }, 5000)
   }
