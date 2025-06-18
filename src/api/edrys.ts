@@ -24,7 +24,12 @@ import * as Y from 'yjs'
 // import * as YP from 'y-protocols/awareness.js'
 // import { RoomAwarenessManager } from './awarenessManager'
 import { unpack, pack } from 'msgpackr'
-import { StreamServer, StreamClient, WebSocketStreamServer, WebSocketStreamClient } from './streamHandler'
+import {
+  StreamServer,
+  StreamClient,
+  WebSocketStreamServer,
+  WebSocketStreamClient,
+} from './streamHandler'
 
 const EXTERN = 'extern'
 // var awareness: any
@@ -265,13 +270,13 @@ window['Edrys'] = {
   // Streaming methods
   async sendStream(stream: MediaStream, options: any = {}) {
     const method = options.method || 'webrtc'
-    
+
     console.log(`Streaming using method: ${method}`)
-    
+
     if (method === 'websocket') {
       const wsServer = new WebSocketStreamServer(this, stream, options)
       return {
-        stop: () => wsServer.stop()
+        stop: () => wsServer.stop(),
       }
     } else {
       const config = await this.getWebRTCConfig()
@@ -284,13 +289,13 @@ window['Edrys'] = {
 
   onStream(handler, options: any = {}) {
     const method = options.method || 'webrtc'
-    
+
     console.log(`Receiving stream using method: ${method}`)
-    
+
     if (method === 'websocket') {
       const wsClient = new WebSocketStreamClient(this, handler, options)
       return Promise.resolve({
-        stop: () => wsClient.stop()
+        stop: () => wsClient.stop(),
       })
     } else {
       return this.getWebRTCConfig().then(async (config) => {
@@ -438,7 +443,9 @@ window.addEventListener(
                 })
 
                 // needs to be called initially
-                setTimeout(dispatchUpdate, 500)
+                setTimeout(function () {
+                  dispatchUpdate()
+                }, 500)
               }
 
               return
@@ -538,7 +545,9 @@ function checkReady() {
       window['Edrys']?.origin || '*'
     )
 
-    setTimeout(checkReady, 5000)
+    setTimeout(function () {
+      checkReady()
+    }, 5000)
   }
 }
 
@@ -548,5 +557,7 @@ function checkReady() {
 
 // add an addEventListener for the onload event if everything has been loaded, included all scripts
 window.addEventListener('load', () => {
-  setTimeout(checkReady, 2000)
+  setTimeout(function () {
+    checkReady()
+  }, 2000)
 })
