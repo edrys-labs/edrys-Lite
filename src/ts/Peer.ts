@@ -107,14 +107,19 @@ export default class Peer {
     password?: string
   ) {
     const doc = new Y.Doc()
+    const clientID = doc.clientID
+    doc.clientID = 0
 
     this.y = {
-      doc: doc,
+      doc,
       setup: doc.getMap('setup'),
       users: doc.getMap('users'),
       rooms: doc.getMap('rooms'),
       chat: doc.getArray('chat'),
     }
+
+    doc.clientID = clientID
+    this.y.doc = doc
 
     this.lab = setup
 
