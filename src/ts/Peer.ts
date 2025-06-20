@@ -6,6 +6,7 @@ import {
   throttle,
   compareCommunicationConfig,
   updateUrlWithCommConfig,
+  cleanUrlAfterCommConfigExtraction,
   decodeCommConfig,
 } from './Utils'
 import * as Y from 'yjs'
@@ -107,14 +108,19 @@ export default class Peer {
     password?: string
   ) {
     const doc = new Y.Doc()
+    const clientID = doc.clientID
+    doc.clientID = 0
 
     this.y = {
-      doc: doc,
+      doc,
       setup: doc.getMap('setup'),
       users: doc.getMap('users'),
       rooms: doc.getMap('rooms'),
       chat: doc.getArray('chat'),
     }
+
+    doc.clientID = clientID
+    this.y.doc = doc
 
     this.lab = setup
 
@@ -416,9 +422,12 @@ export default class Peer {
       : null
 
     if (!compareCommunicationConfig(oldCommConfig, newCommConfig)) {
-      // Update URL hash with new communication config if it exists
+      // Update URL based on new communication config
       if (newCommConfig) {
         updateUrlWithCommConfig(newCommConfig)
+      } else {
+        // Clean URL if new config results in no encoding (default WebRTC)
+        cleanUrlAfterCommConfigExtraction(true);
       }
 
       this.update('popup', this.t('peer.feedback.communicationChanges'))

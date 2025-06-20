@@ -545,7 +545,9 @@ export function updateUrlWithCommConfig(commConfig: any) {
     const encodedConfig = encodeCommConfig(configToEncode);
     
     if (!encodedConfig) {
-      throw new Error("Encoding communication config returned null");
+      // If encoding returns null (default config), clean the URL instead
+      cleanUrlAfterCommConfigExtraction(true);
+      return;
     }
     
     const url = new URL(window.location.href);
@@ -560,8 +562,13 @@ export function updateUrlWithCommConfig(commConfig: any) {
 /**
  * Cleans the URL by removing the communication config hash parameter
  * and updates browser history without causing a page reload
+ * @param shouldClean Whether to actually clean the URL (default: true)
  */
-export function cleanUrlAfterCommConfigExtraction() {
+export function cleanUrlAfterCommConfigExtraction(shouldClean: boolean = true) {
+  if (!shouldClean) {
+    return; // Don't clean if user prefers to keep config in URL
+  }
+  
   if (window.location.hash && window.location.hash.includes('comm=')) {
     const url = new URL(window.location.href);
     
@@ -576,13 +583,57 @@ export function cleanUrlAfterCommConfigExtraction() {
 }
 
 /**
+ * Checks if a WebRTC configuration is using default settings
+ */
+function isDefaultWebRTCConfig(config: any): boolean {
+  const defaultSignalingServer = 'wss://rooms.deno.dev';
+  const defaultWebRTCConfig = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+    ],
+    iceTransportPolicy: 'all',
+    iceCandidatePoolSize: 10,
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require',
+  };
+
+  // Check signaling server
+  const hasDefaultSignaling = !config.signalingServer || 
+    (Array.isArray(config.signalingServer) && 
+     config.signalingServer.length === 1 && 
+     config.signalingServer[0] === defaultSignalingServer);
+
+  // Check WebRTC config
+  const hasDefaultConfig = !config.webrtcConfig || 
+    deepEqual(config.webrtcConfig, defaultWebRTCConfig);
+
+  return hasDefaultSignaling && hasDefaultConfig;
+}
+
+/**
  * Encodes a communication config object for secure storage
  * @param config The communication configuration object
- * @returns Base64 encoded string of the config
+ * @returns Base64 encoded string of the config or "ws" for default websocket
  */
 export function encodeCommConfig(config: any) {
   try {
     if (!config) return null;
+    
+    // Special case: if using WebSocket with default server, return "ws"
+    if (config.communicationMethod === 'Websocket' && 
+        (!config.websocketUrl || config.websocketUrl === process.env.WEBSOCKET_SERVER || config.websocketUrl === 'wss://demos.yjs.dev')) {
+      return 'ws';
+    }
+    
+    // Special case: if using WebRTC with default configuration, return null (no encoding needed)
+    if (config.communicationMethod === 'WebRTC' && isDefaultWebRTCConfig(config)) {
+      return null;
+    }
+    
     // Map long keys to short ones
     const shortConfig: any = {};
     if (config.communicationMethod) { shortConfig.m = config.communicationMethod; }
@@ -607,6 +658,14 @@ export function encodeCommConfig(config: any) {
 export function decodeCommConfig(encodedConfig: string) {
   try {
     if (!encodedConfig) return null;
+    
+    // Special case: handle "ws" shorthand for default websocket
+    if (encodedConfig === 'ws') {
+      return {
+        communicationMethod: 'Websocket'
+      };
+    }
+    
     const jsonConfig = LZString.decompressFromEncodedURIComponent(encodedConfig);
     const shortConfig = JSON.parse(jsonConfig);
     // Reverse the key mapping

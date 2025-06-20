@@ -169,6 +169,9 @@ settings:
       description: "Generieren Sie einen Link mit Ihren aktuellen Kommunikationseinstellungen. Teilen Sie diesen mit Schülern für optimale Konnektivität."
       linkLabel: "Teilbarer Link"
       error: "Fehler beim Generieren des Links, überprüfen Sie die Konfiguration"
+    keepConfigInUrl:
+      label: "Kommunikationseinstellungen in URL behalten"
+      hint: "Wenn aktiviert, bleiben die Kommunikationseinstellungen nach dem Laden in der URL. Wenn deaktiviert, wird die URL automatisch bereinigt."
 
 chat:
   deletedMessage: "vorherige Nachrichten wurden gelöscht ..."
