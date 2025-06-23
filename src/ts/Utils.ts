@@ -168,16 +168,16 @@ export async function scrapeModule(module) {
                           </html>
                           `
 
-        return {
+        return initialShow({
           ...module,
           name: yaml.name,
           description: yaml.description,
           icon: yaml.icon || 'mdi-package',
-          shownIn: yaml['show-in'] || ['*'],
+          showIn: yaml['show-in'] || ['*'],
           srcdoc: 'data:text/html,' + escape(code),
           origin: '*',
           moduleConfig: yaml['module-config'] || '',
-        }
+        })
       } catch (error) {
         console.warn('loading yaml:', error)
 
@@ -194,29 +194,29 @@ export async function scrapeModule(module) {
       )
 
       if (meta['fetch'] && meta['fetch'] !== 'false') {
-        return {
+        return initialShow({
           ...module,
           name:
             moduleEl.getElementsByTagName('title')[0].innerText || meta['name'],
           description: meta['description'],
           icon: meta['icon'] || 'mdi-package',
-          shownIn: (meta['show-in'] || '*').replace(/\s+/g, '').split(','), // or 'station'
+          showIn: (meta['show-in'] || '*').replace(/\s+/g, '').split(','), // or 'station'
           srcdoc: 'data:text/html,' + escape(replace(content, module.url)),
           origin: '*',
           moduleConfig: meta['module-config'] || '',
-        }
+        })
       }
 
       try {
-        return {
+        return initialShow({
           ...module,
           name:
             moduleEl.getElementsByTagName('title')[0].innerText || meta['name'],
           description: meta['description'],
           icon: meta['icon'] || 'mdi-package',
-          shownIn: (meta['show-in'] || '*').replace(/\s+/g, '').split(','), // or 'station'
+          showIn: (meta['show-in'] || '*').replace(/\s+/g, '').split(','), // or 'station'
           moduleConfig: meta['module-config'] || '',
-        }
+        })
       } catch (error) {
         throw new Error(
           'This does not seem to be a valid module declaration, check the URL manually.'
@@ -229,9 +229,19 @@ export async function scrapeModule(module) {
       name: '<Error: exception scraping module>',
       description: error,
       icon: 'mdi-alert',
-      shownIn: '',
+      showIn: '',
     }
   }
+}
+
+function initialShow(module: any) {
+  if (module.showInCustom) return module
+
+  if (!module.showIn) return module
+
+  module.showInCustom = module.showIn.join(', ')
+
+  return module
 }
 
 export function download(filename, text) {
@@ -456,106 +466,122 @@ export async function hashJsonObject(jsonObject: any) {
  * @param newConfig The new communication config
  * @returns True if the configs are equal, false otherwise
  */
-export function compareCommunicationConfig(oldConfig: any, newConfig: any): boolean {
-  if (!oldConfig && !newConfig) return true;
-  
-  if (!oldConfig || !newConfig) return false;
-  
-  if (oldConfig.communicationMethod !== newConfig.communicationMethod) return false;
-  
+export function compareCommunicationConfig(
+  oldConfig: any,
+  newConfig: any
+): boolean {
+  if (!oldConfig && !newConfig) return true
+
+  if (!oldConfig || !newConfig) return false
+
+  if (oldConfig.communicationMethod !== newConfig.communicationMethod)
+    return false
+
   // Compare websocket URL for websocket method
-  if (oldConfig.communicationMethod === 'Websocket' && 
-      oldConfig.websocketUrl !== newConfig.websocketUrl) {
-    return false;
+  if (
+    oldConfig.communicationMethod === 'Websocket' &&
+    oldConfig.websocketUrl !== newConfig.websocketUrl
+  ) {
+    return false
   }
-  
+
   // Compare signaling server for WebRTC method
   if (oldConfig.communicationMethod === 'WebRTC') {
-    const oldSignaling = Array.isArray(oldConfig.signalingServer) ? 
-      oldConfig.signalingServer : [oldConfig.signalingServer];
-    const newSignaling = Array.isArray(newConfig.signalingServer) ? 
-      newConfig.signalingServer : [newConfig.signalingServer];
-    
-    if (oldSignaling[0] !== newSignaling[0]) return false;
-    
-    const oldConfigStr = typeof oldConfig.webrtcConfig === 'string' ? 
-      oldConfig.webrtcConfig : JSON.stringify(oldConfig.webrtcConfig);
-    const newConfigStr = typeof newConfig.webrtcConfig === 'string' ? 
-      newConfig.webrtcConfig : JSON.stringify(newConfig.webrtcConfig);
-    
+    const oldSignaling = Array.isArray(oldConfig.signalingServer)
+      ? oldConfig.signalingServer
+      : [oldConfig.signalingServer]
+    const newSignaling = Array.isArray(newConfig.signalingServer)
+      ? newConfig.signalingServer
+      : [newConfig.signalingServer]
+
+    if (oldSignaling[0] !== newSignaling[0]) return false
+
+    const oldConfigStr =
+      typeof oldConfig.webrtcConfig === 'string'
+        ? oldConfig.webrtcConfig
+        : JSON.stringify(oldConfig.webrtcConfig)
+    const newConfigStr =
+      typeof newConfig.webrtcConfig === 'string'
+        ? newConfig.webrtcConfig
+        : JSON.stringify(newConfig.webrtcConfig)
+
     try {
-      const oldParsed = typeof oldConfig.webrtcConfig === 'string' ? 
-        JSON.parse(oldConfig.webrtcConfig) : oldConfig.webrtcConfig;
-      const newParsed = typeof newConfig.webrtcConfig === 'string' ? 
-        JSON.parse(newConfig.webrtcConfig) : newConfig.webrtcConfig;
-        
-      return deepEqual(oldParsed, newParsed);
+      const oldParsed =
+        typeof oldConfig.webrtcConfig === 'string'
+          ? JSON.parse(oldConfig.webrtcConfig)
+          : oldConfig.webrtcConfig
+      const newParsed =
+        typeof newConfig.webrtcConfig === 'string'
+          ? JSON.parse(newConfig.webrtcConfig)
+          : newConfig.webrtcConfig
+
+      return deepEqual(oldParsed, newParsed)
     } catch (e) {
       // If JSON parsing fails, fall back to string comparison
-      return oldConfigStr === newConfigStr;
+      return oldConfigStr === newConfigStr
     }
   }
-  
-  return true;
+
+  return true
 }
 
 /*
-  * Extracts the communication configuration from the URL.
-  * @returns {Object|null} The parsed communication configuration object, or null if not found.
-*/
+ * Extracts the communication configuration from the URL.
+ * @returns {Object|null} The parsed communication configuration object, or null if not found.
+ */
 export function extractCommunicationConfigFromUrl() {
-  const urlParams = new URLSearchParams(window.location.search);
-  let commParam = urlParams.get("comm");
-  
+  const urlParams = new URLSearchParams(window.location.search)
+  let commParam = urlParams.get('comm')
+
   if (!commParam) {
     // If not found, check if it's embedded in the path
     // The URL format might be /?/classroom/id?comm=xyz
-    const searchPath = window.location.search.slice(1);
-    const pathQuerySplit = searchPath.split('?');
-    
+    const searchPath = window.location.search.slice(1)
+    const pathQuerySplit = searchPath.split('?')
+
     if (pathQuerySplit.length > 1) {
-      const embeddedParams = new URLSearchParams('?' + pathQuerySplit[1]);
-      commParam = embeddedParams.get("comm");
+      const embeddedParams = new URLSearchParams('?' + pathQuerySplit[1])
+      commParam = embeddedParams.get('comm')
     }
   }
-  
+
   // If still not found, check for hash fragments
   if (!commParam && window.location.hash) {
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    commParam = hashParams.get("comm");
+    const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    commParam = hashParams.get('comm')
   }
-  
+
   if (commParam) {
     try {
-      const decodedConfig = decodeCommConfig(commParam);
-      return decodedConfig;
+      const decodedConfig = decodeCommConfig(commParam)
+      return decodedConfig
     } catch (e) {
-      console.error("Failed to decode communication config from URL:", e);
+      console.error('Failed to decode communication config from URL:', e)
     }
   }
-  return null;
+  return null
 }
 
 /**
-   * Updates the URL hash with the current communication config
-   */
+ * Updates the URL hash with the current communication config
+ */
 export function updateUrlWithCommConfig(commConfig: any) {
   try {
-    const configToEncode = { ...commConfig };
-    const encodedConfig = encodeCommConfig(configToEncode);
-    
+    const configToEncode = { ...commConfig }
+    const encodedConfig = encodeCommConfig(configToEncode)
+
     if (!encodedConfig) {
       // If encoding returns null (default config), clean the URL instead
-      cleanUrlAfterCommConfigExtraction(true);
-      return;
+      cleanUrlAfterCommConfigExtraction(true)
+      return
     }
-    
-    const url = new URL(window.location.href);
-    url.hash = `comm=${encodedConfig}`;
-    
-    window.history.replaceState(null, '', url.toString());
+
+    const url = new URL(window.location.href)
+    url.hash = `comm=${encodedConfig}`
+
+    window.history.replaceState(null, '', url.toString())
   } catch (e) {
-    console.error('Error updating URL with comm config:', e);
+    console.error('Error updating URL with comm config:', e)
   }
 }
 
@@ -566,19 +592,15 @@ export function updateUrlWithCommConfig(commConfig: any) {
  */
 export function cleanUrlAfterCommConfigExtraction(shouldClean: boolean = true) {
   if (!shouldClean) {
-    return; // Don't clean if user prefers to keep config in URL
+    return // Don't clean if user prefers to keep config in URL
   }
-  
+
   if (window.location.hash && window.location.hash.includes('comm=')) {
-    const url = new URL(window.location.href);
-    
-    url.hash = '';
-    
-    window.history.replaceState(
-      {},
-      document.title,
-      url.pathname + url.search
-    );
+    const url = new URL(window.location.href)
+
+    url.hash = ''
+
+    window.history.replaceState({}, document.title, url.pathname + url.search)
   }
 }
 
@@ -586,7 +608,7 @@ export function cleanUrlAfterCommConfigExtraction(shouldClean: boolean = true) {
  * Checks if a WebRTC configuration is using default settings
  */
 function isDefaultWebRTCConfig(config: any): boolean {
-  const defaultSignalingServer = 'wss://rooms.deno.dev';
+  const defaultSignalingServer = 'wss://rooms.deno.dev'
   const defaultWebRTCConfig = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -599,19 +621,20 @@ function isDefaultWebRTCConfig(config: any): boolean {
     iceCandidatePoolSize: 10,
     bundlePolicy: 'max-bundle',
     rtcpMuxPolicy: 'require',
-  };
+  }
 
   // Check signaling server
-  const hasDefaultSignaling = !config.signalingServer || 
-    (Array.isArray(config.signalingServer) && 
-     config.signalingServer.length === 1 && 
-     config.signalingServer[0] === defaultSignalingServer);
+  const hasDefaultSignaling =
+    !config.signalingServer ||
+    (Array.isArray(config.signalingServer) &&
+      config.signalingServer.length === 1 &&
+      config.signalingServer[0] === defaultSignalingServer)
 
   // Check WebRTC config
-  const hasDefaultConfig = !config.webrtcConfig || 
-    deepEqual(config.webrtcConfig, defaultWebRTCConfig);
+  const hasDefaultConfig =
+    !config.webrtcConfig || deepEqual(config.webrtcConfig, defaultWebRTCConfig)
 
-  return hasDefaultSignaling && hasDefaultConfig;
+  return hasDefaultSignaling && hasDefaultConfig
 }
 
 /**
@@ -621,32 +644,47 @@ function isDefaultWebRTCConfig(config: any): boolean {
  */
 export function encodeCommConfig(config: any) {
   try {
-    if (!config) return null;
-    
+    if (!config) return null
+
     // Special case: if using WebSocket with default server, return "ws"
-    if (config.communicationMethod === 'Websocket' && 
-        (!config.websocketUrl || config.websocketUrl === process.env.WEBSOCKET_SERVER || config.websocketUrl === 'wss://demos.yjs.dev')) {
-      return 'ws';
+    if (
+      config.communicationMethod === 'Websocket' &&
+      (!config.websocketUrl ||
+        config.websocketUrl === process.env.WEBSOCKET_SERVER ||
+        config.websocketUrl === 'wss://demos.yjs.dev')
+    ) {
+      return 'ws'
     }
-    
+
     // Special case: if using WebRTC with default configuration, return null (no encoding needed)
-    if (config.communicationMethod === 'WebRTC' && isDefaultWebRTCConfig(config)) {
-      return null;
+    if (
+      config.communicationMethod === 'WebRTC' &&
+      isDefaultWebRTCConfig(config)
+    ) {
+      return null
     }
-    
+
     // Map long keys to short ones
-    const shortConfig: any = {};
-    if (config.communicationMethod) { shortConfig.m = config.communicationMethod; }
-    if (config.websocketUrl) { shortConfig.w = config.websocketUrl; }
-    if (config.webrtcConfig) { shortConfig.c = config.webrtcConfig; }
-    if (config.signalingServer) { shortConfig.s = config.signalingServer; }
-    
-    const jsonConfig = JSON.stringify(shortConfig);
+    const shortConfig: any = {}
+    if (config.communicationMethod) {
+      shortConfig.m = config.communicationMethod
+    }
+    if (config.websocketUrl) {
+      shortConfig.w = config.websocketUrl
+    }
+    if (config.webrtcConfig) {
+      shortConfig.c = config.webrtcConfig
+    }
+    if (config.signalingServer) {
+      shortConfig.s = config.signalingServer
+    }
+
+    const jsonConfig = JSON.stringify(shortConfig)
     // Compress and encode for URL safety
-    return LZString.compressToEncodedURIComponent(jsonConfig);
+    return LZString.compressToEncodedURIComponent(jsonConfig)
   } catch (e) {
-    console.error("Failed to encode communication config:", e);
-    return null;
+    console.error('Failed to encode communication config:', e)
+    return null
   }
 }
 
@@ -657,26 +695,34 @@ export function encodeCommConfig(config: any) {
  */
 export function decodeCommConfig(encodedConfig: string) {
   try {
-    if (!encodedConfig) return null;
-    
+    if (!encodedConfig) return null
+
     // Special case: handle "ws" shorthand for default websocket
     if (encodedConfig === 'ws') {
       return {
-        communicationMethod: 'Websocket'
-      };
+        communicationMethod: 'Websocket',
+      }
     }
-    
-    const jsonConfig = LZString.decompressFromEncodedURIComponent(encodedConfig);
-    const shortConfig = JSON.parse(jsonConfig);
+
+    const jsonConfig = LZString.decompressFromEncodedURIComponent(encodedConfig)
+    const shortConfig = JSON.parse(jsonConfig)
     // Reverse the key mapping
-    const config: any = {};
-    if (shortConfig.m) { config.communicationMethod = shortConfig.m; }
-    if (shortConfig.w) { config.websocketUrl = shortConfig.w; }
-    if (shortConfig.c) { config.webrtcConfig = shortConfig.c; }
-    if (shortConfig.s) { config.signalingServer = shortConfig.s; }
-    return config;
+    const config: any = {}
+    if (shortConfig.m) {
+      config.communicationMethod = shortConfig.m
+    }
+    if (shortConfig.w) {
+      config.websocketUrl = shortConfig.w
+    }
+    if (shortConfig.c) {
+      config.webrtcConfig = shortConfig.c
+    }
+    if (shortConfig.s) {
+      config.signalingServer = shortConfig.s
+    }
+    return config
   } catch (e) {
-    console.error("Failed to decode communication config:", e);
-    return null;
+    console.error('Failed to decode communication config:', e)
+    return null
   }
 }

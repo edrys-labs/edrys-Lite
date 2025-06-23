@@ -332,6 +332,8 @@ export default {
 
       const scrapedModule = await scrapeModule(module);
 
+      module.showInCustom = scrapedModule.showInCustom;
+
       this.config.modules.push(module);
       this.scrapedModules.push(scrapedModule);
       this.errors.push({
