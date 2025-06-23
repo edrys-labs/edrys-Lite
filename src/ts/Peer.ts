@@ -4,10 +4,11 @@ import {
   deepEqual,
   getShortPeerID,
   throttle,
-  compareCommunicationConfig, 
+  compareCommunicationConfig,
   updateUrlWithCommConfig,
-  decodeCommConfig
-} from './Utils' 
+  cleanUrlAfterCommConfigExtraction,
+  decodeCommConfig,
+} from './Utils'
 import * as Y from 'yjs'
 // @ts-ignore
 import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
@@ -65,7 +66,8 @@ export default class Peer {
   private websocketUrl: string = WebSocketServer
   private webrtcConfig: any = RTCConfiguration
   private signalingServer: string[] = SignallingServer
-  private _hasSetupObserver: boolean = false; 
+  private _hasSetupObserver: boolean = false
+  private throttledUpdate: any
 
   private t: (key: string) => string
 
@@ -102,18 +104,23 @@ export default class Peer {
   constructor(
     setup: { id: string; data: any; timestamp: number; hash: string | null },
     stationID?: string,
-    t?: (key: string) => string, 
-    password?: string,
-  ) {    
+    t?: (key: string) => string,
+    password?: string
+  ) {
     const doc = new Y.Doc()
+    const clientID = doc.clientID
+    doc.clientID = 0
 
     this.y = {
-      doc: doc,
+      doc,
       setup: doc.getMap('setup'),
       users: doc.getMap('users'),
       rooms: doc.getMap('rooms'),
       chat: doc.getArray('chat'),
     }
+
+    doc.clientID = clientID
+    this.y.doc = doc
 
     this.lab = setup
 
@@ -125,31 +132,43 @@ export default class Peer {
 
     this.t = t || ((key: string) => key)
 
+    this.throttledUpdate = throttle(() => {
+      if (this.connected) {
+        this.update('room')
+      } else {
+        // Queue the update to be processed after connection is established
+        setTimeout(() => this.update('room'), 500)
+      }
+    }, 500)
+
     // Apply communication configuration from setup.data if it exists
     if (setup.data && setup.data.communicationConfig) {
-      const encodedConfig = setup.data.communicationConfig;
-      const commConfig = decodeCommConfig(encodedConfig);
-      
+      const encodedConfig = setup.data.communicationConfig
+      const commConfig = decodeCommConfig(encodedConfig)
+
       if (commConfig) {
         if (commConfig.communicationMethod) {
-          this.providerType = commConfig.communicationMethod;
+          this.providerType = commConfig.communicationMethod
         }
-        
+
         if (commConfig.websocketUrl && this.providerType === 'Websocket') {
-          this.websocketUrl = commConfig.websocketUrl;
+          this.websocketUrl = commConfig.websocketUrl
         }
-        
+
         if (commConfig.signalingServer && this.providerType === 'WebRTC') {
-          this.signalingServer = Array.isArray(commConfig.signalingServer) ? 
-            commConfig.signalingServer : [commConfig.signalingServer];
+          this.signalingServer = Array.isArray(commConfig.signalingServer)
+            ? commConfig.signalingServer
+            : [commConfig.signalingServer]
         }
-        
+
         if (commConfig.webrtcConfig && this.providerType === 'WebRTC') {
           try {
-            this.webrtcConfig = typeof commConfig.webrtcConfig === 'string' ? 
-              JSON.parse(commConfig.webrtcConfig) : commConfig.webrtcConfig;
+            this.webrtcConfig =
+              typeof commConfig.webrtcConfig === 'string'
+                ? JSON.parse(commConfig.webrtcConfig)
+                : commConfig.webrtcConfig
           } catch (e) {
-            console.error('Invalid WebRTC config JSON:', e);
+            console.error('Invalid WebRTC config JSON:', e)
           }
         }
       }
@@ -187,7 +206,7 @@ export default class Peer {
 
       if (this.providerType === 'WebRTC') {
         LOG('Connecting using WebRTC provider')
-        
+
         this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
           signaling: this.signalingServer,
           password: password || 'password',
@@ -202,7 +221,7 @@ export default class Peer {
         this.provider.on('synced', this.handleSynced.bind(this))
       } else if (this.providerType === 'Websocket') {
         LOG('Connecting using WebSocket provider')
-        
+
         this.provider = new EdrysWebsocketProvider(room, this.y.doc, {
           serverUrl: this.websocketUrl,
           userid: this.peerID,
@@ -292,12 +311,12 @@ export default class Peer {
     setTimeout(() => {
       if (!this.connected) {
         this.connected = true
-        LOG('synced', event)
-        this.update('connected')
 
         if (!this.allowedToParticipate()) {
           this.update('popup', this.t('peer.feedback.noAccess'))
         }
+        LOG('synced', event)
+        this.update('connected')
       }
     }, 5000)
   }
@@ -311,7 +330,7 @@ export default class Peer {
     // Observe setup changes if not already observing
     if (!this._hasSetupObserver) {
       this.y.setup.observe(this.handleSetupChange.bind(this))
-      this._hasSetupObserver = true;
+      this._hasSetupObserver = true
     }
 
     // Ensure that synchronization is complete before updating state
@@ -330,7 +349,7 @@ export default class Peer {
         if (!timestamp && this.lab.timestamp > 0 && this.lab.data) {
           LOG('Initializing setup from local data during sync')
           this.initSetup(true)
-        } 
+        }
       }
     }, 5000)
   }
@@ -384,37 +403,45 @@ export default class Peer {
 
   logSetupChanges(oldSetup: any, newSetup: any) {
     if (oldSetup === null || !oldSetup || !newSetup) {
-      return;
+      return
     }
-    
+
     // Skip showing the module changes popup for initial setup when joining a new session
-    const isJoiningSession = oldSetup.modules === undefined || oldSetup.modules?.length === 0;
-    
-    const oldEncodedConfig = oldSetup.communicationConfig || null;
-    const newEncodedConfig = newSetup.communicationConfig || null;
-    
-    // Decode configs for comparison 
-    const oldCommConfig = oldEncodedConfig ? decodeCommConfig(oldEncodedConfig) : null;
-    const newCommConfig = newEncodedConfig ? decodeCommConfig(newEncodedConfig) : null;
-    
+    const isJoiningSession =
+      oldSetup.modules === undefined || oldSetup.modules?.length === 0
+
+    const oldEncodedConfig = oldSetup.communicationConfig || null
+    const newEncodedConfig = newSetup.communicationConfig || null
+
+    // Decode configs for comparison
+    const oldCommConfig = oldEncodedConfig
+      ? decodeCommConfig(oldEncodedConfig)
+      : null
+    const newCommConfig = newEncodedConfig
+      ? decodeCommConfig(newEncodedConfig)
+      : null
+
     if (!compareCommunicationConfig(oldCommConfig, newCommConfig)) {
-      // Update URL hash with new communication config if it exists
+      // Update URL based on new communication config
       if (newCommConfig) {
-        updateUrlWithCommConfig(newCommConfig);
+        updateUrlWithCommConfig(newCommConfig)
+      } else {
+        // Clean URL if new config results in no encoding (default WebRTC)
+        cleanUrlAfterCommConfigExtraction(true);
       }
-      
-      this.update('popup', this.t('peer.feedback.communicationChanges'));
-      
+
+      this.update('popup', this.t('peer.feedback.communicationChanges'))
+
       setTimeout(() => {
-        window.location.reload();
-      }, 3000);
-      
-      return; 
+        window.location.reload()
+      }, 3000)
+
+      return
     }
-    
+
     // Only show module changes popup if this isn't initial setup and modules have actually changed
     if (!isJoiningSession && !deepEqual(oldSetup.modules, newSetup.modules)) {
-      this.update('popup', this.t('peer.feedback.moduleChanges'));
+      this.update('popup', this.t('peer.feedback.moduleChanges'))
     }
 
     if (!deepEqual(oldSetup.members, newSetup.members)) {
@@ -515,9 +542,13 @@ export default class Peer {
         }
       }
       // If the received setup is not up to date or empty
-      else if ((this.lab.timestamp !== timestamp && this.lab.timestamp > 0) || 
-               (timestamp === 0 && this.lab.timestamp > 0 && this.lab.data)) {
-        LOG('received outdated or empty lab configuration, writing changes back')
+      else if (
+        (this.lab.timestamp !== timestamp && this.lab.timestamp > 0) ||
+        (timestamp === 0 && this.lab.timestamp > 0 && this.lab.data)
+      ) {
+        LOG(
+          'received outdated or empty lab configuration, writing changes back'
+        )
         this.y.setup.set('config', this.lab.data)
         this.y.setup.set('timestamp', this.lab.timestamp)
       }
@@ -573,7 +604,7 @@ export default class Peer {
         })
 
         if (!onlyClockEvents) {
-          this.update('room')
+          this.throttledUpdate()
         }
       })
     }
@@ -605,15 +636,6 @@ export default class Peer {
       }
     }, 'initRooms')
 
-    const throttledUpdate = throttle(() => {
-      if (this.connected) {
-        this.update('room')
-      } else {
-        // Queue the update to be processed after connection is established
-        setTimeout(() => this.update('room'), 500)
-      }
-    }, 500)
-
     this.y.rooms.observeDeep((events) => {
       events.forEach((event) => {
         if (event.target === this.y.rooms) {
@@ -634,7 +656,7 @@ export default class Peer {
         }
       })
 
-      throttledUpdate()
+      this.throttledUpdate()
     })
   }
 
@@ -752,7 +774,14 @@ export default class Peer {
    * @param message Optional message data.
    */
   async update(
-    event: 'setup' | 'room' | 'message' | 'connected' | 'chat' | 'popup' | 'commChanged',
+    event:
+      | 'setup'
+      | 'room'
+      | 'message'
+      | 'connected'
+      | 'chat'
+      | 'popup'
+      | 'commChanged',
     message?: any
   ) {
     const callback = this.callback[event]
@@ -834,7 +863,10 @@ export default class Peer {
    * @param event The event type.
    * @param callback The callback function.
    */
-  on(event: 'setup' | 'room' | 'connected' | 'popup' | 'commChanged', callback: any) {
+  on(
+    event: 'setup' | 'room' | 'connected' | 'popup' | 'commChanged',
+    callback: any
+  ) {
     if (callback) {
       this.callback[event] = callback
 
@@ -1009,12 +1041,7 @@ export default class Peer {
       return
     }
 
-    this.y.doc.transact(
-      () => {
-        Y.applyUpdate(this.y.doc, data)
-      },
-      { transactionId: 'extern' }
-    )
+    Y.applyUpdate(this.y.doc, data, { transactionId: 'extern' })
   }
 
   /**
@@ -1026,7 +1053,7 @@ export default class Peer {
     this.initRooms()
     this.initChat()
 
-    this.update('room')
+    this.throttledUpdate()
   }
 
   /**

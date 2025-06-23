@@ -145,15 +145,16 @@ export default {
       // Extract communication config from URL and decode it if needed
       const urlCommConfig = extractCommunicationConfigFromUrl();
       
-      // Encode the URL config for storage
+      await this.database.setProtection(this.id, !!this.hash);
+      const config = await this.database.get(this.id);
+      
       if (urlCommConfig) {
         this.urlCommunicationConfig = encodeCommConfig(urlCommConfig);
-        cleanUrlAfterCommConfigExtraction();
+        
+        const shouldKeepConfigInUrl = config?.data?.keepUrlConfig === true;
+        
+        cleanUrlAfterCommConfigExtraction(!shouldKeepConfigInUrl);
       }
-
-      await this.database.setProtection(this.id, !!this.hash);
-
-      const config = await this.database.get(this.id);
       
       const hardReload =
         this.scrapedModules.length === 0 ||
@@ -189,8 +190,8 @@ export default {
 
       const configurationCopy = JSON.parse(JSON.stringify(this.configuration));
 
-      // Add URL communication config to the copy if available
-      if (this.urlCommunicationConfig) {
+      // Only use URL config if no setup config exists
+      if (!configurationCopy.data.communicationConfig && this.urlCommunicationConfig) {
         configurationCopy.data.communicationConfig = this.urlCommunicationConfig;
       }
 

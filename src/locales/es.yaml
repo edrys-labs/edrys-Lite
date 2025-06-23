@@ -169,6 +169,9 @@ settings:
       description: "Genera un enlace con tu configuración de comunicación actual incrustada. Comparte esto con estudiantes para una conectividad óptima."
       linkLabel: "Enlace Compartible"
       error: "Error al generar el enlace compartible"
+    keepConfigInUrl:
+      label: "Mantener configuración de comunicación en URL"
+      hint: "Cuando está marcado, la configuración de comunicación permanecerá en la URL después de cargar. Cuando no está marcado, la URL se limpiará automáticamente."
 
 chat:
   deletedMessage: "mensajes anteriores han sido eliminados ..."

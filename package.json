@@ -60,7 +60,7 @@
     "muuri": "^0.9.5",
     "prismjs": "^1.29.0",
     "secure-ls": "^2.0.0",
-    "y-webrtc": "^10.3.0"
+    "y-webrtc": "github:disarticulate/y-webrtc"
   },
   "browserslist": [
     "cover 85.0%"

@@ -84,7 +84,7 @@ export default {
       return this.scrapedModules_.filter((m) => {
         const showIn = m.showInCustom
           ? m.showInCustom.split(",").map((e) => e.trim())
-          : m.shownIn;
+          : m.showIn;
 
         const translatedRoomNames = {
           [this.t('classroom.sideMenu.lobby').toLowerCase()]: 'lobby',

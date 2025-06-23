@@ -51,6 +51,10 @@ export default {
       this.$emit("saveClass", this.config);
       this.configClone = JSON.parse(JSON.stringify(this.config));
       this.configChanged = false;
+      
+      if (this.$refs.CommunicationComponent) {
+        this.$refs.CommunicationComponent.onSettingsSaved();
+      }
     },
     deleteClass() {
       this.$emit("deleteClass");
@@ -71,6 +75,11 @@ export default {
 
       // Store the encoded config and mark as changed
       this.config.communicationConfig = encodedConfig;
+      this.configChanged = true;
+    },
+
+    updateKeepUrlConfig(keepConfig) {
+      this.config.keepUrlConfig = keepConfig;
       this.configChanged = true;
     },
   },
@@ -182,10 +191,13 @@ export default {
 
         <v-window-item>
           <Communication
+            ref="CommunicationComponent"
             :config="config.communicationConfig || ''"
             @update:config="updateCommunicationConfig"
             :writeProtection="writeProtection"
             :classId="config.id || ''"
+            :keepUrlConfig="config.keepUrlConfig || false"
+            @update:keepUrlConfig="updateKeepUrlConfig"
           ></Communication>
         </v-window-item>
       </v-window>

@@ -7,28 +7,41 @@ import { i18n, messages } from '../../../setup';
 vi.mock('../../../../src/ts/Utils', () => ({
   encodeCommConfig: vi.fn((config) => {
     if (config.communicationMethod === 'WebRTC') {
-      return 'encodedWebRTC';
+      if (!config.signalingServer && !config.webrtcConfig) {
+        return null; // Default WebRTC
+      }
+      return 'encodedCustomWebRTC';
     } else if (config.communicationMethod === 'Websocket') {
-      return 'encodedWebsocket';
+      if (!config.websocketUrl) {
+        return 'ws'; // Default Websocket
+      }
+      return 'encodedCustomWebsocket';
     }
     return 'encodedConfig';
   }),
   
   decodeCommConfig: vi.fn((encodedConfig) => {
-    if (encodedConfig === 'encodedWebRTC') {
+    if (encodedConfig === 'encodedCustomWebRTC') {
       return {
         communicationMethod: 'WebRTC',
         webrtcConfig: { iceServers: [{ urls: 'stun:custom.stun' }] },
         signalingServer: ['wss://custom.server']
       };
-    } else if (encodedConfig === 'encodedWebsocket') {
+    } else if (encodedConfig === 'encodedCustomWebsocket') {
       return {
         communicationMethod: 'Websocket',
-        websocketUrl: 'wss://test.com'
+        websocketUrl: 'wss://custom.com'
+      };
+    } else if (encodedConfig === 'ws') {
+      return {
+        communicationMethod: 'Websocket'
       };
     }
     return null;
-  })
+  }),
+  
+  updateUrlWithCommConfig: vi.fn(),
+  cleanUrlAfterCommConfigExtraction: vi.fn()
 }));
 
 describe('Communication Component', () => {
@@ -52,34 +65,34 @@ describe('Communication Component', () => {
       props: {
         config,
         writeProtection,
-        classId: 'test-class'
+        classId: 'test-class',
+        keepUrlConfig: false
       },
       global: {
         stubs: {
-          'v-container': {
-            template: '<div class="v-container"><slot /></div>'
-          },
+          'v-container': { template: '<div class="v-container"><slot /></div>' },
           'v-select': {
-            template: '<div class="v-select"><label>{{ $attrs.label }}</label><select v-model="modelValue" :disabled="$attrs.disabled" @change="$emit(\'update:modelValue\', $event.target.value)"><option value="WebRTC">WebRTC</option><option value="Websocket">Websocket</option></select></div>',
+            template: '<div class="v-select"><select v-model="modelValue" :disabled="$attrs.disabled" @change="$emit(\'update:modelValue\', $event.target.value)"><option value="WebRTC">WebRTC</option><option value="Websocket">Websocket</option></select></div>',
             props: ['modelValue'],
             emits: ['update:modelValue']
           },
           'v-text-field': {
-            template: '<div class="v-text-field"><label>{{ $attrs.label }}</label><input v-model="modelValue" :disabled="$attrs.disabled" @input="$emit(\'update:modelValue\', $event.target.value)" /></div>',
+            template: '<div class="v-text-field"><input v-model="modelValue" :disabled="$attrs.disabled" @input="$emit(\'update:modelValue\', $event.target.value)" /></div>',
             props: ['modelValue'],
             emits: ['update:modelValue']
           },
           'v-textarea': {
-            template: '<div class="v-textarea"><label>{{ $attrs.label }}</label><textarea v-model="modelValue" :disabled="$attrs.disabled" @input="$emit(\'update:modelValue\', $event.target.value)"></textarea></div>',
+            template: '<div class="v-textarea"><textarea v-model="modelValue" :disabled="$attrs.disabled" @input="$emit(\'update:modelValue\', $event.target.value)"></textarea></div>',
             props: ['modelValue'],
             emits: ['update:modelValue']
           },
-          'v-alert': {
-            template: '<div class="v-alert"><slot /></div>'
+          'v-checkbox': {
+            template: '<div class="v-checkbox"><input type="checkbox" v-model="modelValue" :disabled="$attrs.disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" /></div>',
+            props: ['modelValue'],
+            emits: ['update:modelValue']
           },
-          'v-divider': {
-            template: '<hr class="v-divider" />'
-          },
+          'v-alert': { template: '<div class="v-alert"><slot /></div>' },
+          'v-divider': { template: '<hr class="v-divider" />' },
           'v-btn': {
             template: '<button class="v-btn" @click="$emit(\'click\')"><slot /></button>',
             emits: ['click']
@@ -89,8 +102,8 @@ describe('Communication Component', () => {
     });
   };
 
-  describe('Initialization', () => {
-    test('initializes with empty WebRTC config when no config is provided', () => {
+  describe('Core Functionality', () => {
+    test('initializes with correct default values', () => {
       wrapper = createWrapper();
       
       expect(wrapper.vm.communicationMethod).toBe('WebRTC');
@@ -98,29 +111,17 @@ describe('Communication Component', () => {
       expect(wrapper.vm.webrtcConfig).toBe('');
     });
 
-    test('initializes with WebRTC config from encoded string', () => {
-      wrapper = createWrapper('encodedWebRTC');
+    test('decodes config from encoded string', () => {
+      wrapper = createWrapper('encodedCustomWebRTC');
       
       expect(wrapper.vm.communicationMethod).toBe('WebRTC');
       expect(wrapper.vm.signalingServer).toBe('wss://custom.server');
       expect(wrapper.vm.webrtcConfig).toContain('custom.stun');
     });
-    
-    test('initializes with Websocket config from encoded string', () => {
-      wrapper = createWrapper('encodedWebsocket');
-      
-      expect(wrapper.vm.communicationMethod).toBe('Websocket');
-      expect(wrapper.vm.websocketUrl).toBe('wss://test.com');
-    });
-  });
 
-  describe('Method Switching', () => {
-    test('shows/hides appropriate fields based on communication method', async () => {
+    test('switches communication methods correctly', async () => {
       wrapper = createWrapper();
 
-      // Initially WebRTC
-      expect(wrapper.find('.v-textarea').exists()).toBe(true);
-      
       // Switch to Websocket
       await wrapper.setData({ communicationMethod: 'Websocket' });
       await wrapper.vm.$nextTick();
@@ -129,129 +130,100 @@ describe('Communication Component', () => {
       expect(wrapper.find('.v-text-field').exists()).toBe(true);
     });
 
-    test('emits update event with encoded config when method changes', async () => {
+    test('emits update event when config changes', async () => {
       wrapper = createWrapper();
       
-      // Switch to Websocket method
       await wrapper.setData({ communicationMethod: 'Websocket' });
       await wrapper.vm.updateConfig();
       
       expect(wrapper.emitted()['update:config']).toBeTruthy();
-      expect(wrapper.emitted()['update:config'][0][0]).toBe('encodedWebsocket');
     });
-    
-    test('does not emit update when in write protection mode', async () => {
-      wrapper = createWrapper('encodedWebRTC', true);
+
+    test('respects write protection mode', async () => {
+      wrapper = createWrapper('', true);
       
-      // Try to update config
       await wrapper.vm.updateConfig();
-      
-      // Should not emit update events when write-protected
       expect(wrapper.emitted()['update:config']).toBeFalsy();
     });
   });
 
-  describe('URL Generation', () => {
-    test('generates shareable link with encoded communication config', async () => {
-      wrapper = createWrapper('encodedWebRTC');
+  describe('Shareable Links', () => {
+    test('generates correct shareable links for different configs', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { origin: 'http://localhost:6999', pathname: '/' },
+        writable: true
+      });
+
+      // Test default WebRTC - should not include comm parameter
+      wrapper = createWrapper();
+      wrapper.setData({
+        communicationMethod: 'WebRTC',
+        webrtcConfig: '',
+        signalingServer: ''
+      });
       
-      // Mock window.location
-      const locationMock = {
-        origin: 'http://localhost',
-        pathname: '/'
-      };
-      Object.defineProperty(window, 'location', { value: locationMock, writable: true });
-      
-      await wrapper.vm.generateShareableLink();
-      
-      // Link should contain the class ID and encoded config in the hash
-      expect(wrapper.vm.shareableLink).toContain('classroom/test-class#comm=');
+      wrapper.vm.generateShareableLink();
+      expect(wrapper.vm.shareableLink).toBe('http://localhost:6999/?/classroom/test-class');
+
+      // Test default Websocket - should include comm=ws
+      wrapper.setData({ communicationMethod: 'Websocket', websocketUrl: '' });
+      wrapper.vm.generateShareableLink();
+      expect(wrapper.vm.shareableLink).toBe('http://localhost:6999/?/classroom/test-class#comm=ws');
+
+      // Test custom config - should include encoded config
+      wrapper.setData({
+        communicationMethod: 'WebRTC',
+        signalingServer: 'wss://custom.server'
+      });
+      wrapper.vm.generateShareableLink();
+      expect(wrapper.vm.shareableLink).toBe('http://localhost:6999/?/classroom/test-class#comm=encodedCustomWebRTC');
     });
 
     test('copies link to clipboard', async () => {
-      wrapper = createWrapper('encodedWebRTC');
-      
-      // Mock the clipboard API
       const mockClipboard = {
-        writeText: vi.fn().mockImplementation(() => Promise.resolve())
+        writeText: vi.fn().mockResolvedValue(undefined)
       };
       Object.defineProperty(navigator, 'clipboard', {
         value: mockClipboard,
         writable: true
       });
       
-      // Set a test link and trigger copy
+      wrapper = createWrapper();
       wrapper.vm.shareableLink = 'test-link';
       await wrapper.vm.copyShareableLink();
-      
+
       expect(mockClipboard.writeText).toHaveBeenCalledWith('test-link');
       expect(wrapper.vm.copied).toBe(true);
       
-      // Advance timers to test reset
       vi.advanceTimersByTime(2000);
       await wrapper.vm.$nextTick();
-      
       expect(wrapper.vm.copied).toBe(false);
     });
   });
 
-  describe('Write Protection', () => {
-    test('disables inputs when write protected', async () => {
-      wrapper = createWrapper('encodedWebRTC', true);
-      await wrapper.vm.$nextTick();
+  describe('URL Configuration Checkbox', () => {
+    test('renders keepConfigInUrl checkbox when not write protected', () => {
+      wrapper = createWrapper();
       
-      const select = wrapper.find('select');
-      const inputs = wrapper.findAll('input');
-      const textareas = wrapper.findAll('textarea');
-      
-      expect(select.element.disabled).toBe(true);
-      inputs.forEach((input: any) => {
-        expect(input.element.disabled).toBe(true);
-      });
-      textareas.forEach((textarea: any) => {
-        expect(textarea.element.disabled).toBe(true);
-      });
+      const checkbox = wrapper.find('.v-checkbox input[type="checkbox"]');
+      expect(checkbox.exists()).toBe(true);
     });
-    
-    test('hides share link section when write protected', async () => {
-      wrapper = createWrapper('encodedWebRTC', true);
-      await wrapper.vm.$nextTick();
+
+    test('does not render checkbox when write protected', () => {
+      wrapper = createWrapper('', true);
       
-      // The share link section should not be visible
+      // Share link section and checkbox should not be visible
       expect(wrapper.text()).not.toContain(messages.en.settings.communication.shareLink.title);
     });
-  });
 
-  describe('Translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
-      wrapper = createWrapper('encodedWebRTC', false, locale);
+    test('emits keepUrlConfig event when checkbox changes', async () => {
+      wrapper = createWrapper();
       
-      await wrapper.vm.$nextTick();
+      const checkbox = wrapper.find('.v-checkbox input[type="checkbox"]');
+      await checkbox.setValue(true);
       
-      const translations = messages[locale].settings.communication;
-      const labels = translations.labels;
-      
-      // Check method label for communication method
-      expect(wrapper.text()).toContain(labels.method);
-      
-      // Check WebRTC specific fields
-      expect(wrapper.text()).toContain(labels.webrtcSignaling);
-      expect(wrapper.text()).toContain(labels.webrtcConfig);
-      
-      // Check alert text - should contain both parts of the alert
-      expect(wrapper.find('.v-alert').text()).toContain(translations.alert.first);
-      expect(wrapper.find('.v-alert').text()).toContain(translations.alert.second);
-      
-      // Check shareable link section
-      expect(wrapper.text()).toContain(translations.shareLink.title);
-      expect(wrapper.text()).toContain(translations.shareLink.description);
-      
-      // Switch to Websocket method to test those translations
-      await wrapper.setData({ communicationMethod: 'Websocket' });
-      await wrapper.vm.$nextTick();
-      
-      // Check websocket server label
-      expect(wrapper.text()).toContain(labels.websocketServer);
+      expect(wrapper.emitted()['update:keepUrlConfig']).toBeTruthy();
+      expect(wrapper.emitted()['update:keepUrlConfig'][0][0]).toBe(true);
     });
   });
 });

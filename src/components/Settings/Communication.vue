@@ -49,6 +49,16 @@
         :append-icon="copied ? 'mdi-check' : 'mdi-content-copy'"
         @click:append="copyShareableLink"
       ></v-text-field>
+
+      <v-checkbox
+        v-model="keepConfigInUrl"
+        :label="$t('settings.communication.keepConfigInUrl.label')"
+        :hint="$t('settings.communication.keepConfigInUrl.hint')"
+        @change="updateKeepConfigPreference"
+        class="mt-2"
+        color="primary"
+        :disabled="writeProtection"
+      ></v-checkbox>
     </div>
 
     <v-alert
@@ -68,7 +78,11 @@
 </template>
 
 <script lang="ts">
-import { encodeCommConfig, decodeCommConfig } from "../../ts/Utils";
+import { encodeCommConfig, 
+  decodeCommConfig, 
+  updateUrlWithCommConfig, 
+  cleanUrlAfterCommConfigExtraction 
+} from "../../ts/Utils";
 
 export default {
   name: "Settings-Communication",
@@ -85,8 +99,14 @@ export default {
     classId: {
       type: String,
       required: true,
+    },
+    keepUrlConfig: {
+      type: Boolean,
+      default: false,
     }
   },
+
+  emits: ["update:config", "update:keepUrlConfig"],
 
   data() {
     return {
@@ -97,6 +117,7 @@ export default {
       shareableLink: "",
       copied: false,
       lastEmittedConfig: "",
+      keepConfigInUrl: false,
     };
   },
 
@@ -125,12 +146,16 @@ export default {
         ? decodedConfig.webrtcConfig 
         : JSON.stringify(decodedConfig.webrtcConfig, null, 2);
     }
+
+    // Initialize the checkbox from the prop
+    this.keepConfigInUrl = this.keepUrlConfig;
+
+    // Generate initial shareable link
+    this.generateShareableLink();
   },
 
   methods: {
-    updateConfig() {
-      if (this.writeProtection) return;
-      
+    buildCommConfig() {
       let webrtcConfigValue = this.webrtcConfig;
       
       try {
@@ -158,6 +183,13 @@ export default {
       // Clean up undefined values
       Object.keys(commConfig).forEach(key => commConfig[key] === undefined && delete commConfig[key]);
       
+      return commConfig;
+    },
+
+    updateConfig() {
+      if (this.writeProtection) return;
+      
+      const commConfig = this.buildCommConfig();
       const encodedConfig = encodeCommConfig(commConfig);
       this.lastEmittedConfig = encodedConfig;
       
@@ -171,21 +203,17 @@ export default {
       if (this.writeProtection) return;
       
       try {
-        let configToEncode = {
-          communicationMethod: this.communicationMethod,
-          websocketUrl: this.communicationMethod === 'Websocket' && this.websocketUrl ? this.websocketUrl : undefined,
-          webrtcConfig: this.communicationMethod === 'WebRTC' && this.webrtcConfig ? 
-            (typeof this.webrtcConfig === 'string' && this.webrtcConfig.trim() ? JSON.parse(this.webrtcConfig) : undefined) : undefined,
-          signalingServer: this.communicationMethod === 'WebRTC' && this.signalingServer ? [this.signalingServer] : undefined
-        };
-        
-        // Clean up undefined values
-        Object.keys(configToEncode).forEach(key => configToEncode[key] === undefined && delete configToEncode[key]);
-        
-        const encodedConfig = encodeCommConfig(configToEncode);
+        const commConfig = this.buildCommConfig();
+        const encodedConfig = encodeCommConfig(commConfig);
         
         const urlBase = window.location.origin + window.location.pathname;
-        this.shareableLink = `${urlBase}?/classroom/${this.classId}#comm=${encodedConfig}`;
+        
+        // Only append comm parameter if there's actually encoded config
+        if (encodedConfig) {
+          this.shareableLink = `${urlBase}?/classroom/${this.classId}#comm=${encodedConfig}`;
+        } else {
+          this.shareableLink = `${urlBase}?/classroom/${this.classId}`;
+        }
       } catch (e) {
         console.error('Error generating shareable link:', e);
         this.shareableLink = this.$t('settings.communication.shareLink.error');
@@ -205,6 +233,24 @@ export default {
         .catch(err => {
           console.error('Failed to copy link: ', err);
         });
+    },
+
+    updateKeepConfigPreference() {
+      this.$emit('update:keepUrlConfig', this.keepConfigInUrl);
+    },
+
+    onSettingsSaved() {
+      if (this.writeProtection) return;
+      
+      const commConfig = this.buildCommConfig();
+      
+      // Update URL with current config if keepConfigInUrl is checked
+      if (this.keepConfigInUrl) {
+        updateUrlWithCommConfig(commConfig);
+      } else {
+        // Clean URL if keepConfigInUrl is unchecked
+        cleanUrlAfterCommConfigExtraction(true);
+      }
     }
   },
 
