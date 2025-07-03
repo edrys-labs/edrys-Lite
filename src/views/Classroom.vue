@@ -150,10 +150,6 @@ export default {
       
       if (urlCommConfig) {
         this.urlCommunicationConfig = encodeCommConfig(urlCommConfig);
-        
-        const shouldKeepConfigInUrl = config?.data?.keepUrlConfig === true;
-        
-        cleanUrlAfterCommConfigExtraction(!shouldKeepConfigInUrl);
       }
       
       const hardReload =
@@ -190,10 +186,16 @@ export default {
 
       const configurationCopy = JSON.parse(JSON.stringify(this.configuration));
 
-      // Only use URL config if no setup config exists
-      if (!configurationCopy.data.communicationConfig && this.urlCommunicationConfig) {
-        configurationCopy.data.communicationConfig = this.urlCommunicationConfig;
+      if (window.location.hash && window.location.hash.includes('comm=')) {
+        // URL has explicit comm config - use it
+        if (this.urlCommunicationConfig) {
+          configurationCopy.data.communicationConfig = this.urlCommunicationConfig;
+        }
       }
+
+      const shouldKeepConfigInUrl = config?.data?.keepUrlConfig === true;
+        
+      cleanUrlAfterCommConfigExtraction(!shouldKeepConfigInUrl);
 
       if (!this.communication) {                
         this.communication = new Peer(
