@@ -38,6 +38,7 @@ vi.mock('../../../src/ts/Utils', () => ({
     return JSON.stringify(oldConfig) === JSON.stringify(newConfig);
   }),
   updateUrlWithCommConfig: vi.fn(),
+  cleanUrlAfterCommConfigExtraction: vi.fn()
 }));
 
 // Create a mock communication object that uses vi.fn() for all methods

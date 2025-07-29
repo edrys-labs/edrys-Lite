@@ -72,6 +72,7 @@ export default {
     async createClass(data: any) {
       const id = infoHash(16);
 
+      data.id = id;
       data.createdBy = this.peerID;
       this.database.put({ id, data, timestamp: Date.now() });
 
