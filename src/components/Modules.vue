@@ -9,6 +9,8 @@ import uk from '../locales/uk.yaml';
 import ar from '../locales/ar.yaml';
 import es from '../locales/es.yaml';
 
+import { debug } from "../api/debugHandler";
+
 export default {
   components: { Module },
 
@@ -291,7 +293,7 @@ export default {
         //   this.communication.updateAwareness(e.data.data);
         //   break;
         case "echo":
-          console.log("ECHO:", e.data);
+          debug.components.modules("ECHO:", e.data);
           break;
         case "reload":
           // a full reload is needed
@@ -309,7 +311,7 @@ export default {
           });
           break;
         default:
-          console.warn("Unknown event", e.data);
+          debug.components.modules("Unknown event", e.data);
           break;
       }
     },

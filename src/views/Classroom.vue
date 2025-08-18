@@ -26,6 +26,8 @@ import Peer from "../ts/Peer";
 
 import { copyToClipboard, deepEqual } from "../ts/Utils";
 
+import { debug } from "../api/debugHandler";
+
 export default {
   props: ["id", "station", "hash"],
 
@@ -164,7 +166,7 @@ export default {
         config || { id: this.id, data: null, timestamp: 0, hash: this.hash };
 
       if (!!this.hash && this.configuration?.hash !== this.hash) {
-        console.log("Hash mismatch, resetting configuration");
+        debug.views.classroom("Hash mismatch, resetting configuration");
         this.configuration = {
           id: this.id,
           data: null,

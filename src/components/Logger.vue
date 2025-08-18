@@ -1,6 +1,7 @@
 <script lang="ts">
 import { onMounted } from "vue";
 import { useI18n } from 'vue-i18n';
+import { debug } from "../api/debugHandler";
 
 var echarts: any = null;
 
@@ -608,7 +609,7 @@ export default {
       const chartDom = document.getElementById("chart");
 
       if (!chartDom || !chartDom.clientWidth || !chartDom.clientHeight) {
-        //console.warn("Chart DOM element not found or has no dimensions.");
+        //debug.components.logger("Chart DOM element not found or has no dimensions.");
         return;
       }
 
@@ -714,7 +715,7 @@ export default {
         this.memoryChart?.setOption(option);
         this.memoryChart?.resize();
       } else {
-        console.warn("No memory data available to plot the chart.");
+        debug.components.logger("No memory data available to plot the chart.");
       }
     },
 
@@ -861,7 +862,7 @@ export default {
             );
             observer.observe(sentinel);
           } else {
-            console.warn(`Sentinel '${sentinelRef}' is not yet available.`);
+            debug.components.logger(`Sentinel '${sentinelRef}' is not yet available.`);
           }
         });
       }

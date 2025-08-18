@@ -4,6 +4,8 @@ import { hashJsonObject } from './Utils'
 
 import { MemoryData, ConsoleData, NetworkData, IUserInStation } from '../components/Logger.vue'
 
+import { debug } from '../api/debugHandler'
+
 export type DatabaseItem = {
   id: string
   timestamp: number
@@ -19,11 +21,11 @@ interface LoggerData {
 }
 
 function open(name: string, version?: number) {
-  console.warn('indexedDB is disabled')
+  debug.ts.database('indexedDB is disabled')
 }
 
 function deleteDatabase(name: string) {
-  console.warn('indexedDB is disabled')
+  debug.ts.database('indexedDB is disabled')
 }
 
 export class Database {
@@ -47,7 +49,7 @@ export class Database {
       .open()
       .then(function (db) {
         // Database opened successfully
-        console.log('Database opened successfully')
+        debug.ts.database('Database opened successfully')
 
         // Disable indexedDB for others
         // @ts-ignore
@@ -56,7 +58,7 @@ export class Database {
         window.indexedDB.deleteDatabase = deleteDatabase
       })
       .catch(function (err) {
-        console.warn('Database error: ' + err.message)
+        console.error('Database error: ' + err.message)
       })
   }
 
@@ -112,7 +114,7 @@ export class Database {
 
     this.observables[id] = observable.subscribe({
       next: (result) => callback(result),
-      error: (err) => console.warn(err),
+      error: (err) => console.error(err),
     })
   }
 

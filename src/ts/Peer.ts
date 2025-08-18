@@ -13,9 +13,10 @@ import * as Y from 'yjs'
 // @ts-ignore
 import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
 import { EdrysWebsocketProvider } from './EdrysWebsocketProvider'
+import { debug } from '../api/debugHandler'
 
 function LOG(...args: any[]) {
-  console.log(
+  debug.ts.peer(
     '%c🛸 Connection >>>',
     'background-color: #004400; font-weight: bold;',
     ...args
@@ -234,7 +235,7 @@ export default class Peer {
 
       // Register the onLeave callback
       this.provider.onLeave((userid) => {
-        console.log(`Peer with userid ${userid} has left the room.`)
+        debug.ts.peer(`Peer with userid ${userid} has left the room.`)
         this.removePeers([userid])
       })
 
@@ -917,7 +918,7 @@ export default class Peer {
     }
 
     if (!this.allowedToParticipate()) {
-      console.warn(this.t('peer.feedback.unauthorized'))
+      debug.ts.peer(this.t('peer.feedback.unauthorized'))
       return
     }
 
@@ -1037,7 +1038,7 @@ export default class Peer {
    */
   updateState(data: Uint8Array) {
     if (!this.allowedToParticipate()) {
-      console.warn(this.t('peer.feedback.notPropagated'))
+      debug.ts.peer(this.t('peer.feedback.notPropagated'))
       return
     }
 
