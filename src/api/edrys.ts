@@ -27,6 +27,8 @@ import { unpack, pack } from 'msgpackr'
 import {
   StreamServer,
   StreamClient,
+} from './streamHandler(simple-peer)'
+import {
   WebSocketStreamServer,
   WebSocketStreamClient,
 } from './streamHandler'
@@ -299,7 +301,7 @@ window['Edrys'] = {
       })
     } else {
       return this.getWebRTCConfig().then(async (config) => {
-        await delay(4000)
+        await delay(1000)
         const streamClient = new StreamClient(this, handler, config)
         return {
           stop: () => streamClient.stop(),
