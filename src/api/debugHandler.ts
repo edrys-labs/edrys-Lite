@@ -1,5 +1,14 @@
 import createDebug from 'debug';
 
+// Safe storage accessor
+function safeStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 // debug namespaces 
 export const debug = {
   api: {
@@ -47,24 +56,27 @@ export const debug = {
 // Enable debug for given namespaces
 export const enableDebug = (namespaces: string) => {
   createDebug.enable(namespaces);
-  if (typeof localStorage !== 'undefined') {
-    localStorage.debug = namespaces;
+  const s = safeStorage();
+  if (s) {
+    s.debug = namespaces;
   }
 };
 
 // Disable all debug logs
 export const disableDebug = () => {
   createDebug.disable();
-  if (typeof localStorage !== 'undefined') {
-    localStorage.removeItem('debug');
+  const s = safeStorage();
+  if (s) {
+    s.removeItem('debug');
   }
 };
 
 // Disable specific debug namespaces
 export const disableSpecificDebug = (namespacesToDisable: string) => {
-  if (typeof localStorage === 'undefined') return;
+  const s = safeStorage();
+  if (!s) return;
   
-  const currentNamespaces = localStorage.debug || '';
+  const currentNamespaces = s.debug || '';
   if (!currentNamespaces) return;
   
   const currentList = currentNamespaces.split(',').map(ns => ns.trim()).filter(ns => ns);
@@ -88,10 +100,13 @@ export const disableSpecificDebug = (namespacesToDisable: string) => {
   }
 };
 
-// Initialize debug based on localStorage setting
-if (typeof localStorage !== 'undefined' && localStorage.debug) {
-  createDebug.enable(localStorage.debug);
-}
+// Initialize debug based on localStorage setting (safe)
+(() => {
+  const s = safeStorage();
+  if (s && s.debug) {
+    createDebug.enable(s.debug);
+  }
+})();
 
 // Debug functions available globally + Help function
 if (typeof window !== 'undefined') {
@@ -125,6 +140,7 @@ if (typeof window !== 'undefined') {
     console.log('  views:classroom, views:deploy, views:index');
     console.log('  edrysModule');
     console.log('');
-    console.log('Current setting:', localStorage.debug || 'disabled');
+    const s = safeStorage();
+    console.log('Current setting:', s?.debug || 'disabled');
   };
 }
