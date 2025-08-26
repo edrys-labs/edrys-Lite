@@ -59,9 +59,9 @@
     "lz-string": "^1.5.0",
     "msgpackr": "^1.11.4",
     "muuri": "^0.9.5",
+    "peerjs": "^1.5.5",
     "prismjs": "^1.29.0",
     "secure-ls": "^2.0.0",
-    "simple-peer": "^9.11.1",
     "y-webrtc": "github:disarticulate/y-webrtc"
   },
   "browserslist": [

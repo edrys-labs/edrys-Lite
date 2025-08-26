@@ -27,7 +27,7 @@ import { unpack, pack } from 'msgpackr'
 import {
   StreamServer,
   StreamClient,
-} from './streamHandler(simple-peer)'
+} from './streamHandler(peerjs)'
 import {
   WebSocketStreamServer,
   WebSocketStreamClient,
