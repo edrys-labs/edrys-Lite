@@ -24,6 +24,7 @@
     "@parcel/transformer-yaml": "^2.15.2",
     "@playwright/test": "^1.53.0",
     "@rollup/plugin-yaml": "^4.1.2",
+    "@types/debug": "^4.1.12",
     "@types/node": "^22.15.32",
     "@vitejs/plugin-vue": "^5.2.4",
     "@vue/test-utils": "^2.4.6",

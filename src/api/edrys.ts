@@ -32,6 +32,7 @@ import {
   WebSocketStreamServer,
   WebSocketStreamClient,
 } from './streamHandler'
+import { debug, enableDebug, disableDebug, disableSpecificDebug } from './debugHandler'
 
 const EXTERN = 'extern'
 // var awareness: any
@@ -42,14 +43,15 @@ var callback = { onReady: false, onUpdate: false }
 
 function LOG(...args) {
   if (window['Edrys'].debug)
-    console.log(
+    debug.api.general(
       `Edrys (${window['Edrys'].module.name || 'not ready'}):`,
       ...args
     )
 }
 
 function WARN(...args) {
-  console.warn(`Edrys (${window['Edrys'].module.name}):`, ...args)
+  const moduleName = window['Edrys']?.module?.name || 'not ready';
+  debug.api.general(`Edrys (${moduleName}):`, ...args);
 }
 
 function encode(value: any): string {
@@ -79,13 +81,14 @@ function delay(ms: number) {
 
 window.addEventListener('unload', () => {
   window.parent.postMessage(
-    {
-      event: 'reload',
-      module: window['Edrys']?.module.url,
-    },
-    window['Edrys']?.origin || '*'
-  )
+  {
+    event: 'reload',
+    module: window['Edrys']?.module?.url || '*',
+  },
+  window['Edrys']?.origin || '*'
+)
 })
+
 
 window['Edrys'] = {
   origin: '*',
@@ -156,7 +159,7 @@ window['Edrys'] = {
     try {
       body = encode(body)
     } catch (e) {
-      console.warn('Edrys: Error encoding message =>', body, e)
+      debug.api.general('Edrys: Error encoding message =>', body, e)
       return
     }
 
@@ -273,7 +276,7 @@ window['Edrys'] = {
   async sendStream(stream: MediaStream, options: any = {}) {
     const method = options.method || 'webrtc'
 
-    console.log(`Streaming using method: ${method}`)
+    debug.api.general(`Streaming using method: ${method}`)
 
     if (method === 'websocket') {
       const wsServer = new WebSocketStreamServer(this, stream, options)
@@ -292,7 +295,7 @@ window['Edrys'] = {
   onStream(handler, options: any = {}) {
     const method = options.method || 'webrtc'
 
-    console.log(`Receiving stream using method: ${method}`)
+    debug.api.general(`Receiving stream using method: ${method}`)
 
     if (method === 'websocket') {
       const wsClient = new WebSocketStreamClient(this, handler, options)
@@ -332,6 +335,18 @@ window['Edrys'] = {
       })
     }
     return this.rtcConfig
+  },
+
+  importDebug() {
+    return debug.edrysModule
+  },
+
+  enableModuleDebug() {
+    enableDebug('edrysModule');
+  },
+
+  disableModuleDebug() {
+    disableSpecificDebug('edrysModule');
   },
 }
 
@@ -436,7 +451,7 @@ window.addEventListener(
                   .getMap('rooms')
                   //.get(window['Edrys'].liveUser.room)
                   .observeDeep((_event, _transact) => {
-                    // console.log('ROOM UPDATE')
+                    // debug.api.general('ROOM UPDATE')
                     dispatchUpdate()
                   })
 
@@ -514,7 +529,7 @@ window.addEventListener(
         // available: e.data.from, e.data.subject, e.data.body
         break
       case 'echo':
-        console.log('ECHO:', e.data)
+        debug.api.general('ECHO:', e.data)
         break
       case 'webrtcConfig':
         window['Edrys'].rtcConfig = e.data.config
@@ -542,7 +557,7 @@ function checkReady() {
     window.parent.postMessage(
       {
         event: 'reload',
-        module: window['Edrys']?.module.url || '*',
+        module: window['Edrys']?.module?.url || '*',
       },
       window['Edrys']?.origin || '*'
     )
@@ -562,4 +577,4 @@ window.addEventListener('load', () => {
   setTimeout(function () {
     checkReady()
   }, 2000)
-})
+});

@@ -6,6 +6,17 @@ import { EdrysWebsocketProvider } from '../../../src/ts/EdrysWebsocketProvider';
 import { getPeerID, getShortPeerID, decodeCommConfig, updateUrlWithCommConfig } from '../../../src/ts/Utils';
 import { i18n, messages } from '../../setup';
 
+// Mock debug system
+vi.mock('../../../src/api/debugHandler', () => {
+  return {
+    debug: {
+      ts: {
+        peer: vi.fn()
+      }
+    }
+  }
+});
+
 // Mock dependencies
 const mockWebsocketEvents = {
   status: null,
@@ -368,35 +379,39 @@ describe('Peer Class', () => {
       expect(testPeer['allowedToParticipate']()).toBe(true);
     });
 
-    test('should prevent unauthorized users from broadcasting', () => {
+    test('should prevent unauthorized users from broadcasting', async () => {
+      const { debug } = await import('../../../src/api/debugHandler');
+      const mockDebugPeer = vi.mocked(debug.ts.peer);
+      
       const originalAllowedToParticipate = peer['allowedToParticipate'];
       peer['allowedToParticipate'] = () => false;
       peer['connected'] = true;
       
-      const consoleSpy = vi.spyOn(console, 'warn');
+      mockDebugPeer.mockClear();
       peer.broadcast('Lobby', { data: 'test' });
       
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockDebugPeer).toHaveBeenCalledWith(
         messages.en.peer.feedback.unauthorized
       );
       
       peer['allowedToParticipate'] = originalAllowedToParticipate;
-      consoleSpy.mockRestore();
     });
 
-    test('should prevent unauthorized state updates', () => {
+    test('should prevent unauthorized state updates', async () => {
+      const { debug } = await import('../../../src/api/debugHandler');
+      const mockDebugPeer = vi.mocked(debug.ts.peer);
+      
       const originalAllowedToParticipate = peer['allowedToParticipate'];
       peer['allowedToParticipate'] = () => false;
       
-      const consoleSpy = vi.spyOn(console, 'warn');
+      mockDebugPeer.mockClear();
       peer.updateState(new Uint8Array());
       
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockDebugPeer).toHaveBeenCalledWith(
         messages.en.peer.feedback.notPropagated
       );
       
       peer['allowedToParticipate'] = originalAllowedToParticipate;
-      consoleSpy.mockRestore();
     });
   });
 

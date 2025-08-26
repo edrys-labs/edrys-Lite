@@ -5,7 +5,7 @@ import Module from '../../../src/components/Module.vue';
 describe('Module Component', () => {
   let wrapper: any;
   const mockPostMessage = vi.fn();
-  const mockConsoleWarn = vi.fn();
+  const mockConsoleError = vi.fn();
 
   // Mock data
   const defaultProps = {
@@ -33,7 +33,7 @@ describe('Module Component', () => {
         postMessage: mockPostMessage
       }
     });
-    console.warn = mockConsoleWarn;
+    console.error = mockConsoleError;
   });
 
   const createWrapper = (props = {}) => {
@@ -89,7 +89,7 @@ describe('Module Component', () => {
     wrapper = createWrapper();
     await wrapper.find('iframe').trigger('load');
 
-    expect(mockConsoleWarn).toHaveBeenCalledWith(
+    expect(mockConsoleError).toHaveBeenCalledWith(
       'Module update',
       expect.any(Error)
     );

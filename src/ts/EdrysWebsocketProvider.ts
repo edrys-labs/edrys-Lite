@@ -1,6 +1,7 @@
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { encoding, decoding } from 'lib0'
+import { debug } from '../api/debugHandler'
 
 const MESSAGE_TYPE_CUSTOM = 42
 const MESSAGE_TYPE_ID = 43
@@ -70,7 +71,7 @@ export class EdrysWebsocketProvider {
 
     // Handle provider connection status
     this.provider.on('status', (event: { status: string }) => {
-      console.log(`Y-WebSocket status: ${event.status}`)
+      debug.ts.edrysWebsocketProvider(`Y-WebSocket status: ${event.status}`)
 
       // Forward status event to listeners
       if (this._statusListener) {

@@ -26,6 +26,8 @@
 </template>
 
 <script lang="ts">
+import { debug } from "../api/debugHandler";
+
 export default {
   name: "Module",
   props: {
@@ -70,7 +72,7 @@ export default {
 
   methods: {
     loadFrame() {
-      console.log("Module loaded ...");
+      debug.components.module("Module loaded", this.scrapedModule.url);
       this.updateIframe();
     },
     updateIframe() {
@@ -89,7 +91,7 @@ export default {
           this.scrapedModule.origin || this.iframeOrigin
         );
       } catch (e) {
-        console.warn("Module update", e);
+        console.error("Module update", e);
       }
 
       if (!this.loaded) {
