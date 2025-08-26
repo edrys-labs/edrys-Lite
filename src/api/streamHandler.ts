@@ -7,6 +7,8 @@
  * - Support for both WebRTC and WebSocket streaming methods
 */
 
+import { debug } from './debugHandler'
+
 // WebRTC helper functions
 async function addPendingIceCandidates(
   peerConnection: RTCPeerConnection,
@@ -113,7 +115,7 @@ export class StreamServer {
           try {
             peerConnection.close()
           } catch (e) {
-            console.warn(`Error closing connection:`, e)
+            debug.api.streamHandler(`Error closing connection for peer ${from}:`, e)
           }
         }
         
@@ -182,7 +184,7 @@ export class StreamServer {
         // If we have a remote description, add the candidate immediately
         if (peerConnection.remoteDescription) {
           await peerConnection.addIceCandidate(new RTCIceCandidate(body.candidate))
-            .catch(e => console.warn('Failed to add ICE candidate:', e))
+            .catch(e => debug.api.streamHandler('Failed to add ICE candidate:', e))
         } else {
           // Otherwise store it for later
           if (!this.pendingCandidates.has(from)) {
@@ -210,7 +212,7 @@ export class StreamServer {
       try {
         conn.close()
       } catch (e) {
-        console.warn(`Error closing connection:`, e)
+        debug.api.streamHandler(`Error closing connection:`, e);
       }
     })
     
@@ -300,7 +302,7 @@ export class StreamClient {
     // Increment reconnection attempts
     this.reconnectAttempts++
     const delay = Math.min(Math.pow(2, this.reconnectAttempts) * 1000, 30000)
-    console.log(`Reconnecting in ${delay} ms (attempt ${this.reconnectAttempts})`)
+    debug.api.streamHandler(`Reconnecting in ${delay} ms (attempt ${this.reconnectAttempts})`);
 
     // Schedule reconnection
     clearTimeout(this.reconnectTimer)
@@ -327,7 +329,7 @@ export class StreamClient {
               return Promise.all(
                 this.pendingIceCandidates.map(candidate =>
                   this.peerConnection!.addIceCandidate(new RTCIceCandidate(candidate))
-                    .catch(e => console.warn('Failed to add ICE candidate:', e))
+                    .catch(e => debug.api.streamHandler('Failed to add ICE candidate:', e))
                 )
               )
             }
@@ -344,7 +346,7 @@ export class StreamClient {
         if (this.peerConnection.remoteDescription) {
           this.peerConnection
             .addIceCandidate(new RTCIceCandidate(body.candidate))
-            .catch((e) => console.warn('Failed to add ICE candidate:', e))
+            .catch((e) => debug.api.streamHandler('Failed to add ICE candidate:', e))
         } else {
           this.pendingIceCandidates.push(body.candidate)
         }
@@ -719,7 +721,7 @@ export class WebSocketStreamClient {
     
     this.wsConnection.onopen = () => {
       this.reconnectAttempts = 0;
-      console.log("WebSocket client connected");
+      debug.api.streamHandler(`WebSocket client connected to ${this.websocketUrl}`);
       
       // Join the specific room
       if (this.roomId) {
@@ -728,7 +730,7 @@ export class WebSocketStreamClient {
           roomId: this.roomId
         }));
       } else {
-        console.warn("No room ID available for WebSocket streaming");
+        debug.api.streamHandler("No room ID available for WebSocket streaming");
       }
     };
     
@@ -751,7 +753,7 @@ export class WebSocketStreamClient {
             this.frameBuffer.push(message.data);
           }
         } else if (message.type === 'info') {
-          console.log("WebSocket info:", message.message);
+          debug.api.streamHandler(`WebSocket info: ${message.message}`);
         }
       } catch (error) {
         console.error("Error processing message:", error);

@@ -7,6 +7,7 @@ import Share from "./Settings/Share.vue";
 import { useI18n } from "vue-i18n";
 import Communication from "./Settings/Communication.vue";
 import { decodeCommConfig, encodeCommConfig } from "../ts/Utils";
+import { debug } from "../api/debugHandler";
 
 export default {
   name: "Settings",
@@ -45,7 +46,7 @@ export default {
 
   methods: {
     updateModules() {
-      console.warn("updateModules", this.scrapedModules);
+      debug.components.settings("updateModules", this.scrapedModules);
     },
     saveClass() {
       this.$emit("saveClass", this.config);

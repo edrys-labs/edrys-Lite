@@ -1,5 +1,6 @@
 import { WebrtcProvider } from 'y-webrtc'
 import { encoding, decoding } from 'lib0'
+import { debug } from '../api/debugHandler'
 
 const MESSAGE_TYPE_CUSTOM = 42
 const MESSAGE_TYPE_ID = 43
@@ -119,7 +120,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
       this._setupPeers.add(peerId)
 
       peer.on('connect', () => {
-        console.log(`Connected to peer ${peerId}`)
+        debug.ts.edrysWebrtcProvider(`Connected to peer ${peerId}`)
         // Reset attempt counter on successful connection.
         attempt = 0
         // Send own unique ID to the peer.
@@ -129,11 +130,9 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
       // Monitor ICE state changes and attempt ICE restart if necessary.
       peer.on('iceconnectionstatechange', () => {
         const state = peer.iceConnectionState
-        console.log(`ICE state for peer ${peerId} changed to ${state}`)
+        debug.ts.edrysWebrtcProvider(`ICE state for peer ${peerId} changed to ${state}`)
         if (state === 'failed' || state === 'disconnected') {
-          console.log(
-            `ICE state for peer ${peerId} is ${state}. Attempting ICE restart...`
-          )
+          debug.ts.edrysWebrtcProvider(`ICE state for peer ${peerId} is ${state}. Attempting ICE restart...`)
           if (peer.restartIce) {
             peer.restartIce()
           }
@@ -161,7 +160,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
       // Handle connection closure and schedule reconnection.
       peer.on('close', () => {
-        console.log(`Connection closed with peer ${peerId}`)
+        debug.ts.edrysWebrtcProvider(`Connection closed with peer ${peerId}`)
         this._setupPeers.delete(peerId)
 
         const remoteUserId = this._peerUserIds.get(peerId)
@@ -175,7 +174,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
         const baseDelay = 1000 // 1 second.
         const maxDelay = 30000 // 30 seconds maximum delay.
         const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
-        console.log(`Reconnection attempt for peer ${peerId} in ${delay}ms`)
+        debug.ts.edrysWebrtcProvider(`Reconnection attempt for peer ${peerId} in ${delay}ms`)
         setTimeout(() => {
           this._setupPeerListeners(peerId, attempt + 1)
         }, delay)

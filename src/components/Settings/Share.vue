@@ -62,6 +62,7 @@
 import * as yaml from "js-yaml";
 import { useI18n } from 'vue-i18n';
 import { getPeerID, parseClassroom } from "../../ts/Utils";
+import { debug } from "../../api/debugHandler";
 
 export default {
   name: "Settings-Share",
@@ -120,7 +121,7 @@ export default {
     },
 
     updateModules() {
-      console.warn("updateModules", this.scrapedModules);
+      debug.settings.share("updateModules", this.scrapedModules);
     },
 
     downloadClass(format: "yaml" | "json") {
@@ -161,7 +162,7 @@ export default {
       this.saveError = true;
       this.errorMessage = `Could not parse the content within the URL: ${this.selectedURL}`;
 
-      console.warn("Could not parse the content within the URL:", this.selectedURL);
+      debug.settings.share("restoreURL", this.selectedURL, this.errorMessage);
     },
     restoreFile() {
       this.restoreSuccess = false;
@@ -179,21 +180,21 @@ export default {
           this.updateConfig(newClass);
           this.restoreSuccess = true;
 
-          console.log("restoreFile: loaded class", newClass);
+          debug.settings.share("restoreFile", this.selectedFile.name, newClass);
         } else {
           this.restoreSuccess = false;
           this.saveError = true;
 
           this.errorMessage = `Failed to restore classroom configuration from file.`;
 
-          console.warn("restoreFile: failed to load class", newClass);
+          debug.settings.share("restoreFile", this.selectedFile.name, this.errorMessage);
         }
       };
       reader.onerror = (err) => {
         this.restoreSuccess = false;
         this.saveError = true;
 
-        console.warn("restoreFile", err);
+        debug.settings.share("restoreFile", this.selectedFile.name, err);
       };
     },
   },
