@@ -5,6 +5,7 @@
  *  Edrys.role
  *  Edrys.username
  *  Edrys.module
+ *  Edrys.debug (set to true/false to enable/disable module debugging)
  *  Edrys.liveClass (this is reactive, meaning setting a property on it will also update it in real time)
  *  Edrys.liveRoom (also reactive)
  *  Edrys.liveUser (also reactive)
@@ -98,8 +99,21 @@ window['Edrys'] = {
   liveUser: undefined,
   module: undefined,
   class_id: undefined,
-  debug: false,
+  _debug: false,
   rtcConfig: null,
+
+  get debug() {
+    return this._debug;
+  },
+
+  set debug(value) {
+    this._debug = value;
+    if (value) {
+      enableDebug('edrysModule');
+    } else {
+      disableSpecificDebug('edrysModule');
+    }
+  },
 
   onReady(handler) {
     callback.onReady = true
@@ -337,14 +351,6 @@ window['Edrys'] = {
 
   importDebug() {
     return debug.edrysModule
-  },
-
-  enableModuleDebug() {
-    enableDebug('edrysModule');
-  },
-
-  disableModuleDebug() {
-    disableSpecificDebug('edrysModule');
   },
 }
 
