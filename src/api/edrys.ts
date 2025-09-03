@@ -17,8 +17,8 @@
  *  Edrys.getState(key, type, value) // Get a state from the live class
  *  Edrys.updateState(() => { // Update the state of the live class })
  *  Edrys.clearState(key) // Clear a state from the live class
- *  Edrys.sendStream(stream, options) // Send a MediaStream
- *  Edrys.onStream(handler, options) // Receive a MediaStream
+ *  Edrys.sendStream(stream, options) // Send a MediaStream, returns { stop(), updateStream(newStream) }
+ *  Edrys.onStream(handler, options) // Receive a MediaStream, returns { stop() }
  */
 
 import * as Y from 'yjs'
@@ -28,8 +28,6 @@ import { unpack, pack } from 'msgpackr'
 import {
   StreamServer,
   StreamClient,
-} from './streamHandler(peerjs)'
-import {
   WebSocketStreamServer,
   WebSocketStreamClient,
 } from './streamHandler'
@@ -299,9 +297,12 @@ window['Edrys'] = {
       }
     } else {
       const config = await this.getWebRTCConfig()
-      const streamServer = new StreamServer(this, stream, config)
+      // Pass streamName from options or stationConfig
+      const streamName = options.streamName || this.module.stationConfig?.streamName
+      const streamServer = new StreamServer(this, stream, config, streamName)
       return {
         stop: () => streamServer.stop(),
+        updateStream: (newStream: MediaStream) => streamServer.updateStream(newStream),
       }
     }
   },
@@ -318,8 +319,11 @@ window['Edrys'] = {
       })
     } else {
       return this.getWebRTCConfig().then(async (config) => {
-        await delay(1000)
-        const streamClient = new StreamClient(this, handler, config)
+        // Get default stream name from options or station config
+        const defaultStreamName = options.streamName || this.module.stationConfig?.streamName || "Camera 1"
+        
+        const streamClient = new StreamClient(this, handler, config, defaultStreamName)
+        
         return {
           stop: () => streamClient.stop(),
         }
