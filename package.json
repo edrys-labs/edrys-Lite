@@ -6,7 +6,7 @@
     "postinstall": "patch-package",
     "test": "npx vitest",
     "sw": "npx workbox injectManifest workbox-config.js",
-    "build": "rm -rf .parcel-cache && rm -rf dist && npm run build:edrys && npx parcel build src/index.html --log-level verbose  --no-scope-hoist --no-source-maps --public-url ./",
+    "build": "rm -rf .parcel-cache && rm -rf dist && npm run build:edrys && npx parcel build src/index.html --log-level verbose  --no-scope-hoist --no-source-maps --public-url ./ && cp -r public/* dist/",
     "watch": "rm -rf dist && npm run watch:edrys && npx parcel serve src/*.html --no-cache --open --port 6999",
     "minify:js": "find dist -name \"*.js\" -print0 | xargs -0 -P 4 -I {} sh -c 'before=$(wc -c < {}); npx minify --js {} > {}.min && after=$(wc -c < {}.min); if [ ${after} -lt ${before} ]; then mv {}.min {}; reduction=$((${before}-${after})); percent=$(awk \"BEGIN {printf \\\"%.2f\\\", ${reduction}/${before}*100}\"); echo \"{} reduced from ${before} to ${after} bytes (${percent}% reduction)\"; else rm {}.min; echo \"{} no reduction achieved, file size unchanged\"; fi'",
     "minify:css": "find dist -name \"*.css\" -print0 | xargs -0 -P 4 -I {} sh -c 'before=$(wc -c < {}); npx minify --css {} > {}.min && after=$(wc -c < {}.min); if [ ${after} -lt ${before} ]; then mv {}.min {}; reduction=$((${before}-${after})); percent=$(awk \"BEGIN {printf \\\"%.2f\\\", ${reduction}/${before}*100}\"); echo \"{} reduced from ${before} to ${after} bytes (${percent}% reduction)\"; else rm {}.min; echo \"{} no reduction achieved, file size unchanged\"; fi'",
