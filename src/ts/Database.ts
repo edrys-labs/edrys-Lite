@@ -20,14 +20,6 @@ interface LoggerData {
   usersInStations: IUserInStation[];
 }
 
-function open(name: string, version?: number) {
-  debug.ts.database('indexedDB is disabled')
-}
-
-function deleteDatabase(name: string) {
-  debug.ts.database('indexedDB is disabled')
-}
-
 export class Database {
   private db: Dexie
   private observables: any = {}
@@ -50,12 +42,6 @@ export class Database {
       .then(function (db) {
         // Database opened successfully
         debug.ts.database('Database opened successfully')
-
-        // Disable indexedDB for others
-        // @ts-ignore
-        window.indexedDB.open = open
-        // @ts-ignore
-        window.indexedDB.deleteDatabase = deleteDatabase
       })
       .catch(function (err) {
         console.error('Database error: ' + err.message)

@@ -50,7 +50,7 @@ export default {
       this.database.drop(id);
     },
 
-    forkClass(classroom: any) {
+    async forkClass(classroom: any) {
       classroom = clone(classroom);
 
       const id = infoHash();
@@ -66,7 +66,10 @@ export default {
       classroom.data.createdBy = peerID;
       classroom.id = id;
 
-      this.database.put({ id, data: classroom.data, timestamp: Date.now() });
+      await this.database.put({ id, data: classroom.data, timestamp: Date.now() });
+      
+      // Small delay to ensure the database write is fully committed
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       window.location.search = `?/classroom/${id}`;
     },
@@ -102,7 +105,10 @@ export default {
         ],
       };
 
-      this.database.put({ id, data, timestamp: Date.now() });
+      await this.database.put({ id, data, timestamp: Date.now() });
+      
+      // Small delay to ensure the database write is fully committed
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       window.location.search = `?/classroom/${id}`;
     },

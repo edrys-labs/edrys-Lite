@@ -12,7 +12,7 @@ vi.mock('../../../src/ts/Database', () => ({
     setObservable: setObservableSpy.mockImplementation((query, callback) => {
       callback(mockClassrooms);
     }),
-    put: vi.fn(),
+    put: vi.fn().mockResolvedValue('test-hash'),
     drop: vi.fn(),
     setProtection: vi.fn()
   }))
@@ -185,6 +185,9 @@ describe('Index View', () => {
 
     await createCard.trigger('click');
     
+    // Wait for the async operations to complete
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     expect(wrapper.vm.database.put).toHaveBeenCalled();
     expect(locationMock.search).toContain('classroom/test-hash');
   });
@@ -211,7 +214,8 @@ describe('Index View', () => {
       writable: true
     });
 
-    wrapper.vm.forkClass(mockClassrooms[1]);
+    // Call the method and wait for completion
+    await wrapper.vm.forkClass(mockClassrooms[1]);
     
     expect(wrapper.vm.database.put).toHaveBeenCalled();
     expect(locationMock.search).toContain('classroom/test-hash');
