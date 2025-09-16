@@ -1,0 +1,65 @@
+diff --git a/node_modules/y-webrtc/src/SimplePeerExtended.js b/node_modules/y-webrtc/src/SimplePeerExtended.js
+index dbe024c..8ba91af 100644
+--- a/node_modules/y-webrtc/src/SimplePeerExtended.js
++++ b/node_modules/y-webrtc/src/SimplePeerExtended.js
+@@ -109,6 +109,11 @@ class SimplePeerExtended extends Peer {
+     return a.index > b.index ? 1 : -1
+   }
+   send(chunk) {
++    // Don't queue messages if the peer is destroyed or disconnected
++    if (this.destroyed || !this._channel || this._channel.readyState !== 'open') {
++      return
++    }
++    
+     if (chunk instanceof ArrayBuffer) chunk = new Uint8Array(chunk)
+     let chunks = this.packetArray(chunk, CHUNK_SIZE)
+     this.webRTCMessageQueue = this.webRTCMessageQueue.concat(chunks)
+@@ -117,6 +122,14 @@ class SimplePeerExtended extends Peer {
+   }
+   sendMessageQueued() {
+     this.webRTCPaused = false
++    
++    // Check if the peer is still connected before processing the queue
++    if (this.destroyed || !this._channel || this._channel.readyState !== 'open') {
++      // Clear the message queue if the peer is destroyed or disconnected
++      this.webRTCMessageQueue = []
++      return
++    }
++    
+     let message = this.webRTCMessageQueue.shift()
+     while (message) {
+       if (
+@@ -138,17 +151,28 @@ class SimplePeerExtended extends Peer {
+       } catch (error) {
+         console.warn('y-webrtc:simplepeer:sendMessageQueued', { error })
+         if (error.code === 11) {// Failed to execute 'send' on 'RTCDataChannel': RTCDataChannel.readyState is not 'open'
+-          //TODO: block sending until connected
++          // Clear the message queue when connection is closed to prevent infinite retries
++          this.webRTCMessageQueue = []
++          this.webRTCPaused = false
++          return
+         }
+         break
+         //super.destroy()
+       }
+-      if (this.webRTCMessageQueue.length) {
+-        setTimeout(this.sendMessageQueued, 200)
+-      }
++    }
+     
++    // Only schedule next batch if we successfully processed messages and there are more to send
++    if (this.webRTCMessageQueue.length && !this.webRTCPaused) {
++      setTimeout(() => this.sendMessageQueued(), 200)
+     }
+   }
++  
++  destroy() {
++    // Clear the message queue when destroying the peer
++    this.webRTCMessageQueue = []
++    this.webRTCPaused = false
++    super.destroy()
++  }
+ }
+ 
+ export default SimplePeerExtended
+\ No newline at end of file
