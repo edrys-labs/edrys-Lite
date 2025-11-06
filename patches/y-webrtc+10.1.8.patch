@@ -1,5 +1,5 @@
 diff --git a/node_modules/y-webrtc/src/SimplePeerExtended.js b/node_modules/y-webrtc/src/SimplePeerExtended.js
-index dbe024c..8ba91af 100644
+index dbe024c..514018f 100644
 --- a/node_modules/y-webrtc/src/SimplePeerExtended.js
 +++ b/node_modules/y-webrtc/src/SimplePeerExtended.js
 @@ -109,6 +109,11 @@ class SimplePeerExtended extends Peer {
@@ -62,4 +62,88 @@ index dbe024c..8ba91af 100644
  }
  
  export default SimplePeerExtended
-\ No newline at end of file
+diff --git a/node_modules/y-webrtc/src/y-webrtc.js b/node_modules/y-webrtc/src/y-webrtc.js
+index c272143..10d37cd 100644
+--- a/node_modules/y-webrtc/src/y-webrtc.js
++++ b/node_modules/y-webrtc/src/y-webrtc.js
+@@ -56,38 +56,51 @@ const checkIsSynced = (room) => {
+ }
+ 
+ const validMessage = async (room, data) => {
+-  const decoder = decoding.createDecoder(data)
+-  const messageType1 = decoding.readVarUint(decoder)
+-  const messageType2 = decoding.readVarUint(decoder)
+-  /*console.warn('validMessage:decode', {
+-    messageType1,
+-    messageType2,
+-    messageSync,
+-    data,
+-  })*/
+-  /*
+-  const messageSync = 0
+-  const messageQueryAwareness = 3
+-  const messageAwareness = 1
+-  const messageBcPeerId = 4
+-  */
+-  const isSync = messageType1 === messageSync &&
+-    (syncProtocol.messageYjsSyncStep2 === messageType2 ||
+-    syncProtocol.messageYjsUpdate === messageType2)
+-  const isAwareness = messageType1 === messageAwareness
+-    || messageType1 === messageQueryAwareness
+-  const isBc = messageType1 === messageBcPeerId
+-  const isMessage = isSync || isAwareness || isBc
+-  let valid = false
+   try {
+-    valid = await room.validateUpdate(
+-      { decoded: decoding.readVarUint8Array(decoder), raw: data, isMessage }
+-    )
++    const decoder = decoding.createDecoder(data)
++    const messageType1 = decoding.readVarUint(decoder)
++    const messageType2 = decoding.readVarUint(decoder)
++    /*console.warn('validMessage:decode', {
++      messageType1,
++      messageType2,
++      messageSync,
++      data,
++    })*/
++    /*
++    const messageSync = 0
++    const messageQueryAwareness = 3
++    const messageAwareness = 1
++    const messageBcPeerId = 4
++    */
++    const isSync = messageType1 === messageSync &&
++      (syncProtocol.messageYjsSyncStep2 === messageType2 ||
++      syncProtocol.messageYjsUpdate === messageType2)
++    const isAwareness = messageType1 === messageAwareness
++      || messageType1 === messageQueryAwareness
++    const isBc = messageType1 === messageBcPeerId
++    const isMessage = isSync || isAwareness || isBc
++    
++    if (!isMessage) {
++      // If it's not a recognized y-webrtc message type, it might be a chunk
++      // Allow chunks to pass through without validation
++      return true
++    }
++    
++    let valid = false
++    try {
++      valid = await room.validateUpdate(
++        { decoded: decoding.readVarUint8Array(decoder), raw: data, isMessage }
++      )
++    } catch (e) {
++      console.warn('!InvalidDataFromUpdate', { e, room, data })
++      return false
++    }
++    return valid
+   } catch (e) {
+-    console.warn('!InvalidDataFromUpdate', { e, room, data })
+-    return false
++    // If decoding fails (e.g., due to chunks), allow the data through
++    // This prevents chunked messages from being rejected
++    return true
+   }
+-  return valid
+ }
+ 
+ /**
