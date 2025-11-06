@@ -270,368 +270,201 @@ export class StreamClient {
   }
 }
 
-// Map to track active WebSocket stream sessions
-const wsStreamSessions = new Map<string, WebSocketStreamServer>()
-
 // WebSocket Stream Server 
 export class WebSocketStreamServer {
-  private context: any;
-  private stream: MediaStream;
-  private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
-  private wsConnection: WebSocket | null = null;
-  private frameRequestId: number | null = null;
-  private sessionId: string;
-  private settings: any;
-  private websocketUrl: string;
-  private keepAliveInterval: number | null = null;
-  private roomId: string;
+  private context: any
+  private stream: MediaStream
+  private canvas: HTMLCanvasElement
+  private ctx: CanvasRenderingContext2D
+  private wsConnection: WebSocket | null = null
+  private frameRequestId: number | null = null
+  private websocketUrl: string
+  private roomId: string
   
   constructor(context: any, stream: MediaStream, options: any = {}) {
-    this.context = context;
-    this.stream = stream;
-    this.sessionId = Date.now().toString();
-    this.settings = {
-      mirrorX: this.context.module.stationConfig?.mirrorX ?? false,
-      mirrorY: this.context.module.stationConfig?.mirrorY ?? false,
-      rotate: this.context.module.stationConfig?.rotate ?? 0,
-    };
-    
-    this.websocketUrl = options.websocketUrl;
-    this.roomId = this.context.class_id || this.context.liveUser?.room || this.sessionId;
+    this.context = context
+    this.stream = stream
+    this.websocketUrl = options.websocketUrl
+    this.roomId = this.context.class_id || this.context.liveUser?.room
 
-    // Create video element to get media stream
-    const videoElement = document.createElement('video');
-    videoElement.srcObject = stream;
-    videoElement.muted = true; // Prevent feedback
-    videoElement.play();
+    const videoElement = document.createElement('video')
+    videoElement.srcObject = stream
+    videoElement.muted = true
+    videoElement.play()
     
-    // Setup canvas for frame capture
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = 640;
-    this.canvas.height = 480;
-    this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
-    
-    wsStreamSessions.set(this.sessionId, this);
+    this.canvas = document.createElement('canvas')
+    this.canvas.width = 640
+    this.canvas.height = 480
+    this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D
         
-    // Wait for video to be ready before starting stream
     videoElement.onloadedmetadata = () => {
-      this.canvas.width = videoElement.videoWidth;
-      this.canvas.height = videoElement.videoHeight;
-      this.startStreaming(videoElement);
-    };
-  }
-  
-  // Keep connection alive with periodic messages
-  private ensureKeepAlive() {
-    if (this.keepAliveInterval !== null) {
-      clearInterval(this.keepAliveInterval);
+      this.canvas.width = videoElement.videoWidth
+      this.canvas.height = videoElement.videoHeight
+      this.startStreaming(videoElement)
     }
-    
-    // Send keep-alive every 5 seconds
-    this.keepAliveInterval = window.setInterval(() => {
-      if (this.wsConnection && this.wsConnection.readyState === WebSocket.OPEN) {
-        this.wsConnection.send(JSON.stringify({
-          type: 'keep-alive',
-          timestamp: Date.now()
-        }));
-      }
-    }, 5000);
   }
 
   private startStreaming(videoElement: HTMLVideoElement) {    
-    this.wsConnection = new WebSocket(this.websocketUrl);
+    this.wsConnection = new WebSocket(this.websocketUrl)
     
     this.wsConnection.onopen = () => {      
       if (this.wsConnection) {
-        // Register as source with room ID
         this.wsConnection.send(JSON.stringify({
           type: 'register-source',
-          roomId: this.roomId,
-          settings: this.settings
-        }));
+          roomId: this.roomId
+        }))
         
-        // Start keep-alive to maintain connection
-        this.ensureKeepAlive();
-        
-        // Begin capturing and sending frames
-        this.startFrameCapture(videoElement);
+        this.startFrameCapture(videoElement)
       }
-    };
+    }
     
-    this.wsConnection.onclose = () => {
-      this.stopFrameCapture();
-    };
-    
-    this.wsConnection.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      this.stopFrameCapture();
-    };
+    this.wsConnection.onerror = () => {
+      // Handle errors silently
+    }
   }
 
   private startFrameCapture(videoElement: HTMLVideoElement) {
-    let lastFrameTime = 0;
-    const frameRate = 15;
-    const quality = 0.7;
-    const frameInterval = 1000 / frameRate;
+    let lastFrameTime = 0
+    const frameInterval = 1000 / 15 // 15 fps
     
-    // Frame capture loop using requestAnimationFrame for better timing
     const captureFrame = (timestamp: number) => {
       if (!this.wsConnection || this.wsConnection.readyState !== WebSocket.OPEN) {
-        this.stopFrameCapture();
-        return;
+        return
       }
       
-      // Throttle frame capture to maintain target frame rate
-      const elapsed = timestamp - lastFrameTime;
+      const elapsed = timestamp - lastFrameTime
       if (elapsed > frameInterval && videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
-        lastFrameTime = timestamp;
+        lastFrameTime = timestamp
         
         try {
-          // Set canvas dimensions to match video
-          const width = videoElement.videoWidth;
-          const height = videoElement.videoHeight;
+          const width = videoElement.videoWidth
+          const height = videoElement.videoHeight
             
           if (this.canvas.width !== width || this.canvas.height !== height) {
-            this.canvas.width = width;
-            this.canvas.height = height;
+            this.canvas.width = width
+            this.canvas.height = height
           }
           
-          // Draw video frame to canvas and convert to JPEG data URL
-          this.ctx.drawImage(videoElement, 0, 0, width, height);
-          const dataUrl = this.canvas.toDataURL('image/jpeg', quality);
+          this.ctx.drawImage(videoElement, 0, 0, width, height)
+          const dataUrl = this.canvas.toDataURL('image/jpeg', 0.7)
           
-          // Send frame to all connected clients via WebSocket server
           this.wsConnection.send(JSON.stringify({
             type: 'frame',
-            data: dataUrl,
-            settings: this.settings,
-            timestamp: Date.now(),
-            frameRate: frameRate
-          }));
+            data: dataUrl
+          }))
         } catch (error) {
-          console.error("Error capturing frame:", error);
+          // Handle errors silently
         }
       }
       
-      // Schedule next frame capture
-      this.frameRequestId = requestAnimationFrame(captureFrame);
-    };
-    
-    // Start the frame capture loop
-    this.frameRequestId = requestAnimationFrame(captureFrame);
-  }
-
-  private stopFrameCapture() {
-    if (this.frameRequestId !== null) {
-      cancelAnimationFrame(this.frameRequestId);
-      this.frameRequestId = null;
+      this.frameRequestId = requestAnimationFrame(captureFrame)
     }
+    
+    this.frameRequestId = requestAnimationFrame(captureFrame)
   }
 
   public stop() {
-    this.stopFrameCapture();
-    
-    if (this.keepAliveInterval !== null) {
-      clearInterval(this.keepAliveInterval);
-      this.keepAliveInterval = null;
+    if (this.frameRequestId !== null) {
+      cancelAnimationFrame(this.frameRequestId)
+      this.frameRequestId = null
     }
       
     if (this.wsConnection) {
-      this.wsConnection.close();
-      this.wsConnection = null;
+      this.wsConnection.close()
+      this.wsConnection = null
     }
-    
-    wsStreamSessions.delete(this.sessionId);
   }
 }
 
 // WebSocket Stream Client
 export class WebSocketStreamClient {
-  private context: any;
-  private handler: (stream: MediaStream, settings: any) => void;
-  private wsConnection: WebSocket | null = null;
-  private reconnectTimer: number | null = null;
-  private reconnectAttempts: number = 0;
-  private streamCanvas: HTMLCanvasElement;
-  private streamCtx: CanvasRenderingContext2D;
-  private stream: MediaStream | null = null;
-  private websocketUrl: string;
-  private img: HTMLImageElement;
-  private frameBuffer: string[] = [];
-  private maxBufferSize = 3;
-  private processingFrame = false;
-  private roomId: string;
-  private sourceAvailable: boolean = false;
+  private context: any
+  private handler: (stream: MediaStream, settings: any) => void
+  private wsConnection: WebSocket | null = null
+  private streamCanvas: HTMLCanvasElement
+  private streamCtx: CanvasRenderingContext2D
+  private stream: MediaStream | null = null
+  private websocketUrl: string
+  private img: HTMLImageElement
+  private roomId: string
 
   constructor(context: any, handler: (stream: MediaStream, settings: any) => void, options: any = {}) {
-    this.context = context;
-    this.handler = handler;
-    this.websocketUrl = options.websocketUrl;
-    this.roomId = this.context.class_id || this.context.liveUser?.room || null;
+    this.context = context
+    this.handler = handler
+    this.websocketUrl = options.websocketUrl
+    this.roomId = this.context.class_id || this.context.liveUser?.room
     
-    // Create canvas for rendering received frames
-    this.streamCanvas = document.createElement('canvas');
-    this.streamCanvas.width = 640;
-    this.streamCanvas.height = 480;
-    this.streamCtx = this.streamCanvas.getContext('2d') as CanvasRenderingContext2D;
+    this.streamCanvas = document.createElement('canvas')
+    this.streamCanvas.width = 640
+    this.streamCanvas.height = 480
+    this.streamCtx = this.streamCanvas.getContext('2d') as CanvasRenderingContext2D
     
-    // Image element to load received frames
-    this.img = new Image();
-    this.setupImageHandlers();
+    this.img = new Image()
+    this.setupImageHandlers()
     
-    this.connect();
+    this.connect()
   }
 
-  // Setup handlers to process and display frames from the buffer
   private setupImageHandlers() {
-    const processNextFrame = () => {
-      // Only process one frame at a time, and only if there are frames in buffer
-      if (this.processingFrame || this.frameBuffer.length === 0) return;
-      
-      this.processingFrame = true;
-      const frameData = this.frameBuffer.shift();
-      
-      if (frameData) {
-        this.img.onload = () => {
-          try {
-            // Adjust canvas size if needed to match frame dimensions
-            if (this.streamCanvas.width !== this.img.width || 
-                this.streamCanvas.height !== this.img.height) {
-              this.streamCanvas.width = this.img.width;
-              this.streamCanvas.height = this.img.height;
-            }
-            
-            // Draw the received frame to canvas
-            this.streamCtx.clearRect(0, 0, this.streamCanvas.width, this.streamCanvas.height);
-            this.streamCtx.drawImage(this.img, 0, 0);
-            
-            // Create MediaStream from canvas on first frame only
-            if (!this.stream) {
-              // Request 30fps from captureStream for smoother playback
-              this.stream = this.streamCanvas.captureStream(30);
-              this.handler(this.stream, this.context.module.stationConfig);
-            }
-            
-            this.processingFrame = false;
-            
-            // Process next frame if available
-            if (this.frameBuffer.length > 0) {
-              window.setTimeout(processNextFrame, 10);
-            }
-          } catch (error) {
-            console.error("Error displaying frame:", error);
-            this.processingFrame = false;
-          }
-        };
+    this.img.onload = () => {
+      try {
+        if (this.streamCanvas.width !== this.img.width || 
+            this.streamCanvas.height !== this.img.height) {
+          this.streamCanvas.width = this.img.width
+          this.streamCanvas.height = this.img.height
+        }
         
-        this.img.onerror = () => {
-          console.error("Error loading image");
-          this.processingFrame = false;
-          window.setTimeout(processNextFrame, 10);
-        };
+        this.streamCtx.clearRect(0, 0, this.streamCanvas.width, this.streamCanvas.height)
+        this.streamCtx.drawImage(this.img, 0, 0)
         
-        // Set the image source to the frame data (starts loading)
-        this.img.src = frameData;
-      } else {
-        this.processingFrame = false;
+        if (!this.stream) {
+          this.stream = this.streamCanvas.captureStream(30)
+          this.handler(this.stream, this.context.module.stationConfig)
+        }
+      } catch (error) {
+        // Handle errors silently
       }
-    };
-    
-    // Check regularly for new frames to process
-    setInterval(() => {
-      if (!this.processingFrame && this.frameBuffer.length > 0) {
-        processNextFrame();
-      }
-    }, 16); // Approximately 60fps check rate
+    }
   }
 
   private connect() {
-    this.wsConnection = new WebSocket(this.websocketUrl);
+    this.wsConnection = new WebSocket(this.websocketUrl)
     
     this.wsConnection.onopen = () => {
-      this.reconnectAttempts = 0;
-      debug.api.streamHandler(`WebSocket client connected to ${this.websocketUrl}`);
-      
-      // Join the specific room
       if (this.roomId) {
         this.wsConnection.send(JSON.stringify({
           type: 'join-room',
           roomId: this.roomId
-        }));
-      } else {
-        debug.api.streamHandler("No room ID available for WebSocket streaming");
+        }))
       }
-    };
+    }
     
     this.wsConnection.onmessage = (event) => {
       try {
-        const message = JSON.parse(event.data);
+        const message = JSON.parse(event.data)
         
-        if (message.type === 'source-available' && message.roomId === this.roomId) {
-          this.sourceAvailable = true;
-        } else if (message.type === 'source-disconnected' && message.roomId === this.roomId) {
-          this.sourceAvailable = false;
-          // Clear buffer when source disconnects
-          this.frameBuffer = [];
-        } else if (message.type === 'frame' && message.data && this.sourceAvailable) {
-          // Buffer the frame
-          if (this.frameBuffer.length < this.maxBufferSize) {
-            this.frameBuffer.push(message.data);
-          } else {
-            this.frameBuffer.shift();
-            this.frameBuffer.push(message.data);
-          }
-        } else if (message.type === 'info') {
-          debug.api.streamHandler(`WebSocket info: ${message.message}`);
+        if (message.type === 'frame' && message.data) {
+          this.img.src = message.data
         }
       } catch (error) {
-        console.error("Error processing message:", error);
+        // Handle errors silently
       }
-    };
-    
-    this.wsConnection.onclose = () => {
-      this.reconnect();
-    };
-    
-    this.wsConnection.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
-  }
-
-  // Attempt to reconnect with exponential backoff
-  private reconnect() {
-    if (this.wsConnection) {
-      this.wsConnection.close();
-      this.wsConnection = null;
     }
     
-    this.reconnectAttempts++;
-    const delay = Math.min(Math.pow(2, this.reconnectAttempts) * 1000, 30000);
-    
-    if (this.reconnectTimer !== null) {
-      window.clearTimeout(this.reconnectTimer);
+    this.wsConnection.onerror = () => {
+      // Handle errors silently
     }
-    
-    this.reconnectTimer = window.setTimeout(() => {
-      this.connect();
-    }, delay);
   }
 
   public stop() {
-    if (this.reconnectTimer !== null) {
-      window.clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    
     if (this.wsConnection) {
-      this.wsConnection.close();
-      this.wsConnection = null;
+      this.wsConnection.close()
+      this.wsConnection = null
     }
     
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
-      this.stream = null;
+      this.stream.getTracks().forEach(track => track.stop())
+      this.stream = null
     }
   }
 }
