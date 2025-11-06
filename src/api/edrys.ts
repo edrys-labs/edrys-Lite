@@ -109,9 +109,9 @@ window['Edrys'] = {
   set debug(value) {
     this._debug = value;
     if (value) {
-      enableDebug('edrysModule');
+      enableDebug('edrysModule,api:*');
     } else {
-      disableSpecificDebug('edrysModule');
+      disableSpecificDebug('edrysModule,api:*');
     }
   },
 
