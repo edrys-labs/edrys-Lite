@@ -18,6 +18,7 @@ import {
   extractCommunicationConfigFromUrl,
   compareCommunicationConfig,
   cleanUrlAfterCommConfigExtraction,
+  updateUrlWithCommConfig,
   encodeCommConfig,
   decodeCommConfig
 } from "../ts/Utils";
@@ -196,8 +197,17 @@ export default {
       }
 
       const shouldKeepConfigInUrl = config?.data?.keepUrlConfig === true;
-        
-      cleanUrlAfterCommConfigExtraction(!shouldKeepConfigInUrl);
+      
+      // If keepUrlConfig is true and there's no comm config in URL, restore it
+      if (shouldKeepConfigInUrl && !urlCommConfig && config?.data?.communicationConfig) {
+        const savedCommConfig = decodeCommConfig(config.data.communicationConfig);
+        if (savedCommConfig) {
+          updateUrlWithCommConfig(savedCommConfig);
+        }
+      } else {
+        // Clean URL only if keepUrlConfig is false
+        cleanUrlAfterCommConfigExtraction(!shouldKeepConfigInUrl);
+      }
 
       if (!this.communication) {                
         this.communication = new Peer(

@@ -158,9 +158,9 @@ settings:
   communication:
     labels:
       method: "Método de Comunicación"
-      websocketServer: "URL del Servidor Websocket"
-      webrtcSignaling: "URL del Servidor de Señalización WebRTC"
-      webrtcConfig: "Configuración WebRTC (JSON)"
+      websocketServer: "URL del Servidor Websocket (opcional)"
+      webrtcSignaling: "URL del Servidor de Señalización WebRTC (opcional)"
+      webrtcConfig: "Configuración WebRTC (JSON) (opcional)"
     alert:
       first: "El cambio en el método de comunicación afectará cómo la aplicación se conecta a otros usuarios. Usar WebRTC permite conexiones directas entre pares, mientras que Websocket requiere un servidor para retransmitir mensajes."
       second: "Después de cambiar la configuración, se generará un nuevo enlace para el aula. Este enlace debe compartirse con los alumnos para garantizar que se conectan con la configuración correcta."

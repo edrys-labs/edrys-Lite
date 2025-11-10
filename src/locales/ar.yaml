@@ -158,9 +158,9 @@ settings:
   communication:
     labels:
       method: "طريقة الاتصال"
-      websocketServer: "رابط خادم Websocket"
-      webrtcSignaling: "رابط خادم WebRTC"
-      webrtcConfig: "تكوين WebRTC (JSON)"
+      websocketServer: "رابط خادم Websocket (اختياري)"
+      webrtcSignaling: "رابط خادم WebRTC (اختياري)"
+      webrtcConfig: "تكوين WebRTC (اختياري) (JSON)"
     alert:
       first: "تغيير طريقة الاتصال سيؤثر على كيفية اتصال التطبيق بالأقران الآخرين. استخدام WebRTC يسمح بالاتصالات المباشرة من الند للند، بينما يتطلب Websocket خادمًا لتوصيل الرسائل."
       second: "بعد تغيير التكوين، سيتم إنشاء رابط جديد للفصل الدراسي. يجب مشاركة هذا الرابط مع الطلاب لضمان اتصالهم بالإعدادات الصحيحة."

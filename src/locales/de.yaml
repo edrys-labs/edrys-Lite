@@ -158,9 +158,9 @@ settings:
   communication:
     labels:
         method: "Kommunikationsmethode"
-        websocketServer: "Websocket-Server-URL"
-        webrtcSignaling: "WebRTC Signalisierungsserver-URL"
-        webrtcConfig: "WebRTC-Konfiguration (JSON)"
+        websocketServer: "Websocket-Server-URL (optional)"
+        webrtcSignaling: "WebRTC Signalisierungsserver-URL (optional)"
+        webrtcConfig: "WebRTC-Konfiguration (JSON) (optional)"
     alert:
       first: "Änderung der Kommunikationsmethode beeinflusst, wie die Anwendung mit anderen Peers verbindet. WebRTC ermöglicht direkte Peer-to-Peer-Verbindungen, während Websocket einen Server zur Nachrichtenübermittlung benötigt."
       second: "Nach dem Ändern der Konfiguration wird ein neuer Link für das Klassenzimmer generiert. Dieser Link sollte mit Schülern geteilt werden, um sicherzustellen, dass sie mit den korrekten Einstellungen verbinden."

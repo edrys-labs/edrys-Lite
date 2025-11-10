@@ -158,9 +158,9 @@ settings:
   communication:
     labels:
       method: "Communication Method"
-      websocketServer: "Websocket Server URL"
-      webrtcSignaling: "WebRTC Signaling Server URL"
-      webrtcConfig: "WebRTC Configuration (JSON)"
+      websocketServer: "Websocket Server URL (optional)"
+      webrtcSignaling: "WebRTC Signaling Server URL (optional)"
+      webrtcConfig: "WebRTC Configuration (JSON) (optional)"
     alert:
       first: "Changing the communication method will affect how the application connects to other peers. Using WebRTC allows for direct peer-to-peer connections, while Websocket requires a server to relay messages."
       second: "After changing the configuration, a new link will be generated for the classroom. This link should be shared with students to ensure they connect with the correct settings."
