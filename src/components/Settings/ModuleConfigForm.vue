@@ -119,7 +119,6 @@
                   :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   rows="5"
-                  no-resize
                   class="mt-3"
                 ></v-textarea>
 
