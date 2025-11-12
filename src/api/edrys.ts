@@ -40,6 +40,12 @@ var liveClass = false
 var doc: any
 var callback = { onReady: false, onUpdate: false }
 
+// Allowed origins for security
+const allowedOrigins = [
+  'https://edrys-labs.github.io',
+  'http://localhost:6999'  // For development
+];
+
 function LOG(...args) {
   if (window['Edrys'].debug)
     debug.api.general(
@@ -84,13 +90,13 @@ window.addEventListener('unload', () => {
     event: 'reload',
     module: window['Edrys']?.module?.url || '*',
   },
-  window['Edrys']?.origin || '*'
+  window['Edrys']?.origin
 )
 })
 
 
 window['Edrys'] = {
-  origin: '*',
+  origin: null,
   ready: false,
   role: undefined,
   username: undefined,
@@ -418,9 +424,18 @@ function dispatchUpdate() {
 window.addEventListener(
   'message',
   function (e) {
+    if (!allowedOrigins.includes(e.origin)) {
+      debug.api.general('[Edrys Security] Rejected message from:', e.origin);
+      return;  // STOP - don't process untrusted messages
+    }
+
+    if (!window['Edrys'].origin) {
+      window['Edrys'].origin = e.origin; 
+      debug.api.general('[Edrys Security] Trusted origin set to:', e.origin)
+    }
+
     switch (e.data.event) {
       case 'update':
-        window['Edrys'].origin = e.data.origin
         window['Edrys'].role = e.data.role
         window['Edrys'].username = e.data.username
         window['Edrys'].module = e.data.module
@@ -553,7 +568,10 @@ window.addEventListener(
       dispatchEvent(
         new CustomEvent('$Edrys.' + e.data.event, {
           bubbles: false,
-          detail: e.data,
+          detail: {
+            ...e.data,
+            _validatedOrigin: e.origin
+          }
         })
       )
     }
@@ -569,7 +587,7 @@ function checkReady() {
         event: 'reload',
         module: window['Edrys']?.module?.url || '*',
       },
-      window['Edrys']?.origin || '*'
+      window['Edrys']?.origin
     )
 
     setTimeout(function () {

@@ -122,13 +122,19 @@ export default {
       "message",
       (msg: { subject: string; body: any; module_url: string; date: number }) => {
         for (let i = 0; i < iframes.length; i++) {
-          iframes[i].contentWindow?.postMessage(
-            {
-              event: "message",
-              ...msg,
-            },
-            "*"
-          );
+          // Get the corresponding module for this iframe to use its origin
+          const moduleIndex = i;
+          const module = this.scrapedModulesFilter[moduleIndex];
+          if (module) {
+            const targetOrigin = module.origin || new URL(module.url).origin;
+            iframes[i].contentWindow?.postMessage(
+              {
+                event: "message",
+                ...msg,
+              },
+              targetOrigin
+            );
+          }
         }
       }
       //self.scrapedModule.origin || self.iframeOrigin
@@ -303,12 +309,23 @@ export default {
           break;
         case "requestWebRTCConfig":
           // Get config from Peer and send back to iframe
-          this.communication.getWebRTCConfig().then(config => {
-            e.source.postMessage({
-              event: "webrtcConfig",
-              config: config
-            }, "*");
+          // Validate the requesting origin against allowed module origins
+          const requestOrigin = e.origin;
+          const isAllowedOrigin = this.scrapedModulesFilter.some(m => {
+            const moduleOrigin = m.origin || new URL(m.url).origin;
+            return moduleOrigin === requestOrigin;
           });
+          
+          if (isAllowedOrigin) {
+            this.communication.getWebRTCConfig().then(config => {
+              e.source.postMessage({
+                event: "webrtcConfig",
+                config: config
+              }, requestOrigin);
+            });
+          } else {
+            debug.components.modules("[Security] Rejected WebRTC config request from untrusted origin:", requestOrigin);
+          }
           break;
         default:
           debug.components.modules("Unknown event", e.data);
