@@ -197,6 +197,14 @@ modules:
     1: "Lo siento, parece que no has cargado ningún "
     2: " módulo. Agrega algunos en la configuración de la clase para comenzar."
     3: "Lo siento, parece que los creadores de la clase aún no han agregado ningún módulo."
+  webrtcNotSupported:
+    title: "WebRTC no es compatible"
+    message: "Tu navegador no es compatible con WebRTC, que es necesario para este aula."
+    ifStudent: "Si eres un estudiante:"
+    studentAction: "Por favor, usa un navegador moderno (Chrome, Firefox, Edge o Safari), o contacta a tu profesor para solicitar un enlace de aula basado en WebSocket."
+    ifTeacher: "Si eres el propietario/profesor del aula:"
+    teacherAction: "Usa un navegador moderno que admita WebRTC, o puedes configurar este aula para usar WebSocket en su lugar."
+    note: "(Abre la configuración del aula (⚙️) y cambia el método de comunicación a WebSocket)"
 
 logger:
   title: "Registrador"

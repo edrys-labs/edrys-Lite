@@ -22,7 +22,8 @@ export default {
       model: true, // Start with overlay visible
       counter: 0,
       communicationMethod: null, // Start with null to avoid showing any method until detected
-      checkRunning: false
+      checkRunning: false,
+      manuallyDismissed: false, // Track if user manually dismissed the error
     };
   },
 
@@ -38,6 +39,11 @@ export default {
   },
 
   methods: {
+    dismissError() {
+      this.manuallyDismissed = true;
+      this.model = false;
+    },
+
     detectCommunicationMethod() {
       try {
         // Get communication method directly from parent configuration
@@ -97,6 +103,11 @@ export default {
         this.counterIncrement();
       }
 
+      // If user manually dismissed the error, keep overlay hidden
+      if (this.manuallyDismissed) {
+        return false;
+      }
+
       // Only hide overlay when all checks pass
       return !(
         this.states.connectedToNetwork && 
@@ -117,6 +128,11 @@ export default {
     
     showWebRTCCheck() {
       return this.communicationMethod === 'WebRTC';
+    },
+
+    hasWebRTCError() {
+      // WebRTC is required but not supported
+      return this.communicationMethod === 'WebRTC' && this.states.webRTCSupport === false;
     }
   },
 
@@ -148,79 +164,111 @@ export default {
         style="color: white; width: 100vw; height: 70vh"
       >
         <v-col cols="12" sm="12" md="4" justify="center" align="center">
-          <v-progress-circular
-            indeterminate
-            :size="88"
-            :width="7"
-            justify="center"
-            align="center"
-          ></v-progress-circular>
+          <!-- Show error message if WebRTC is not supported but required -->
+          <v-card v-if="hasWebRTCError" color="error" class="pa-6" max-width="700" style="position: relative;">
+            <v-btn
+              icon="mdi-close"
+              variant="tonal"
+              size="small"
+              @click="dismissError"
+              :title="t('classroom.popup.close')"
+              style="position: absolute; top: 8px; right: 8px; z-index: 1;"
+            ></v-btn>
 
-          <div v-if="communicationMethod !== null">
-            <div v-if="showWebRTCCheck">
-              {{ t('checks.webRTCSupport') }}
+            <v-card-title class="text-h5 mb-4">
+              <v-icon left size="large" class="mr-2">mdi-alert-circle</v-icon>
+              {{ t('modules.webrtcNotSupported.title') }}
+            </v-card-title>
+            <v-card-text class="text-body-1">
+              <p class="mb-4"><strong>{{ t('modules.webrtcNotSupported.message') }}</strong></p>
+              
+              <v-divider class="my-4"></v-divider>
+              
+              <p class="mb-3"><strong>{{ t('modules.webrtcNotSupported.ifStudent') }}</strong></p>
+              <p class="mb-4">{{ t('modules.webrtcNotSupported.studentAction') }}</p>
+              
+              <p class="mb-3"><strong>{{ t('modules.webrtcNotSupported.ifTeacher') }}</strong></p>
+              <p>{{ t('modules.webrtcNotSupported.teacherAction') }}</p>
+              <p>{{ t('modules.webrtcNotSupported.note') }}</p>
+            </v-card-text>
+          </v-card>
 
-              <v-btn
-                class="ma-5"
-                size="x-small"
-                color="success"
-                icon="mdi-check"
-                v-if="states.webRTCSupport === true"
-              ></v-btn>
+          <!-- Normal loading state -->
+          <template v-else>
+            <v-progress-circular
+              indeterminate
+              :size="88"
+              :width="7"
+              justify="center"
+              align="center"
+            ></v-progress-circular>
 
-              <v-btn
-                class="ma-5"
-                size="x-small"
-                color="error"
-                icon="mdi-close"
-                v-if="states.webRTCSupport === false"
-              ></v-btn>
+            <div v-if="communicationMethod !== null">
+              <div v-if="showWebRTCCheck">
+                {{ t('checks.webRTCSupport') }}
+
+                <v-btn
+                  class="ma-5"
+                  size="x-small"
+                  color="success"
+                  icon="mdi-check"
+                  v-if="states.webRTCSupport === true"
+                ></v-btn>
+
+                <v-btn
+                  class="ma-5"
+                  size="x-small"
+                  color="error"
+                  icon="mdi-close"
+                  v-if="states.webRTCSupport === false"
+                ></v-btn>
+              </div>
+
+              <div v-if="!showWebRTCCheck">
+                <v-chip color="primary" class="ma-2">{{ t('checks.usingWebsocket') }}</v-chip>
+              </div>
+
+              <div>
+                {{ t('checks.configLoaded') }}
+
+                <v-btn
+                  class="ma-5"
+                  size="x-small"
+                  color="success"
+                  icon="mdi-check"
+                  v-if="states.receivedConfiguration === true"
+                ></v-btn>
+
+                <v-btn
+                  class="ma-5"
+                  size="x-small"
+                  color="error"
+                  icon="mdi-close"
+                  v-if="states.receivedConfiguration === false"
+                ></v-btn>
+              </div>
+
+              <div>
+                {{ connectivityLabel }} {{ counter }} {{ t('checks.connected.2') }}
+
+                <v-btn
+                  class="ma-5"
+                  size="x-small"
+                  color="success"
+                  icon="mdi-check"
+                  v-if="states.connectedToNetwork === true"
+                ></v-btn>
+
+                <v-btn
+                  class="ma-5"
+                  size="x-small"
+                  color="error"
+                  icon="mdi-close"
+                  v-if="states.connectedToNetwork === false"
+                ></v-btn>
+              </div>
             </div>
-
-            <div v-if="!showWebRTCCheck">
-              <v-chip color="primary" class="ma-2">{{ t('checks.usingWebsocket') }}</v-chip>
-            </div>
-
-            <div>
-              {{ t('checks.configLoaded') }}
-
-              <v-btn
-                class="ma-5"
-                size="x-small"
-                color="success"
-                icon="mdi-check"
-                v-if="states.receivedConfiguration === true"
-              ></v-btn>
-
-              <v-btn
-                class="ma-5"
-                size="x-small"
-                color="error"
-                icon="mdi-close"
-                v-if="states.receivedConfiguration === false"
-              ></v-btn>
-            </div>
-
-            <div>
-              {{ connectivityLabel }} {{ counter }} {{ t('checks.connected.2') }}
-
-              <v-btn
-                class="ma-5"
-                size="x-small"
-                color="success"
-                icon="mdi-check"
-                v-if="states.connectedToNetwork === true"
-              ></v-btn>
-
-              <v-btn
-                class="ma-5"
-                size="x-small"
-                color="error"
-                icon="mdi-close"
-                v-if="states.connectedToNetwork === false"
-              ></v-btn>
-            </div>
-          </div>
+          </template>
         </v-col>
       </v-row>
     </v-container>

@@ -15,7 +15,7 @@ describe('Checks Component', () => {
           receivedConfiguration: false,
           connectedToNetwork: false,
           ...states,
-        }
+        },
       },
       global: {
         stubs: {
@@ -32,6 +32,18 @@ describe('Checks Component', () => {
           'v-col': {
             template: '<div class="v-col"><slot /></div>'
           },
+          'v-card': {
+            template: '<div class="v-card"><slot /></div>'
+          },
+          'v-card-title': {
+            template: '<div class="v-card-title"><slot /></div>'
+          },
+          'v-card-text': {
+            template: '<div class="v-card-text"><slot /></div>'
+          },
+          'v-alert': {
+            template: '<div class="v-alert"><slot /></div>'
+          },
           'v-progress-circular': {
             template: '<div class="v-progress-circular"><slot /></div>'
           },
@@ -43,6 +55,9 @@ describe('Checks Component', () => {
           },
           'v-btn': {
             template: '<button :color="$attrs.color" :icon="$attrs.icon"><slot /></button>'
+          },
+          'v-spacer': {
+            template: '<div class="v-spacer"></div>'
           }
         }
       }
@@ -58,6 +73,11 @@ describe('Checks Component', () => {
     
     // Call check to update the model based on the props and communication method
     wrapper.vm.check = vi.fn(() => {
+      // If user manually dismissed, keep overlay hidden
+      if (wrapper.vm.manuallyDismissed) {
+        return false;
+      }
+      
       return !(
         wrapper.vm.states.connectedToNetwork && 
         (wrapper.vm.communicationMethod !== 'WebRTC' || wrapper.vm.states.webRTCSupport) && 
@@ -80,7 +100,7 @@ describe('Checks Component', () => {
 
   describe('Communication Method Detection', () => {
     test('defaults to WebRTC when no config is provided', async () => {
-      wrapper = createWrapper();
+      wrapper = createWrapper({ webRTCSupport: true });
       
       await nextTick();
       
@@ -269,12 +289,75 @@ describe('Checks Component', () => {
     });
   });
 
+  describe('WebRTC Error Handling', () => {
+    test('shows WebRTC error when WebRTC not supported', async () => {
+      wrapper = createWrapper(
+        {
+          webRTCSupport: false,
+          receivedConfiguration: true,
+          connectedToNetwork: false
+        },
+        'WebRTC'
+      );
+      
+      await nextTick();
+      
+      expect(wrapper.vm.hasWebRTCError).toBe(true);
+      expect(wrapper.text()).toContain('WebRTC Not Supported');
+      expect(wrapper.text()).toContain('If you are a student');
+      expect(wrapper.text()).toContain('If you are the classroom owner');
+    });
+
+    test('user can dismiss WebRTC error', async () => {
+      wrapper = createWrapper(
+        {
+          webRTCSupport: false,
+          receivedConfiguration: true,
+          connectedToNetwork: false
+        },
+        'WebRTC'
+      );
+      
+      await nextTick();
+      
+      expect(wrapper.vm.model).toBe(true);
+      expect(wrapper.vm.manuallyDismissed).toBe(false);
+      
+      // Dismiss the error
+      wrapper.vm.dismissError();
+      
+      await nextTick();
+      
+      expect(wrapper.vm.manuallyDismissed).toBe(true);
+      expect(wrapper.vm.model).toBe(false);
+      
+      // Verify it stays dismissed after check() is called
+      const result = wrapper.vm.check();
+      expect(result).toBe(false);
+    });
+
+    test('does not show WebRTC error when using Websocket', async () => {
+      wrapper = createWrapper(
+        {
+          webRTCSupport: false,
+          receivedConfiguration: true,
+          connectedToNetwork: false
+        },
+        'Websocket'
+      );
+      
+      await nextTick();
+      
+      expect(wrapper.vm.hasWebRTCError).toBe(false);
+    });
+  });
+
   describe('Translations', () => {
     test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
       i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
       
-      // Test WebRTC mode translations
-      wrapper = createWrapper({}, 'WebRTC');
+      // Test WebRTC mode translations with WebRTC supported
+      wrapper = createWrapper({ webRTCSupport: true }, 'WebRTC');
       
       await nextTick();
       
