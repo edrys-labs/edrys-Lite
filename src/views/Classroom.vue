@@ -44,11 +44,14 @@ export default {
     const data: any = null;
     const communication: Peer | null = null;
 
-    let webRTCSupport = false;
-    // @ts-ignore
-    if (navigator.mediaDevices && navigator?.mediaDevices?.getUserMedia) {
-      webRTCSupport = true;
-    }
+    // Check for WebRTC support
+    let webRTCSupport = !!(
+      window.RTCPeerConnection ||
+      // @ts-ignore
+      window.mozRTCPeerConnection ||
+      // @ts-ignore
+      window.webkitRTCPeerConnection
+    );
 
     onMounted(() => {
       this.init();
@@ -145,6 +148,8 @@ export default {
     },
 
     async init() {
+      const self = this;
+      
       // Extract communication config from URL and decode it if needed
       const urlCommConfig = extractCommunicationConfigFromUrl();
       
@@ -188,25 +193,24 @@ export default {
       }
 
       const configurationCopy = JSON.parse(JSON.stringify(this.configuration));
-
-      if (window.location.hash && window.location.hash.includes('comm=')) {
-        // URL has explicit comm config - use it
-        if (this.urlCommunicationConfig) {
-          configurationCopy.data.communicationConfig = this.urlCommunicationConfig;
-        }
-      }
-
       const shouldKeepConfigInUrl = config?.data?.keepUrlConfig === true;
       
-      // If keepUrlConfig is true and there's no comm config in URL, restore it
-      if (shouldKeepConfigInUrl && !urlCommConfig && config?.data?.communicationConfig) {
+      // Determine which communication config to use (saved vs URL)
+      if (shouldKeepConfigInUrl && config?.data?.communicationConfig) {
         const savedCommConfig = decodeCommConfig(config.data.communicationConfig);
         if (savedCommConfig) {
+          configurationCopy.data.communicationConfig = config.data.communicationConfig;
+          this.configuration.data.communicationConfig = config.data.communicationConfig;
+          
           updateUrlWithCommConfig(savedCommConfig);
         }
+      } else if (this.urlCommunicationConfig) {
+        configurationCopy.data.communicationConfig = this.urlCommunicationConfig;
+        this.configuration.data.communicationConfig = this.urlCommunicationConfig;
+        
+        cleanUrlAfterCommConfigExtraction(true);
       } else {
-        // Clean URL only if keepUrlConfig is false
-        cleanUrlAfterCommConfigExtraction(!shouldKeepConfigInUrl);
+        cleanUrlAfterCommConfigExtraction(true);
       }
 
       if (!this.communication) {                
@@ -224,8 +228,6 @@ export default {
 
         this.communication.on("popup", this.addPopup);
       }
-
-      const self = this;
 
       this.database.setObservable(this.id, (config: DatabaseItem) => {
         try {

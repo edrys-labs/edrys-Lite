@@ -197,6 +197,14 @@ modules:
     1: "Sorry, aber es sieht so aus, als hätten Sie keine "
     2: " Module geladen. Fügen Sie einige in den Klasseneinstellungen hinzu, um loszulegen."
     3: "Sorry, aber es sieht so aus, als hätten die Klassenersteller noch keine Module hinzugefügt."
+  webrtcNotSupported:
+    title: "WebRTC wird nicht unterstützt"
+    message: "Ihr Browser unterstützt WebRTC nicht, das für diese Klasse erforderlich ist."
+    ifStudent: "Wenn Sie ein Schüler sind:"
+    studentAction: "Bitte verwenden Sie einen modernen Browser (Chrome, Firefox, Edge oder Safari) oder wenden Sie sich an Ihren Lehrer, um einen WebSocket-basierten Klassenraum-Link anzufordern."
+    ifTeacher: "Wenn Sie der Klassenbesitzer/Lehrer sind:"
+    teacherAction: "Verwenden Sie einen modernen Browser, der WebRTC unterstützt, oder Sie können diese Klasse so konfigurieren, dass sie stattdessen WebSocket verwendet."
+    note: "(Öffnen Sie die Klasseneinstellungen (⚙️) und ändern Sie die Kommunikationsmethode auf WebSocket)"
 
 logger:
   title: "Logger"
