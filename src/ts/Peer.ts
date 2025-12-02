@@ -428,7 +428,7 @@ export default class Peer {
         updateUrlWithCommConfig(newCommConfig)
       } else {
         // Clean URL if new config results in no encoding (default WebRTC)
-        cleanUrlAfterCommConfigExtraction(true);
+        cleanUrlAfterCommConfigExtraction(true)
       }
 
       this.update('popup', this.t('peer.feedback.communicationChanges'))
@@ -509,7 +509,7 @@ export default class Peer {
   }
 
   /**
-   * Initializes the setup map with proper conflict resolution.
+   * Initializes the setup map with proper conflict resolution and lock mechanism.
    */
   initSetup(force: boolean = false) {
     const timestamp: number = (this.y.setup.get('timestamp') as number) || 0
@@ -517,15 +517,35 @@ export default class Peer {
 
     this.y.doc.transact(() => {
       if (force) {
-        LOG('Force update new configuration')
+        // Use a lock mechanism to prevent concurrent force updates
+        const setupLock = this.y.doc.getMap('setupLock')
+        const currentLockHolder = setupLock.get('holder')
+        const lockTimestamp = (setupLock.get('timestamp') as number) || 0
+        const lockExpired = Date.now() - lockTimestamp > 5000
 
-        this.logSetupChanges(data, this.lab.data)
+        // Only proceed if we can acquire the lock or it's expired
+        if (!currentLockHolder || lockExpired) {
+          setupLock.set('holder', this.peerID)
+          setupLock.set('timestamp', Date.now())
 
-        this.y.setup.set('config', this.lab.data)
-        this.y.setup.set('timestamp', this.lab.timestamp)
+          LOG('Force update new configuration with lock')
+          this.logSetupChanges(data, this.lab.data)
 
-        if (!this.allowedToParticipate()) {
-          this.update('popup', this.t('peer.feedback.noAccess'))
+          this.y.setup.set('config', this.lab.data)
+          this.y.setup.set('timestamp', this.lab.timestamp)
+
+          // Release lock after a short delay
+          setTimeout(() => {
+            if (setupLock.get('holder') === this.peerID) {
+              setupLock.delete('holder')
+            }
+          }, 1000)
+
+          if (!this.allowedToParticipate()) {
+            this.update('popup', this.t('peer.feedback.noAccess'))
+          }
+        } else {
+          LOG('Setup update blocked: another peer holds the lock')
         }
       }
       // If my setup is older than the current setup
@@ -542,16 +562,18 @@ export default class Peer {
           this.update('popup', this.t('peer.feedback.noAccess'))
         }
       }
-      // If the received setup is not up to date or empty
-      else if (
-        (this.lab.timestamp !== timestamp && this.lab.timestamp > 0) ||
-        (timestamp === 0 && this.lab.timestamp > 0 && this.lab.data)
-      ) {
-        LOG(
-          'received outdated or empty lab configuration, writing changes back'
-        )
-        this.y.setup.set('config', this.lab.data)
-        this.y.setup.set('timestamp', this.lab.timestamp)
+      // Only write if we have newer data AND no one else is currently writing
+      else if (this.lab.timestamp > timestamp && this.lab.timestamp > 0) {
+        const setupLock = this.y.doc.getMap('setupLock')
+        const currentLockHolder = setupLock.get('holder')
+
+        if (!currentLockHolder || currentLockHolder === this.peerID) {
+          LOG('received outdated lab configuration, writing changes back')
+          this.y.setup.set('config', this.lab.data)
+          this.y.setup.set('timestamp', this.lab.timestamp)
+        } else {
+          LOG('Setup update skipped: another peer is updating')
+        }
       }
     }, 'initSetup')
   }
@@ -689,7 +711,8 @@ export default class Peer {
           lastModified: timeNow,
         }
       } else {
-        if (user.logicalClock != this.logicalClocks[id].clock) {
+        // Use strict equality to avoid type coercion issues
+        if (user.logicalClock !== this.logicalClocks[id].clock) {
           this.logicalClocks[id].clock = user.logicalClock
           this.logicalClocks[id].lastModified = timeNow
         } else if (timeNow - this.logicalClocks[id].lastModified > timeout) {
@@ -699,10 +722,38 @@ export default class Peer {
     }
 
     if (deadPeers.length > 0) {
-      this.removePeers(deadPeers)
+      // Verify peers are truly dead before removing them
+      this.verifyAndRemoveDeadPeers(deadPeers)
     } else {
       this.checkForDeadStations()
     }
+  }
+
+  /**
+   * Verifies that peers are truly dead before removing them to prevent false positives.
+   * @param peerIds Array of potentially dead peer IDs.
+   */
+  private verifyAndRemoveDeadPeers(peerIds: string[]) {
+    // Double-check after a short delay to prevent removing temporarily slow peers
+    setTimeout(() => {
+      const users = this.y.users.toJSON()
+      const confirmedDeadPeers: string[] = []
+
+      for (const id of peerIds) {
+        const user = users[id]
+        if (user && this.logicalClocks[id]) {
+          // If clock still hasn't changed after verification delay, peer is confirmed dead
+          if (user.logicalClock === this.logicalClocks[id].clock) {
+            confirmedDeadPeers.push(id)
+          }
+        }
+      }
+
+      if (confirmedDeadPeers.length > 0) {
+        LOG('Removing confirmed dead peers:', confirmedDeadPeers)
+        this.removePeers(confirmedDeadPeers)
+      }
+    }, 2000)
   }
 
   checkForDeadStations() {
