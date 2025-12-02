@@ -305,21 +305,11 @@ export default class Peer {
   private handleStatus(event: { status: string }) {
     LOG('status', event)
 
-    // Observe setup changes
-    this.y.setup.observe(this.handleSetupChange.bind(this))
-
-    // Delay setting connected to true to ensure synchronization
-    setTimeout(() => {
-      if (!this.connected) {
-        this.connected = true
-
-        if (!this.allowedToParticipate()) {
-          this.update('popup', this.t('peer.feedback.noAccess'))
-        }
-        LOG('synced', event)
-        this.update('connected')
-      }
-    }, 5000)
+    // Observe setup changes if not already observing
+    if (!this._hasSetupObserver) {
+      this.y.setup.observe(this.handleSetupChange.bind(this))
+      this._hasSetupObserver = true
+    }
   }
 
   /**
@@ -334,11 +324,10 @@ export default class Peer {
       this._hasSetupObserver = true
     }
 
-    // Ensure that synchronization is complete before updating state
+    // Use a shorter delay to improve responsiveness when peers join
     setTimeout(() => {
       if (!this.connected) {
         this.connected = true
-        this.update('connected')
 
         // When synced, check access permissions
         if (!this.allowedToParticipate()) {
@@ -351,8 +340,11 @@ export default class Peer {
           LOG('Initializing setup from local data during sync')
           this.initSetup(true)
         }
+
+        LOG('Connected and synced')
+        this.update('connected')
       }
-    }, 5000)
+    }, 1000)
   }
 
   /**
