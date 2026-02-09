@@ -16,6 +16,22 @@ function generateStreamPeerID(context: any, streamName: string): string {
   return `stream_${cleanId}`.substring(0, 50)
 }
 
+// Helper to build PeerJS options from config
+function getPeerOptions(rtcConfig: RTCConfiguration, peerServerConfig?: any) {
+  const baseOptions: any = { config: rtcConfig }
+  
+  // If custom peer server config is provided, use it
+  if (peerServerConfig?.host) {
+    baseOptions.host = peerServerConfig.host
+    baseOptions.port = peerServerConfig.port || 443
+    baseOptions.path = peerServerConfig.path || '/'
+    baseOptions.secure = peerServerConfig.secure !== undefined ? peerServerConfig.secure : true
+  }
+  // Otherwise, PeerJS will use its default cloud service
+  
+  return baseOptions
+}
+
 // Stream Server (Station)
 export class StreamServer {
   private context: any
@@ -24,13 +40,20 @@ export class StreamServer {
   private streamName: string
   private connectedClients: Set<string> = new Set()
 
-  constructor(context: any, stream: MediaStream, rtcConfig: RTCConfiguration, streamName?: string) {
+  constructor(
+    context: any, 
+    stream: MediaStream, 
+    rtcConfig: RTCConfiguration, 
+    streamName?: string, 
+    peerServerConfig?: any
+  ) {
     this.context = context
     this.stream = stream
     this.streamName = streamName || `${this.context.username}-stream`
     
     const peerId = generateStreamPeerID(context, this.streamName)
-    this.peer = new Peer(peerId, { config: rtcConfig })
+    const peerOptions = getPeerOptions(rtcConfig, peerServerConfig)
+    this.peer = new Peer(peerId, peerOptions)
     this.setupPeerEvents()
   }
 
@@ -117,13 +140,15 @@ export class StreamClient {
     context: any, 
     handler: (stream: MediaStream, settings: any, metadata?: any) => void,
     rtcConfig: RTCConfiguration,
-    defaultStreamName?: string
+    defaultStreamName?: string,
+    peerServerConfig?: any
   ) {
     this.context = context
     this.handler = handler
     this.defaultStreamName = defaultStreamName
     
-    this.peer = new Peer({ config: rtcConfig })
+    const peerOptions = getPeerOptions(rtcConfig, peerServerConfig)
+    this.peer = new Peer(peerOptions)
     this.setupPeerEvents()
   }
 

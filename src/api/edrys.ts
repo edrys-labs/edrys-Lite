@@ -39,6 +39,7 @@ const EXTERN = 'extern'
 var liveClass = false
 var doc: any
 var callback = { onReady: false, onUpdate: false }
+var rtcConfig: RTCConfiguration | null = null
 
 // Allowed origins for security
 const allowedOrigins = [
@@ -63,8 +64,11 @@ function encode(value: any): string {
   try {
     // Convert MessagePack binary data to Base64 string
     const packed = pack(value)
-    return btoa(String.fromCharCode(...packed))
+    const binaryString = Array.from(packed, byte => String.fromCharCode(byte)).join('')
+    
+    return btoa(binaryString)
   } catch (error) {
+    console.error('[Edrys] Encoding failed:', error)
     throw error
   }
 }
@@ -82,6 +86,31 @@ function decode(value: string): any {
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// Internal function to get WebRTC config
+async function getWebRTCConfig(origin: string): Promise<RTCConfiguration> {
+  // Request WebRTC config if not already available
+  if (!rtcConfig) {
+    window.parent.postMessage(
+      {
+        event: 'requestWebRTCConfig',
+      },
+      origin
+    )
+
+    // Wait for config response
+    rtcConfig = await new Promise<RTCConfiguration>((resolve) => {
+      const handler = (e: MessageEvent) => {
+        if (e.data.event === 'webrtcConfig') {
+          window.removeEventListener('message', handler)
+          resolve(e.data.config)
+        }
+      }
+      window.addEventListener('message', handler)
+    })
+  }
+  return rtcConfig
 }
 
 window.addEventListener('unload', () => {
@@ -106,7 +135,6 @@ window['Edrys'] = {
   module: undefined,
   class_id: undefined,
   _debug: false,
-  rtcConfig: null,
 
   get debug() {
     return this._debug;
@@ -192,6 +220,7 @@ window['Edrys'] = {
       window['Edrys'].origin
     )
   },
+
   setItem(key, value) {
     localStorage.setItem(
       `${window['Edrys'].class_id}.${window['Edrys'].liveUser.room}.${key}`,
@@ -207,11 +236,9 @@ window['Edrys'] = {
   clearState(key: string) {
     doc.getMap('rooms').get(window['Edrys'].liveUser.room).delete(key)
   },
-
   updateState(callback: () => void, origin: any) {
     doc.transact(callback, origin)
   },
-
   getState(
     key?: string,
     type?:
@@ -290,7 +317,6 @@ window['Edrys'] = {
     return state
   },
 
-  // Streaming methods
   async sendStream(stream: MediaStream, options: any = {}) {
     const method = options.method || 'webrtc'
 
@@ -302,17 +328,18 @@ window['Edrys'] = {
         stop: () => wsServer.stop(),
       }
     } else {
-      const config = await this.getWebRTCConfig()
-      // Pass streamName from options or stationConfig
+      const config = await getWebRTCConfig(this.origin)
+
       const streamName = options.streamName || this.module.stationConfig?.streamName
-      const streamServer = new StreamServer(this, stream, config, streamName)
+      const peerServerConfig = options.peerServerConfig || this.module.stationConfig?.peerServerConfig
+
+      const streamServer = new StreamServer(this, stream, config, streamName, peerServerConfig)
       return {
         stop: () => streamServer.stop(),
         updateStream: (newStream: MediaStream) => streamServer.updateStream(newStream),
       }
     }
   },
-
   onStream(handler, options: any = {}) {
     const method = options.method || 'webrtc'
 
@@ -324,41 +351,17 @@ window['Edrys'] = {
         stop: () => wsClient.stop(),
       })
     } else {
-      return this.getWebRTCConfig().then(async (config) => {
-        // Get default stream name from options or station config
+      return getWebRTCConfig(this.origin).then(async (config) => {
         const defaultStreamName = options.streamName || this.module.stationConfig?.streamName || "Camera 1"
+        const peerServerConfig = options.peerServerConfig || this.module.stationConfig?.peerServerConfig
         
-        const streamClient = new StreamClient(this, handler, config, defaultStreamName)
+        const streamClient = new StreamClient(this, handler, config, defaultStreamName, peerServerConfig)
         
         return {
           stop: () => streamClient.stop(),
         }
       })
     }
-  },
-
-  async getWebRTCConfig(): Promise<RTCConfiguration> {
-    // Request WebRTC config if not already available
-    if (!this.rtcConfig) {
-      window.parent.postMessage(
-        {
-          event: 'requestWebRTCConfig',
-        },
-        this.origin
-      )
-
-      // Wait for config response
-      this.rtcConfig = await new Promise<RTCConfiguration>((resolve) => {
-        const handler = (e: MessageEvent) => {
-          if (e.data.event === 'webrtcConfig') {
-            window.removeEventListener('message', handler)
-            resolve(e.data.config)
-          }
-        }
-        window.addEventListener('message', handler)
-      })
-    }
-    return this.rtcConfig
   },
 
   importDebug() {
@@ -426,12 +429,12 @@ window.addEventListener(
   function (e) {
     if (!allowedOrigins.includes(e.origin)) {
       debug.api.general('[Edrys Security] Rejected message from:', e.origin);
-      return;  // STOP - don't process untrusted messages
+      return;
     }
 
     if (!window['Edrys'].origin) {
       window['Edrys'].origin = e.origin; 
-      debug.api.general('[Edrys Security] Trusted origin set to:', e.origin)
+      debug.api.general('[Edrys Security] Trusted origin set to:', e.origin);
     }
 
     switch (e.data.event) {
@@ -557,7 +560,7 @@ window.addEventListener(
         debug.api.general('ECHO:', e.data)
         break
       case 'webrtcConfig':
-        window['Edrys'].rtcConfig = e.data.config
+        rtcConfig = e.data.config
         break
       default:
         break
