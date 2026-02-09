@@ -212,7 +212,9 @@ export default class Peer {
           signaling: this.signalingServer,
           password: password || 'password',
           userid: this.peerID,
-          peerOpts: this.webrtcConfig,
+          peerOpts: {
+            config: this.webrtcConfig 
+          }
         })
 
         // Handle provider status events
