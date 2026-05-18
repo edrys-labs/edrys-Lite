@@ -1,6 +1,6 @@
 import * as YAML from 'js-yaml'
-import SecureLS from 'secure-ls'
 import LZString from 'lz-string'
+import { Database } from './Database'
 
 function loadResource(type, url, base) {
   if (url.match(/(https?)?:\/\//i)) {
@@ -358,42 +358,128 @@ export function infoHash(length = 20) {
 }
 
 var SessionID: string | null = null
-const ls = new SecureLS({ encodingType: 'aes' })
+
+let _publicKeyBase64: string | null = null
+let _shortPeerID: string | null = null
+let _privateKey: CryptoKey | null = null
+let _cryptoReady: Promise<void> | null = null
+let _cryptoDB: Database | null = null
+
+function getCryptoDB(): Database {
+  if (!_cryptoDB) _cryptoDB = new Database()
+  return _cryptoDB
+}
+
+function _computeShortID(pubBase64: string): string {
+  try {
+    const bytes = Uint8Array.from(atob(pubBase64), (c) => c.charCodeAt(0))
+    return Array.from(bytes.slice(0, 4)).map((b) => b.toString(16).padStart(2, '0')).join('')
+  } catch {
+    // Not a base64 public key (e.g. station IDs) — fall back to first 8 alphanumeric chars
+    return pubBase64.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || pubBase64.slice(0, 8)
+  }
+}
+
+export function getDisplayPeerID(): string {
+  return _shortPeerID ?? '…'
+}
+
+export function initCryptoIdentity(): Promise<void> {
+  if (_cryptoReady) return _cryptoReady
+
+  _cryptoReady = (async () => {
+    const db = getCryptoDB()
+
+    const storedPub = await db.getPublicKeyRaw()
+    const storedPriv = await db.getPrivateKey()
+
+    if (storedPub && storedPriv) {
+      _publicKeyBase64 = storedPub
+      _privateKey = storedPriv
+      _shortPeerID = _computeShortID(storedPub)
+      return
+    }
+
+    const keyPair = await crypto.subtle.generateKey(
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false, // private key is non-exportable
+      ['sign', 'verify']
+    )
+
+    const pubRaw = await crypto.subtle.exportKey('raw', keyPair.publicKey)
+    const pubBase64 = btoa(String.fromCharCode(...new Uint8Array(pubRaw)))
+
+    await db.setPublicKeyRaw(pubBase64)
+    await db.setPrivateKey(keyPair.privateKey)
+
+    _publicKeyBase64 = pubBase64
+    _privateKey = keyPair.privateKey
+    _shortPeerID = _computeShortID(pubBase64)
+  })()
+
+  return _cryptoReady
+}
+
+export async function signChallenge(classroomId: string): Promise<string> {
+  await initCryptoIdentity()
+  if (!_privateKey) throw new Error('Crypto identity not initialized')
+
+  const timestamp = Math.floor(Date.now() / 30000) // 30-second window
+  const payload = new TextEncoder().encode(`${classroomId}:${timestamp}`)
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, _privateKey, payload)
+  return btoa(String.fromCharCode(...new Uint8Array(sig)))
+}
+
+export async function verifyChallenge(
+  classroomId: string,
+  publicKeyBase64: string,
+  signatureBase64: string
+): Promise<boolean> {
+  try {
+    const pubRaw = Uint8Array.from(atob(publicKeyBase64), (c) => c.charCodeAt(0))
+    const pubKey = await crypto.subtle.importKey(
+      'raw',
+      pubRaw,
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['verify']
+    )
+
+    const sig = Uint8Array.from(atob(signatureBase64), (c) => c.charCodeAt(0))
+    const now = Math.floor(Date.now() / 30000)
+
+    // Accept current or previous 30-second window to tolerate clock skew
+    for (const ts of [now, now - 1]) {
+      const payload = new TextEncoder().encode(`${classroomId}:${ts}`)
+      const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pubKey, sig, payload)
+      if (ok) return true
+    }
+    return false
+  } catch {
+    return false
+  }
+}
 
 export function getPeerID(withSession = true) {
-  let peerID = ls.get('peerID_')
-
-  if (!peerID) {
-    peerID = infoHash(12)
-    ls.set('peerID_', peerID)
-  }
-
   if (!SessionID) {
     SessionID = infoHash(6)
   }
 
-  return withSession ? peerID + '_' + SessionID : peerID
+  if (!_publicKeyBase64) {
+    throw new Error('getPeerID called before initCryptoIdentity resolved')
+  }
+
+  return withSession ? _publicKeyBase64 + '_' + SessionID : _publicKeyBase64
 }
 
 export function getShortPeerID(id: string) {
-  const ids = id.split('_')
-
-  // peerID_sessionID
-  if (ids.length == 2) {
-    return ids[0].slice(-6)
-  }
-
-  return id
+  const base = getBasePeerID(id)
+  return _computeShortID(base)
 }
 
 export function getBasePeerID(id: string) {
-  const ids = id.split('_')
-
-  // peerID_sessionID
-  if (ids.length == 2) {
-    return ids[0]
-  }
-
+  const sepIdx = id.lastIndexOf('_')
+  if (sepIdx > 0) return id.slice(0, sepIdx)
   return id
 }
 

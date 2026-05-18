@@ -1,5 +1,6 @@
 import {
   getPeerID,
+  initCryptoIdentity,
   hashJsonObject,
   deepEqual,
   getShortPeerID,
@@ -125,7 +126,7 @@ export default class Peer {
 
     this.lab = setup
 
-    this.peerID = getPeerID()
+    this.peerID = ''
     if (stationID) {
       this.role = 'station'
       this.peerID = STATION + ' ' + stationID
@@ -175,14 +176,6 @@ export default class Peer {
       }
     }
 
-    // Initialize local state within a transaction
-    this.y.doc.transact(() => {
-      this.initUser(this.role, false)
-      this.initRooms()
-      this.initChat()
-      this.initSetup()
-    }, 'initialization')
-
     // Set up persistence before connecting
     const room = this.lab.id + (this.lab.hash || '')
 
@@ -198,6 +191,24 @@ export default class Peer {
    * @param password The password for the room.
    */
   private connectProvider(room: string, password?: string) {
+    initCryptoIdentity().then(() => {
+      if (this.role !== 'station') {
+        this.peerID = getPeerID()
+      }
+
+      // Initialize local state now that peerID is known
+      this.y.doc.transact(() => {
+        this.initUser(this.role, false)
+        this.initRooms()
+        this.initChat()
+        this.initSetup()
+      }, 'initialization')
+
+      this._connectProviderWithIdentity(room, password)
+    }).catch((e) => console.error('Crypto identity init failed:', e))
+  }
+
+  private _connectProviderWithIdentity(room: string, password?: string) {
     try {
       // Disconnect existing provider if it exists
       if (this.provider) {
@@ -212,8 +223,9 @@ export default class Peer {
           signaling: this.signalingServer,
           password: password || 'password',
           userid: this.peerID,
+          classroomId: room,
           peerOpts: {
-            config: this.webrtcConfig 
+            config: this.webrtcConfig
           }
         })
 
@@ -228,6 +240,7 @@ export default class Peer {
         this.provider = new EdrysWebsocketProvider(room, this.y.doc, {
           serverUrl: this.websocketUrl,
           userid: this.peerID,
+          classroomId: room,
         })
 
         // Event handlers for WebSocket provider (status and synced)

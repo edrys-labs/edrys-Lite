@@ -13,6 +13,7 @@ import {
   scrapeModule,
   clone,
   getPeerID,
+  getDisplayPeerID,
   getShortPeerID,
   getBasePeerID,
   extractCommunicationConfigFromUrl,
@@ -58,7 +59,7 @@ export default {
     });
 
     let stationName: string | null = "";
-    let peerID = getPeerID(true);
+    let peerID = '';
 
     if (this.station) {
       stationName = sessionStorage.getItem(`station_${this.id}`);
@@ -133,10 +134,10 @@ export default {
 
   methods: {
     copyPeerID() {
-      copyToClipboard(getPeerID(false));
+      copyToClipboard(getDisplayPeerID());
     },
     getPeer_ID() {
-      return getPeerID(false);
+      return getDisplayPeerID();
     },
 
     addPopup(message: string) {

@@ -37,6 +37,18 @@ export class Database {
       logs: `id`,
     })
 
+    this.db.version(4).stores({
+      data: `
+            &id,
+            timestamp,
+            data,
+            hash`,
+
+      logs: `id`,
+
+      keys: `&name, value`,
+    })
+
     this.db
       .open()
       .then(function (db) {
@@ -130,5 +142,23 @@ export class Database {
 
   getLogsIds(): Promise<string[]> {
     return this.db['logs'].toCollection().primaryKeys();
+  }
+
+  async getPrivateKey(): Promise<CryptoKey | null> {
+    const row = await this.db['keys'].get('privateKey')
+    return row ? row.value : null
+  }
+
+  async setPrivateKey(key: CryptoKey): Promise<void> {
+    await this.db['keys'].put({ name: 'privateKey', value: key })
+  }
+
+  async getPublicKeyRaw(): Promise<string | null> {
+    const row = await this.db['keys'].get('publicKeyRaw')
+    return row ? row.value : null
+  }
+
+  async setPublicKeyRaw(raw: string): Promise<void> {
+    await this.db['keys'].put({ name: 'publicKeyRaw', value: raw })
   }
 }

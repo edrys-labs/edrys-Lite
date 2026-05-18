@@ -41,7 +41,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { copyToClipboard, getPeerID } from '../ts/Utils';
+import { copyToClipboard, getDisplayPeerID } from '../ts/Utils';
 
 export default defineComponent({
   name: 'UserMenu',
@@ -51,7 +51,7 @@ export default defineComponent({
   },
   data() {
     return {
-      peerID: getPeerID(false),
+      peerID: getDisplayPeerID(),
       languages: [
         { title: 'English', value: 'en' },
         { title: 'Deutsch', value: 'de' },

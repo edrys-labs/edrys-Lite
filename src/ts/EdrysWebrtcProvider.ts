@@ -1,9 +1,11 @@
 import { WebrtcProvider } from 'y-webrtc'
 import { encoding, decoding } from 'lib0'
 import { debug } from '../api/debugHandler'
+import { signChallenge, verifyChallenge, getPeerID } from './Utils'
 
 const MESSAGE_TYPE_CUSTOM = 42
 const MESSAGE_TYPE_ID = 43
+const MESSAGE_TYPE_HANDSHAKE = 44
 const MESSAGE_EXPIRATION_TIME = 10000 // 10 seconds
 
 // A simple UUID generator (you could use a library like uuid)
@@ -20,6 +22,8 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
   private _processedMessages: Map<string, number>
   private _cleanupInterval: number | null = null
   private _leaveListener: Function | null = null
+  private _pendingVerification: Map<string, { userid: string; peer: any; expiresAt: number }>
+  private _classroomId: string
   public userid: string
 
   constructor(roomName: string, doc: any, options: any) {
@@ -40,6 +44,12 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
     // Map user IDs to peer connections
     this._userIdToPeer = new Map()
+
+    // Peers whose userid is pending signature verification: peerId -> { userid, peer }
+    this._pendingVerification = new Map()
+
+    // Classroom ID used as the handshake nonce context
+    this._classroomId = options.classroomId || roomName
 
     // Initialize BroadcastChannel
     this._bcChannel = new BroadcastChannel(`custom-webrtc-provider-${roomName}`)
@@ -95,6 +105,13 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
     for (const [id, timestamp] of this._processedMessages.entries()) {
       if (now - timestamp > MESSAGE_EXPIRATION_TIME) {
         this._processedMessages.delete(id)
+      }
+    }
+    for (const [peerId, pending] of this._pendingVerification.entries()) {
+      if (now > pending.expiresAt) {
+        console.warn(`Handshake timeout for peer ${peerId} — dropping`)
+        pending.peer.destroy()
+        this._pendingVerification.delete(peerId)
       }
     }
   }
@@ -186,15 +203,25 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
   }
 
   /**
-   * Send own unique ID to the peer.
-   * @param {any} peer - The peer connection.
+   * Send own unique ID and a signed handshake to the peer.
    */
   _sendOwnId(peer) {
     const encoder = encoding.createEncoder()
-    encoding.writeVarUint(encoder, MESSAGE_TYPE_ID) // Message type for ID exchange
-    encoding.writeVarString(encoder, this.userid) // Your own unique ID
+    encoding.writeVarUint(encoder, MESSAGE_TYPE_ID)
+    encoding.writeVarString(encoder, this.userid)
     const encodedMessage = encoding.toUint8Array(encoder)
     peer.send(encodedMessage)
+
+    // Send signed handshake asynchronously
+    signChallenge(this._classroomId).then((signature) => {
+      const hsEncoder = encoding.createEncoder()
+      encoding.writeVarUint(hsEncoder, MESSAGE_TYPE_HANDSHAKE)
+      encoding.writeVarString(hsEncoder, getPeerID(false)) // public key (base part)
+      encoding.writeVarString(hsEncoder, signature)
+      peer.send(encoding.toUint8Array(hsEncoder))
+    }).catch((e) => {
+      console.error('Failed to send handshake:', e)
+    })
   }
 
   /**
@@ -220,8 +247,29 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
         }
       } else if (messageType === MESSAGE_TYPE_ID) {
         const remoteUserId = decoding.readVarString(decoder)
-        this._peerUserIds.set(senderId, remoteUserId)
-        this._userIdToPeer.set(remoteUserId, peer)
+        // Hold the userid until the handshake signature is verified
+        this._pendingVerification.set(senderId, { userid: remoteUserId, peer, expiresAt: Date.now() + 30000 })
+      } else if (messageType === MESSAGE_TYPE_HANDSHAKE) {
+        const publicKeyBase64 = decoding.readVarString(decoder)
+        const signature = decoding.readVarString(decoder)
+        const pending = this._pendingVerification.get(senderId)
+        if (!pending) return
+
+        verifyChallenge(this._classroomId, publicKeyBase64, signature).then((valid) => {
+          if (!valid) {
+            console.warn(`Peer ${senderId} failed handshake verification — rejecting`)
+            pending.peer.destroy()
+            this._pendingVerification.delete(senderId)
+            return
+          }
+          this._peerUserIds.set(senderId, pending.userid)
+          this._userIdToPeer.set(pending.userid, pending.peer)
+          this._pendingVerification.delete(senderId)
+        }).catch((e) => {
+          console.error('Handshake verification error:', e)
+          pending.peer.destroy()
+          this._pendingVerification.delete(senderId)
+        })
       }
     } catch (e) {
       console.error('Failed to parse incoming message:', e)

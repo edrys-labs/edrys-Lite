@@ -2,6 +2,7 @@ import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { encoding, decoding } from 'lib0'
 import { debug } from '../api/debugHandler'
+import { signChallenge, verifyChallenge, getPeerID } from './Utils'
 
 const MESSAGE_TYPE_CUSTOM = 42
 const MESSAGE_TYPE_ID = 43
@@ -25,6 +26,8 @@ export class EdrysWebsocketProvider {
   private _syncedListener: Function | null = null 
   private _statusListener: Function | null = null 
   private _lastHeartbeats: Map<string, number> = new Map() // Track last heartbeat time for each user
+  private _verifiedUsers: Set<string> = new Set() // userids that passed signature verification
+  private _classroomId: string
   public userid: string
   private provider: WebsocketProvider
   private doc: Y.Doc
@@ -35,6 +38,7 @@ export class EdrysWebsocketProvider {
   constructor(roomName: string, doc: Y.Doc, options: any) {
     this.doc = doc
     this.userid = options.userid || this.doc.clientID.toString()
+    this._classroomId = options.classroomId || roomName
 
     // Initialize Y-WebSocket provider
     this.provider = new WebsocketProvider(
@@ -114,26 +118,39 @@ export class EdrysWebsocketProvider {
       updated.forEach(clientId => {
         const state = this.provider.awareness.getStates().get(clientId)
         if (state) {
-          // Track heartbeat for this user
+          // Track heartbeat and verify identity for this user
           if (state.user && state.user.id !== this.userid) {
-            this._lastHeartbeats.set(state.user.id, Date.now())
-            this._connectedUsers.add(state.user.id)
+            const { id: remoteId, publicKey, signature } = state.user
+
+            if (publicKey && signature && !this._verifiedUsers.has(remoteId)) {
+              verifyChallenge(this._classroomId, publicKey, signature).then((valid) => {
+                if (valid) {
+                  this._verifiedUsers.add(remoteId)
+                } else {
+                  console.warn(`WebSocket peer ${remoteId} failed handshake — ignoring`)
+                }
+              })
+            }
+
+            this._lastHeartbeats.set(remoteId, Date.now())
+            this._connectedUsers.add(remoteId)
           }
 
-          // Process custom message if present and not from this client
-          if (state[CUSTOM_MESSAGE_FIELD] && 
-              state.user && 
-              state.user.id !== this.userid) {
+          // Process custom message if present, not from this client, and from a verified peer
+          if (state[CUSTOM_MESSAGE_FIELD] &&
+              state.user &&
+              state.user.id !== this.userid &&
+              this._verifiedUsers.has(state.user.id)) {
             const message = state[CUSTOM_MESSAGE_FIELD]
-            
+
             // Skip if we've already processed this message or if it's a duplicate
-            if (message.id && 
-                message.id !== lastMessageProcessed && 
+            if (message.id &&
+                message.id !== lastMessageProcessed &&
                 !this._isDuplicateMessage(message)) {
-              
+
               lastMessageProcessed = message.id;
               this._addMessageToHistory(message)
-              
+
               if (this._messageListener) {
                 this._messageListener(message)
               }
@@ -200,15 +217,28 @@ export class EdrysWebsocketProvider {
   _sendHeartbeat() {
     const awareness = this.provider.awareness
     const localState = awareness.getLocalState() || {}
-    
-    // Update our state with current timestamp for heartbeat
-    awareness.setLocalState({
-      ...localState,
-      user: {
-        ...(localState.user || {}),
-        id: this.userid,
-        heartbeat: Date.now()
-      }
+
+    signChallenge(this._classroomId).then((signature) => {
+      awareness.setLocalState({
+        ...localState,
+        user: {
+          ...(localState.user || {}),
+          id: this.userid,
+          publicKey: getPeerID(false),
+          signature,
+          heartbeat: Date.now(),
+        },
+      })
+    }).catch(() => {
+      // Fall back to heartbeat without signature
+      awareness.setLocalState({
+        ...localState,
+        user: {
+          ...(localState.user || {}),
+          id: this.userid,
+          heartbeat: Date.now(),
+        },
+      })
     })
   }
 
@@ -392,6 +422,7 @@ export class EdrysWebsocketProvider {
     this._processedMessages.clear()
     this._lastHeartbeats.clear()
     this._connectedUsers.clear()
+    this._verifiedUsers.clear()
     this._messageHistory = []
   }
 }

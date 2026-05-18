@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import Index from './views/Index.vue'
 import Classroom from './views/Classroom.vue'
 import Deploy from './views/Deploy.vue'
+import { initCryptoIdentity } from './ts/Utils'
 
 // Vuetify
 import { createVuetify } from 'vuetify'
@@ -235,6 +236,8 @@ export const navigateTo = (url: string, replace?: boolean) => {
 }
 
 const router = async () => {
+  await initCryptoIdentity()
+
   const routes = [
     { path: '/', view: Index },
     {
