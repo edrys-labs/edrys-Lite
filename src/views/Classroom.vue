@@ -134,7 +134,7 @@ export default {
 
   methods: {
     copyPeerID() {
-      copyToClipboard(getDisplayPeerID());
+      copyToClipboard(getPeerID(false));
     },
     getPeer_ID() {
       return getDisplayPeerID();

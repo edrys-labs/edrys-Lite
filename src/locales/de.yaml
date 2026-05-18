@@ -281,6 +281,7 @@ peer:
     noAccess: "Sie haben keinen Zugriff auf dieses Labor, Sie können nur ansehen"
     unauthorized: "Unbefugter Benutzer versucht, eine Nachricht zu senden, kontaktieren Sie den Administrator für den Zugang"
     notPropagated: "Ihre Statusänderungen werden nicht an andere Benutzer weitergegeben, kontaktieren Sie den Administrator für den Laborzugang"
+    noPermission: "Nur der Klassenraumbesitzer kann Mitglieder ändern"
     userNotFound: "Benutzer nicht gefunden"
     removedTeacher: "Sie wurden als Lehrer entfernt..."
     addedTeacher: "Sie wurden als Lehrer hinzugefügt..."

@@ -9,6 +9,8 @@ import {
   updateUrlWithCommConfig,
   cleanUrlAfterCommConfigExtraction,
   decodeCommConfig,
+  signSetup,
+  verifySetup,
 } from './Utils'
 import * as Y from 'yjs'
 // @ts-ignore
@@ -530,45 +532,100 @@ export default class Peer {
     const timestamp: number = (this.y.setup.get('timestamp') as number) || 0
     const data = this.y.setup.get('config')
 
+    if (force) {
+      LOG('Force update new configuration')
+      this._signAndWrite(data).catch((e) => console.error('initSetup sign failed:', e))
+    } else if (this.lab.timestamp < timestamp) {
+      this._verifyAndAccept(data, timestamp).catch((e) => console.error('initSetup verify failed:', e))
+    } else if (
+      (this.lab.timestamp !== timestamp && this.lab.timestamp > 0) ||
+      (timestamp === 0 && this.lab.timestamp > 0 && this.lab.data)
+    ) {
+      LOG('received outdated or empty lab configuration, writing changes back')
+      this._signAndWrite(data).catch((e) => console.error('initSetup writeback failed:', e))
+    }
+  }
+
+  private async _signAndWrite(existingCrdt: any): Promise<void> {
+    const myPubKey = getPeerID(false)
+    const ownerPubKey: string = this.lab.data?.createdBy || ''
+    const isOwner = myPubKey === ownerPubKey
+
+    // Teachers may not modify members — block and notify
+    if (!isOwner && !deepEqual(this.lab.data?.members, existingCrdt?.members)) {
+      this.update('popup', this.t('peer.feedback.noPermission'))
+      return
+    }
+
+    const dataToWrite = {
+      ...this.lab.data,
+      setupSigner: myPubKey,
+      setupSignature: await signSetup({ ...this.lab.data, timestamp: this.lab.timestamp }),
+    }
+    this.logSetupChanges(existingCrdt, dataToWrite)
     this.y.doc.transact(() => {
-      if (force) {
-        LOG('Force update new configuration')
-
-        this.logSetupChanges(data, this.lab.data)
-
-        this.y.setup.set('config', this.lab.data)
-        this.y.setup.set('timestamp', this.lab.timestamp)
-
-        if (!this.allowedToParticipate()) {
-          this.update('popup', this.t('peer.feedback.noAccess'))
-        }
-      }
-      // If my setup is older than the current setup
-      else if (this.lab.timestamp < timestamp) {
-        LOG('receiving initial lab configuration')
-
-        this.logSetupChanges(this.lab.data, data)
-
-        this.lab.data = data
-        this.lab.timestamp = timestamp
-        this.update('setup')
-
-        if (!this.allowedToParticipate()) {
-          this.update('popup', this.t('peer.feedback.noAccess'))
-        }
-      }
-      // If the received setup is not up to date or empty
-      else if (
-        (this.lab.timestamp !== timestamp && this.lab.timestamp > 0) ||
-        (timestamp === 0 && this.lab.timestamp > 0 && this.lab.data)
-      ) {
-        LOG(
-          'received outdated or empty lab configuration, writing changes back'
-        )
-        this.y.setup.set('config', this.lab.data)
-        this.y.setup.set('timestamp', this.lab.timestamp)
+      this.y.setup.set('config', dataToWrite)
+      this.y.setup.set('timestamp', this.lab.timestamp)
+      if (!this.allowedToParticipate()) {
+        this.update('popup', this.t('peer.feedback.noAccess'))
       }
     }, 'initSetup')
+  }
+
+  private async _verifyAndAccept(data: any, timestamp: number): Promise<void> {
+    if (!data || !data.setupSignature || !data.setupSigner || !data.createdBy) {
+      LOG('Setup rejected: missing signature fields')
+      return
+    }
+
+    const signerPubKey: string = data.setupSigner
+
+    // Block an attacker who sets createdBy to their own public key in poisoned data.
+    const localCreatedBy: string | undefined = this.lab.data?.createdBy
+    if (localCreatedBy && data.createdBy !== localCreatedBy) {
+      LOG('Setup rejected: createdBy mismatch')
+      return
+    }
+
+    // Trust local createdBy over incoming when available
+    const ownerPubKey: string = localCreatedBy || data.createdBy
+
+    // Use locally known teacher list — never trust the incoming data's own teacher list
+    // to decide if the signer is authorized.
+    const localTeachers: string[] = this.lab.data?.members?.teacher || []
+    const membersChanged = !deepEqual(data.members, this.lab.data?.members)
+    const signerIsOwner = signerPubKey === ownerPubKey
+    const signerIsTeacher = localTeachers.includes(signerPubKey)
+
+    // Members changes: only owner may sign
+    // Modules-only changes: owner or a locally known teacher may sign
+    const signerAuthorized = membersChanged ? signerIsOwner : (signerIsOwner || signerIsTeacher)
+
+    if (!signerAuthorized) {
+      LOG('Setup rejected: signer not authorized for this change')
+      return
+    }
+
+    const valid = await verifySetup(
+      { modules: data.modules, members: data.members, createdBy: data.createdBy, timestamp },
+      data.setupSignature,
+      signerPubKey
+    )
+
+    if (!valid) {
+      LOG('Setup rejected: invalid signature')
+      return
+    }
+
+    LOG('receiving initial lab configuration')
+    this.logSetupChanges(this.lab.data, data)
+    this.lab.data = data
+    this.lab.timestamp = timestamp
+    this.update('setup')
+
+    if (!this.allowedToParticipate()) {
+      this.update('popup', this.t('peer.feedback.noAccess'))
+    }
   }
 
   /**

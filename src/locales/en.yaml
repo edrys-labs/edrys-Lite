@@ -281,6 +281,7 @@ peer:
     noAccess: "You don't have access to this lab, you can only view"
     unauthorized: "Unauthorized user trying to broadcast message, contact admin for access"
     notPropagated: "Your state changes will not be propagated to other users, contact admin for lab access"
+    noPermission: "Only the classroom owner can modify members"
     userNotFound: "user not found"
     removedTeacher: "You have been removed as a teacher..."
     addedTeacher: "You have been added as a teacher..."

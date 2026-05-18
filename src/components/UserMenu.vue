@@ -41,7 +41,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { copyToClipboard, getDisplayPeerID } from '../ts/Utils';
+import { copyToClipboard, getDisplayPeerID, getPeerID } from '../ts/Utils';
 
 export default defineComponent({
   name: 'UserMenu',
@@ -63,7 +63,7 @@ export default defineComponent({
   },
   methods: {
     copyPeerID() {
-      copyToClipboard(this.peerID);
+      copyToClipboard(getPeerID(false));
     },
     changeLocale(newLocale: string) {
       this.locale = newLocale;

@@ -281,6 +281,7 @@ peer:
     noAccess: "No tienes acceso a este laboratorio, solo puedes ver"
     unauthorized: "Usuario no autorizado intentando transmitir mensaje, contacta al administrador para obtener acceso"
     notPropagated: "Tus cambios de estado no se propagarán a otros usuarios, contacta al administrador para obtener acceso al laboratorio"
+    noPermission: "Solo el propietario del aula puede modificar los miembros"
     userNotFound: "usuario no encontrado"
     removedTeacher: "Has sido removido como profesor..."
     addedTeacher: "Has sido agregado como profesor..."
