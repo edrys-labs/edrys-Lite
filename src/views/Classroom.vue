@@ -59,7 +59,7 @@ export default {
     });
 
     let stationName: string | null = "";
-    let peerID = '';
+    let peerID = getPeerID(true);
 
     if (this.station) {
       stationName = sessionStorage.getItem(`station_${this.id}`);
@@ -99,7 +99,7 @@ export default {
       isStation: this.station,
 
       peerID,
-      userName: getShortPeerID(peerID),
+      userName: this.station ? peerID : getShortPeerID(peerID),
       stationName,
 
       componentKey: 0,

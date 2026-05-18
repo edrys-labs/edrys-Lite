@@ -590,7 +590,7 @@ export default class Peer {
     this.y.doc.transact(() => {
       const userSettings = new Y.Map()
       const timeNow = Date.now()
-      userSettings.set('displayName', getShortPeerID(this.peerID))
+      userSettings.set('displayName', this.isStation() ? this.peerID : getShortPeerID(this.peerID))
       userSettings.set('room', this.isStation() ? this.peerID : LOBBY)
       userSettings.set('role', this.role)
       userSettings.set('dateJoined', timeNow)
