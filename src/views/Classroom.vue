@@ -31,7 +31,7 @@ import { copyToClipboard, deepEqual } from "../ts/Utils";
 import { debug } from "../api/debugHandler";
 
 export default {
-  props: ["id", "station", "hash"],
+  props: ["id", "station", "owner", "hash"],
 
   setup() {
     const { t, locale } = useI18n();
@@ -219,7 +219,8 @@ export default {
           configurationCopy,
           this.stationName,
           this.t,
-          null // password
+          null, // password
+          this.owner || undefined
         );
         
         this.communication.on("setup", async (configuration: DatabaseItem) => {          

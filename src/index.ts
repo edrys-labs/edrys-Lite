@@ -241,7 +241,12 @@ const router = async () => {
   const routes = [
     { path: '/', view: Index },
     {
-      path: '/classroom/:id/:hash',
+      path: '/classroom/:id/:owner/:hash',
+      view: Classroom,
+      params: { station: false },
+    },
+    {
+      path: '/classroom/:id/:owner',
       view: Classroom,
       params: { station: false },
     },
@@ -251,7 +256,12 @@ const router = async () => {
       params: { station: false },
     },
     {
-      path: '/station/:id/:hash',
+      path: '/station/:id/:owner/:hash',
+      view: Classroom,
+      params: { station: true },
+    },
+    {
+      path: '/station/:id/:owner',
       view: Classroom,
       params: { station: true },
     },

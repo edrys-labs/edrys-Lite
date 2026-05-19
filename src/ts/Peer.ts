@@ -11,6 +11,7 @@ import {
   decodeCommConfig,
   signSetup,
   verifySetup,
+  hashPubKey,
 } from './Utils'
 import * as Y from 'yjs'
 // @ts-ignore
@@ -105,11 +106,14 @@ export default class Peer {
 
   private peerID: string
 
+  private expectedOwner: string | null = null
+
   constructor(
     setup: { id: string; data: any; timestamp: number; hash: string | null },
     stationID?: string,
     t?: (key: string) => string,
-    password?: string
+    password?: string,
+    expectedOwner?: string
   ) {
     const doc = new Y.Doc()
     const clientID = doc.clientID
@@ -127,6 +131,7 @@ export default class Peer {
     this.y.doc = doc
 
     this.lab = setup
+    this.expectedOwner = expectedOwner || null
 
     this.peerID = ''
     if (stationID) {
@@ -536,7 +541,13 @@ export default class Peer {
       LOG('Force update new configuration')
       this._signAndWrite(data).catch((e) => console.error('initSetup sign failed:', e))
     } else if (this.lab.timestamp < timestamp) {
-      this._verifyAndAccept(data, timestamp).catch((e) => console.error('initSetup verify failed:', e))
+      this._verifyAndAccept(data, timestamp).then((accepted) => {
+        // If the incoming config was rejected and we have our own valid config, overwrite
+        if (!accepted && this.lab.timestamp > 0 && this.lab.data) {
+          LOG('Incoming config rejected, reasserting our own signed config')
+          this._signAndWrite(data).catch((e) => console.error('initSetup reassert failed:', e))
+        }
+      }).catch((e) => console.error('initSetup verify failed:', e))
     } else if (
       (this.lab.timestamp !== timestamp && this.lab.timestamp > 0) ||
       (timestamp === 0 && this.lab.timestamp > 0 && this.lab.data)
@@ -572,38 +583,39 @@ export default class Peer {
     }, 'initSetup')
   }
 
-  private async _verifyAndAccept(data: any, timestamp: number): Promise<void> {
+  private async _verifyAndAccept(data: any, timestamp: number): Promise<boolean> {
     if (!data || !data.setupSignature || !data.setupSigner || !data.createdBy) {
       LOG('Setup rejected: missing signature fields')
-      return
+      return false
     }
 
     const signerPubKey: string = data.setupSigner
-
-    // Block an attacker who sets createdBy to their own public key in poisoned data.
     const localCreatedBy: string | undefined = this.lab.data?.createdBy
+
     if (localCreatedBy && data.createdBy !== localCreatedBy) {
       LOG('Setup rejected: createdBy mismatch')
-      return
+      return false
     }
 
-    // Trust local createdBy over incoming when available
-    const ownerPubKey: string = localCreatedBy || data.createdBy
+    if (!localCreatedBy && this.expectedOwner) {
+      const incomingHash = await hashPubKey(data.createdBy)
+      if (incomingHash !== this.expectedOwner) {
+        LOG('Setup rejected: createdBy does not match expected owner from URL')
+        return false
+      }
+    }
 
-    // Use locally known teacher list — never trust the incoming data's own teacher list
-    // to decide if the signer is authorized.
+    const ownerPubKey: string = localCreatedBy || data.createdBy
     const localTeachers: string[] = this.lab.data?.members?.teacher || []
     const membersChanged = !deepEqual(data.members, this.lab.data?.members)
-    const signerIsOwner = signerPubKey === ownerPubKey
-    const signerIsTeacher = localTeachers.includes(signerPubKey)
-
-    // Members changes: only owner may sign
-    // Modules-only changes: owner or a locally known teacher may sign
+    const strip = (s: string) => s.replace(/=/g, '')
+    const signerIsOwner = strip(signerPubKey) === strip(ownerPubKey)
+    const signerIsTeacher = localTeachers.some(t => strip(t) === strip(signerPubKey))
     const signerAuthorized = membersChanged ? signerIsOwner : (signerIsOwner || signerIsTeacher)
 
     if (!signerAuthorized) {
       LOG('Setup rejected: signer not authorized for this change')
-      return
+      return false
     }
 
     const valid = await verifySetup(
@@ -614,7 +626,7 @@ export default class Peer {
 
     if (!valid) {
       LOG('Setup rejected: invalid signature')
-      return
+      return false
     }
 
     LOG('receiving initial lab configuration')
@@ -626,6 +638,8 @@ export default class Peer {
     if (!this.allowedToParticipate()) {
       this.update('popup', this.t('peer.feedback.noAccess'))
     }
+
+    return true
   }
 
   /**

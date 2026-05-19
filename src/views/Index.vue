@@ -3,6 +3,7 @@ import { Database, DatabaseItem } from "../ts/Database";
 import {
   infoHash,
   getPeerID,
+  hashPubKey,
   clone,
   removeKeysStartingWithSecret,
   copyToClipboard,
@@ -34,7 +35,12 @@ export default {
       database,
       classrooms,
       peerID: getPeerID(false),
+      ownerHash: '',
     };
+  },
+
+  async mounted() {
+    this.ownerHash = await hashPubKey(this.peerID);
   },
 
   methods: {
@@ -67,11 +73,11 @@ export default {
       classroom.id = id;
 
       await this.database.put({ id, data: classroom.data, timestamp: Date.now() });
-      
+
       // Small delay to ensure the database write is fully committed
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      window.location.search = `?/classroom/${id}`;
+      window.location.search = `?/classroom/${id}/${await hashPubKey(peerID)}`;
     },
 
     async createClass() {
@@ -110,7 +116,7 @@ export default {
       // Small delay to ensure the database write is fully committed
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      window.location.search = `?/classroom/${id}`;
+      window.location.search = `?/classroom/${id}/${await hashPubKey(getPeerID(false))}`;
     },
   },
 };
@@ -210,7 +216,7 @@ export default {
                 <v-spacer></v-spacer>
                 <a
                   data-link="true"
-                  :href="`./?/classroom/${classroom.id}${
+                  :href="`./?/classroom/${classroom.id}/${ownerHash}${
                     !!classroom.hash ? `/${classroom.hash}` : ''
                   }`"
                   style="color: white"
