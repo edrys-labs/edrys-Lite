@@ -1,11 +1,21 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
+
+const flushPromises = () => new Promise((r) => setTimeout(r, 0));
 import { createApp } from "vue";
 import { navigateTo } from "../../src/index";
 import Index from "../../src/views/Index.vue";
 import Classroom from "../../src/views/Classroom.vue";
 import Deploy from "../../src/views/Deploy.vue";
 
-// Mock Vue and Vuetify 
+vi.mock("../../src/ts/Utils", async (importOriginal) => {
+  const actual = await importOriginal() as any;
+  return {
+    ...actual,
+    initCryptoIdentity: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
+// Mock Vue and Vuetify
 vi.mock("vue", async (importOriginal) => {
   const actual = await importOriginal() as any;
   return {
@@ -57,15 +67,17 @@ describe("Router", () => {
     vi.restoreAllMocks();
   });
 
-  test("navigates to correct routes", () => {
+  test("navigates to correct routes", async () => {
     // Test index route
     window.location.search = "";
     window.dispatchEvent(new Event("popstate"));
+    await flushPromises();
     expect(createApp).toHaveBeenCalledWith(Index, expect.any(Object));
 
     // Test classroom route
     window.location.search = "?/classroom/test-id";
     window.dispatchEvent(new Event("popstate"));
+    await flushPromises();
     expect(createApp).toHaveBeenCalledWith(
       Classroom,
       expect.objectContaining({
@@ -77,6 +89,7 @@ describe("Router", () => {
     // Test station route
     window.location.search = "?/station/test-id";
     window.dispatchEvent(new Event("popstate"));
+    await flushPromises();
     expect(createApp).toHaveBeenCalledWith(
       Classroom,
       expect.objectContaining({
@@ -88,6 +101,7 @@ describe("Router", () => {
     // Test deploy route
     window.location.search = "?/deploy/test-url";
     window.dispatchEvent(new Event("popstate"));
+    await flushPromises();
     expect(createApp).toHaveBeenCalledWith(
       Deploy,
       expect.objectContaining({
@@ -96,7 +110,7 @@ describe("Router", () => {
     );
   });
 
-  test("handles data-link clicks", () => {
+  test("handles data-link clicks", async () => {
     const link = document.createElement("a");
     link.setAttribute("data-link", "");
     link.href = "/?/classroom/test";
@@ -106,6 +120,7 @@ describe("Router", () => {
     document.dispatchEvent(new Event("DOMContentLoaded"));
 
     link.click();
+    await flushPromises();
 
     expect(history.pushState).toHaveBeenCalled();
     expect(createApp).toHaveBeenCalled();
@@ -121,9 +136,10 @@ describe("Router", () => {
     expect(history.replaceState).toHaveBeenCalled();
   });
 
-  test("provides Prism functionality", () => {
+  test("provides Prism functionality", async () => {
     window.location.search = "";
     window.dispatchEvent(new Event("popstate"));
+    await flushPromises();
 
     expect(mockApp.provide).toHaveBeenCalledWith(
       "prismHighlight",
@@ -135,21 +151,24 @@ describe("Router", () => {
     );
   });
 
-  test("handles invalid routes", () => {
+  test("handles invalid routes", async () => {
     window.location.search = "?/invalid/route";
     window.dispatchEvent(new Event("popstate"));
+    await flushPromises();
 
     // Should default to Index view
     expect(createApp).toHaveBeenCalledWith(Index, expect.any(Object));
   });
 
-  test("unmounts previous app before mounting new one", () => {
+  test("unmounts previous app before mounting new one", async () => {
     // Trigger two route changes
     window.location.search = "?/classroom/test1";
     window.dispatchEvent(new Event("popstate"));
+    await flushPromises();
 
     window.location.search = "?/classroom/test2";
     window.dispatchEvent(new Event("popstate"));
+    await flushPromises();
 
     expect(mockApp.unmount).toHaveBeenCalled();
   });

@@ -21,6 +21,8 @@ vi.mock('../../../src/ts/Database', () => ({
 vi.mock('../../../src/ts/Utils', () => ({
   infoHash: vi.fn(() => 'test-hash'),
   getPeerID: vi.fn(() => 'test-user'),
+  hashPubKey: vi.fn(() => Promise.resolve('testhash1234')),
+  initCryptoIdentity: vi.fn(() => Promise.resolve()),
   clone: vi.fn(obj => JSON.parse(JSON.stringify(obj))),
   removeKeysStartingWithSecret: vi.fn(),
   copyToClipboard: vi.fn()

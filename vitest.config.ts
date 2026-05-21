@@ -13,7 +13,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./tests/setup.ts'],
     deps: {
-      inline: ['vuetify', 'markdown-it', 'echarts', 'muuri'],
+      inline: ['vuetify', 'markdown-it', 'echarts', 'muuri', 'y-webrtc'],
     },
     include: ['./tests/unit tests/**'],
   },

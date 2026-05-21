@@ -3,6 +3,12 @@ import { EdrysWebsocketProvider } from '../../../src/ts/EdrysWebsocketProvider';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 
+vi.mock('../../../src/ts/Utils', () => ({
+  getPeerID: vi.fn(() => 'test-pubkey'),
+  signChallenge: vi.fn(() => Promise.resolve('mock-signature')),
+  verifyChallenge: vi.fn(() => Promise.resolve(true)),
+}));
+
 vi.mock('y-websocket', () => {
   return {
     WebsocketProvider: vi.fn().mockImplementation(() => {
@@ -155,16 +161,19 @@ describe('EdrysWebsocketProvider', () => {
       removed: []
     });
 
+    // Pre-verify the user so custom messages from them are accepted
+    provider['_verifiedUsers'].add('other-user');
+
     // Mock retrieving a state with a custom message
     mockState.set(1, {
       user: { id: 'other-user', heartbeat: Date.now() },
       customMessage: { type: 'test', content: 'via awareness', id: 'msg-via-awareness' }
     });
-    
+
     // Simulate another update that includes a custom message
     const mockMessageCallback = vi.fn();
     provider.onMessage(mockMessageCallback);
-    
+
     awarenessCallback?.({
       added: [],
       updated: [1],
@@ -199,28 +208,109 @@ describe('EdrysWebsocketProvider', () => {
     expect(provider['_connectedUsers'].has('disconnected-user')).toBe(false);
   });
 
-  test('should handle heartbeat sending', () => {
-    // Mock the current time for consistent testing
+  test('should handle heartbeat sending', async () => {
     const mockTime = 12345678;
     vi.spyOn(Date, 'now').mockReturnValue(mockTime);
-    
-    // Mock the getLocalState to return a specific object
+
     vi.mocked(provider['provider'].awareness.getLocalState).mockReturnValue({
       user: { id: 'test-user-123' }
     });
-    
-    // Call the heartbeat method
+
     provider['_sendHeartbeat']();
-    
-    // Check that setLocalState was called with the expected parameters
+    await Promise.resolve();
+
     expect(provider['provider'].awareness.setLocalState).toHaveBeenCalledWith(
       expect.objectContaining({
         user: expect.objectContaining({
           id: 'test-user-123',
-          heartbeat: mockTime
+          heartbeat: mockTime,
+          publicKey: 'test-pubkey',
+          signature: 'mock-signature',
         })
       })
     );
+  });
+
+  describe('Peer signature verification via awareness', () => {
+    let awarenessCallback: Function;
+    let mockState: Map<number, any>;
+
+    beforeEach(() => {
+      awarenessCallback = vi.mocked(provider['provider'].awareness.on).mock.calls.find(
+        call => call[0] === 'update'
+      )![1];
+
+      mockState = new Map();
+      vi.mocked(provider['provider'].awareness.getStates).mockReturnValue(mockState);
+    });
+
+    test('calls verifyChallenge when peer provides publicKey and signature', async () => {
+      const { verifyChallenge } = await import('../../../src/ts/Utils');
+
+      mockState.set(2, {
+        user: { id: 'remote-user', publicKey: 'their-pubkey', signature: 'their-sig' }
+      });
+
+      awarenessCallback({ added: [], updated: [2], removed: [] });
+      await Promise.resolve();
+
+      expect(verifyChallenge).toHaveBeenCalledWith('test-room', 'their-pubkey', 'their-sig');
+    });
+
+    test('adds peer to _verifiedUsers after successful signature verification', async () => {
+      mockState.set(2, {
+        user: { id: 'remote-user', publicKey: 'their-pubkey', signature: 'their-sig' }
+      });
+
+      awarenessCallback({ added: [], updated: [2], removed: [] });
+      await Promise.resolve();
+
+      expect(provider['_verifiedUsers'].has('remote-user')).toBe(true);
+    });
+
+    test('does not add peer to _verifiedUsers when signature verification fails', async () => {
+      const { verifyChallenge } = await import('../../../src/ts/Utils');
+      vi.mocked(verifyChallenge).mockResolvedValueOnce(false);
+
+      mockState.set(2, {
+        user: { id: 'bad-actor', publicKey: 'fake-pubkey', signature: 'fake-sig' }
+      });
+
+      awarenessCallback({ added: [], updated: [2], removed: [] });
+      await Promise.resolve();
+
+      expect(provider['_verifiedUsers'].has('bad-actor')).toBe(false);
+    });
+
+    test('drops custom message from unverified peer', async () => {
+      const mockCallback = vi.fn();
+      provider.onMessage(mockCallback);
+
+      // peer has no publicKey/signature — stays unverified
+      mockState.set(2, {
+        user: { id: 'unverified-user' },
+        customMessage: { type: 'attack', id: 'evil-msg' }
+      });
+
+      awarenessCallback({ added: [], updated: [2], removed: [] });
+      await Promise.resolve();
+
+      expect(mockCallback).not.toHaveBeenCalled();
+    });
+
+    test('does not re-verify already verified peer', async () => {
+      const { verifyChallenge } = await import('../../../src/ts/Utils');
+      provider['_verifiedUsers'].add('known-user');
+
+      mockState.set(2, {
+        user: { id: 'known-user', publicKey: 'their-pubkey', signature: 'their-sig' }
+      });
+
+      awarenessCallback({ added: [], updated: [2], removed: [] });
+      await Promise.resolve();
+
+      expect(verifyChallenge).not.toHaveBeenCalled();
+    });
   });
 
   test('should clean up processed messages', () => {

@@ -1,12 +1,13 @@
 import { describe, test, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import UserMenu from '../../../src/components/UserMenu.vue';
-import { copyToClipboard, getPeerID } from '../../../src/ts/Utils';
+import { copyToClipboard } from '../../../src/ts/Utils';
 import { i18n, messages } from '../../setup';
 
 // Mock Utils
 vi.mock('../../../src/ts/Utils', () => ({
   getPeerID: vi.fn(() => 'test-user'),
+  getDisplayPeerID: vi.fn(() => 'test-user'),
   copyToClipboard: vi.fn()
 }));
 

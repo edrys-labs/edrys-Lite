@@ -29,8 +29,13 @@ vi.mock('../../../src/ts/Utils', () => ({
   getPeerID: vi.fn(() => 'test-peer-id'),
   getShortPeerID: vi.fn(() => 'test-user'),
   getBasePeerID: vi.fn(id => id?.split('-')[0] || id),
+  getDisplayPeerID: vi.fn(() => 'test-user'),
   deepEqual: vi.fn(),
   copyToClipboard: vi.fn(),
+  hashPubKey: vi.fn(() => Promise.resolve('testhash1234')),
+  initCryptoIdentity: vi.fn(() => Promise.resolve()),
+  signSetup: vi.fn(() => Promise.resolve('mock-signature')),
+  verifySetup: vi.fn(() => Promise.resolve(true)),
   extractCommunicationConfigFromUrl: vi.fn().mockReturnValue(null),
   compareCommunicationConfig: vi.fn((oldConfig, newConfig) => {
     if (!oldConfig && !newConfig) return true;

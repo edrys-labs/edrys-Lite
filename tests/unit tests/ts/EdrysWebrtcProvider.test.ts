@@ -2,25 +2,38 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EdrysWebrtcProvider } from '../../../src/ts/EdrysWebrtcProvider';
 import * as Y from 'yjs';
 import { encoding, decoding } from 'lib0';
-import { WebrtcProvider } from 'y-webrtc'; 
 
-// Partially mock y-webrtc so we don't lose the real WebrtcProvider class
-vi.mock('y-webrtc', async () => {
-  const originalModule = await vi.importActual<typeof import('y-webrtc')>('y-webrtc');
-  return {
-    ...originalModule
-  };
+vi.mock('../../../src/ts/Utils', () => ({
+  getPeerID: vi.fn(() => 'test-pubkey-base64'),
+  signChallenge: vi.fn(() => Promise.resolve('mock-signature')),
+  verifyChallenge: vi.fn(() => Promise.resolve(true)),
+}));
+
+// Mock WebrtcProvider as a minimal base class that EdrysWebrtcProvider can extend
+// without triggering real WebRTC/signaling connections.
+vi.mock('y-webrtc', () => {
+  class WebrtcProvider {
+    room: any = null;
+    awareness: any = { setLocalState: vi.fn(), getLocalState: vi.fn(() => ({})), on: vi.fn() };
+    on(_event: string, _cb: any) {}
+    destroy() {}
+    disconnect() {}
+    connect() {}
+    constructor(_roomName: string, _doc: any, _options?: any) {}
+  }
+  return { WebrtcProvider };
 });
 
 // Mock BroadcastChannel
 const mockPostMessage = vi.fn();
 const mockAddEventListener = vi.fn();
+const mockRemoveEventListener = vi.fn();
 const mockClose = vi.fn();
 
 global.BroadcastChannel = vi.fn().mockImplementation(() => ({
   postMessage: mockPostMessage,
   addEventListener: mockAddEventListener,
-  removeEventListener: mockAddEventListener,
+  removeEventListener: mockRemoveEventListener,
   close: mockClose,
 }));
 
@@ -32,15 +45,16 @@ describe('EdrysWebrtcProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     doc = new Y.Doc();
-    
+
     mockPeer = {
       on: vi.fn(),
       send: vi.fn(),
+      destroy: vi.fn(),
       connected: true,
     };
 
     provider = new EdrysWebrtcProvider('test-room', doc, {
-      signaling: ['wss://example.local'], 
+      signaling: ['wss://example.local'],
       password: 'test-password',
       userid: 'test-user-123',
     });
@@ -70,14 +84,12 @@ describe('EdrysWebrtcProvider', () => {
   test('should handle targeted message sending', () => {
     const targetUserId = 'target-user-123';
     const message = { type: 'direct', content: 'hello' };
-    
-    // Mock the peer map
-    provider['_userIdToPeer'].set(targetUserId, mockPeer);
 
+    provider['_userIdToPeer'].set(targetUserId, mockPeer);
     (provider as any).room = { webrtcConns: new Map() };
 
     provider.sendMessage(message, targetUserId);
-    
+
     expect(mockPeer.send).toHaveBeenCalled();
     expect(mockPostMessage).toHaveBeenCalled();
   });
@@ -89,10 +101,7 @@ describe('EdrysWebrtcProvider', () => {
     const message = { type: 'test', content: 'hello' };
     const event = { data: message };
 
-    // Get the listener and bind it to the provider
     const listener = mockAddEventListener.mock.calls[0][1].bind(provider);
-
-    // Call the bound listener
     listener(event);
 
     expect(mockCallback).toHaveBeenCalledWith(message);
@@ -111,13 +120,11 @@ describe('EdrysWebrtcProvider', () => {
       synced: true,
     };
 
-    // Mock a real Map for webrtcConns
     (provider as any).room = { webrtcConns: new Map() };
     (provider as any).room.webrtcConns.set(peerId, mockConn);
 
     provider['_setupPeerListeners'](peerId);
 
-    // Verify peer event listeners were set up
     expect(mockPeer.on).toHaveBeenCalledWith('connect', expect.any(Function));
     expect(mockPeer.on).toHaveBeenCalledWith('data', expect.any(Function));
     expect(mockPeer.on).toHaveBeenCalledWith('error', expect.any(Function));
@@ -140,16 +147,14 @@ describe('EdrysWebrtcProvider', () => {
       synced: true,
     };
 
-    // Mock a real Map for webrtcConns
     (provider as any).room = { webrtcConns: new Map() };
     (provider as any).room.webrtcConns.set(peerId, mockConn);
-    
-    provider['_setupPeerListeners'](peerId);
 
+    provider['_setupPeerListeners'](peerId);
     provider['_peerUserIds'].set(peerId, userId);
+    provider['_userIdToPeer'].set(userId, mockPeer);
     provider.onLeave(leaveCallback);
 
-    // Simulate peer disconnection
     const closeHandler = mockPeer.on.mock.calls.find(([evt]) => evt === 'close')?.[1];
     closeHandler && closeHandler();
 
@@ -158,7 +163,7 @@ describe('EdrysWebrtcProvider', () => {
     expect(provider['_userIdToPeer'].has(userId)).toBe(false);
   });
 
-  test('should handle incoming data messages', () => {
+  test('should handle incoming custom data messages', () => {
     const mockCallback = vi.fn();
     provider.onMessage(mockCallback);
 
@@ -166,43 +171,118 @@ describe('EdrysWebrtcProvider', () => {
     const encoder = encoding.createEncoder();
     encoding.writeVarUint(encoder, 42); // MESSAGE_TYPE_CUSTOM
     encoding.writeVarString(encoder, JSON.stringify(message));
-    const encodedMessage = encoding.toUint8Array(encoder);
 
-    // Simulate incoming data
-    provider['_handleIncomingData'](encodedMessage, 'sender-123', mockPeer);
+    provider['_handleIncomingData'](encoding.toUint8Array(encoder), 'sender-123', mockPeer);
 
     expect(mockCallback).toHaveBeenCalledWith(message);
   });
 
-  test('should prevent duplicate messages', () => {
+  test('should prevent duplicate custom messages', () => {
     const mockCallback = vi.fn();
     provider.onMessage(mockCallback);
 
     const message = { id: 'duplicate-123', content: 'test' };
+    const encode = () => {
+      const enc = encoding.createEncoder();
+      encoding.writeVarUint(enc, 42);
+      encoding.writeVarString(enc, JSON.stringify(message));
+      return encoding.toUint8Array(enc);
+    };
 
-    // Send the same message twice
-    provider['_handleIncomingData'](
-      (() => {
-        const encoder = encoding.createEncoder();
-        encoding.writeVarUint(encoder, 42); // MESSAGE_TYPE_CUSTOM
-        encoding.writeVarString(encoder, JSON.stringify(message));
-        return encoding.toUint8Array(encoder);
-      })(),
-      'sender-123',
-      mockPeer
-    );
-    provider['_handleIncomingData'](
-      (() => {
-        const encoder = encoding.createEncoder();
-        encoding.writeVarUint(encoder, 42); // MESSAGE_TYPE_CUSTOM
-        encoding.writeVarString(encoder, JSON.stringify(message));
-        return encoding.toUint8Array(encoder);
-      })(),
-      'sender-123',
-      mockPeer
-    );
+    provider['_handleIncomingData'](encode(), 'sender-123', mockPeer);
+    provider['_handleIncomingData'](encode(), 'sender-123', mockPeer);
 
     expect(mockCallback).toHaveBeenCalledTimes(1);
+  });
+
+  // Handshake flow: ID message puts peer in _pendingVerification; handshake message verifies and promotes
+  describe('Handshake flow', () => {
+    const peerId = 'peer-456';
+    const remoteUserId = 'remote-user-456';
+
+    function encodeId(userId: string) {
+      const enc = encoding.createEncoder();
+      encoding.writeVarUint(enc, 43); // MESSAGE_TYPE_ID
+      encoding.writeVarString(enc, userId);
+      return encoding.toUint8Array(enc);
+    }
+
+    function encodeHandshake(pubKey: string, sig: string) {
+      const enc = encoding.createEncoder();
+      encoding.writeVarUint(enc, 44); // MESSAGE_TYPE_HANDSHAKE
+      encoding.writeVarString(enc, pubKey);
+      encoding.writeVarString(enc, sig);
+      return encoding.toUint8Array(enc);
+    }
+
+    test('ID message places peer in pendingVerification, not yet in peerUserIds', () => {
+      provider['_handleIncomingData'](encodeId(remoteUserId), peerId, mockPeer);
+
+      expect(provider['_pendingVerification'].get(peerId)).toMatchObject({ userid: remoteUserId });
+      expect(provider['_peerUserIds'].has(peerId)).toBe(false);
+    });
+
+    test('valid handshake promotes peer from pending to verified maps', async () => {
+      provider['_handleIncomingData'](encodeId(remoteUserId), peerId, mockPeer);
+      provider['_handleIncomingData'](encodeHandshake('test-pubkey', 'valid-sig'), peerId, mockPeer);
+
+      await Promise.resolve(); // flush verifyChallenge promise
+
+      expect(provider['_peerUserIds'].get(peerId)).toBe(remoteUserId);
+      expect(provider['_userIdToPeer'].get(remoteUserId)).toBe(mockPeer);
+      expect(provider['_pendingVerification'].has(peerId)).toBe(false);
+    });
+
+    test('invalid handshake destroys the peer and clears pending state', async () => {
+      const { verifyChallenge } = await import('../../../src/ts/Utils');
+      vi.mocked(verifyChallenge).mockResolvedValueOnce(false);
+
+      provider['_handleIncomingData'](encodeId(remoteUserId), peerId, mockPeer);
+      provider['_handleIncomingData'](encodeHandshake('bad-pubkey', 'bad-sig'), peerId, mockPeer);
+
+      await Promise.resolve();
+
+      expect(mockPeer.destroy).toHaveBeenCalled();
+      expect(provider['_pendingVerification'].has(peerId)).toBe(false);
+      expect(provider['_peerUserIds'].has(peerId)).toBe(false);
+    });
+
+    test('handshake message with no preceding ID message is a no-op', () => {
+      provider['_handleIncomingData'](encodeHandshake('pubkey', 'sig'), peerId, mockPeer);
+
+      expect(provider['_peerUserIds'].has(peerId)).toBe(false);
+      expect(provider['_pendingVerification'].has(peerId)).toBe(false);
+    });
+
+    test('_cleanupProcessedMessages times out expired pending verifications', () => {
+      provider['_pendingVerification'].set(peerId, {
+        userid: remoteUserId,
+        peer: mockPeer,
+        expiresAt: Date.now() - 1,
+      });
+
+      provider['_cleanupProcessedMessages']();
+
+      expect(mockPeer.destroy).toHaveBeenCalled();
+      expect(provider['_pendingVerification'].has(peerId)).toBe(false);
+    });
+  });
+
+  test('_sendOwnId sends ID message then signed handshake', async () => {
+    provider['_sendOwnId'](mockPeer);
+
+    // First send: ID message (synchronous)
+    expect(mockPeer.send).toHaveBeenCalledTimes(1);
+
+    await Promise.resolve(); // flush signChallenge promise
+
+    // Second send: handshake message
+    expect(mockPeer.send).toHaveBeenCalledTimes(2);
+
+    // Verify the handshake message contains MESSAGE_TYPE_HANDSHAKE (44)
+    const handshakeBytes: Uint8Array = mockPeer.send.mock.calls[1][0];
+    const decoder = decoding.createDecoder(handshakeBytes);
+    expect(decoding.readVarUint(decoder)).toBe(44);
   });
 
   test('should clean up resources on destroy', () => {
@@ -214,38 +294,15 @@ describe('EdrysWebrtcProvider', () => {
     expect(provider['_cleanupInterval']).toBeNull();
   });
 
-  test('should handle peer ID exchange', () => {
-    const remoteUserId = 'remote-user-123';
-    const peerId = 'peer-456';
-
-    // Create encoded ID message
-    const encoder = encoding.createEncoder();
-    encoding.writeVarUint(encoder, 43); // MESSAGE_TYPE_ID
-    encoding.writeVarString(encoder, remoteUserId);
-    const encodedMessage = encoding.toUint8Array(encoder);
-
-    // Simulate receiving ID message
-    provider['_handleIncomingData'](encodedMessage, peerId, mockPeer);
-
-    expect(provider['_peerUserIds'].get(peerId)).toBe(remoteUserId);
-    expect(provider['_userIdToPeer'].get(remoteUserId)).toBe(mockPeer);
-  });
-
   test('should clean up old processed messages', () => {
     vi.useFakeTimers();
     const message = { id: 'test-123', content: 'test' };
-    
-    // Add a message
+
     provider['_processedMessages'].set(message.id, Date.now());
-    
-    // Advance time by 11 seconds
     vi.advanceTimersByTime(11000);
-    
-    // Trigger cleanup
     provider['_cleanupProcessedMessages']();
-    
+
     expect(provider['_processedMessages'].has(message.id)).toBe(false);
-    
     vi.useRealTimers();
   });
 });
