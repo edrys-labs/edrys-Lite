@@ -22,6 +22,7 @@
  */
 
 import * as Y from 'yjs'
+;(window as any).Y = Y
 // import * as YP from 'y-protocols/awareness.js'
 // import { RoomAwarenessManager } from './awarenessManager'
 import { unpack, pack } from 'msgpackr'
