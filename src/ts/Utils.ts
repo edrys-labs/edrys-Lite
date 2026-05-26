@@ -504,6 +504,8 @@ function _bytesToB64(buf: ArrayBuffer): string {
 
 /** Sign classroom setup data. Returns base64 signature. */
 export async function signSetup(data: {
+  name: any
+  meta: any
   modules: any
   members: any
   createdBy: string
@@ -511,7 +513,7 @@ export async function signSetup(data: {
 }): Promise<string> {
   if (!_privateKey) throw new Error('Crypto identity not initialized')
   const payload = new TextEncoder().encode(
-    JSON.stringify({ modules: data.modules, members: data.members, createdBy: data.createdBy, timestamp: data.timestamp })
+    JSON.stringify({ name: data.name, meta: data.meta, modules: data.modules, members: data.members, createdBy: data.createdBy, timestamp: data.timestamp })
   )
   const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, _privateKey, payload)
   return _bytesToB64(sig)
@@ -519,7 +521,7 @@ export async function signSetup(data: {
 
 /** Verify a setup signature against a given public key (base64 raw). */
 export async function verifySetup(
-  data: { modules: any; members: any; createdBy: string; timestamp: number },
+  data: { name: any; meta: any; modules: any; members: any; createdBy: string; timestamp: number },
   signatureBase64: string,
   signerPubKeyBase64: string
 ): Promise<boolean> {
@@ -532,7 +534,7 @@ export async function verifySetup(
       ['verify']
     )
     const payload = new TextEncoder().encode(
-      JSON.stringify({ modules: data.modules, members: data.members, createdBy: data.createdBy, timestamp: data.timestamp })
+      JSON.stringify({ name: data.name, meta: data.meta, modules: data.modules, members: data.members, createdBy: data.createdBy, timestamp: data.timestamp })
     )
     return crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pubKey, _b64ToBytes(signatureBase64), payload)
   } catch {

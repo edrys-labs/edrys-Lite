@@ -619,7 +619,7 @@ export default class Peer {
     }
 
     const valid = await verifySetup(
-      { modules: data.modules, members: data.members, createdBy: data.createdBy, timestamp },
+      { name: data.name, meta: data.meta, modules: data.modules, members: data.members, createdBy: data.createdBy, timestamp },
       data.setupSignature,
       signerPubKey
     )
