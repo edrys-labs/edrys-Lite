@@ -410,3 +410,174 @@ describe('Crypto Identity', () => {
     expect(hash1).not.toBe(hash2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Migration tests
+// ---------------------------------------------------------------------------
+describe('runMigrationIfNeeded', () => {
+  let mockDb: any
+  const LEGACY_ID = 'ᕡᠸ䆼ʀ焣⠺怭ĸ'
+
+  const makeClassroom = (id: string, createdBy: string, teachers: string[] = []) => ({
+    id,
+    timestamp: 1000,
+    hash: null,
+    data: {
+      id,
+      createdBy,
+      name: 'Test Class',
+      meta: { logo: '', description: '', selfAssign: false, defaultNumberOfRooms: 0 },
+      members: { teacher: teachers, student: [] },
+      modules: [],
+    },
+  })
+
+  beforeEach(() => {
+    vi.resetModules()
+    localStorage.clear()
+
+    mockDb = {
+      getPublicKeyRaw: vi.fn().mockResolvedValue(null),
+      getPrivateKey: vi.fn().mockResolvedValue(null),
+      setPublicKeyRaw: vi.fn().mockResolvedValue(undefined),
+      setPrivateKey: vi.fn().mockResolvedValue(undefined),
+      getMigrationDone: vi.fn().mockResolvedValue(false),
+      setMigrationDone: vi.fn().mockResolvedValue(undefined),
+      getAll: vi.fn().mockResolvedValue([]),
+      put: vi.fn().mockResolvedValue(undefined),
+    }
+    vi.doMock('../../../src/ts/Database', () => ({ Database: vi.fn(() => mockDb) }))
+  })
+
+  async function freshUtils() {
+    return import('../../../src/ts/Utils')
+  }
+
+  test('returns false and marks done when no legacy peerID_ in localStorage', async () => {
+    const { initCryptoIdentity, runMigrationIfNeeded } = await freshUtils()
+    await initCryptoIdentity()
+
+    const result = await runMigrationIfNeeded()
+
+    expect(result).toBe(false)
+    expect(mockDb.getAll).not.toHaveBeenCalled()
+    expect(mockDb.setMigrationDone).toHaveBeenCalledOnce()
+  })
+
+  test('returns false immediately when migration already done', async () => {
+    mockDb.getMigrationDone.mockResolvedValue(true)
+    localStorage.setItem('peerID_', LEGACY_ID)
+
+    const { initCryptoIdentity, runMigrationIfNeeded } = await freshUtils()
+    await initCryptoIdentity()
+
+    const result = await runMigrationIfNeeded()
+
+    expect(result).toBe(false)
+    expect(mockDb.getAll).not.toHaveBeenCalled()
+    expect(mockDb.setMigrationDone).not.toHaveBeenCalled()
+  })
+
+  test('migrates own classrooms and returns true', async () => {
+    localStorage.setItem('peerID_', LEGACY_ID)
+    mockDb.getAll.mockResolvedValue([
+      makeClassroom('class-1', LEGACY_ID, ['some-old-teacher']),
+    ])
+
+    const { initCryptoIdentity, runMigrationIfNeeded, getPeerID } = await freshUtils()
+    await initCryptoIdentity()
+    const myPubKey = getPeerID(false)
+
+    const result = await runMigrationIfNeeded()
+
+    expect(result).toBe(true)
+    expect(mockDb.put).toHaveBeenCalledOnce()
+
+    const written = mockDb.put.mock.calls[0][0]
+    expect(written.data.createdBy).toBe(myPubKey)
+    expect(written.data.members.teacher).toEqual([])
+    expect(written.data.setupSigner).toBe(myPubKey)
+    expect(typeof written.data.setupSignature).toBe('string')
+    expect(written.hash).toBeNull()
+  })
+
+  test('does not touch classrooms owned by someone else', async () => {
+    localStorage.setItem('peerID_', LEGACY_ID)
+    const othersClassroom = makeClassroom('class-other', 'some-other-user-id')
+    mockDb.getAll.mockResolvedValue([othersClassroom])
+
+    const { initCryptoIdentity, runMigrationIfNeeded } = await freshUtils()
+    await initCryptoIdentity()
+
+    const result = await runMigrationIfNeeded()
+
+    expect(result).toBe(true) // migration ran (legacy key was present)
+    expect(mockDb.put).not.toHaveBeenCalled() // but nothing was rewritten
+  })
+
+  test('migrates only own classrooms when mixed with others', async () => {
+    localStorage.setItem('peerID_', LEGACY_ID)
+    mockDb.getAll.mockResolvedValue([
+      makeClassroom('own-class', LEGACY_ID),
+      makeClassroom('other-class', 'foreign-peer-id'),
+    ])
+
+    const { initCryptoIdentity, runMigrationIfNeeded, getPeerID } = await freshUtils()
+    await initCryptoIdentity()
+    const myPubKey = getPeerID(false)
+
+    await runMigrationIfNeeded()
+
+    expect(mockDb.put).toHaveBeenCalledOnce()
+    expect(mockDb.put.mock.calls[0][0].id).toBe('own-class')
+    expect(mockDb.put.mock.calls[0][0].data.createdBy).toBe(myPubKey)
+  })
+
+  test('removes peerID_ from localStorage after migration', async () => {
+    localStorage.setItem('peerID_', LEGACY_ID)
+    mockDb.getAll.mockResolvedValue([makeClassroom('c1', LEGACY_ID)])
+
+    const { initCryptoIdentity, runMigrationIfNeeded } = await freshUtils()
+    await initCryptoIdentity()
+    await runMigrationIfNeeded()
+
+    expect(localStorage.getItem('peerID_')).toBeNull()
+  })
+
+  test('marks migration done after running', async () => {
+    localStorage.setItem('peerID_', LEGACY_ID)
+    mockDb.getAll.mockResolvedValue([])
+
+    const { initCryptoIdentity, runMigrationIfNeeded } = await freshUtils()
+    await initCryptoIdentity()
+    await runMigrationIfNeeded()
+
+    expect(mockDb.setMigrationDone).toHaveBeenCalledOnce()
+  })
+
+  test('migrated classroom has a valid re-signable signature', async () => {
+    localStorage.setItem('peerID_', LEGACY_ID)
+    mockDb.getAll.mockResolvedValue([makeClassroom('c1', LEGACY_ID)])
+
+    const { initCryptoIdentity, runMigrationIfNeeded, getPeerID, verifySetup } = await freshUtils()
+    await initCryptoIdentity()
+    const myPubKey = getPeerID(false)
+    await runMigrationIfNeeded()
+
+    const written = mockDb.put.mock.calls[0][0].data
+    const valid = await verifySetup(
+      {
+        name: written.name,
+        meta: written.meta,
+        modules: written.modules,
+        members: written.members,
+        createdBy: written.createdBy,
+        timestamp: mockDb.put.mock.calls[0][0].timestamp,
+        communicationConfig: written.communicationConfig,
+      },
+      written.setupSignature,
+      myPubKey
+    )
+    expect(valid).toBe(true)
+  })
+})

@@ -12,6 +12,7 @@ vi.mock("../../src/ts/Utils", async (importOriginal) => {
   return {
     ...actual,
     initCryptoIdentity: vi.fn().mockResolvedValue(undefined),
+    runMigrationIfNeeded: vi.fn().mockResolvedValue(false),
   };
 });
 
