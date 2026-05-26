@@ -88,6 +88,7 @@ export default {
 
       communication,
       isOwner: false,
+      isTeacher: false,
 
       showSideMenu: true,
       showSettings: false,
@@ -275,15 +276,20 @@ export default {
         return "station";
       }
 
-      if (
-        this.peerID.startsWith(this.configuration.data.createdBy) ||
-        this.configuration?.data?.members?.teacher?.includes(getPeerID(false))
-      ) {
+      if (this.peerID.startsWith(this.configuration.data.createdBy)) {
         this.isOwner = true;
+        this.isTeacher = true;
+        return "teacher";
+      }
+
+      if (this.configuration?.data?.members?.teacher?.includes(getPeerID(false))) {
+        this.isOwner = false;
+        this.isTeacher = true;
         return "teacher";
       }
 
       this.isOwner = false;
+      this.isTeacher = false;
       return "student";
     },
 
@@ -599,7 +605,7 @@ export default {
                   :title="t('classroom.sideMenu.settings')"
                   @click="showSettings = !showSettings"
                   variant="text"
-                  v-if="isOwner"
+                  v-if="isOwner || isTeacher"
                 ></v-btn>
               </template>
             </v-list-item>
@@ -701,6 +707,7 @@ export default {
         @deleteClass="deleteClass"
         @updateClass="updateClass"
         :writeProtection="!!hash"
+        :membersWriteProtection="!!hash && !isTeacher"
       ></Settings>
     </v-dialog>
 

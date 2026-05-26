@@ -27,6 +27,11 @@ export default {
       type: Boolean,
       required: true,
     },
+
+    membersWriteProtection: {
+      type: Boolean,
+      default: null,
+    },
   },
 
   emits: ["close", "saveClass", "deleteClass", "updateClass"],
@@ -170,7 +175,7 @@ export default {
           <Members
             :members="config.members"
             @updateMembers="updateMembers"
-            :writeProtection="writeProtection"
+            :writeProtection="membersWriteProtection !== null ? membersWriteProtection : writeProtection"
           ></Members>
         </v-window-item>
 

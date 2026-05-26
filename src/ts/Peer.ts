@@ -26,6 +26,16 @@ function LOG(...args: any[]) {
   )
 }
 
+function teacherMembersChangeAllowed(newMembers: any, ownerPubKey: string): boolean {
+  if (!newMembers) return false
+  const strip = (s: string) => s.replace(/=/g, '')
+  const owner = strip(ownerPubKey)
+  // Owner is identified by createdBy, not by presence in teacher list — only block if explicitly moved to students
+  const studentList: string[] = newMembers.student || []
+  const ownerExplicitlyStudent = !studentList.includes('*') && studentList.some((s: string) => strip(s) === owner)
+  return !ownerExplicitlyStudent
+}
+
 const LOBBY = 'Lobby'
 const STATION = 'Station'
 
@@ -558,19 +568,26 @@ export default class Peer {
 
   private async _signAndWrite(existingCrdt: any): Promise<void> {
     const myPubKey = getPeerID(false)
-    const ownerPubKey: string = this.lab.data?.createdBy || ''
+    const existingSnapshot = existingCrdt != null ? JSON.parse(JSON.stringify(existingCrdt)) : null
+    const ownerPubKey: string = this.lab.data?.createdBy || existingSnapshot?.createdBy || ''
     const isOwner = myPubKey === ownerPubKey
 
-    // Teachers may not modify members — block and notify
-    if (!isOwner && !deepEqual(this.lab.data?.members, existingCrdt?.members)) {
+    const strip = (s: string) => s.replace(/=/g, '')
+    const existingMembers = existingSnapshot?.members ?? null
+    const establishedTeachers: string[] = existingMembers?.teacher || this.lab.data?.members?.teacher || []
+    const isTeacher = establishedTeachers.some((t: string) => strip(t) === strip(myPubKey))
+    const membersChangedLocally = existingMembers != null && !deepEqual(this.lab.data?.members, existingMembers)
+    if (!isOwner && membersChangedLocally && (!isTeacher || !teacherMembersChangeAllowed(this.lab.data?.members, ownerPubKey))) {
       this.update('popup', this.t('peer.feedback.noPermission'))
       return
     }
 
+    const createdBy = this.lab.data?.createdBy || existingSnapshot?.createdBy
     const dataToWrite = {
       ...this.lab.data,
+      createdBy,
       setupSigner: myPubKey,
-      setupSignature: await signSetup({ ...this.lab.data, timestamp: this.lab.timestamp }),
+      setupSignature: await signSetup({ ...this.lab.data, createdBy, timestamp: this.lab.timestamp }),
     }
     this.logSetupChanges(this.lab.data, dataToWrite)
     this.y.doc.transact(() => {
@@ -610,7 +627,8 @@ export default class Peer {
     const strip = (s: string) => s.replace(/=/g, '')
     const signerIsOwner = strip(signerPubKey) === strip(ownerPubKey)
     const signerIsTeacher = localTeachers.some(t => strip(t) === strip(signerPubKey))
-    const signerAuthorized = membersChanged ? signerIsOwner : (signerIsOwner || signerIsTeacher)
+    const teacherCanChangeMembers = signerIsTeacher && teacherMembersChangeAllowed(data.members, ownerPubKey)
+    const signerAuthorized = signerIsOwner || (!membersChanged && signerIsTeacher) || teacherCanChangeMembers
 
     if (!signerAuthorized) {
       LOG('Setup rejected: signer not authorized for this change')
@@ -636,7 +654,7 @@ export default class Peer {
       meta: data.meta,
       modules: data.modules,
       members: data.members,
-      createdBy: data.createdBy,
+      createdBy: localCreatedBy || data.createdBy,
       communicationConfig: data.communicationConfig,
     }
     this.lab.timestamp = timestamp
