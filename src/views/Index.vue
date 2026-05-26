@@ -36,6 +36,7 @@ export default {
       classrooms,
       peerID: getPeerID(false),
       ownerHash: '',
+      showMigrationBanner: sessionStorage.getItem('showMigrationBanner') === '1',
     };
   },
 
@@ -44,6 +45,11 @@ export default {
   },
 
   methods: {
+    dismissMigrationBanner() {
+      this.showMigrationBanner = false;
+      sessionStorage.removeItem('showMigrationBanner');
+    },
+
     copyPeerID() {
       copyToClipboard(this.peerID);
     },
@@ -132,6 +138,20 @@ export default {
 
     <v-main class="d-flex">
       <v-container fluid class="align-start">
+        <v-row v-if="showMigrationBanner">
+          <v-col cols="12">
+            <v-alert
+              type="info"
+              closable
+              @click:close="dismissMigrationBanner"
+            >
+              {{ t('index.migration.title') }}
+              <br />
+              {{ t('index.migration.body') }}
+            </v-alert>
+          </v-col>
+        </v-row>
+
         <v-row>
           <v-col
             cols="12"

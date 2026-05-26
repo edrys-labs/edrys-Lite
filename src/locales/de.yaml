@@ -8,6 +8,9 @@ general:
     station: "Station"
 
 index:
+  migration:
+    title: "Ihr Konto wurde auf das neue Identitätssystem aktualisiert."
+    body: "Ihre Unterrichtsräume sind bereit. Die Lehrerlisten wurden zurückgesetzt — bitte fügen Sie Ihre Lehrer erneut hinzu."
   classroom:
     create: "Klasse erstellen"
     startTeaching: "Jetzt unterrichten"

@@ -8,6 +8,9 @@ general:
     station: "Station"
 
 index:
+  migration:
+    title: "Your account has been upgraded to the new identity system."
+    body: "Your classrooms are ready to use. Teacher lists have been reset — please re-add your teachers."
   classroom:
     create: "Create a class"
     startTeaching: "Start teaching now"

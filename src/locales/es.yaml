@@ -8,6 +8,9 @@ general:
     station: "Estación"
 
 index:
+  migration:
+    title: "Tu cuenta ha sido actualizada al nuevo sistema de identidad."
+    body: "Tus clases están listas para usar. Las listas de profesores han sido restablecidas — por favor, vuelve a añadir a tus profesores."
   classroom:
     create: "Crear una clase"
     startTeaching: "Empieza a enseñar ahora"

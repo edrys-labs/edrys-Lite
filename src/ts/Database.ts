@@ -161,4 +161,13 @@ export class Database {
   async setPublicKeyRaw(raw: string): Promise<void> {
     await this.db['keys'].put({ name: 'publicKeyRaw', value: raw })
   }
+
+  async getMigrationDone(): Promise<boolean> {
+    const row = await this.db['keys'].get('migrationV2Done')
+    return row ? row.value === true : false
+  }
+
+  async setMigrationDone(): Promise<void> {
+    await this.db['keys'].put({ name: 'migrationV2Done', value: true })
+  }
 }

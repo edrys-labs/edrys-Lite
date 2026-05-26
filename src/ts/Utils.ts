@@ -547,6 +547,61 @@ export async function verifySetup(
   }
 }
 
+/**
+ * One-time migration from legacy random peerIDs to cryptographic pubkey identities.
+ * Runs only once per browser (guarded by migrationV2Done flag in IndexedDB).
+ * Detection: presence of the old 'peerID_' key in LocalStorage means this browser
+ * has a legacy identity. All locally stored classrooms are claimed by the new pubkey,
+ * teacher lists are wiped, and the old LocalStorage key is removed.
+ * Returns true if migration ran.
+ */
+export async function runMigrationIfNeeded(): Promise<boolean> {
+  const db = getCryptoDB()
+
+  if (await db.getMigrationDone()) return false
+
+  const legacyID = localStorage.getItem('peerID_')
+
+  if (!legacyID) {
+    await db.setMigrationDone()
+    return false
+  }
+
+  const myPubKey = getPeerID(false)
+  const classrooms = await db.getAll()
+
+  for (const classroom of classrooms) {
+    // Only claim classrooms that belonged to this user's old identity
+    if (classroom.data?.createdBy !== legacyID) continue
+
+    const timestamp = Date.now()
+    const data = {
+      ...classroom.data,
+      createdBy: myPubKey,
+      members: { ...classroom.data.members, teacher: [] },
+    }
+
+    const signature = await signSetup({
+      name: data.name,
+      meta: data.meta,
+      modules: data.modules,
+      members: data.members,
+      createdBy: data.createdBy,
+      timestamp,
+      communicationConfig: data.communicationConfig,
+    })
+
+    data.setupSigner = myPubKey
+    data.setupSignature = signature
+
+    await db.put({ id: classroom.id, data, timestamp, hash: null })
+  }
+
+  localStorage.removeItem('peerID_')
+  await db.setMigrationDone()
+  return true
+}
+
 export function clone(object: any) {
   if (object !== undefined) return JSON.parse(JSON.stringify(object))
 }
