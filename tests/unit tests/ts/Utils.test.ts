@@ -1,14 +1,15 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { 
-  validateUrl, 
-  infoHash, 
-  deepEqual, 
-  compareCommunicationConfig, 
-  extractCommunicationConfigFromUrl, 
+import {
+  validateUrl,
+  infoHash,
+  deepEqual,
+  compareCommunicationConfig,
+  extractCommunicationConfigFromUrl,
   updateUrlWithCommConfig,
   cleanUrlAfterCommConfigExtraction,
   encodeCommConfig,
-  decodeCommConfig
+  decodeCommConfig,
+  stripPubKey,
 } from '../../../src/ts/Utils';
 
 vi.mock('js-yaml', () => ({
@@ -31,6 +32,13 @@ describe('Utils', () => {
   });
 
   describe('Basic Utilities', () => {
+    test('stripPubKey removes padding characters', () => {
+      expect(stripPubKey('ABCdef==')).toBe('ABCdef')
+      expect(stripPubKey('ABCdef=')).toBe('ABCdef')
+      expect(stripPubKey('ABCdef')).toBe('ABCdef')
+      expect(stripPubKey('AB+C/def=')).toBe('AB+C/def')
+    });
+
     test('validateUrl should work for valid and invalid URLs', () => {
       expect(validateUrl('https://example.com')).toBe(true);
       expect(validateUrl('invalid-url')).toBe(false);

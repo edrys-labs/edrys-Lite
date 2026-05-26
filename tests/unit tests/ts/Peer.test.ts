@@ -79,6 +79,7 @@ vi.mock('../../../src/ts/Utils', () => ({
     if (!oldConfig || !newConfig) return false;
     return JSON.stringify(oldConfig) === JSON.stringify(newConfig);
   }),
+  stripPubKey: vi.fn((key: string) => key.replace(/=/g, '')),
   updateUrlWithCommConfig: vi.fn(),
   decodeCommConfig: vi.fn((encodedConfig) => {
     if (!encodedConfig) return null;
@@ -412,18 +413,92 @@ describe('Peer Class', () => {
     test('should prevent unauthorized state updates', async () => {
       const { debug } = await import('../../../src/api/debugHandler');
       const mockDebugPeer = vi.mocked(debug.ts.peer);
-      
+
       const originalAllowedToParticipate = peer['allowedToParticipate'];
       peer['allowedToParticipate'] = () => false;
-      
+
       mockDebugPeer.mockClear();
       peer.updateState(new Uint8Array());
-      
+
       expect(mockDebugPeer).toHaveBeenCalledWith(
         messages.en.peer.feedback.notPropagated
       );
-      
+
       peer['allowedToParticipate'] = originalAllowedToParticipate;
+    });
+
+    test('student cannot modify members', async () => {
+      const updateSpy = vi.spyOn(peer as any, 'update');
+      vi.mocked(getPeerID).mockReturnValue('student-peer-id');
+
+      peer['lab'].data = {
+        ...peer['lab'].data,
+        createdBy: 'owner-peer-id',
+        members: { teacher: ['teacher-peer-id'], student: ['student-peer-id'] },
+      };
+
+      // Simulate student tampering with members
+      peer['lab'].data.members.teacher.push('student-peer-id');
+
+      const existingCrdt = { members: { teacher: ['teacher-peer-id'], student: ['student-peer-id'] }, createdBy: 'owner-peer-id' };
+      await peer['_signAndWrite'](existingCrdt);
+
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages.en.peer.feedback.noPermission);
+    });
+
+    test('teacher can modify members without touching owner', async () => {
+      const updateSpy = vi.spyOn(peer as any, 'update');
+      vi.mocked(getPeerID).mockReturnValue('teacher-peer-id');
+
+      peer['lab'].data = {
+        ...peer['lab'].data,
+        createdBy: 'owner-peer-id',
+        members: { teacher: ['teacher-peer-id', 'new-teacher-id'], student: [] },
+      };
+
+      const existingCrdt = { members: { teacher: ['teacher-peer-id'], student: [] }, createdBy: 'owner-peer-id' };
+      await peer['_signAndWrite'](existingCrdt);
+
+      expect(updateSpy).not.toHaveBeenCalledWith('popup', messages.en.peer.feedback.noPermission);
+    });
+
+    test('teacher cannot move owner to student list', async () => {
+      const updateSpy = vi.spyOn(peer as any, 'update');
+      vi.mocked(getPeerID).mockReturnValue('teacher-peer-id');
+
+      peer['lab'].data = {
+        ...peer['lab'].data,
+        createdBy: 'owner-peer-id',
+        members: { teacher: ['teacher-peer-id'], student: ['owner-peer-id'] },
+      };
+
+      const existingCrdt = { members: { teacher: ['teacher-peer-id'], student: [] }, createdBy: 'owner-peer-id' };
+      await peer['_signAndWrite'](existingCrdt);
+
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages.en.peer.feedback.noPermission);
+    });
+
+    test('_verifyAndAccept rejects payload with mismatched createdBy', async () => {
+      peer['lab'].data = {
+        ...peer['lab'].data,
+        createdBy: 'owner-peer-id',
+        members: { teacher: ['teacher-peer-id'], student: [] },
+      };
+
+      // Tampered payload: createdBy doesn't match established localCreatedBy
+      const tampered = {
+        createdBy: 'HACKER_KEY',
+        setupSigner: 'teacher-peer-id',
+        setupSignature: 'mock-signature',
+        members: { teacher: ['teacher-peer-id'], student: [] },
+        modules: [],
+        name: 'lab',
+        meta: {},
+      };
+
+      const accepted = await peer['_verifyAndAccept'](tampered, Date.now() + 1000);
+      expect(accepted).toBe(false);
+      expect(peer['lab'].data.createdBy).toBe('owner-peer-id');
     });
   });
 
