@@ -1,7 +1,6 @@
 import {
   getPeerID,
   initCryptoIdentity,
-  hashJsonObject,
   deepEqual,
   getShortPeerID,
   throttle,
@@ -573,7 +572,7 @@ export default class Peer {
       setupSigner: myPubKey,
       setupSignature: await signSetup({ ...this.lab.data, timestamp: this.lab.timestamp }),
     }
-    this.logSetupChanges(existingCrdt, dataToWrite)
+    this.logSetupChanges(this.lab.data, dataToWrite)
     this.y.doc.transact(() => {
       this.y.setup.set('config', dataToWrite)
       this.y.setup.set('timestamp', this.lab.timestamp)
@@ -619,7 +618,7 @@ export default class Peer {
     }
 
     const valid = await verifySetup(
-      { name: data.name, meta: data.meta, modules: data.modules, members: data.members, createdBy: data.createdBy, timestamp },
+      { name: data.name, meta: data.meta, modules: data.modules, members: data.members, createdBy: data.createdBy, timestamp, communicationConfig: data.communicationConfig },
       data.setupSignature,
       signerPubKey
     )
@@ -631,7 +630,15 @@ export default class Peer {
 
     LOG('receiving initial lab configuration')
     this.logSetupChanges(this.lab.data, data)
-    this.lab.data = data
+    this.lab.data = {
+      ...this.lab.data,
+      name: data.name,
+      meta: data.meta,
+      modules: data.modules,
+      members: data.members,
+      createdBy: data.createdBy,
+      communicationConfig: data.communicationConfig,
+    }
     this.lab.timestamp = timestamp
     this.update('setup')
 
@@ -833,8 +840,9 @@ export default class Peer {
   newSetup(config: { id: string; data: any; timestamp: number }) {
     if (this.lab.hash) {
       const self = this
-      hashJsonObject(config.data).then((hash) => {
+      hashPubKey(config.data.createdBy).then((hash) => {
         if (hash === self.lab.hash && self.lab.timestamp < config.timestamp) {
+          self.logSetupChanges(self.lab.data, config.data)
           self.lab.id = config.id
           self.lab.data = config.data
           self.lab.timestamp = config.timestamp
@@ -846,6 +854,7 @@ export default class Peer {
       })
     } else {
       if (this.lab.timestamp < config.timestamp) {
+        this.logSetupChanges(this.lab.data, config.data)
         this.lab.id = config.id
         this.lab.data = config.data
         this.lab.timestamp = config.timestamp
