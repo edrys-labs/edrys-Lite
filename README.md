@@ -1,4 +1,3 @@
-
 # edrys-Lite: Revolutionizing Remote Laboratories
 
 ![overview](img/overview.png)
