@@ -487,6 +487,10 @@ function b64ToB64Url(b64: string): string {
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
+export function stripPubKey(key: string): string {
+  return key.replace(/=/g, '')
+}
+
 /** SHA-256 hash of a public key (base64), returns first 16 base64url chars (~96 bits). */
 export async function hashPubKey(pubKeyBase64: string): Promise<string> {
   const bytes = Uint8Array.from(atob(pubKeyBase64.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(pubKeyBase64.length / 4) * 4, '=')), c => c.charCodeAt(0))

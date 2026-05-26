@@ -11,6 +11,7 @@ import {
   signSetup,
   verifySetup,
   hashPubKey,
+  stripPubKey,
 } from './Utils'
 import * as Y from 'yjs'
 // @ts-ignore
@@ -28,11 +29,10 @@ function LOG(...args: any[]) {
 
 function teacherMembersChangeAllowed(newMembers: any, ownerPubKey: string): boolean {
   if (!newMembers) return false
-  const strip = (s: string) => s.replace(/=/g, '')
-  const owner = strip(ownerPubKey)
+  const owner = stripPubKey(ownerPubKey)
   // Owner is identified by createdBy, not by presence in teacher list — only block if explicitly moved to students
   const studentList: string[] = newMembers.student || []
-  const ownerExplicitlyStudent = !studentList.includes('*') && studentList.some((s: string) => strip(s) === owner)
+  const ownerExplicitlyStudent = !studentList.includes('*') && studentList.some((s: string) => stripPubKey(s) === owner)
   return !ownerExplicitlyStudent
 }
 
@@ -568,26 +568,24 @@ export default class Peer {
 
   private async _signAndWrite(existingCrdt: any): Promise<void> {
     const myPubKey = getPeerID(false)
-    const existingSnapshot = existingCrdt != null ? JSON.parse(JSON.stringify(existingCrdt)) : null
-    const ownerPubKey: string = this.lab.data?.createdBy || existingSnapshot?.createdBy || ''
+    const ownerPubKey: string = this.lab.data?.createdBy || ''
     const isOwner = myPubKey === ownerPubKey
 
-    const strip = (s: string) => s.replace(/=/g, '')
-    const existingMembers = existingSnapshot?.members ?? null
+    // Deserialize Yjs Proxy to plain object for reliable field access and comparison
+    const existingMembers = existingCrdt != null ? JSON.parse(JSON.stringify(existingCrdt)).members ?? null : null
     const establishedTeachers: string[] = existingMembers?.teacher || this.lab.data?.members?.teacher || []
-    const isTeacher = establishedTeachers.some((t: string) => strip(t) === strip(myPubKey))
+    const isTeacher = establishedTeachers.some((t: string) => stripPubKey(t) === stripPubKey(myPubKey))
     const membersChangedLocally = existingMembers != null && !deepEqual(this.lab.data?.members, existingMembers)
     if (!isOwner && membersChangedLocally && (!isTeacher || !teacherMembersChangeAllowed(this.lab.data?.members, ownerPubKey))) {
       this.update('popup', this.t('peer.feedback.noPermission'))
       return
     }
 
-    const createdBy = this.lab.data?.createdBy || existingSnapshot?.createdBy
     const dataToWrite = {
       ...this.lab.data,
-      createdBy,
+      createdBy: ownerPubKey,
       setupSigner: myPubKey,
-      setupSignature: await signSetup({ ...this.lab.data, createdBy, timestamp: this.lab.timestamp }),
+      setupSignature: await signSetup({ ...this.lab.data, createdBy: ownerPubKey, timestamp: this.lab.timestamp }),
     }
     this.logSetupChanges(this.lab.data, dataToWrite)
     this.y.doc.transact(() => {
@@ -624,9 +622,8 @@ export default class Peer {
     const ownerPubKey: string = localCreatedBy || data.createdBy
     const localTeachers: string[] = this.lab.data?.members?.teacher || []
     const membersChanged = !deepEqual(data.members, this.lab.data?.members)
-    const strip = (s: string) => s.replace(/=/g, '')
-    const signerIsOwner = strip(signerPubKey) === strip(ownerPubKey)
-    const signerIsTeacher = localTeachers.some(t => strip(t) === strip(signerPubKey))
+    const signerIsOwner = stripPubKey(signerPubKey) === stripPubKey(ownerPubKey)
+    const signerIsTeacher = localTeachers.some(t => stripPubKey(t) === stripPubKey(signerPubKey))
     const teacherCanChangeMembers = signerIsTeacher && teacherMembersChangeAllowed(data.members, ownerPubKey)
     const signerAuthorized = signerIsOwner || (!membersChanged && signerIsTeacher) || teacherCanChangeMembers
 
