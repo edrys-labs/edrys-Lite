@@ -416,6 +416,8 @@ describe('Crypto Identity', () => {
 // ---------------------------------------------------------------------------
 describe('runMigrationIfNeeded', () => {
   let mockDb: any
+  let mockLsGet: ReturnType<typeof vi.fn>
+  let mockLsRemove: ReturnType<typeof vi.fn>
   const LEGACY_ID = 'ᕡᠸ䆼ʀ焣⠺怭ĸ'
 
   const makeClassroom = (id: string, createdBy: string, teachers: string[] = []) => ({
@@ -435,6 +437,16 @@ describe('runMigrationIfNeeded', () => {
   beforeEach(() => {
     vi.resetModules()
     localStorage.clear()
+
+    mockLsGet = vi.fn().mockReturnValue(null)
+    mockLsRemove = vi.fn()
+    vi.doMock('secure-ls', () => ({
+      default: vi.fn().mockImplementation(() => ({
+        get: mockLsGet,
+        set: vi.fn(),
+        remove: mockLsRemove,
+      }))
+    }))
 
     mockDb = {
       getPublicKeyRaw: vi.fn().mockResolvedValue(null),
@@ -466,7 +478,7 @@ describe('runMigrationIfNeeded', () => {
 
   test('returns false immediately when migration already done', async () => {
     mockDb.getMigrationDone.mockResolvedValue(true)
-    localStorage.setItem('peerID_', LEGACY_ID)
+    mockLsGet.mockReturnValue(LEGACY_ID)
 
     const { initCryptoIdentity, runMigrationIfNeeded } = await freshUtils()
     await initCryptoIdentity()
@@ -479,7 +491,7 @@ describe('runMigrationIfNeeded', () => {
   })
 
   test('migrates own classrooms and returns true', async () => {
-    localStorage.setItem('peerID_', LEGACY_ID)
+    mockLsGet.mockReturnValue(LEGACY_ID)
     mockDb.getAll.mockResolvedValue([
       makeClassroom('class-1', LEGACY_ID, ['some-old-teacher']),
     ])
@@ -502,7 +514,7 @@ describe('runMigrationIfNeeded', () => {
   })
 
   test('does not touch classrooms owned by someone else', async () => {
-    localStorage.setItem('peerID_', LEGACY_ID)
+    mockLsGet.mockReturnValue(LEGACY_ID)
     const othersClassroom = makeClassroom('class-other', 'some-other-user-id')
     mockDb.getAll.mockResolvedValue([othersClassroom])
 
@@ -516,7 +528,7 @@ describe('runMigrationIfNeeded', () => {
   })
 
   test('migrates only own classrooms when mixed with others', async () => {
-    localStorage.setItem('peerID_', LEGACY_ID)
+    mockLsGet.mockReturnValue(LEGACY_ID)
     mockDb.getAll.mockResolvedValue([
       makeClassroom('own-class', LEGACY_ID),
       makeClassroom('other-class', 'foreign-peer-id'),
@@ -534,18 +546,18 @@ describe('runMigrationIfNeeded', () => {
   })
 
   test('removes peerID_ from localStorage after migration', async () => {
-    localStorage.setItem('peerID_', LEGACY_ID)
+    mockLsGet.mockReturnValue(LEGACY_ID)
     mockDb.getAll.mockResolvedValue([makeClassroom('c1', LEGACY_ID)])
 
     const { initCryptoIdentity, runMigrationIfNeeded } = await freshUtils()
     await initCryptoIdentity()
     await runMigrationIfNeeded()
 
-    expect(localStorage.getItem('peerID_')).toBeNull()
+    expect(mockLsRemove).toHaveBeenCalledWith('peerID_')
   })
 
   test('marks migration done after running', async () => {
-    localStorage.setItem('peerID_', LEGACY_ID)
+    mockLsGet.mockReturnValue(LEGACY_ID)
     mockDb.getAll.mockResolvedValue([])
 
     const { initCryptoIdentity, runMigrationIfNeeded } = await freshUtils()
@@ -556,7 +568,7 @@ describe('runMigrationIfNeeded', () => {
   })
 
   test('migrated classroom has a valid re-signable signature', async () => {
-    localStorage.setItem('peerID_', LEGACY_ID)
+    mockLsGet.mockReturnValue(LEGACY_ID)
     mockDb.getAll.mockResolvedValue([makeClassroom('c1', LEGACY_ID)])
 
     const { initCryptoIdentity, runMigrationIfNeeded, getPeerID, verifySetup } = await freshUtils()

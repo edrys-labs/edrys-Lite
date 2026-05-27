@@ -1,5 +1,6 @@
 import * as YAML from 'js-yaml'
 import LZString from 'lz-string'
+import SecureLS from 'secure-ls'
 import { Database } from './Database'
 
 function loadResource(type, url, base) {
@@ -560,7 +561,14 @@ export async function runMigrationIfNeeded(): Promise<boolean> {
 
   if (await db.getMigrationDone()) return false
 
-  const legacyID = localStorage.getItem('peerID_')
+  // Old version stored peerID_ via SecureLS (AES-encrypted)
+  let legacyID: string | null = null
+  try {
+    const ls = new SecureLS({ encodingType: 'aes' })
+    legacyID = ls.get('peerID_') || null
+  } catch {
+    // SecureLS throws if the key doesn't exist or decryption fails
+  }
 
   if (!legacyID) {
     await db.setMigrationDone()
@@ -597,7 +605,12 @@ export async function runMigrationIfNeeded(): Promise<boolean> {
     await db.put({ id: classroom.id, data, timestamp, hash: null })
   }
 
-  localStorage.removeItem('peerID_')
+  try {
+    const ls = new SecureLS({ encodingType: 'aes' })
+    ls.remove('peerID_')
+  } catch {
+    localStorage.removeItem('peerID_')
+  }
   await db.setMigrationDone()
   return true
 }
