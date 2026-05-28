@@ -500,6 +500,69 @@ describe('Peer Class', () => {
       expect(accepted).toBe(false);
       expect(peer['lab'].data.createdBy).toBe('owner-peer-id');
     });
+
+    test('_verifyAndAccept accepts owner migration broadcast when local createdBy is a legacy ID', async () => {
+      const legacyOwnerID = 'G58rjdP2oTJ4'; // 12-char alphanumeric legacy ID (old infoHash format)
+      const newOwnerPubKey = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+/abc123XYZ=='; // base64 pubkey
+
+      peer['lab'].data = {
+        ...peer['lab'].data,
+        createdBy: legacyOwnerID,
+        members: { teacher: [], student: [] },
+        modules: [],
+        name: 'lab',
+        meta: {},
+      };
+      peer['expectedOwner'] = null; // old bookmarked URL, no /:owner segment
+
+      // Owner's post-migration broadcast: self-signed with new pubkey
+      const ownerMigrationBroadcast = {
+        createdBy: newOwnerPubKey,
+        setupSigner: newOwnerPubKey, // self-signed: signer === createdBy
+        setupSignature: 'mock-signature',
+        members: { teacher: [], student: [] },
+        modules: [],
+        name: 'lab',
+        meta: {},
+      };
+
+      const accepted = await peer['_verifyAndAccept'](ownerMigrationBroadcast, Date.now() + 1000);
+      expect(accepted).toBe(true);
+      // After accepting, the student's local createdBy should be updated to the new pubkey
+      expect(peer['lab'].data.createdBy).toBe(newOwnerPubKey);
+    });
+
+    test('_verifyAndAccept rejects non-self-signed broadcast replacing legacy createdBy', async () => {
+      const legacyOwnerID = 'AbCdEfGhIjKlMnOpQrSt';
+      const claimedNewOwnerPubKey = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+/owner=';
+      const teacherPubKey = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+/teacher=';
+
+      peer['lab'].data = {
+        ...peer['lab'].data,
+        createdBy: legacyOwnerID,
+        members: { teacher: [teacherPubKey], student: [] },
+        modules: [],
+        name: 'lab',
+        meta: {},
+      };
+      peer['expectedOwner'] = null;
+
+      // Teacher signs a setup claiming a different pubkey is the new owner.
+      // Cryptographically valid signature, but setupSigner !== createdBy.
+      const teacherBroadcast = {
+        createdBy: claimedNewOwnerPubKey,
+        setupSigner: teacherPubKey,
+        setupSignature: 'mock-signature',
+        members: { teacher: [teacherPubKey], student: [] },
+        modules: [],
+        name: 'lab',
+        meta: {},
+      };
+
+      const accepted = await peer['_verifyAndAccept'](teacherBroadcast, Date.now() + 1000);
+      expect(accepted).toBe(false);
+      expect(peer['lab'].data.createdBy).toBe(legacyOwnerID);
+    });
   });
 
   // Communication Tests

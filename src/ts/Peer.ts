@@ -602,8 +602,18 @@ export default class Peer {
     const signerPubKey: string = data.setupSigner
     const localCreatedBy: string | undefined = this.lab.data?.createdBy
 
-    if (localCreatedBy && data.createdBy !== localCreatedBy) {
+    // A student who joined before migration has a legacy createdBy
+    // cached and cannot enforce the equality guard against the owner's post-migration
+    // self-signed broadcast.
+    const isLegacyCreatedBy = !!localCreatedBy && localCreatedBy.length < 40
+
+    if (localCreatedBy && !isLegacyCreatedBy && data.createdBy !== localCreatedBy) {
       LOG('Setup rejected: createdBy mismatch')
+      return false
+    }
+
+    if (isLegacyCreatedBy && data.setupSigner !== data.createdBy) {
+      LOG('Setup rejected: legacy createdBy can only be replaced by self-signed owner broadcast')
       return false
     }
 
@@ -615,7 +625,7 @@ export default class Peer {
       }
     }
 
-    const ownerPubKey: string = localCreatedBy || data.createdBy
+    const ownerPubKey: string = isLegacyCreatedBy ? data.createdBy : (localCreatedBy || data.createdBy)
     const localTeachers: string[] = this.lab.data?.members?.teacher || []
     const membersChanged = !deepEqual(data.members, this.lab.data?.members)
     const signerIsOwner = stripPubKey(signerPubKey) === stripPubKey(ownerPubKey)
@@ -647,7 +657,7 @@ export default class Peer {
       meta: data.meta,
       modules: data.modules,
       members: data.members,
-      createdBy: localCreatedBy || data.createdBy,
+      createdBy: isLegacyCreatedBy ? data.createdBy : (localCreatedBy || data.createdBy),
       communicationConfig: data.communicationConfig,
     }
     this.lab.timestamp = timestamp
