@@ -22,6 +22,7 @@
  */
 
 import * as Y from 'yjs'
+;(window as any).Y = Y
 // import * as YP from 'y-protocols/awareness.js'
 // import { RoomAwarenessManager } from './awarenessManager'
 import { unpack, pack } from 'msgpackr'
@@ -40,12 +41,6 @@ var liveClass = false
 var doc: any
 var callback = { onReady: false, onUpdate: false }
 var rtcConfig: RTCConfiguration | null = null
-
-// Allowed origins for security
-const allowedOrigins = [
-  'https://edrys-labs.github.io',
-  'http://localhost:6999'  // For development
-];
 
 function LOG(...args) {
   if (window['Edrys'].debug)
@@ -427,14 +422,12 @@ function dispatchUpdate() {
 window.addEventListener(
   'message',
   function (e) {
-    if (!allowedOrigins.includes(e.origin)) {
+    if (!window['Edrys'].origin) {
+      window['Edrys'].origin = e.origin;
+      debug.api.general('[Edrys Security] Trusted origin set to:', e.origin);
+    } else if (window['Edrys'].origin !== e.origin) {
       debug.api.general('[Edrys Security] Rejected message from:', e.origin);
       return;
-    }
-
-    if (!window['Edrys'].origin) {
-      window['Edrys'].origin = e.origin; 
-      debug.api.general('[Edrys Security] Trusted origin set to:', e.origin);
     }
 
     switch (e.data.event) {
