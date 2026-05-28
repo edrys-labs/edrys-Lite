@@ -389,7 +389,7 @@ export default class Peer {
   /**
    * Observes setup changes and initializes setup if necessary.
    */
-  private handleSetupChange(event: Y.YMapEvent<any>) {
+  private handleSetupChange(_event: Y.YMapEvent<any>) {
     const timestamp = this.y.setup.get('timestamp')
 
     // Skip partial merge states where Y.js delivers config and timestamp in
@@ -442,10 +442,6 @@ export default class Peer {
       return
     }
 
-    // Skip showing the module changes popup for initial setup when joining a new session
-    const isJoiningSession =
-      oldSetup.modules === undefined || oldSetup.modules?.length === 0
-
     const oldEncodedConfig = oldSetup.communicationConfig || null
     const newEncodedConfig = newSetup.communicationConfig || null
 
@@ -475,10 +471,6 @@ export default class Peer {
       return
     }
 
-    // Only show module changes popup if this isn't initial setup and modules have actually changed
-    if (!isJoiningSession && !deepEqual(oldSetup.modules, newSetup.modules)) {
-      this.update('popup', this.t('peer.feedback.moduleChanges'))
-    }
 
     if (!deepEqual(oldSetup.members, newSetup.members)) {
       const id = getPeerID(false)
@@ -647,7 +639,7 @@ export default class Peer {
       return false
     }
 
-    LOG('receiving initial lab configuration')
+    LOG(`receiving lab configuration`)
     this.logSetupChanges(this.lab.data, data)
     this.lab.data = {
       ...this.lab.data,
@@ -867,6 +859,7 @@ export default class Peer {
           self.lab.timestamp = config.timestamp
 
           self.initSetup(true)
+          self.update('setup')
         } else {
           LOG('updating failed, hash mismatch')
         }
@@ -879,6 +872,7 @@ export default class Peer {
         this.lab.timestamp = config.timestamp
 
         this.initSetup(true)
+        this.update('setup')
       }
     }
   }

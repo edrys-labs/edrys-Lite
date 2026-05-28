@@ -224,9 +224,14 @@ export default {
           this.owner || undefined
         );
         
-        this.communication.on("setup", async (configuration: DatabaseItem) => {          
+        this.communication.on("setup", async (configuration: DatabaseItem) => {
+          const previous = self.data?.modules;
           await self.database.put(clone(configuration));
-          self.init();
+          await self.init();
+          if (!deepEqual(previous, configuration.data?.modules)) {
+            self.data = clone(configuration.data);
+            self.scrapeModules();
+          }
         });
 
         this.communication.on("popup", this.addPopup);

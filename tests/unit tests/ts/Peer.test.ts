@@ -631,7 +631,7 @@ describe('Peer Class', () => {
 
   // Module Change Tests
   describe('Module Change Detection', () => {
-    test('should detect module changes correctly', () => {
+    test('should not show popup on module changes (UI reloads automatically)', () => {
       const updateSpy = vi.spyOn(peer as any, 'update');
 
       peer.logSetupChanges(
@@ -639,7 +639,7 @@ describe('Peer Class', () => {
         { modules: [{ url: 'module2' }], members: {} }
       );
 
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages.en.peer.feedback.moduleChanges);
+      expect(updateSpy).not.toHaveBeenCalledWith('popup', messages.en.peer.feedback.moduleChanges);
     });
 
     test('should not show module changes for initial setup', () => {
@@ -680,12 +680,7 @@ describe('Peer Class', () => {
       peer.updateState(new Uint8Array());
       expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.noAccess);
 
-      // Test module changes message
-      peer.logSetupChanges(
-        { modules: [1], members: {} },
-        { modules: [2], members: {} }
-      );
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.moduleChanges);
+      // Module changes no longer show a popup (UI reloads automatically)
 
       // Test member role change messages
       const testId = 'test-id';
