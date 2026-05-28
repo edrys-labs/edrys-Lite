@@ -338,7 +338,6 @@ export default class Peer {
 
     // Observe setup changes
     this.y.setup.observe(this.handleSetupChange.bind(this))
-
     // Delay setting connected to true to ensure synchronization
     setTimeout(() => {
       if (!this.connected) {
@@ -350,7 +349,7 @@ export default class Peer {
         LOG('synced', event)
         this.update('connected')
       }
-    }, 5000)
+    }, 2000)
   }
 
   /**
@@ -365,25 +364,20 @@ export default class Peer {
       this._hasSetupObserver = true
     }
 
-    // Ensure that synchronization is complete before updating state
-    setTimeout(() => {
-      if (!this.connected) {
-        this.connected = true
-        this.update('connected')
-
-        // When synced, check access permissions
-        if (!this.allowedToParticipate()) {
-          this.update('popup', this.t('peer.feedback.noAccess'))
-        }
-
-        // If the setup is empty or doesn't match our lab data, initialize it
-        const timestamp = this.y.setup.get('timestamp') as number
-        if (!timestamp && this.lab.timestamp > 0 && this.lab.data) {
-          LOG('Initializing setup from local data during sync')
-          this.initSetup(true)
-        }
+    if (!this.connected) {
+      this.connected = true
+      this.update('connected')
+      // When synced, check access permissions
+      if (!this.allowedToParticipate()) {
+        this.update('popup', this.t('peer.feedback.noAccess'))
       }
-    }, 5000)
+      // If the setup is empty or doesn't match our lab data, initialize it
+      const timestamp = this.y.setup.get('timestamp') as number
+      if (!timestamp && this.lab.timestamp > 0 && this.lab.data) {
+        LOG('Initializing setup from local data during sync')
+        this.initSetup(true)
+      }
+    }
   }
 
   /**

@@ -258,7 +258,7 @@ describe('Peer Class', () => {
       mockWebrtcEvents.status?.({ status: 'connected' });
 
       // Need to wait for the connection timeout
-      vi.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(2000);
       await Promise.resolve();
 
       expect(callback).toHaveBeenCalledWith(true);
@@ -293,7 +293,7 @@ describe('Peer Class', () => {
       peer['handleStatus']({ status: 'connected' });
       
       // Wait for connection timeout
-      vi.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(2000);
       await Promise.resolve();
       
       expect(callback).toHaveBeenCalledWith(true);
@@ -613,6 +613,24 @@ describe('Peer Class', () => {
       expect(peer['lab'].data).toEqual(newConfig.data);
       // Verify via lab state (synchronous) instead of CRDT state (async).
       expect(peer['lab'].timestamp).toBe(newConfig.timestamp);
+    });
+
+    test('should fire setup callback when newSetup receives newer config', () => {
+      const callback = vi.fn();
+      peer.on('setup', callback);
+
+      const newConfig = {
+        id: 'new-test-lab',
+        data: {
+          meta: { defaultNumberOfRooms: 3 },
+          members: { teacher: ['teacher-id'], student: [] },
+          createdBy: 'test-peer-id',
+        },
+        timestamp: Date.now() + 1000,
+      };
+
+      peer.newSetup(newConfig);
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ id: newConfig.id }));
     });
 
     test('should not update setup with older timestamp', () => {
