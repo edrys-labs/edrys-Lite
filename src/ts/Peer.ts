@@ -392,6 +392,10 @@ export default class Peer {
   private handleSetupChange(event: Y.YMapEvent<any>) {
     const timestamp = this.y.setup.get('timestamp')
 
+    // Skip partial merge states where Y.js delivers config and timestamp in
+    // separate observer calls — wait for the event that includes timestamp.
+    if (timestamp === undefined) return
+
     if (this.lab.timestamp !== timestamp) {
       this.initSetup()
     }
