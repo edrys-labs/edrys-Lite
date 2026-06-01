@@ -1,7 +1,7 @@
 import { WebrtcProvider } from 'y-webrtc'
 import { encoding, decoding } from 'lib0'
 import { debug } from '../api/debugHandler'
-import { signChallenge, verifyChallenge, getPeerID } from './Utils'
+import { signChallenge, verifyChallenge, getPeerID, REVERT_INVALID_ORIGIN } from './Utils'
 
 const MESSAGE_TYPE_CUSTOM = 42
 const MESSAGE_TYPE_ID = 43
@@ -34,6 +34,20 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
   constructor(roomName: string, doc: any, options: any) {
     super(roomName, doc, options)
+
+    // Revert filter: drop outgoing updates whose origin is REVERT_INVALID_ORIGIN
+    // so local rollback transactions stay local.
+    const baseDocUpdateHandler = (this as any)._docUpdateHandler
+    if (typeof baseDocUpdateHandler === 'function') {
+      doc.off('update', baseDocUpdateHandler)
+      const filteredHandler = (update: Uint8Array, origin: any) => {
+        if (origin === REVERT_INVALID_ORIGIN) return
+        return baseDocUpdateHandler(update, origin)
+      }
+      ;(this as any)._docUpdateHandler = filteredHandler
+      doc.on('update', filteredHandler)
+    }
+
     // Map of processed messages: messageId -> receivedTimestamp
     this._processedMessages = new Map()
     // Start periodic cleanup of old messages

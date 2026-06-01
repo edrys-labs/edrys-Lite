@@ -7,6 +7,7 @@ vi.mock('../../../src/ts/Utils', () => ({
   getPeerID: vi.fn(() => 'test-pubkey'),
   signChallenge: vi.fn(() => Promise.resolve('mock-signature')),
   verifyChallenge: vi.fn(() => Promise.resolve(true)),
+  REVERT_INVALID_ORIGIN: 'revert-invalid',
 }));
 
 vi.mock('y-websocket', () => {
@@ -383,8 +384,43 @@ describe('EdrysWebsocketProvider', () => {
   test('should provide connectivity methods', () => {
     provider.connect();
     expect(provider['provider'].connect).toHaveBeenCalled();
-    
+
     provider.disconnect();
     expect(provider['provider'].disconnect).toHaveBeenCalled();
+  });
+
+  describe('Sync-layer revert filter', () => {
+    test('replaces base provider\'s _updateHandler with a wrap', () => {
+      const baseSpy = vi.fn();
+      const localDoc = new Y.Doc();
+
+      const WsCtor = WebsocketProvider as any;
+      const previousImpl = WsCtor.getMockImplementation();
+      WsCtor.mockImplementationOnce(() => ({
+        on: vi.fn(),
+        destroy: vi.fn(),
+        disconnect: vi.fn(),
+        connect: vi.fn(),
+        awareness: { setLocalState: vi.fn(), getLocalState: () => ({}), on: vi.fn(), getStates: () => new Map() },
+        _updateHandler: baseSpy,
+      }));
+      localDoc.on('update', baseSpy);
+
+      const p = new EdrysWebsocketProvider('rev-room', localDoc, { serverUrl: 'wss://test', userid: 'u' });
+
+      const wrapped = (p as any).provider._updateHandler;
+      expect(typeof wrapped).toBe('function');
+      expect(wrapped).not.toBe(baseSpy);
+
+      const m = localDoc.getMap('users');
+      localDoc.transact(() => m.set('a', 1), 'normal');
+      localDoc.transact(() => m.set('a', 2), 'revert-invalid');
+
+      expect(baseSpy).toHaveBeenCalledTimes(1);
+      expect(baseSpy.mock.calls[0][1]).toBe('normal');
+
+      p.destroy();
+      if (previousImpl) WsCtor.mockImplementation(previousImpl);
+    });
   });
 });

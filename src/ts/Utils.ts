@@ -548,6 +548,91 @@ export async function verifySetup(
   }
 }
 
+// --- Signed live-state primitives (y.users / y.rooms) ---
+
+// Sentinel origin for local-only revert transactions; provider wrappers drop
+// outgoing updates tagged with this so reverts don't propagate.
+export const REVERT_INVALID_ORIGIN = 'revert-invalid'
+
+// Bound into signed bodies so a signature for `users[k]` can't be replayed as `rooms[k]`.
+export type SignedContainer = 'users' | 'rooms'
+
+export interface Envelope {
+  signer: string
+  nonce: number
+  signature: string
+}
+
+export const ENVELOPE_REPLAY_WINDOW_MS = 5000
+
+// Deterministic JSON: keys sorted recursively, arrays preserve order. Must be
+// byte-identical across peers so signatures verify.
+export function canonicalize(value: any): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) {
+    return '[' + value.map((v) => canonicalize(v === undefined ? null : v)).join(',') + ']'
+  }
+  const keys = Object.keys(value).filter((k) => value[k] !== undefined).sort()
+  return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonicalize(value[k])).join(',') + '}'
+}
+
+function buildSignedBody(
+  payload: any,
+  signer: string,
+  nonce: number,
+  key: string,
+  container: SignedContainer
+): Uint8Array {
+  const body = canonicalize({ payload, signer, nonce, key, container })
+  return new TextEncoder().encode(body)
+}
+
+export async function signEntry(
+  container: SignedContainer,
+  key: string,
+  payload: any,
+  nonce: number = Date.now()
+): Promise<Envelope> {
+  if (!_privateKey) throw new Error('Crypto identity not initialized')
+  if (!_publicKeyBase64) throw new Error('Crypto identity not initialized')
+  const signer = _publicKeyBase64
+  const body = buildSignedBody(payload, signer, nonce, key, container)
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, _privateKey, body)
+  return { signer, nonce, signature: _bytesToB64(sig) }
+}
+
+// Proves integrity + freshness only; authorization (is signer allowed to write this entry?) is the caller's job.
+export async function verifyEntry(
+  container: SignedContainer,
+  key: string,
+  payload: any,
+  envelope: Envelope | null | undefined,
+  replayWindowMs: number = ENVELOPE_REPLAY_WINDOW_MS
+): Promise<boolean> {
+  if (!envelope || typeof envelope !== 'object') return false
+  if (typeof envelope.signer !== 'string' || typeof envelope.signature !== 'string') return false
+  if (typeof envelope.nonce !== 'number' || !Number.isFinite(envelope.nonce)) return false
+  if (Math.abs(Date.now() - envelope.nonce) > replayWindowMs) return false
+  try {
+    const pubKey = await crypto.subtle.importKey(
+      'raw',
+      _b64ToBytes(envelope.signer),
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['verify']
+    )
+    const body = buildSignedBody(payload, envelope.signer, envelope.nonce, key, container)
+    return crypto.subtle.verify(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      pubKey,
+      _b64ToBytes(envelope.signature),
+      body
+    )
+  } catch {
+    return false
+  }
+}
+
 /**
  * One-time migration from legacy random peerIDs to cryptographic pubkey identities.
  * Runs only once per browser (guarded by migrationV2Done flag in IndexedDB).

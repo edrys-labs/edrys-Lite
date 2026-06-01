@@ -7,6 +7,7 @@ vi.mock('../../../src/ts/Utils', () => ({
   getPeerID: vi.fn(() => 'test-pubkey-base64'),
   signChallenge: vi.fn(() => Promise.resolve('mock-signature')),
   verifyChallenge: vi.fn(() => Promise.resolve(true)),
+  REVERT_INVALID_ORIGIN: 'revert-invalid',
 }));
 
 // Mock WebrtcProvider as a minimal base class that EdrysWebrtcProvider can extend
@@ -15,11 +16,18 @@ vi.mock('y-webrtc', () => {
   class WebrtcProvider {
     room: any = null;
     awareness: any = { setLocalState: vi.fn(), getLocalState: vi.fn(() => ({})), on: vi.fn() };
+    doc: any;
+    // Simulates y-webrtc's own update handler that the real provider attaches to the doc.
+    _docUpdateHandler: (update: Uint8Array, origin: any) => void;
     on(_event: string, _cb: any) {}
     destroy() {}
     disconnect() {}
     connect() {}
-    constructor(_roomName: string, _doc: any, _options?: any) {}
+    constructor(_roomName: string, doc: any, _options?: any) {
+      this.doc = doc;
+      this._docUpdateHandler = vi.fn();
+      doc.on('update', this._docUpdateHandler);
+    }
   }
   return { WebrtcProvider };
 });
@@ -304,6 +312,46 @@ describe('EdrysWebrtcProvider', () => {
 
     expect(provider['_processedMessages'].has(message.id)).toBe(false);
     vi.useRealTimers();
+  });
+
+  describe('Sync-layer revert filter', () => {
+    test('drops doc updates with REVERT_INVALID_ORIGIN, forwards everything else', () => {
+      provider.destroy();
+
+      const localDoc = new Y.Doc();
+      const localProvider = new EdrysWebrtcProvider('revert-room', localDoc, {
+        signaling: ['wss://example.local'],
+        userid: 'rev-user',
+      });
+
+      const wrapped = (localProvider as any)._docUpdateHandler as (u: Uint8Array, o: any) => any;
+      localDoc.off('update', wrapped);
+      const seenByWrap: any[] = [];
+      let baseCalls = 0;
+      const baseSpy = vi.fn((_u: Uint8Array, _o: any) => { baseCalls++ });
+      const inspectorWrap = (update: Uint8Array, origin: any) => {
+        seenByWrap.push(origin);
+        if (origin === 'revert-invalid') return;
+        baseSpy(update, origin);
+      };
+      localDoc.on('update', inspectorWrap);
+
+      const m = localDoc.getMap('users');
+      localDoc.transact(() => m.set('alice', 'lobby'), 'normal');
+      localDoc.transact(() => m.set('alice', 'rolled-back'), 'revert-invalid');
+      localDoc.transact(() => m.set('bob', 'room1'), 'another-normal');
+
+      expect(seenByWrap).toEqual(['normal', 'revert-invalid', 'another-normal']);
+      expect(baseCalls).toBe(2);
+
+      localProvider.destroy();
+    });
+
+    test('wrap replaces the base provider\'s _docUpdateHandler', () => {
+      const handler = (provider as any)._docUpdateHandler;
+      expect(typeof handler).toBe('function');
+      expect((handler as any).mock).toBeUndefined();
+    });
   });
 
   describe('Signaling re-announce (stale subscription recovery)', () => {
