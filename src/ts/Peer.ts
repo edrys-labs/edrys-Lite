@@ -377,6 +377,10 @@ export default class Peer {
         LOG('Initializing setup from local data during sync')
         this.initSetup(true)
       }
+
+      this._ownerAutoHealStaleSigner().catch((e) =>
+        console.error('owner auto-heal failed:', e)
+      )
     }
   }
 
@@ -565,8 +569,14 @@ export default class Peer {
     const existingMembers = existingCrdt != null ? JSON.parse(JSON.stringify(existingCrdt)).members ?? null : null
     const establishedTeachers: string[] = existingMembers?.teacher || this.lab.data?.members?.teacher || []
     const isTeacher = establishedTeachers.some((t: string) => stripPubKey(t) === stripPubKey(myPubKey))
+
+    // Only the owner or a current teacher may sign setup updates.
+    if (!isOwner && !isTeacher) {
+      return
+    }
+
     const membersChangedLocally = existingMembers != null && !deepEqual(this.lab.data?.members, existingMembers)
-    if (!isOwner && membersChangedLocally && (!isTeacher || !teacherMembersChangeAllowed(this.lab.data?.members, ownerPubKey))) {
+    if (!isOwner && membersChangedLocally && !teacherMembersChangeAllowed(this.lab.data?.members, ownerPubKey)) {
       this.update('popup', this.t('peer.feedback.noPermission'))
       return
     }
@@ -585,6 +595,30 @@ export default class Peer {
         this.update('popup', this.t('peer.feedback.noAccess'))
       }
     }, 'initSetup')
+  }
+
+  /**
+   * When the owner is online and the CRDT setup is signed by someone no longer
+   * authorized, overwrite it with a fresh owner-signed setup.
+   */
+  private async _ownerAutoHealStaleSigner(): Promise<void> {
+    const myPubKey = getPeerID(false)
+    const ownerPubKey: string = this.lab.data?.createdBy || ''
+    if (myPubKey !== ownerPubKey) return
+
+    const currentConfig: any = this.y.setup.get('config')
+    if (!currentConfig || !currentConfig.setupSigner) return
+
+    const signer: string = currentConfig.setupSigner
+    const signerIsOwner = stripPubKey(signer) === stripPubKey(ownerPubKey)
+    if (signerIsOwner) return
+
+    const currentTeachers: string[] = this.lab.data?.members?.teacher || []
+    const signerIsTeacher = currentTeachers.some((t: string) => stripPubKey(t) === stripPubKey(signer))
+    if (signerIsTeacher) return
+
+    LOG('y.setup signed by unauthorized signer, owner re-signing to heal')
+    await this._signAndWrite(currentConfig)
   }
 
   private async _verifyAndAccept(data: any, timestamp: number): Promise<boolean> {
