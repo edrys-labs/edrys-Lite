@@ -305,4 +305,78 @@ describe('EdrysWebrtcProvider', () => {
     expect(provider['_processedMessages'].has(message.id)).toBe(false);
     vi.useRealTimers();
   });
+
+  describe('Signaling re-announce (stale subscription recovery)', () => {
+    let signalingConn: { connected: boolean; send: ReturnType<typeof vi.fn> };
+    let localProvider: EdrysWebrtcProvider;
+
+    beforeEach(() => {
+      // Construct a fresh provider here under fake timers so the re-announce interval is faked.
+      vi.useFakeTimers();
+      localProvider = new EdrysWebrtcProvider('test-room', doc, {
+        signaling: ['wss://example.local'],
+        password: 'test-password',
+        userid: 'test-user-456',
+      });
+      signalingConn = { connected: true, send: vi.fn() };
+      (localProvider as any).room = {
+        name: 'test-room',
+        peerId: 'webrtc-peer-id-abc',
+        key: null,
+        webrtcConns: new Map(),
+      };
+      (localProvider as any).signalingConns = [signalingConn];
+    });
+
+    afterEach(() => {
+      localProvider.destroy();
+      vi.useRealTimers();
+    });
+
+    test('re-sends subscribe and announce to connected signaling conns periodically', async () => {
+      // Advance to first re-announce tick
+      await vi.advanceTimersByTimeAsync(60000);
+
+      const subscribeCall = signalingConn.send.mock.calls.find(
+        ([msg]) => msg?.type === 'subscribe'
+      );
+      const publishCall = signalingConn.send.mock.calls.find(
+        ([msg]) => msg?.type === 'publish'
+      );
+
+      expect(subscribeCall, 'expected a subscribe message after 60s').toBeDefined();
+      expect(subscribeCall![0]).toEqual({
+        type: 'subscribe',
+        topics: ['test-room'],
+      });
+
+      expect(publishCall, 'expected a publish (announce) message after 60s').toBeDefined();
+      expect(publishCall![0]).toMatchObject({
+        type: 'publish',
+        topic: 'test-room',
+        data: { type: 'announce', from: 'webrtc-peer-id-abc' },
+      });
+    });
+
+    test('skips signaling conns that are not connected', async () => {
+      signalingConn.connected = false;
+
+      await vi.advanceTimersByTimeAsync(60000);
+
+      expect(signalingConn.send).not.toHaveBeenCalled();
+    });
+
+    test('does not throw when room is not yet initialized', async () => {
+      (localProvider as any).room = null;
+
+      await expect(vi.advanceTimersByTimeAsync(30000)).resolves.not.toThrow();
+      expect(signalingConn.send).not.toHaveBeenCalled();
+    });
+
+    test('clears the re-announce interval on destroy', () => {
+      expect((localProvider as any)._reAnnounceInterval).not.toBeNull();
+      localProvider.destroy();
+      expect((localProvider as any)._reAnnounceInterval).toBeNull();
+    });
+  });
 });

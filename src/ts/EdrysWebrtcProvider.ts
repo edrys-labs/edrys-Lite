@@ -7,6 +7,11 @@ const MESSAGE_TYPE_CUSTOM = 42
 const MESSAGE_TYPE_ID = 43
 const MESSAGE_TYPE_HANDSHAKE = 44
 const MESSAGE_EXPIRATION_TIME = 10000 // 10 seconds
+// Defends against signaling-server subscriptions going stale on long-lived tabs:
+// the WS stays open (ping/pong) but the server stops forwarding announces, making
+// the peer invisible to newcomers. Re-subscribing + re-announcing on the same
+// open WS recovers the room without a reconnect.
+const RE_ANNOUNCE_INTERVAL = 60000 // 60 seconds
 
 // A simple UUID generator (you could use a library like uuid)
 function generateUniqueId() {
@@ -21,6 +26,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
   private _bcChannel: BroadcastChannel
   private _processedMessages: Map<string, number>
   private _cleanupInterval: number | null = null
+  private _reAnnounceInterval: number | null = null
   private _leaveListener: Function | null = null
   private _pendingVerification: Map<string, { userid: string; peer: any; expiresAt: number }>
   private _classroomId: string
@@ -34,6 +40,10 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
     this._cleanupInterval = window.setInterval(
       () => this._cleanupProcessedMessages(),
       MESSAGE_EXPIRATION_TIME
+    )
+    this._reAnnounceInterval = window.setInterval(
+      () => this._reAnnounceToSignaling(),
+      RE_ANNOUNCE_INTERVAL
     )
 
     // Map to store peers we've already set up listeners for
@@ -330,6 +340,32 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
   }
 
   /**
+   * Re-subscribe + re-announce to every connected signaling conn. y-webrtc only
+   * sends `subscribe` once (on initial WS open); if the server silently drops
+   * the subscription while the WS stays alive, the peer becomes invisible to
+   * newcomers. Periodically re-sending restores forwarding without a reconnect.
+   */
+  private _reAnnounceToSignaling() {
+    const room: any = (this as any).room
+    if (!room) return
+
+    const conns: any[] = (this as any).signalingConns || []
+    for (const conn of conns) {
+      if (!conn?.connected) continue
+
+      conn.send({ type: 'subscribe', topics: [room.name] })
+
+      if (!room.key) {
+        conn.send({
+          type: 'publish',
+          topic: room.name,
+          data: { type: 'announce', from: room.peerId },
+        })
+      }
+    }
+  }
+
+  /**
    * Clean up resources when the provider is destroyed.
    */
   destroy() {
@@ -344,6 +380,11 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
     if (this._cleanupInterval) {
       clearInterval(this._cleanupInterval)
       this._cleanupInterval = null
+    }
+
+    if (this._reAnnounceInterval) {
+      clearInterval(this._reAnnounceInterval)
+      this._reAnnounceInterval = null
     }
 
     this._setupPeers.clear()
