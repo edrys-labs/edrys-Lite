@@ -424,11 +424,6 @@ export default class Peer {
       for (const id in peers) {
         if (peerIds.includes(id)) {
           this.y.users.delete(id)
-
-          if (peers[id].role === 'station') {
-            this.y.rooms.delete(id)
-          }
-
           delete this.logicalClocks[id]
         }
       }
@@ -858,15 +853,7 @@ export default class Peer {
       const users = this.y.users.toJSON()
 
       for (const station of stations) {
-        let found = false
-        for (const id in users) {
-          if (users[id].room === station) {
-            found = true
-            break
-          }
-        }
-
-        if (!found) {
+        if (!users[station]) {
           deadStation.push(station)
         }
       }
