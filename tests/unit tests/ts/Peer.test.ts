@@ -428,7 +428,7 @@ describe('Peer Class', () => {
     });
 
     test('student cannot modify members', async () => {
-      const updateSpy = vi.spyOn(peer as any, 'update');
+      const ySetupSetSpy = vi.spyOn(peer['y'].setup, 'set');
       vi.mocked(getPeerID).mockReturnValue('student-peer-id');
 
       peer['lab'].data = {
@@ -441,9 +441,13 @@ describe('Peer Class', () => {
       peer['lab'].data.members.teacher.push('student-peer-id');
 
       const existingCrdt = { members: { teacher: ['teacher-peer-id'], student: ['student-peer-id'] }, createdBy: 'owner-peer-id' };
+      ySetupSetSpy.mockClear();
       await peer['_signAndWrite'](existingCrdt);
 
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages.en.peer.feedback.noPermission);
+      // The write must not land in the CRDT. (Silent block — no popup, since
+      // this same guard fires on benign refresh paths and the popup would spam.)
+      const configWrites = ySetupSetSpy.mock.calls.filter(([key]) => key === 'config');
+      expect(configWrites).toHaveLength(0);
     });
 
     test('teacher can modify members without touching owner', async () => {
@@ -476,6 +480,79 @@ describe('Peer Class', () => {
       await peer['_signAndWrite'](existingCrdt);
 
       expect(updateSpy).toHaveBeenCalledWith('popup', messages.en.peer.feedback.noPermission);
+    });
+
+    test('demoted teacher cannot _signAndWrite', async () => {
+      const updateSpy = vi.spyOn(peer as any, 'update');
+      const ySetupSetSpy = vi.spyOn(peer['y'].setup, 'set');
+
+      // The peer is a demoted teacher: their pubkey is NOT in members.teacher
+      // anymore (owner removed them and the demotion has synced to this tab).
+      vi.mocked(getPeerID).mockReturnValue('demoted-teacher-id');
+
+      peer['lab'].data = {
+        ...peer['lab'].data,
+        createdBy: 'owner-peer-id',
+        members: { teacher: [], student: [] }, // demoted-teacher is no longer in teacher list
+        modules: [{ url: 'https://example.com/mod-v2' }], // local change to a module
+      };
+
+      // existingCrdt mirrors what's currently in y.setup — same demoted state, older modules
+      const existingCrdt = {
+        members: { teacher: [], student: [] },
+        createdBy: 'owner-peer-id',
+        modules: [{ url: 'https://example.com/mod-v1' }],
+      };
+
+      ySetupSetSpy.mockClear();
+      updateSpy.mockClear();
+      await peer['_signAndWrite'](existingCrdt);
+
+      expect(updateSpy).not.toHaveBeenCalledWith('popup', messages.en.peer.feedback.noPermission);
+
+      // The CRDT must NOT have been updated with the demoted-teacher's signature.
+      const configWrites = ySetupSetSpy.mock.calls.filter(([key]) => key === 'config');
+      expect(configWrites, 'demoted teacher must not write to y.setup.config').toHaveLength(0);
+    });
+
+    test('owner auto-heals y.setup when CRDT setup is signed by an unauthorized signer', async () => {
+      vi.mocked(getPeerID).mockReturnValue('test-peer-id');
+      const staleTeacherID = 'stale-teacher-id';
+
+      // Local lab.data reflects the post-demotion state: stale teacher is gone.
+      peer['lab'].data = {
+        ...peer['lab'].data,
+        createdBy: 'test-peer-id', // matches getPeerID mock = owner
+        members: { teacher: [], student: ['*'] },
+        modules: [],
+      };
+
+      // Plant a "poison" setup in y.setup, signed by the demoted teacher.
+      const poisonTimestamp = Date.now() + 5000;
+      peer['y'].doc.transact(() => {
+        peer['y'].setup.set('config', {
+          name: 'lab',
+          meta: {},
+          modules: [],
+          members: { teacher: [], student: ['*'] }, // members already show the demotion
+          createdBy: 'test-peer-id',
+          setupSigner: staleTeacherID, // <-- signed by someone no longer authorized
+          setupSignature: 'stale-signature',
+        });
+        peer['y'].setup.set('timestamp', poisonTimestamp);
+      });
+
+      const ySetupSetSpy = vi.spyOn(peer['y'].setup, 'set');
+      ySetupSetSpy.mockClear();
+
+      await (peer as any)._ownerAutoHealStaleSigner();
+
+      // After heal, the latest y.setup.config must be signed by the owner.
+      const newConfig: any = peer['y'].setup.get('config');
+      expect(newConfig).toBeDefined();
+      expect(newConfig.setupSigner).toBe('test-peer-id');
+      // And the createdBy must remain the owner.
+      expect(newConfig.createdBy).toBe('test-peer-id');
     });
 
     test('_verifyAndAccept rejects payload with mismatched createdBy', async () => {
