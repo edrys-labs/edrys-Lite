@@ -507,6 +507,75 @@ describe('Crypto Identity', () => {
 });
 
 // ---------------------------------------------------------------------------
+// y.users authorization rule (isAuthorizedUserSigner)
+// ---------------------------------------------------------------------------
+describe('isAuthorizedUserSigner', () => {
+  // Re-imported per test so the (unused) crypto state doesn't leak; the rule
+  // itself is pure.
+  async function freshPeerHelpers() {
+    vi.resetModules();
+    vi.doMock('../../../src/ts/Database', () => ({
+      Database: vi.fn(() => ({
+        getPublicKeyRaw: vi.fn().mockResolvedValue(null),
+        getPrivateKey: vi.fn().mockResolvedValue(null),
+        setPublicKeyRaw: vi.fn(),
+        setPrivateKey: vi.fn(),
+      })),
+    }));
+    return import('../../../src/ts/Peer');
+  }
+
+  test('human peer: signer matching pubkey prefix is authorized', async () => {
+    const { isAuthorizedUserSigner } = await freshPeerHelpers();
+    const pubkey = 'BGdxv12345abc';
+    const id = `${pubkey}_sess001`;
+    expect(isAuthorizedUserSigner(id, pubkey, 'owner-pk', [])).toBe(true);
+  });
+
+  test('human peer: signer with different pubkey is rejected (spoofing)', async () => {
+    const { isAuthorizedUserSigner } = await freshPeerHelpers();
+    const id = 'BGdxv12345abc_sess001';
+    expect(isAuthorizedUserSigner(id, 'attacker-pk', 'owner-pk', [])).toBe(false);
+  });
+
+  test('human peer: base64 padding (=) is ignored when matching', async () => {
+    const { isAuthorizedUserSigner } = await freshPeerHelpers();
+    const id = 'BGdxv12345abc==_sess001';
+    expect(isAuthorizedUserSigner(id, 'BGdxv12345abc', 'owner-pk', [])).toBe(true);
+    expect(isAuthorizedUserSigner(id, 'BGdxv12345abc==', 'owner-pk', [])).toBe(true);
+  });
+
+  test('human peer: missing session separator is rejected', async () => {
+    const { isAuthorizedUserSigner } = await freshPeerHelpers();
+    expect(isAuthorizedUserSigner('NoSeparator', 'NoSeparator', 'owner-pk', [])).toBe(false);
+  });
+
+  test('station peer: owner signature is authorized', async () => {
+    const { isAuthorizedUserSigner } = await freshPeerHelpers();
+    const id = 'Station myStn1';
+    const owner = 'owner-pk';
+    expect(isAuthorizedUserSigner(id, owner, owner, [])).toBe(true);
+  });
+
+  test('station peer: teacher signature is authorized', async () => {
+    const { isAuthorizedUserSigner } = await freshPeerHelpers();
+    const id = 'Station myStn1';
+    expect(isAuthorizedUserSigner(id, 'teacher-pk', 'owner-pk', ['teacher-pk'])).toBe(true);
+  });
+
+  test('station peer: random participant is rejected', async () => {
+    const { isAuthorizedUserSigner } = await freshPeerHelpers();
+    const id = 'Station myStn1';
+    expect(isAuthorizedUserSigner(id, 'random-pk', 'owner-pk', ['teacher-pk'])).toBe(false);
+  });
+
+  test('empty signer is rejected', async () => {
+    const { isAuthorizedUserSigner } = await freshPeerHelpers();
+    expect(isAuthorizedUserSigner('any_id', '', 'owner', [])).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Migration tests
 // ---------------------------------------------------------------------------
 describe('runMigrationIfNeeded', () => {

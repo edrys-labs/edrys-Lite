@@ -12,6 +12,10 @@ import {
   verifySetup,
   hashPubKey,
   stripPubKey,
+  signEntry,
+  verifyEntry,
+  REVERT_INVALID_ORIGIN,
+  Envelope,
 } from './Utils'
 import * as Y from 'yjs'
 // @ts-ignore
@@ -38,6 +42,29 @@ function teacherMembersChangeAllowed(newMembers: any, ownerPubKey: string): bool
 
 const LOBBY = 'Lobby'
 const STATION = 'Station'
+
+/**
+ * Authorization rule for y.users[id] writes.
+ *  - Human peer (id = "<pubkey>_<sessionID>"): signer's pubkey must equal "<pubkey>".
+ *  - Station peer (id starts with "Station "): signer must be owner (setup.createdBy)
+ *    or in setup.members.teacher.
+ */
+export function isAuthorizedUserSigner(
+  id: string,
+  signer: string,
+  ownerPubKey: string,
+  teachers: string[]
+): boolean {
+  if (!signer) return false
+  if (id.startsWith(STATION + ' ')) {
+    if (ownerPubKey && stripPubKey(signer) === stripPubKey(ownerPubKey)) return true
+    return teachers.some((t) => stripPubKey(t) === stripPubKey(signer))
+  }
+  const sep = id.lastIndexOf('_')
+  if (sep <= 0) return false
+  const pubkeyPart = id.slice(0, sep)
+  return stripPubKey(pubkeyPart) === stripPubKey(signer)
+}
 
 let heartbeatID: ReturnType<typeof setInterval> | null
 
@@ -90,6 +117,7 @@ export default class Peer {
     chat: Y.Array<any>
     rooms: Y.Map<any>
     users: Y.Map<any>
+    userSigs: Y.Map<Envelope>
     setup: Y.Map<any>
   }
 
@@ -132,6 +160,7 @@ export default class Peer {
       doc,
       setup: doc.getMap('setup'),
       users: doc.getMap('users'),
+      userSigs: doc.getMap('userSigs'),
       rooms: doc.getMap('rooms'),
       chat: doc.getArray('chat'),
     }
@@ -424,6 +453,7 @@ export default class Peer {
       for (const id in peers) {
         if (peerIds.includes(id)) {
           this.y.users.delete(id)
+          this.y.userSigs.delete(id)
           delete this.logicalClocks[id]
         }
       }
@@ -477,7 +507,8 @@ export default class Peer {
         !newSetup.members.teacher.includes(id)
       ) {
         this.update('popup', this.t('peer.feedback.removedTeacher'))
-        this.user().set('role', 'student')
+        const next = this._nextUserPayload(this.peerID, { role: 'student' })
+        if (next) this._writeAndSignUser(this.peerID, next, 'roleDemote')
       }
 
       if (
@@ -485,7 +516,8 @@ export default class Peer {
         newSetup.members.teacher.includes(id)
       ) {
         this.update('popup', this.t('peer.feedback.addedTeacher'))
-        this.user().set('role', 'teacher')
+        const next = this._nextUserPayload(this.peerID, { role: 'teacher' })
+        if (next) this._writeAndSignUser(this.peerID, next, 'rolePromote')
         return
       }
 
@@ -694,6 +726,98 @@ export default class Peer {
   }
 
   /**
+   * Write a full user payload AND its signature in a single transaction so the
+   * two land atomically on every remote peer. Receivers verify against the
+   * exact payload that was signed.
+   */
+  private async _writeAndSignUser(peerID: string, payload: any, origin: string): Promise<void> {
+    try {
+      const envelope = await signEntry('users', peerID, payload)
+      this.y.doc.transact(() => {
+        const m = new Y.Map()
+        for (const k of Object.keys(payload)) m.set(k, payload[k])
+        this.y.users.set(peerID, m)
+        this.y.userSigs.set(peerID, envelope)
+      }, origin)
+    } catch (e) {
+      LOG('writeAndSignUser failed', peerID, e)
+    }
+  }
+
+  /**
+   * Compute the next payload from the current entry by overlaying patch fields.
+   * Returns null if the entry doesn't exist (caller should bail).
+   */
+  private _nextUserPayload(peerID: string, patch: Record<string, any>): any | null {
+    const entry = this.y.users.get(peerID)
+    if (!entry) return null
+    return { ...entry.toJSON(), ...patch }
+  }
+
+  /** Per-instance wrapper around the pure isAuthorizedUserSigner rule. */
+  private _isAuthorizedUserSigner(id: string, signer: string): boolean {
+    return isAuthorizedUserSigner(
+      id,
+      signer,
+      this.lab.data?.createdBy || '',
+      this.lab.data?.members?.teacher || []
+    )
+  }
+
+  /**
+   * Last verified (payload, envelope) per user key. On invalid mutation we
+   * restore from here instead of deleting.
+   */
+  private _lastGoodUser: Map<string, { payload: any; envelope: Envelope }> = new Map()
+
+  /** Restore the cached good state for key, or delete if no cache exists. */
+  private _restoreOrDelete(key: string): void {
+    const cached = this._lastGoodUser.get(key)
+    this.y.doc.transact(() => {
+      if (cached) {
+        const m = new Y.Map()
+        for (const k of Object.keys(cached.payload)) m.set(k, cached.payload[k])
+        this.y.users.set(key, m)
+        this.y.userSigs.set(key, cached.envelope)
+      } else {
+        this.y.users.delete(key)
+        this.y.userSigs.delete(key)
+      }
+    }, REVERT_INVALID_ORIGIN)
+  }
+
+  /**
+   * Verify y.users mutations for the given keys. Legit writes via
+   * `_writeAndSignUser` always land entry+sig atomically, so an entry without
+   * a matching valid envelope can only come from a forged raw write — revert
+   * by restoring last-good state (or delete if no prior good state exists).
+   */
+  private async _verifyAndRevertUserChange(keys: Set<string>): Promise<void> {
+    for (const key of keys) {
+      try {
+        const value = this.y.users.get(key)
+        if (!value) { this._restoreOrDelete(key); continue }
+        const envelope = this.y.userSigs.get(key) as Envelope | undefined
+        const payload = value.toJSON()
+        const sigValid = envelope
+          ? await verifyEntry('users', key, payload, envelope)
+          : false
+        const authorized = sigValid && envelope
+          ? this._isAuthorizedUserSigner(key, envelope.signer)
+          : false
+        if (sigValid && authorized) {
+          this._lastGoodUser.set(key, { payload, envelope: envelope as Envelope })
+        } else {
+          LOG('y.users entry rejected', key, { sigValid, authorized, hasEnvelope: !!envelope })
+          this._restoreOrDelete(key)
+        }
+      } catch (e) {
+        LOG('verifyAndRevertUserChange failed', key, e)
+      }
+    }
+  }
+
+  /**
    * Initializes a user within a transaction.
    * @param role The role of the user.
    * @param withObserver Whether to set up observers.
@@ -709,18 +833,17 @@ export default class Peer {
       heartbeatID = null
     }
 
-    this.y.doc.transact(() => {
-      const userSettings = new Y.Map()
-      const timeNow = Date.now()
-      userSettings.set('displayName', this.isStation() ? this.peerID : getShortPeerID(this.peerID))
-      userSettings.set('room', this.isStation() ? this.peerID : LOBBY)
-      userSettings.set('role', this.role)
-      userSettings.set('dateJoined', timeNow)
-      userSettings.set('logicalClock', 0)
-      userSettings.set('handRaised', false)
-      userSettings.set('connections', [{ id: '', target: {} }])
-      this.y.users.set(this.peerID, userSettings)
-    }, 'initUser')
+    const timeNow = Date.now()
+    const initialPayload = {
+      displayName: this.isStation() ? this.peerID : getShortPeerID(this.peerID),
+      room: this.isStation() ? this.peerID : LOBBY,
+      role: this.role,
+      dateJoined: timeNow,
+      logicalClock: 0,
+      handRaised: false,
+      connections: [{ id: '', target: {} }],
+    }
+    this._writeAndSignUser(this.peerID, initialPayload, 'initUser')
 
     heartbeatID = setInterval(() => {
       if (this.y.users.has(this.peerID)) {
@@ -733,6 +856,7 @@ export default class Peer {
 
     if (withObserver) {
       this.y.users.observeDeep((events) => {
+        const keysAffected = new Set<string>()
         const onlyClockEvents = events.every((event) => {
           return (
             event.changes.keys &&
@@ -740,6 +864,25 @@ export default class Peer {
             event.changes.keys.has('logicalClock')
           )
         })
+
+        for (const event of events) {
+          // Top-level event: key was added/updated/deleted at the users map level.
+          if (event.target === this.y.users) {
+            for (const k of event.changes.keys.keys()) keysAffected.add(k)
+          } else {
+            // Nested event: a field changed inside y.users[id]. Walk the path to find id.
+            const path = (event as any).path as Array<string | number>
+            if (path && path.length > 0) keysAffected.add(String(path[0]))
+          }
+        }
+
+        // Verify every affected key — including our own entry. Legit local
+        // writes (via _writeAndSignUser) include a valid signature so they
+        // pass. Foreign mutations of our entry fail authz
+        // and get reverted here too.
+        if (keysAffected.size > 0) {
+          this._verifyAndRevertUserChange(keysAffected)
+        }
 
         if (!onlyClockEvents) {
           this.throttledUpdate()
@@ -784,10 +927,12 @@ export default class Peer {
             if (change?.action === 'delete') {
               if (this.user() && this.user().get('room') === key) {
                 LOG('current room was deleted, moving to lobby')
-                this.y.doc.transact(() => {
-                  this.ticktack()
-                  this.user().set('room', LOBBY)
-                }, 'moveToLobby')
+                const current = this.user()
+                const next = this._nextUserPayload(this.peerID, {
+                  room: LOBBY,
+                  logicalClock: (current.get('logicalClock') || 0) + 1,
+                })
+                if (next) this._writeAndSignUser(this.peerID, next, 'moveToLobby')
               }
             }
           })
@@ -1092,6 +1237,7 @@ export default class Peer {
 
     this.y.doc.transact(() => {
       this.y.users.delete(this.peerID)
+      this.y.userSigs.delete(this.peerID)
     }, 'stop')
 
     if (this.provider) {
@@ -1139,14 +1285,22 @@ export default class Peer {
    * @param room The room to move to.
    */
   gotoRoom(room: string) {
-    this.y.doc.transact(() => {
-      this.user().set('room', room)
-      this.ticktack()
-    }, 'gotoRoom')
+    const current = this.user()
+    if (!current) return
+    const next = this._nextUserPayload(this.peerID, {
+      room,
+      logicalClock: (current.get('logicalClock') || 0) + 1,
+    })
+    if (next) this._writeAndSignUser(this.peerID, next, 'gotoRoom')
   }
 
   ticktack() {
-    this.user().set('logicalClock', (this.user().get('logicalClock') || 0) + 1)
+    const current = this.user()
+    if (!current) return
+    const next = this._nextUserPayload(this.peerID, {
+      logicalClock: (current.get('logicalClock') || 0) + 1,
+    })
+    if (next) this._writeAndSignUser(this.peerID, next, 'ticktack')
   }
 
   /**

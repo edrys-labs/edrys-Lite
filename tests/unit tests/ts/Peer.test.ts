@@ -66,6 +66,9 @@ vi.mock('../../../src/ts/Utils', () => ({
   initCryptoIdentity: vi.fn(() => Promise.resolve()),
   signSetup: vi.fn(() => Promise.resolve('mock-signature')),
   verifySetup: vi.fn(() => Promise.resolve(true)),
+  signEntry: vi.fn(() => Promise.resolve({ signer: 'test-peer-id', nonce: Date.now(), signature: 'mock-sig' })),
+  verifyEntry: vi.fn(() => Promise.resolve(true)),
+  REVERT_INVALID_ORIGIN: 'revert-invalid',
   deepEqual: vi.fn((obj1, obj2) => {
     return JSON.stringify(obj1) === JSON.stringify(obj2);
   }),
@@ -307,20 +310,23 @@ describe('Peer Class', () => {
       expect(roomMap.size).toEqual(2);
     });
 
-    test('should manage room operations', () => {
+    test('should manage room operations', async () => {
       peer.addRoom('TestRoom');
       expect(peer['y'].rooms.has('TestRoom')).toBe(true);
 
       peer.gotoRoom('TestRoom');
+      // gotoRoom signs before writing (async); flush microtasks.
+      await vi.advanceTimersByTimeAsync(0);
       expect(peer.user().get('room')).toBe('TestRoom');
 
       peer['y'].doc.transact(() => {
         peer['y'].rooms.delete('TestRoom');
       });
+      await vi.advanceTimersByTimeAsync(0);
       expect(peer.user().get('room')).toBe('Lobby');
     });
 
-    test('should handle room deletions and move users to lobby', () => {
+    test('should handle room deletions and move users to lobby', async () => {
       const roomMap = peer['y'].rooms as Y.Map<any>;
       const userMap = peer['y'].users as Y.Map<any>;
 
@@ -334,6 +340,8 @@ describe('Peer Class', () => {
       peer['y'].doc.transact(() => {
         roomMap.delete('Room1');
       });
+      // moveToLobby observer signs before writing (async); flush microtasks.
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(userMap.get(peer['peerID']).get('room')).toBe('Lobby');
     });
@@ -367,11 +375,13 @@ describe('Peer Class', () => {
       expect(userMap.has(peer['peerID'])).toBe(true);
     });
 
-    test('should update logicalClock during heartbeat', () => {
-      const user = peer.user();
-      const initialClock = user.get('logicalClock');
+    test('should update logicalClock during heartbeat', async () => {
+      const initialClock = peer.user().get('logicalClock');
       peer['ticktack']();
-      expect(user.get('logicalClock')).toBe(initialClock + 1);
+      // ticktack signs before writing (async); flush microtasks.
+      await vi.advanceTimersByTimeAsync(0);
+      // Re-fetch: _writeAndSignUser replaces the Y.Map, so the old ref is stale.
+      expect(peer.user().get('logicalClock')).toBe(initialClock + 1);
     });
   });
 
