@@ -478,7 +478,7 @@ describe('Crypto Identity', () => {
     await initCryptoIdentity();
 
     // Sign with a nonce far in the past.
-    const env = await signEntry('users', 'k', { x: 1 }, Date.now() - 60_000);
+    const env = await signEntry('users', 'k', { x: 1 }, Date.now() - 5 * 60_000);
     const valid = await verifyEntry('users', 'k', { x: 1 }, env);
     expect(valid).toBe(false);
   });
@@ -572,6 +572,82 @@ describe('isAuthorizedUserSigner', () => {
   test('empty signer is rejected', async () => {
     const { isAuthorizedUserSigner } = await freshPeerHelpers();
     expect(isAuthorizedUserSigner('any_id', '', 'owner', [])).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// y.rooms authorization rule (isAuthorizedRoomSigner)
+// ---------------------------------------------------------------------------
+describe('isAuthorizedRoomSigner', () => {
+  async function freshPeerHelpers() {
+    vi.resetModules();
+    vi.doMock('../../../src/ts/Database', () => ({
+      Database: vi.fn(() => ({
+        getPublicKeyRaw: vi.fn().mockResolvedValue(null),
+        getPrivateKey: vi.fn().mockResolvedValue(null),
+        setPublicKeyRaw: vi.fn(),
+        setPrivateKey: vi.fn(),
+      })),
+    }));
+    return import('../../../src/ts/Peer');
+  }
+
+  test('default room "Lobby" is creatable by any signer (bootstrap)', async () => {
+    const { isAuthorizedRoomSigner } = await freshPeerHelpers();
+    expect(isAuthorizedRoomSigner('Lobby', 'any-student-pk', 'owner-pk', [])).toBe(true);
+  });
+
+  test('default rooms "Room N" are creatable by any signer (bootstrap)', async () => {
+    const { isAuthorizedRoomSigner } = await freshPeerHelpers();
+    expect(isAuthorizedRoomSigner('Room 1', 'student-pk', 'owner-pk', [])).toBe(true);
+    expect(isAuthorizedRoomSigner('Room 42', 'student-pk', 'owner-pk', [])).toBe(true);
+  });
+
+  test('non-default room: owner is authorized', async () => {
+    const { isAuthorizedRoomSigner } = await freshPeerHelpers();
+    expect(isAuthorizedRoomSigner('Discussion', 'owner-pk', 'owner-pk', [])).toBe(true);
+  });
+
+  test('non-default room: teacher is authorized', async () => {
+    const { isAuthorizedRoomSigner } = await freshPeerHelpers();
+    expect(isAuthorizedRoomSigner('Discussion', 'teacher-pk', 'owner-pk', ['teacher-pk'])).toBe(true);
+  });
+
+  test('non-default room: random participant is rejected', async () => {
+    const { isAuthorizedRoomSigner } = await freshPeerHelpers();
+    expect(isAuthorizedRoomSigner('Discussion', 'student-pk', 'owner-pk', ['teacher-pk'])).toBe(false);
+  });
+
+  test('station room: owner is authorized', async () => {
+    const { isAuthorizedRoomSigner } = await freshPeerHelpers();
+    expect(isAuthorizedRoomSigner('Station myStn', 'owner-pk', 'owner-pk', [])).toBe(true);
+  });
+
+  test('station room: teacher is authorized', async () => {
+    const { isAuthorizedRoomSigner } = await freshPeerHelpers();
+    expect(isAuthorizedRoomSigner('Station myStn', 'teacher-pk', 'owner-pk', ['teacher-pk'])).toBe(true);
+  });
+
+  test('station room: random participant is rejected', async () => {
+    const { isAuthorizedRoomSigner } = await freshPeerHelpers();
+    expect(isAuthorizedRoomSigner('Station myStn', 'random-pk', 'owner-pk', ['teacher-pk'])).toBe(false);
+  });
+
+  test('base64 padding (=) is ignored when matching owner/teacher', async () => {
+    const { isAuthorizedRoomSigner } = await freshPeerHelpers();
+    expect(isAuthorizedRoomSigner('Discussion', 'owner-pk==', 'owner-pk', [])).toBe(true);
+    expect(isAuthorizedRoomSigner('Discussion', 'teacher-pk', 'owner-pk', ['teacher-pk=='])).toBe(true);
+  });
+
+  test('empty signer is rejected', async () => {
+    const { isAuthorizedRoomSigner } = await freshPeerHelpers();
+    expect(isAuthorizedRoomSigner('Discussion', '', 'owner-pk', ['teacher-pk'])).toBe(false);
+  });
+
+  test('room name that looks like default but isn\'t (e.g., "Room foo") requires owner/teacher', async () => {
+    const { isAuthorizedRoomSigner } = await freshPeerHelpers();
+    expect(isAuthorizedRoomSigner('Room foo', 'student-pk', 'owner-pk', [])).toBe(false);
+    expect(isAuthorizedRoomSigner('Room foo', 'owner-pk', 'owner-pk', [])).toBe(true);
   });
 });
 

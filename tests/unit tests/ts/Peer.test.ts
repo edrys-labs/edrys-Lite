@@ -312,6 +312,8 @@ describe('Peer Class', () => {
 
     test('should manage room operations', async () => {
       peer.addRoom('TestRoom');
+      // addRoom signs before writing (async); flush microtasks.
+      await vi.advanceTimersByTimeAsync(0);
       expect(peer['y'].rooms.has('TestRoom')).toBe(true);
 
       peer.gotoRoom('TestRoom');
@@ -319,9 +321,8 @@ describe('Peer Class', () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(peer.user().get('room')).toBe('TestRoom');
 
-      peer['y'].doc.transact(() => {
-        peer['y'].rooms.delete('TestRoom');
-      });
+      // Local-origin delete via the helper (matches checkForDeadStations path).
+      peer['_deleteAndUnsignRoom']('TestRoom', 'checkForDeadStations');
       await vi.advanceTimersByTimeAsync(0);
       expect(peer.user().get('room')).toBe('Lobby');
     });
@@ -330,19 +331,20 @@ describe('Peer Class', () => {
       const roomMap = peer['y'].rooms as Y.Map<any>;
       const userMap = peer['y'].users as Y.Map<any>;
 
+      peer.addRoom('Room1');
+      await vi.advanceTimersByTimeAsync(0);
       peer['y'].doc.transact(() => {
-        roomMap.set('Room1', new Y.Map());
         userMap.get(peer['peerID']).set('room', 'Room1');
       });
 
       expect(userMap.get(peer['peerID']).get('room')).toBe('Room1');
 
-      peer['y'].doc.transact(() => {
-        roomMap.delete('Room1');
-      });
-      // moveToLobby observer signs before writing (async); flush microtasks.
+      // Local-origin delete: the room observer recognises it as legitimate
+      // and moves the affected user back to Lobby.
+      peer['_deleteAndUnsignRoom']('Room1', 'checkForDeadStations');
       await vi.advanceTimersByTimeAsync(0);
 
+      expect(roomMap.has('Room1')).toBe(false);
       expect(userMap.get(peer['peerID']).get('room')).toBe('Lobby');
     });
   });

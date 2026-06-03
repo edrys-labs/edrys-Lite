@@ -563,7 +563,8 @@ export interface Envelope {
   signature: string
 }
 
-export const ENVELOPE_REPLAY_WINDOW_MS = 5000
+// Envelope replay window (must be long enough to tolerate network delays).
+export const ENVELOPE_REPLAY_WINDOW_MS = 60_000
 
 // Deterministic JSON: keys sorted recursively, arrays preserve order. Must be
 // byte-identical across peers so signatures verify.

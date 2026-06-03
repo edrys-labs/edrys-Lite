@@ -66,6 +66,20 @@ export function isAuthorizedUserSigner(
   return stripPubKey(pubkeyPart) === stripPubKey(signer)
 }
 
+// Default rooms (Lobby / Room N) accept any signer so a student can bootstrap
+// before the owner is online; everything else (Station ..., named rooms) is owner/teacher only.
+export function isAuthorizedRoomSigner(
+  name: string,
+  signer: string,
+  ownerPubKey: string,
+  teachers: string[]
+): boolean {
+  if (!signer) return false
+  if (name === LOBBY || /^Room \d+$/.test(name)) return true
+  if (ownerPubKey && stripPubKey(signer) === stripPubKey(ownerPubKey)) return true
+  return teachers.some((t) => stripPubKey(t) === stripPubKey(signer))
+}
+
 let heartbeatID: ReturnType<typeof setInterval> | null
 
 const backupConfig = {
@@ -116,6 +130,7 @@ export default class Peer {
     doc: Y.Doc
     chat: Y.Array<any>
     rooms: Y.Map<any>
+    roomSigs: Y.Map<Envelope>
     users: Y.Map<any>
     userSigs: Y.Map<Envelope>
     setup: Y.Map<any>
@@ -162,6 +177,7 @@ export default class Peer {
       users: doc.getMap('users'),
       userSigs: doc.getMap('userSigs'),
       rooms: doc.getMap('rooms'),
+      roomSigs: doc.getMap('roomSigs'),
       chat: doc.getArray('chat'),
     }
 
@@ -648,6 +664,18 @@ export default class Peer {
     await this._signAndWrite(currentConfig)
   }
 
+  // Re-run authz on entries we deferred while lab.data.createdBy was empty.
+  private _reverifyAfterSetup(): void {
+    const roomKeys = new Set(Object.keys(this.y.rooms.toJSON()))
+    if (roomKeys.size > 0) {
+      this._verifyAndRevertRoomChange(roomKeys, false).catch((e) => LOG('reverify rooms failed', e))
+    }
+    const userKeys = new Set(Object.keys(this.y.users.toJSON()))
+    if (userKeys.size > 0) {
+      this._verifyAndRevertUserChange(userKeys).catch((e) => LOG('reverify users failed', e))
+    }
+  }
+
   private async _verifyAndAccept(data: any, timestamp: number): Promise<boolean> {
     if (!data || !data.setupSignature || !data.setupSigner || !data.createdBy) {
       LOG('Setup rejected: missing signature fields')
@@ -722,6 +750,11 @@ export default class Peer {
       this.update('popup', this.t('peer.feedback.noAccess'))
     }
 
+    // Rooms/station-users that we received before knowing the owner pubkey
+    // were left in place with integrity verified but authz deferred. Run
+    // authz now that lab.data.createdBy is known.
+    this._reverifyAfterSetup()
+
     return true
   }
 
@@ -745,8 +778,9 @@ export default class Peer {
   }
 
   /**
-   * Compute the next payload from the current entry by overlaying patch fields.
-   * Returns null if the entry doesn't exist (caller should bail).
+   * Write a full user payload AND its signature in a single transaction so the
+   * two land atomically on every remote peer. Receivers verify against the
+   * exact payload that was signed.
    */
   private _nextUserPayload(peerID: string, patch: Record<string, any>): any | null {
     const entry = this.y.users.get(peerID)
@@ -764,10 +798,7 @@ export default class Peer {
     )
   }
 
-  /**
-   * Last verified (payload, envelope) per user key. On invalid mutation we
-   * restore from here instead of deleting.
-   */
+  /** Last verified (payload, envelope) per user key — used to restore on invalid mutation. */
   private _lastGoodUser: Map<string, { payload: any; envelope: Envelope }> = new Map()
 
   /** Restore the cached good state for key, or delete if no cache exists. */
@@ -793,6 +824,7 @@ export default class Peer {
    * by restoring last-good state (or delete if no prior good state exists).
    */
   private async _verifyAndRevertUserChange(keys: Set<string>): Promise<void> {
+    const authzKnown = !!(this.lab.data?.createdBy)
     for (const key of keys) {
       try {
         const value = this.y.users.get(key)
@@ -802,17 +834,135 @@ export default class Peer {
         const sigValid = envelope
           ? await verifyEntry('users', key, payload, envelope)
           : false
-        const authorized = sigValid && envelope
-          ? this._isAuthorizedUserSigner(key, envelope.signer)
-          : false
-        if (sigValid && authorized) {
+        if (!sigValid) {
+          LOG('y.users entry rejected (bad sig)', key, { hasEnvelope: !!envelope })
+          this._restoreOrDelete(key)
+          continue
+        }
+        // Station authz needs owner/teacher info; defer until setup arrives. Human users authz from id prefix alone.
+        if (key.startsWith(STATION + ' ') && !authzKnown) continue
+        const authorized = this._isAuthorizedUserSigner(key, (envelope as Envelope).signer)
+        if (authorized) {
           this._lastGoodUser.set(key, { payload, envelope: envelope as Envelope })
         } else {
-          LOG('y.users entry rejected', key, { sigValid, authorized, hasEnvelope: !!envelope })
+          LOG('y.users entry rejected (unauthorized)', key, { signer: (envelope as Envelope).signer })
           this._restoreOrDelete(key)
         }
       } catch (e) {
         LOG('verifyAndRevertUserChange failed', key, e)
+      }
+    }
+  }
+
+  /** Per-instance wrapper around the pure isAuthorizedRoomSigner rule. */
+  private _isAuthorizedRoomSigner(name: string, signer: string): boolean {
+    return isAuthorizedRoomSigner(
+      name,
+      signer,
+      this.lab.data?.createdBy || '',
+      this.lab.data?.members?.teacher || []
+    )
+  }
+
+  // Local-origin tags; anything else is treated as remote and verified.
+  private static ROOM_LOCAL_ORIGINS = new Set<string>([
+    'addRoom',
+    'initRooms',
+    'initialization',
+    'checkForDeadStations',
+    REVERT_INVALID_ORIGIN,
+  ])
+
+  /** Last verified envelope per room — used to revert invalid writes and heal unauthorized deletes. */
+  private _lastGoodRoom: Map<string, Envelope> = new Map()
+
+  /** Atomic sign-and-write. Preserves existing Y.Map to avoid stomping per-room module sub-state. */
+  private async _writeAndSignRoom(name: string, origin: string): Promise<void> {
+    try {
+      const envelope = await signEntry('rooms', name, {})
+      this.y.doc.transact(() => {
+        if (!this.y.rooms.has(name)) {
+          this.y.rooms.set(name, new Y.Map())
+        }
+        this.y.roomSigs.set(name, envelope)
+      }, origin)
+      // Local writes skip observer-verify, so seed the heal cache directly.
+      this._lastGoodRoom.set(name, envelope)
+    } catch (e) {
+      LOG('writeAndSignRoom failed', name, e)
+    }
+  }
+
+  /** Atomic delete of a room and its sidecar envelope. */
+  private _deleteAndUnsignRoom(name: string, origin: string): void {
+    this.y.doc.transact(() => {
+      this.y.rooms.delete(name)
+      this.y.roomSigs.delete(name)
+    }, origin)
+    this._lastGoodRoom.delete(name)
+  }
+
+  /** Restore a room (and its cached envelope) after an unauthorized delete. */
+  private _restoreRoom(name: string, envelope: Envelope): void {
+    this.y.doc.transact(() => {
+      if (!this.y.rooms.has(name)) this.y.rooms.set(name, new Y.Map())
+      this.y.roomSigs.set(name, envelope)
+    }, REVERT_INVALID_ORIGIN)
+  }
+
+  /**
+   * Verify-and-revert for remote y.rooms mutations.
+   *  - Add/update with bad/missing sig → revert (delete).
+   *  - Add/update with valid sig but unknown authz (setup not yet synced) → defer.
+   *  - Add/update with valid sig + authorized → cache as last-good.
+   *  - Delete of a cached room → restore (Exploit 3/5 heal).
+   */
+  private async _verifyAndRevertRoomChange(
+    keys: Set<string>,
+    fromLocalOrigin: boolean
+  ): Promise<void> {
+    if (fromLocalOrigin) return
+    const authzKnown = !!(this.lab.data?.createdBy)
+    for (const name of keys) {
+      try {
+        const present = this.y.rooms.has(name)
+        if (!present) {
+          const cached = this._lastGoodRoom.get(name)
+          if (cached) {
+            LOG('y.rooms entry deleted by untrusted origin, restoring', name)
+            this._restoreRoom(name, cached)
+          }
+          continue
+        }
+        const envelope = this.y.roomSigs.get(name) as Envelope | undefined
+        // Rooms are long-lived and never re-signed; bypass the freshness window. Replay is harmless (creation is idempotent, sig binds to name+container).
+        const sigValid = envelope
+          ? await verifyEntry('rooms', name, {}, envelope, Number.POSITIVE_INFINITY)
+          : false
+        if (!sigValid) {
+          LOG('y.rooms entry rejected (bad sig)', name, { hasEnvelope: !!envelope })
+          this.y.doc.transact(() => {
+            this.y.rooms.delete(name)
+            this.y.roomSigs.delete(name)
+          }, REVERT_INVALID_ORIGIN)
+          continue
+        }
+        if (!authzKnown) {
+          // Integrity is proven; defer authz until setup arrives.
+          continue
+        }
+        const authorized = this._isAuthorizedRoomSigner(name, (envelope as Envelope).signer)
+        if (authorized) {
+          this._lastGoodRoom.set(name, envelope as Envelope)
+        } else {
+          LOG('y.rooms entry rejected (unauthorized)', name, { signer: (envelope as Envelope).signer })
+          this.y.doc.transact(() => {
+            this.y.rooms.delete(name)
+            this.y.roomSigs.delete(name)
+          }, REVERT_INVALID_ORIGIN)
+        }
+      } catch (e) {
+        LOG('verifyAndRevertRoomChange failed', name, e)
       }
     }
   }
@@ -876,10 +1026,7 @@ export default class Peer {
           }
         }
 
-        // Verify every affected key — including our own entry. Legit local
-        // writes (via _writeAndSignUser) include a valid signature so they
-        // pass. Foreign mutations of our entry fail authz
-        // and get reverted here too.
+        // Verify every key, including our own — foreign mutations of our entry must also revert.
         if (keysAffected.size > 0) {
           this._verifyAndRevertUserChange(keysAffected)
         }
@@ -891,56 +1038,64 @@ export default class Peer {
     }
   }
 
-  /**
-   * Initializes rooms within a transaction.
-   */
+  private _hasRoomsObserver: boolean = false
+
+  /** Initializes rooms; observer install is idempotent via `_hasRoomsObserver`. */
   initRooms() {
-    this.y.doc.transact(() => {
-      if (this.y.rooms.size === 0) {
-        LOG('initializing rooms')
+    if (this.y.rooms.size === 0) {
+      LOG('initializing rooms')
 
-        this.addRoom(LOBBY)
+      this.addRoom(LOBBY)
 
-        let defaultRooms = 0
-        try {
-          defaultRooms = this.lab.data.meta.defaultNumberOfRooms
-        } catch (e) {}
+      let defaultRooms = 0
+      try {
+        defaultRooms = this.lab.data.meta.defaultNumberOfRooms
+      } catch (e) {}
 
-        if (defaultRooms) {
-          for (let i = 1; i <= defaultRooms; i++) {
-            this.addRoom('Room ' + i)
-          }
+      if (defaultRooms) {
+        for (let i = 1; i <= defaultRooms; i++) {
+          this.addRoom('Room ' + i)
         }
       }
-      if (this.isStation() && !this.y.rooms.has(this.peerID)) {
-        this.addRoom(this.peerID)
-      }
-    }, 'initRooms')
+    }
+    if (this.isStation() && !this.y.rooms.has(this.peerID)) {
+      this.addRoom(this.peerID)
+    }
 
-    this.y.rooms.observeDeep((events) => {
-      events.forEach((event) => {
-        if (event.target === this.y.rooms) {
-          const keysChanged = Array.from(event.changes.keys.keys())
+    if (!this._hasRoomsObserver) {
+      this._hasRoomsObserver = true
+      this.y.rooms.observe((event) => {
+        const keysChanged = Array.from(event.changes.keys.keys())
+        const originStr = typeof event.transaction.origin === 'string'
+          ? event.transaction.origin
+          : ''
+        const fromLocal = Peer.ROOM_LOCAL_ORIGINS.has(originStr)
 
+        // Verify-and-revert for non-local origins.
+        if (keysChanged.length > 0) {
+          this._verifyAndRevertRoomChange(new Set(keysChanged), fromLocal)
+        }
+
+        // Move-to-Lobby on local deletes only — remote-origin deletes are healed by _verifyAndRevert (Exploit 5).
+        if (fromLocal) {
           keysChanged.forEach((key) => {
             const change = event.changes.keys.get(key)
-            if (change?.action === 'delete') {
-              if (this.user() && this.user().get('room') === key) {
-                LOG('current room was deleted, moving to lobby')
-                const current = this.user()
-                const next = this._nextUserPayload(this.peerID, {
-                  room: LOBBY,
-                  logicalClock: (current.get('logicalClock') || 0) + 1,
-                })
-                if (next) this._writeAndSignUser(this.peerID, next, 'moveToLobby')
-              }
+            if (change?.action !== 'delete') return
+            if (this.user() && this.user().get('room') === key) {
+              LOG('current room was deleted, moving to lobby')
+              const current = this.user()
+              const next = this._nextUserPayload(this.peerID, {
+                room: LOBBY,
+                logicalClock: (current.get('logicalClock') || 0) + 1,
+              })
+              if (next) this._writeAndSignUser(this.peerID, next, 'moveToLobby')
             }
           })
         }
-      })
 
-      this.throttledUpdate()
-    })
+        this.throttledUpdate()
+      })
+    }
   }
 
   /**
@@ -1004,12 +1159,10 @@ export default class Peer {
       }
 
       if (deadStation.length > 0) {
-        this.y.doc.transact(() => {
-          for (const station of deadStation) {
-            LOG('Removing dead station', station)
-            this.y.rooms.delete(station)
-          }
-        }, 'checkForDeadStations')
+        for (const station of deadStation) {
+          LOG('Removing dead station', station)
+          this._deleteAndUnsignRoom(station, 'checkForDeadStations')
+        }
       }
     }
   }
@@ -1256,28 +1409,25 @@ export default class Peer {
    * @param name Optional name of the room.
    */
   addRoom(name?: string) {
-    this.y.doc.transact(() => {
-      if (name && !this.y.rooms.has(name)) {
-        const room = new Y.Map()
-        this.y.rooms.set(name, room)
-      } else if (!name) {
-        const roomIDs: number[] = Object.keys(this.y.rooms.toJSON())
-          .filter((e) => e.match(/Room/))
-          .map((e) => e.split(' ')[1])
-          .map((e) => parseInt(e))
-          .sort((a, b) => a - b)
+    if (name) {
+      if (!this.y.rooms.has(name)) this._writeAndSignRoom(name, 'addRoom')
+      return
+    }
+    const roomIDs: number[] = Object.keys(this.y.rooms.toJSON())
+      .filter((e) => e.match(/Room/))
+      .map((e) => e.split(' ')[1])
+      .map((e) => parseInt(e))
+      .sort((a, b) => a - b)
 
-        let newRoomID = 1
-        for (const id of roomIDs) {
-          if (id !== newRoomID) {
-            break
-          }
-          newRoomID++
-        }
-
-        this.addRoom('Room ' + newRoomID)
+    let newRoomID = 1
+    for (const id of roomIDs) {
+      if (id !== newRoomID) {
+        break
       }
-    }, 'addRoom')
+      newRoomID++
+    }
+
+    this.addRoom('Room ' + newRoomID)
   }
 
   /**
