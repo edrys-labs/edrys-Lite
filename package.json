@@ -1,6 +1,6 @@
 {
   "name": "edrys-lite",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "Browser based edrys-clone that uses the WebTorrent network sharing labs",
   "scripts": {
     "postinstall": "patch-package",
