@@ -1,5 +1,7 @@
 general:
   userId: "ID de Usuario"
+  copyFullId: "Copiar ID completo"
+  copied: "¡Copiado!"
   userRole: "Rol de Usuario"
   language: "Idioma"
   roles:
@@ -88,8 +90,9 @@ settings:
     selfAssign: "Habilitar auto-asignación"
   members:
     info: "Invita a tus usuarios compartiendo este enlace: "
-    teacherIds: "Lista de IDs de profesores, separados por comas. Cada profesor puede modificar el curso."
-    studentIds: "Lista de IDs de estudiantes, separados por comas, dejar vacío o agregar un * para todos. Los estudiantes pueden interactuar con los módulos."
+    teacherIds: "IDs de profesores (claves públicas completas), separados por comas. Cada profesor puede modificar el curso."
+    studentIds: "IDs de estudiantes (claves públicas completas), separados por comas. Dejar vacío o agregar * para todos. Los estudiantes pueden interactuar con los módulos."
+    fullKeyHint: "Usa la clave pública completa — cópiala desde el menú de usuario (⋮)."
   modules:
     delete: "¿Eliminar el módulo y su configuración?"
     deleteConfirm: "Sí"

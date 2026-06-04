@@ -9,13 +9,19 @@
         <v-list-item-title>{{ t('general.userId') }}:</v-list-item-title>
         <v-list-item-subtitle>
           {{ peerID }}
-          <v-btn
-            icon="mdi-content-copy"
-            size="small"
-            variant="flat"
-            @click="copyPeerID()"
-          >
-          </v-btn>
+          <v-tooltip :text="copied ? t('general.copied') : t('general.copyFullId')" location="top">
+            <template v-slot:activator="{ props: tooltipProps }">
+              <v-btn
+                v-bind="tooltipProps"
+                :icon="copied ? 'mdi-check' : 'mdi-content-copy'"
+                :color="copied ? 'success' : undefined"
+                size="small"
+                variant="flat"
+                @click.stop="copyPeerID()"
+              >
+              </v-btn>
+            </template>
+          </v-tooltip>
         </v-list-item-subtitle>
       </v-list-item>
       <v-divider></v-divider>
@@ -52,6 +58,7 @@ export default defineComponent({
   data() {
     return {
       peerID: getDisplayPeerID(),
+      copied: false,
       languages: [
         { title: 'English', value: 'en' },
         { title: 'Deutsch', value: 'de' },
@@ -64,6 +71,10 @@ export default defineComponent({
   methods: {
     copyPeerID() {
       copyToClipboard(getPeerID(false));
+      this.copied = true;
+      setTimeout(() => {
+        this.copied = false;
+      }, 2000);
     },
     changeLocale(newLocale: string) {
       this.locale = newLocale;

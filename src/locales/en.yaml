@@ -1,5 +1,7 @@
 general:
   userId: "User ID"
+  copyFullId: "Copy full ID"
+  copied: "Copied!"
   userRole: "User Role"
   language: "Language"
   roles:
@@ -88,8 +90,9 @@ settings:
     selfAssign: "Enable self-assignment"
   members:
     info: "Invite your users in by sharing this link: "
-    teacherIds: "List of teacher ids, separated by commas. Each teacher can modify course."
-    studentIds: "List of student ids, separated by commas, leave empty or add a * for all. Student can interact with modules."
+    teacherIds: "Teacher IDs (full public keys), separated by commas. Each teacher can modify the course."
+    studentIds: "Student IDs (full public keys), separated by commas. Leave empty or add * for all. Students can interact with modules."
+    fullKeyHint: "Use the full public key — copy it from the user menu (⋮)"
   modules:
     delete: "Delete the module and its configuration?"
     deleteConfirm: "Yes"

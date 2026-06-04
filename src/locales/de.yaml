@@ -1,5 +1,7 @@
 general:
   userId: "Benutzer-ID"
+  copyFullId: "Vollständige ID kopieren"
+  copied: "Kopiert!"
   userRole: "Benutzerrolle"
   language: "Sprache"
   roles:
@@ -88,8 +90,9 @@ settings:
     selfAssign: "Selbstzuweisung aktivieren"
   members:
     info: "Laden Sie Ihre Benutzer ein, indem Sie diesen Link teilen: "
-    teacherIds: "Liste der Lehrer-IDs, durch Kommas getrennt. Jeder Lehrer kann den Kurs ändern."
-    studentIds: "Liste der Schüler-IDs, durch Kommas getrennt, leer lassen oder ein * für alle hinzufügen. Der Schüler kann mit Modulen interagieren."
+    teacherIds: "Lehrer-IDs (vollständige öffentliche Schlüssel), durch Kommas getrennt. Jeder Lehrer kann den Kurs ändern."
+    studentIds: "Schüler-IDs (vollständige öffentliche Schlüssel), durch Kommas getrennt. Leer lassen oder * für alle. Schüler können mit Modulen interagieren."
+    fullKeyHint: "Den vollständigen öffentlichen Schlüssel verwenden — über das Benutzermenü (⋮) kopieren."
   modules:
     delete: "Modul und Konfiguration löschen?"
     deleteConfirm: "Ja"

@@ -11,6 +11,7 @@
   <v-divider></v-divider>
   <v-textarea
     :label="t('settings.members.teacherIds')"
+    :hint="t('settings.members.fullKeyHint')"
     auto-grow
     variant="outlined"
     rows="3"
@@ -23,12 +24,13 @@
 
   <v-textarea
     :label="t('settings.members.studentIds')"
+    :hint="t('settings.members.fullKeyHint')"
     auto-grow
     variant="outlined"
     rows="3"
     row-height="25"
     shaped
-    style="margin-top: 0px"
+    style="margin-top: 1rem"
     v-model="student"
     :disabled="writeProtection"
   ></v-textarea>
