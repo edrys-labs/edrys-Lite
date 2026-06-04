@@ -232,6 +232,11 @@ export default {
             self.data = clone(configuration.data);
             self.scrapeModules();
           }
+          // Re-join with correct role if setup arrived after the initial connect-time join
+          const correctRole = self.getRole();
+          if (self.communication.role !== correctRole) {
+            self.communication.join(correctRole);
+          }
         });
 
         this.communication.on("popup", this.addPopup);
@@ -281,7 +286,7 @@ export default {
         return "station";
       }
 
-      if (this.peerID.startsWith(this.configuration.data.createdBy)) {
+      if (this.configuration.data.createdBy && this.peerID.startsWith(this.configuration.data.createdBy)) {
         this.isOwner = true;
         this.isTeacher = true;
         return "teacher";
