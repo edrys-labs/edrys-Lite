@@ -597,10 +597,12 @@ describe('isAuthorizedRoomSigner', () => {
     expect(isAuthorizedRoomSigner('Lobby', 'any-student-pk', 'owner-pk', [])).toBe(true);
   });
 
-  test('default rooms "Room N" are creatable by any signer (bootstrap)', async () => {
+  test('"Room N" requires owner or teacher (not any signer)', async () => {
     const { isAuthorizedRoomSigner } = await freshPeerHelpers();
-    expect(isAuthorizedRoomSigner('Room 1', 'student-pk', 'owner-pk', [])).toBe(true);
-    expect(isAuthorizedRoomSigner('Room 42', 'student-pk', 'owner-pk', [])).toBe(true);
+    expect(isAuthorizedRoomSigner('Room 1', 'student-pk', 'owner-pk', [])).toBe(false);
+    expect(isAuthorizedRoomSigner('Room 42', 'student-pk', 'owner-pk', [])).toBe(false);
+    expect(isAuthorizedRoomSigner('Room 1', 'owner-pk', 'owner-pk', [])).toBe(true);
+    expect(isAuthorizedRoomSigner('Room 1', 'teacher-pk', 'owner-pk', ['teacher-pk'])).toBe(true);
   });
 
   test('non-default room: owner is authorized', async () => {

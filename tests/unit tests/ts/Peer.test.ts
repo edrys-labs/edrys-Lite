@@ -347,6 +347,23 @@ describe('Peer Class', () => {
       expect(roomMap.has('Room1')).toBe(false);
       expect(userMap.get(peer['peerID']).get('room')).toBe('Lobby');
     });
+
+    test('non-owner student cannot create rooms via addRoom', async () => {
+      // Create a peer whose peerID does NOT match createdBy — a genuine student.
+      const studentPeer = new Peer({
+        id: 'lab1',
+        data: { meta: { defaultNumberOfRooms: 0 }, members: { teacher: [], student: [] }, createdBy: 'some-other-owner' },
+        timestamp: Date.now(),
+        hash: null,
+      }, undefined, i18n.global.t);
+      await vi.advanceTimersByTimeAsync(0);
+      await Promise.resolve();
+
+      studentPeer.addRoom('Sneaky');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(studentPeer['y'].rooms.has('Sneaky')).toBe(false);
+      studentPeer.stop();
+    });
   });
 
   // Peer Management Tests

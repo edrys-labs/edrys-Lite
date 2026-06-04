@@ -66,8 +66,8 @@ export function isAuthorizedUserSigner(
   return stripPubKey(pubkeyPart) === stripPubKey(signer)
 }
 
-// Default rooms (Lobby / Room N) accept any signer so a student can bootstrap
-// before the owner is online; everything else (Station ..., named rooms) is owner/teacher only.
+// Lobby accepts any signer so a student can bootstrap before the owner is online.
+// Room N and everything else (Station ..., named rooms) is owner/teacher only.
 export function isAuthorizedRoomSigner(
   name: string,
   signer: string,
@@ -75,7 +75,7 @@ export function isAuthorizedRoomSigner(
   teachers: string[]
 ): boolean {
   if (!signer) return false
-  if (name === LOBBY || /^Room \d+$/.test(name)) return true
+  if (name === LOBBY) return true
   if (ownerPubKey && stripPubKey(signer) === stripPubKey(ownerPubKey)) return true
   return teachers.some((t) => stripPubKey(t) === stripPubKey(signer))
 }
@@ -1040,21 +1040,27 @@ export default class Peer {
 
   private _hasRoomsObserver: boolean = false
 
+  /** Owner (matched by createdBy) and teachers/stations may manage rooms; students may not. */
+  private canManageRooms(): boolean {
+    return this.role !== 'student' || getPeerID(false) === this.lab.data?.createdBy
+  }
+
   /** Initializes rooms; observer install is idempotent via `_hasRoomsObserver`. */
   initRooms() {
     if (this.y.rooms.size === 0) {
       LOG('initializing rooms')
 
-      this.addRoom(LOBBY)
+      // Lobby bootstrap is allowed for any role — students may join before the teacher.
+      this._writeAndSignRoom(LOBBY, 'initRooms')
 
-      let defaultRooms = 0
-      try {
-        defaultRooms = this.lab.data.meta.defaultNumberOfRooms
-      } catch (e) {}
+      if (this.canManageRooms()) {
+        let defaultRooms = 0
+        try {
+          defaultRooms = this.lab.data.meta.defaultNumberOfRooms
+        } catch (e) {}
 
-      if (defaultRooms) {
         for (let i = 1; i <= defaultRooms; i++) {
-          this.addRoom('Room ' + i)
+          this._writeAndSignRoom('Room ' + i, 'initRooms')
         }
       }
     }
@@ -1456,6 +1462,7 @@ export default class Peer {
    * @param name Optional name of the room.
    */
   addRoom(name?: string) {
+    if (!this.canManageRooms()) return
     if (name) {
       if (!this.y.rooms.has(name)) this._writeAndSignRoom(name, 'addRoom')
       return
