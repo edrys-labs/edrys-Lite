@@ -38,12 +38,15 @@ describe('UserMenu Component', () => {
           'v-list-item-subtitle': {
             template: '<div class="v-list-item-subtitle"><slot /></div>'
           },
+          'v-tooltip': {
+            template: `<div class="v-tooltip"><slot name="activator" :props="{}" /></div>`
+          },
           'v-btn': {
             template: `
               <button 
                 class="v-btn" 
-                :icon="$attrs.icon"
-                @click="$emit('click')"
+                :data-icon="$attrs.icon"
+                @click="$emit('click', $event)"
               >
                 <i v-if="$attrs.icon" :class="$attrs.icon"></i>
                 <slot />
@@ -92,7 +95,7 @@ describe('UserMenu Component', () => {
 
   test('copies peer ID to clipboard', async () => {
     const wrapper = createWrapper();
-    const copyButton = wrapper.find('button[icon="mdi-content-copy"]');
+    const copyButton = wrapper.find('button[data-icon="mdi-content-copy"]');
     
     await copyButton.trigger('click');
     expect(copyToClipboard).toHaveBeenCalledWith('test-user');

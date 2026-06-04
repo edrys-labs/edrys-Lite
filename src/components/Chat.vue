@@ -75,6 +75,11 @@ export default {
       return this.prismHighlight(code, this.prismLanguages.markdown, "markdown");
     },
 
+    focusEditor() {
+      const textarea = this.$refs.editor?.$el?.querySelector('textarea');
+      if (textarea) textarea.focus();
+    },
+
     permanent() {
       return window.innerWidth > 1000 + 400;
     },
@@ -110,6 +115,7 @@ export default {
     :permanent="permanent()"
     v-model="open"
     location="right"
+    @click="focusEditor"
   >
     <v-container>
       <v-row align="center" justify="center">
@@ -144,10 +150,12 @@ export default {
     <template v-slot:append>
       <div class="pa-2">
         <prism-editor
+          ref="editor"
           v-model="message"
           :highlight="highlighter"
           :readonly="false"
           rows="4"
+          @keydown.enter.exact.prevent="send()"
           @keyup.ctrl.enter="send()"
           style="height: 100px; border: 1px solid black; padding: 2px 5px"
         ></prism-editor>
