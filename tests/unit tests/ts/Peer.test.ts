@@ -656,17 +656,19 @@ describe('Peer Class', () => {
 
   // Communication Tests
   describe('Communication', () => {
-    test('should handle chat messages', () => {
+    test('should handle chat messages', async () => {
       const message = 'Test message';
       const timestamp = Date.now();
       vi.spyOn(Date, 'now').mockReturnValue(timestamp);
 
-      peer.sendMessage(message);
+      await peer.sendMessage(message);
 
-      expect(peer['y'].chat.get(0)).toEqual({
+      expect(peer['y'].chat.get(0)).toMatchObject({
         msg: message,
         timestamp,
-        user: 'test-user'
+        user: 'test-user',
+        signer: expect.any(String),
+        signature: expect.any(String),
       });
     });
 

@@ -555,7 +555,7 @@ export async function verifySetup(
 export const REVERT_INVALID_ORIGIN = 'revert-invalid'
 
 // Bound into signed bodies so a signature for `users[k]` can't be replayed as `rooms[k]`.
-export type SignedContainer = 'users' | 'rooms'
+export type SignedContainer = 'users' | 'rooms' | 'chat'
 
 export interface Envelope {
   signer: string

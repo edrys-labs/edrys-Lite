@@ -1098,12 +1098,58 @@ export default class Peer {
     }
   }
 
-  /**
-   * Initializes chat within a transaction.
-   */
+  /** Indices of chat entries that failed signature verification — filtered at render time. */
+  private _invalidChatIndices: Set<number> = new Set()
+
+  /** Returns true if signer pubkey matches a known y.users participant. */
+  private _isKnownChatSigner(signer: string): boolean {
+    for (const id of this.y.users.keys()) {
+      const sep = id.lastIndexOf('_')
+      const pub = sep > 0 ? id.slice(0, sep) : id
+      if (pub === signer) return true
+    }
+    return false
+  }
+
+  /** Verify a chat entry by absolute array index; marks invalid if sig or authz fails. */
+  private async _verifyChatEntry(index: number): Promise<void> {
+    const entry = this.y.chat.get(index) as any
+    if (!entry) return
+    const { timestamp, user, msg, signer, signature } = entry
+    if (!signer || !signature) {
+      LOG('y.chat entry rejected (unsigned)', index)
+      this._invalidChatIndices.add(index)
+      return
+    }
+    const envelope: Envelope = { signer, nonce: timestamp, signature }
+    const payload = { msg, timestamp, user }
+    const sigValid = await verifyEntry('chat', String(timestamp), payload, envelope)
+    if (!sigValid) {
+      LOG('y.chat entry rejected (bad sig)', index)
+      this._invalidChatIndices.add(index)
+      return
+    }
+    if (!this._isKnownChatSigner(signer)) {
+      LOG('y.chat entry rejected (unknown signer)', index, signer)
+      this._invalidChatIndices.add(index)
+    }
+  }
+
   initChat() {
     this.y.doc.transact(() => {
-      this.y.chat.observe((event) => {
+      this.y.chat.observe(async (event) => {
+        let base = 0
+        for (const delta of event.changes.delta) {
+          if (delta.retain !== undefined) {
+            base += delta.retain
+          } else if (delta.insert !== undefined) {
+            const inserted = delta.insert as any[]
+            for (let i = 0; i < inserted.length; i++) {
+              await this._verifyChatEntry(base + i)
+            }
+            base += inserted.length
+          }
+        }
         this.update('chat')
       })
     }, 'initChat')
@@ -1247,8 +1293,9 @@ export default class Peer {
 
       case 'chat': {
         if (callback) {
+          const all = this.y.chat.toArray()
           callback({
-            messages: this.y.doc.getArray('chat').toArray(),
+            messages: all.filter((_, i) => !this._invalidChatIndices.has(i)),
             truncated: false,
           })
           this.callbackUpdate[event] = false
@@ -1457,13 +1504,19 @@ export default class Peer {
    * Sends a chat message.
    * @param message The message to send.
    */
-  sendMessage(message: string) {
+  async sendMessage(message: string) {
+    const timestamp = Date.now()
+    const user = getShortPeerID(this.peerID)
+    const payload = { msg: message, timestamp, user }
+    const envelope = await signEntry('chat', String(timestamp), payload, timestamp)
     this.y.doc.transact(() => {
       this.y.chat.push([
         {
-          timestamp: Date.now(),
-          user: getShortPeerID(this.peerID),
+          timestamp,
+          user,
           msg: message,
+          signer: envelope.signer,
+          signature: envelope.signature,
         },
       ])
     }, 'sendMessage')
