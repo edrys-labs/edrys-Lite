@@ -348,6 +348,43 @@ describe('Peer Class', () => {
       expect(userMap.get(peer['peerID']).get('room')).toBe('Lobby');
     });
 
+    test('provider.onLeave(station) must NOT evict the student or delete the room (regression)', async () => {
+      const roomMap = peer['y'].rooms as Y.Map<any>;
+      const userMap = peer['y'].users as Y.Map<any>;
+      const stationID = 'Station stn1';
+
+      // Add a station user, move the student into the station room.
+      peer.addRoom(stationID);
+      await vi.advanceTimersByTimeAsync(0);
+      peer['y'].doc.transact(() => {
+        const stationUser = new Y.Map();
+        stationUser.set('displayName', stationID);
+        stationUser.set('room', stationID);
+        stationUser.set('role', 'station');
+        stationUser.set('dateJoined', Date.now());
+        stationUser.set('logicalClock', 1);
+        stationUser.set('handRaised', false);
+        stationUser.set('connections', [{ id: '', target: {} }]);
+        userMap.set(stationID, stationUser);
+        userMap.get(peer['peerID']).set('room', stationID);
+      });
+
+      expect(userMap.get(peer['peerID']).get('room')).toBe(stationID);
+      expect(roomMap.has(stationID)).toBe(true);
+
+      const onLeaveCallback = (peer['provider'] as any).onLeave.mock.calls[0][0];
+      onLeaveCallback(stationID);
+      // The next heartbeat tick would call checkForDeadStations.
+      peer['checkForDeadStations']();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
+
+      // A single peer-connection drop must NOT propagate a global eviction.
+      expect(userMap.has(stationID)).toBe(true);
+      expect(roomMap.has(stationID)).toBe(true);
+      expect(userMap.get(peer['peerID']).get('room')).toBe(stationID);
+    });
+
     test('non-owner student cannot create rooms via addRoom', async () => {
       // Create a peer whose peerID does NOT match createdBy — a genuine student.
       const studentPeer = new Peer({

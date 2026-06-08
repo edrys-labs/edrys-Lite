@@ -335,6 +335,7 @@ export default class Peer {
       // Register the onLeave callback
       this.provider.onLeave((userid) => {
         debug.ts.peer(`Peer with userid ${userid} has left the room.`)
+        if (userid && userid.startsWith(STATION + ' ')) return
         this.removePeers([userid])
       })
 
@@ -856,7 +857,19 @@ export default class Peer {
     for (const key of keys) {
       try {
         const value = this.y.users.get(key)
-        if (!value) { this._restoreOrDelete(key); continue }
+        if (!value) {
+          // Entry was deleted. If the sidecar holds a valid tombstone signed
+          // by an authorized signer, accept the delete; otherwise heal.
+          const sigEnv = this.y.userSigs.get(key) as Envelope | undefined
+          if (await this._isValidTombstone('users', key, sigEnv)) {
+            this._lastGoodUser.delete(key)
+            delete this.logicalClocks[key]
+            LOG('y.users entry tombstoned', key)
+          } else {
+            this._restoreOrDelete(key)
+          }
+          continue
+        }
         const envelope = this.y.userSigs.get(key) as Envelope | undefined
         const payload = value.toJSON()
         const sigValid = envelope
@@ -902,8 +915,32 @@ export default class Peer {
     'initRooms',
     'initialization',
     'checkForDeadStations',
+    'stationShutdown',
     REVERT_INVALID_ORIGIN,
   ])
+
+  // Sentinel payload for "this entry is intentionally deleted".
+  private static TOMBSTONE_PAYLOAD = { tombstone: true } as const
+
+  private async _isValidTombstone(
+    container: 'users' | 'rooms',
+    key: string,
+    envelope: Envelope | undefined
+  ): Promise<boolean> {
+    if (!envelope) return false
+    const sigValid = await verifyEntry(
+      container,
+      key,
+      Peer.TOMBSTONE_PAYLOAD,
+      envelope,
+      Number.POSITIVE_INFINITY
+    )
+    if (!sigValid) return false
+    if (!(this.lab.data?.createdBy)) return false
+    return container === 'users'
+      ? this._isAuthorizedUserSigner(key, envelope.signer)
+      : this._isAuthorizedRoomSigner(key, envelope.signer)
+  }
 
   /** Last verified envelope per room — used to revert invalid writes and heal unauthorized deletes. */
   private _lastGoodRoom: Map<string, Envelope> = new Map()
@@ -959,6 +996,20 @@ export default class Peer {
       try {
         const present = this.y.rooms.has(name)
         if (!present) {
+          const sigEnv = this.y.roomSigs.get(name) as Envelope | undefined
+          if (await this._isValidTombstone('rooms', name, sigEnv)) {
+            this._lastGoodRoom.delete(name)
+            LOG('y.rooms entry tombstoned', name)
+            if (this.user() && this.user().get('room') === name) {
+              const current = this.user()
+              const next = this._nextUserPayload(this.peerID, {
+                room: LOBBY,
+                logicalClock: (current.get('logicalClock') || 0) + 1,
+              })
+              if (next) this._writeAndSignUser(this.peerID, next, 'moveToLobby')
+            }
+            continue
+          }
           const cached = this._lastGoodRoom.get(name)
           if (cached) {
             LOG('y.rooms entry deleted by untrusted origin, restoring', name)
@@ -1208,6 +1259,8 @@ export default class Peer {
 
     for (const id in users) {
       if (id === this.peerID) continue
+      // Stations disappearance from one peer's view is not authority to evict them globally.
+      if (id.startsWith(STATION + ' ')) continue
 
       const user = users[id]
 
@@ -1471,7 +1524,7 @@ export default class Peer {
   /**
    * Stops the peer, cleans up resources.
    */
-  stop() {
+  stop = (): void => {
     LOG('stopping peer')
     if (heartbeatID) {
       clearInterval(heartbeatID)
@@ -1480,11 +1533,45 @@ export default class Peer {
 
     window.removeEventListener('beforeunload', this.stop)
 
+    if (this.isStation()) {
+      // Fire-and-forget; sign+write happens before teardown when possible.
+      this._stationShutdown().finally(() => this._finishStop())
+      return
+    }
+
     this.y.doc.transact(() => {
       this.y.users.delete(this.peerID)
       this.y.userSigs.delete(this.peerID)
     }, 'stop')
 
+    this._finishStop()
+  }
+
+  private async _stationShutdown(): Promise<void> {
+    const stationID = this.peerID
+    try {
+      const [userTomb, roomTomb] = await Promise.all([
+        signEntry('users', stationID, Peer.TOMBSTONE_PAYLOAD),
+        signEntry('rooms', stationID, Peer.TOMBSTONE_PAYLOAD),
+      ])
+      this.y.doc.transact(() => {
+        this.y.users.delete(stationID)
+        this.y.userSigs.set(stationID, userTomb)
+        this.y.rooms.delete(stationID)
+        this.y.roomSigs.set(stationID, roomTomb)
+      }, 'stationShutdown')
+      this._lastGoodUser.delete(stationID)
+      this._lastGoodRoom.delete(stationID)
+    } catch (e) {
+      LOG('stationShutdown sign failed', e)
+      this.y.doc.transact(() => {
+        this.y.users.delete(stationID)
+        this.y.userSigs.delete(stationID)
+      }, 'stop')
+    }
+  }
+
+  private _finishStop(): void {
     if (this.provider) {
       this.provider.disconnect()
       this.provider.destroy()
