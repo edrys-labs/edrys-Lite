@@ -82,7 +82,8 @@ export class StreamServer {
         this.connectedClients.delete(conn.peer)
       })
 
-      conn.on('error', () => {
+      conn.on('error', (err: any) => {
+        debug.api.general('StreamServer connection error:', err?.type || err)
         this.connectedClients.delete(conn.peer)
       })
     })
@@ -111,7 +112,8 @@ export class StreamServer {
         return
       }
       
-      call.on('error', () => {
+      call.on('error', (err: any) => {
+        debug.api.general('StreamServer call error:', err?.type || err)
         this.connectedClients.delete(clientPeerId)
       })
     }
@@ -264,12 +266,14 @@ export class StreamClient {
         this.currentConnection = null
       })
 
-      this.currentConnection.on('error', () => {
+      this.currentConnection.on('error', (err: any) => {
+        debug.api.general('StreamClient connection error:', err?.type || err)
         this.currentConnection = null
         this.handleConnectionFailure()
       })
 
-    } catch (error) {
+    } catch (error: any) {
+      debug.api.general('StreamClient makeConnection error:', error?.message || error)
       this.handleConnectionFailure()
     }
   }
@@ -360,8 +364,8 @@ export class WebSocketStreamServer {
       }
     }
     
-    this.wsConnection.onerror = () => {
-      // Handle errors silently
+    this.wsConnection.onerror = (ev) => {
+      debug.api.general('WebSocketStreamServer WS error:', ev)
     }
   }
 
@@ -394,11 +398,11 @@ export class WebSocketStreamServer {
             type: 'frame',
             data: dataUrl
           }))
-        } catch (error) {
-          // Handle errors silently
+        } catch (error: any) {
+          debug.api.general('WebSocketStreamServer frame capture error:', error?.message || error)
         }
       }
-      
+
       this.frameRequestId = requestAnimationFrame(captureFrame)
     }
     
@@ -463,8 +467,8 @@ export class WebSocketStreamClient {
           this.stream = this.streamCanvas.captureStream(30)
           this.handler(this.stream, this.context.module.stationConfig)
         }
-      } catch (error) {
-        // Handle errors silently
+      } catch (error: any) {
+        debug.api.general('WebSocketStreamClient image render error:', error?.message || error)
       }
     }
   }
@@ -488,13 +492,13 @@ export class WebSocketStreamClient {
         if (message.type === 'frame' && message.data) {
           this.img.src = message.data
         }
-      } catch (error) {
-        // Handle errors silently
+      } catch (error: any) {
+        debug.api.general('WebSocketStreamClient message parse error:', error?.message || error)
       }
     }
-    
-    this.wsConnection.onerror = () => {
-      // Handle errors silently
+
+    this.wsConnection.onerror = (ev) => {
+      debug.api.general('WebSocketStreamClient WS error:', ev)
     }
   }
 
