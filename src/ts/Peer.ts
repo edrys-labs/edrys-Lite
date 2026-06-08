@@ -697,6 +697,10 @@ export default class Peer {
     if (userKeys.size > 0) {
       this._verifyAndRevertUserChange(userKeys).catch((e) => LOG('reverify users failed', e))
     }
+    if (this.isStation() && !this.y.rooms.has(this.peerID) &&
+        this._isAuthorizedRoomSigner(this.peerID, getPeerID(false))) {
+      this.addRoom(this.peerID)
+    }
   }
 
   private async _verifyAndAccept(data: any, timestamp: number): Promise<boolean> {
@@ -870,9 +874,6 @@ export default class Peer {
         if (authorized) {
           this._lastGoodUser.set(key, { payload, envelope: envelope as Envelope })
         } else if (key === this.peerID) {
-          // Own entry whose signature is valid but signer isn't an authorized
-          // member (non-member tab). Keep it locally so the local UI doesn't
-          // crash; remote peers reject it independently, so it doesn't spread.
           LOG('y.users own entry not authorized — keeping local-only', key)
         } else {
           LOG('y.users entry rejected (unauthorized)', key, { signer: (envelope as Envelope).signer })
@@ -1095,7 +1096,8 @@ export default class Peer {
         }
       }
     }
-    if (this.isStation() && !this.y.rooms.has(this.peerID)) {
+    if (this.isStation() && !this.y.rooms.has(this.peerID) &&
+        this._isAuthorizedRoomSigner(this.peerID, getPeerID(false))) {
       this.addRoom(this.peerID)
     }
 
@@ -1138,11 +1140,7 @@ export default class Peer {
   /** Indices of chat entries that failed signature verification — filtered at render time. */
   private _invalidChatIndices: Set<number> = new Set()
 
-  /**
-   * Returns true if signer is allowed to post chat. With an allowlist active,
-   * signer must be owner/teacher/listed-student; otherwise, signer just needs
-   * to match a known y.users participant.
-   */
+  /** Returns true if signer pubkey matches a known y.users participant. */
   private _isKnownChatSigner(signer: string): boolean {
     const students = this.lab.data?.members?.student || []
     if (isExplicitAllowlist(students)) {
@@ -1600,7 +1598,8 @@ export default class Peer {
    * @returns The serialized state.
    */
   async toJSON() {
-    if (this.isStation() && !this.y.rooms.has(this.peerID)) {
+    if (this.isStation() && !this.y.rooms.has(this.peerID) &&
+        this._isAuthorizedRoomSigner(this.peerID, getPeerID(false))) {
       this.addRoom(this.peerID)
     }
 
