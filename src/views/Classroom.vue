@@ -225,11 +225,11 @@ export default {
         );
         
         this.communication.on("setup", async (configuration: DatabaseItem) => {
-          const previous = self.data?.modules;
+          const previousModules = self.data?.modules;
           await self.database.put(clone(configuration));
           await self.init();
-          if (!deepEqual(previous, configuration.data?.modules)) {
-            self.data = clone(configuration.data);
+          self.data = clone(configuration.data);
+          if (!deepEqual(previousModules, configuration.data?.modules)) {
             self.scrapeModules();
           }
           // Re-join with correct role if setup arrived after the initial connect-time join
