@@ -43,19 +43,40 @@ function teacherMembersChangeAllowed(newMembers: any, ownerPubKey: string): bool
 const LOBBY = 'Lobby'
 const STATION = 'Station'
 
+// An empty list or one containing '*' means "everyone allowed" — no allowlist.
+function isExplicitAllowlist(students: string[] | undefined): boolean {
+  if (!students || students.length === 0) return false
+  return !students.includes('*')
+}
+
+function isInMembers(
+  signer: string,
+  ownerPubKey: string,
+  teachers: string[],
+  students: string[] | undefined
+): boolean {
+  if (!isExplicitAllowlist(students)) return true
+  const s = stripPubKey(signer)
+  if (ownerPubKey && s === stripPubKey(ownerPubKey)) return true
+  if (teachers.some((t) => stripPubKey(t) === s)) return true
+  return (students as string[]).some((u) => stripPubKey(u) === s)
+}
+
 /**
  * Authorization rule for y.users[id] writes.
  *  - Human peer (id = "<pubkey>_<sessionID>"): signer's pubkey must equal "<pubkey>".
- *  - Station peer (id starts with "Station "): signer must be owner (setup.createdBy)
- *    or in setup.members.teacher.
+ *  - Station peer (id starts with "Station "): signer must be owner or in teachers.
+ *  - When `students` is a finite allowlist, signer must also be in owner∪teachers∪students.
  */
 export function isAuthorizedUserSigner(
   id: string,
   signer: string,
   ownerPubKey: string,
-  teachers: string[]
+  teachers: string[],
+  students: string[] = []
 ): boolean {
   if (!signer) return false
+  if (!isInMembers(signer, ownerPubKey, teachers, students)) return false
   if (id.startsWith(STATION + ' ')) {
     if (ownerPubKey && stripPubKey(signer) === stripPubKey(ownerPubKey)) return true
     return teachers.some((t) => stripPubKey(t) === stripPubKey(signer))
@@ -66,13 +87,15 @@ export function isAuthorizedUserSigner(
   return stripPubKey(pubkeyPart) === stripPubKey(signer)
 }
 
-// Lobby accepts any signer so a student can bootstrap before the owner is online.
-// Room N and everything else (Station ..., named rooms) is owner/teacher only.
+// Lobby is the bootstrap room and is always open to any signer (its existence
+// is a global invariant; sub-state writes are gated separately). All other
+// rooms require owner or teacher.
 export function isAuthorizedRoomSigner(
   name: string,
   signer: string,
   ownerPubKey: string,
-  teachers: string[]
+  teachers: string[],
+  _students: string[] = []
 ): boolean {
   if (!signer) return false
   if (name === LOBBY) return true
@@ -794,7 +817,8 @@ export default class Peer {
       id,
       signer,
       this.lab.data?.createdBy || '',
-      this.lab.data?.members?.teacher || []
+      this.lab.data?.members?.teacher || [],
+      this.lab.data?.members?.student || []
     )
   }
 
@@ -839,11 +863,17 @@ export default class Peer {
           this._restoreOrDelete(key)
           continue
         }
-        // Station authz needs owner/teacher info; defer until setup arrives. Human users authz from id prefix alone.
-        if (key.startsWith(STATION + ' ') && !authzKnown) continue
+        // Station authz needs owner/teacher; member-allowlist authz needs the
+        // student list. Defer the authz call entirely until setup has synced.
+        if (!authzKnown) continue
         const authorized = this._isAuthorizedUserSigner(key, (envelope as Envelope).signer)
         if (authorized) {
           this._lastGoodUser.set(key, { payload, envelope: envelope as Envelope })
+        } else if (key === this.peerID) {
+          // Own entry whose signature is valid but signer isn't an authorized
+          // member (non-member tab). Keep it locally so the local UI doesn't
+          // crash; remote peers reject it independently, so it doesn't spread.
+          LOG('y.users own entry not authorized — keeping local-only', key)
         } else {
           LOG('y.users entry rejected (unauthorized)', key, { signer: (envelope as Envelope).signer })
           this._restoreOrDelete(key)
@@ -860,7 +890,8 @@ export default class Peer {
       name,
       signer,
       this.lab.data?.createdBy || '',
-      this.lab.data?.members?.teacher || []
+      this.lab.data?.members?.teacher || [],
+      this.lab.data?.members?.student || []
     )
   }
 
@@ -1107,8 +1138,18 @@ export default class Peer {
   /** Indices of chat entries that failed signature verification — filtered at render time. */
   private _invalidChatIndices: Set<number> = new Set()
 
-  /** Returns true if signer pubkey matches a known y.users participant. */
+  /**
+   * Returns true if signer is allowed to post chat. With an allowlist active,
+   * signer must be owner/teacher/listed-student; otherwise, signer just needs
+   * to match a known y.users participant.
+   */
   private _isKnownChatSigner(signer: string): boolean {
+    const students = this.lab.data?.members?.student || []
+    if (isExplicitAllowlist(students)) {
+      const owner = this.lab.data?.createdBy || ''
+      const teachers = this.lab.data?.members?.teacher || []
+      return isInMembers(signer, owner, teachers, students)
+    }
     for (const id of this.y.users.keys()) {
       const sep = id.lastIndexOf('_')
       const pub = sep > 0 ? id.slice(0, sep) : id
