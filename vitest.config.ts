@@ -15,7 +15,7 @@ export default defineConfig({
     deps: {
       inline: ['vuetify', 'markdown-it', 'echarts', 'muuri', 'y-webrtc'],
     },
-    include: ['./tests/unit tests/**'],
+    include: ['./tests/unit/**'],
   },
   resolve: {
     alias: {

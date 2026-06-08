@@ -1,15 +1,15 @@
 import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest';
 
 const flushPromises = () => new Promise<void>((r) => setTimeout(r, 0));
-import Peer from '../../../src/ts/Peer';
+import Peer from '../../../../src/ts/Peer';
 import * as Y from 'yjs';
-import { EdrysWebrtcProvider } from '../../../src/ts/EdrysWebrtcProvider';
-import { EdrysWebsocketProvider } from '../../../src/ts/EdrysWebsocketProvider';
-import { getPeerID, getShortPeerID, decodeCommConfig, updateUrlWithCommConfig } from '../../../src/ts/Utils';
-import { i18n, messages } from '../../setup';
+import { EdrysWebrtcProvider } from '../../../../src/ts/EdrysWebrtcProvider';
+import { EdrysWebsocketProvider } from '../../../../src/ts/EdrysWebsocketProvider';
+import { getPeerID, getShortPeerID, decodeCommConfig, updateUrlWithCommConfig } from '../../../../src/ts/Utils';
+import { i18n, messages } from '../../../setup';
 
 // Mock debug system
-vi.mock('../../../src/api/debugHandler', () => {
+vi.mock('../../../../src/api/debugHandler', () => {
   return {
     debug: {
       ts: {
@@ -30,7 +30,7 @@ const mockWebrtcEvents = {
   synced: null,
 };
 
-vi.mock('../../../src/ts/EdrysWebrtcProvider', () => ({
+vi.mock('../../../../src/ts/EdrysWebrtcProvider', () => ({
   EdrysWebrtcProvider: vi.fn().mockImplementation(() => ({
     on: vi.fn().mockImplementation((event, callback) => {
       if (event === 'status') mockWebrtcEvents.status = callback;
@@ -44,7 +44,7 @@ vi.mock('../../../src/ts/EdrysWebrtcProvider', () => ({
   })),
 }));
 
-vi.mock('../../../src/ts/EdrysWebsocketProvider', () => ({
+vi.mock('../../../../src/ts/EdrysWebsocketProvider', () => ({
   EdrysWebsocketProvider: vi.fn().mockImplementation(() => ({
     on: vi.fn().mockImplementation((event, callback) => {
       if (event === 'status') mockWebsocketEvents.status = callback;
@@ -58,7 +58,7 @@ vi.mock('../../../src/ts/EdrysWebsocketProvider', () => ({
   })),
 }));
 
-vi.mock('../../../src/ts/Utils', () => ({
+vi.mock('../../../../src/ts/Utils', () => ({
   getPeerID: vi.fn(() => 'test-peer-id'),
   getShortPeerID: vi.fn(() => 'test-user'),
   hashJsonObject: vi.fn().mockResolvedValue('test-hash'),
@@ -66,6 +66,9 @@ vi.mock('../../../src/ts/Utils', () => ({
   initCryptoIdentity: vi.fn(() => Promise.resolve()),
   signSetup: vi.fn(() => Promise.resolve('mock-signature')),
   verifySetup: vi.fn(() => Promise.resolve(true)),
+  signEntry: vi.fn(() => Promise.resolve({ signer: 'test-peer-id', nonce: Date.now(), signature: 'mock-sig' })),
+  verifyEntry: vi.fn(() => Promise.resolve(true)),
+  REVERT_INVALID_ORIGIN: 'revert-invalid',
   deepEqual: vi.fn((obj1, obj2) => {
     return JSON.stringify(obj1) === JSON.stringify(obj2);
   }),
@@ -258,7 +261,7 @@ describe('Peer Class', () => {
       mockWebrtcEvents.status?.({ status: 'connected' });
 
       // Need to wait for the connection timeout
-      vi.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(2000);
       await Promise.resolve();
 
       expect(callback).toHaveBeenCalledWith(true);
@@ -293,7 +296,7 @@ describe('Peer Class', () => {
       peer['handleStatus']({ status: 'connected' });
       
       // Wait for connection timeout
-      vi.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(2000);
       await Promise.resolve();
       
       expect(callback).toHaveBeenCalledWith(true);
@@ -307,35 +310,96 @@ describe('Peer Class', () => {
       expect(roomMap.size).toEqual(2);
     });
 
-    test('should manage room operations', () => {
+    test('should manage room operations', async () => {
       peer.addRoom('TestRoom');
+      // addRoom signs before writing (async); flush microtasks.
+      await vi.advanceTimersByTimeAsync(0);
       expect(peer['y'].rooms.has('TestRoom')).toBe(true);
 
       peer.gotoRoom('TestRoom');
+      // gotoRoom signs before writing (async); flush microtasks.
+      await vi.advanceTimersByTimeAsync(0);
       expect(peer.user().get('room')).toBe('TestRoom');
 
-      peer['y'].doc.transact(() => {
-        peer['y'].rooms.delete('TestRoom');
-      });
+      // Local-origin delete via the helper (matches checkForDeadStations path).
+      peer['_deleteAndUnsignRoom']('TestRoom', 'checkForDeadStations');
+      await vi.advanceTimersByTimeAsync(0);
       expect(peer.user().get('room')).toBe('Lobby');
     });
 
-    test('should handle room deletions and move users to lobby', () => {
+    test('should handle room deletions and move users to lobby', async () => {
       const roomMap = peer['y'].rooms as Y.Map<any>;
       const userMap = peer['y'].users as Y.Map<any>;
 
+      peer.addRoom('Room1');
+      await vi.advanceTimersByTimeAsync(0);
       peer['y'].doc.transact(() => {
-        roomMap.set('Room1', new Y.Map());
         userMap.get(peer['peerID']).set('room', 'Room1');
       });
 
       expect(userMap.get(peer['peerID']).get('room')).toBe('Room1');
 
+      // Local-origin delete: the room observer recognises it as legitimate
+      // and moves the affected user back to Lobby.
+      peer['_deleteAndUnsignRoom']('Room1', 'checkForDeadStations');
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(roomMap.has('Room1')).toBe(false);
+      expect(userMap.get(peer['peerID']).get('room')).toBe('Lobby');
+    });
+
+    test('provider.onLeave(station) must NOT evict the student or delete the room (regression)', async () => {
+      const roomMap = peer['y'].rooms as Y.Map<any>;
+      const userMap = peer['y'].users as Y.Map<any>;
+      const stationID = 'Station stn1';
+
+      // Add a station user, move the student into the station room.
+      peer.addRoom(stationID);
+      await vi.advanceTimersByTimeAsync(0);
       peer['y'].doc.transact(() => {
-        roomMap.delete('Room1');
+        const stationUser = new Y.Map();
+        stationUser.set('displayName', stationID);
+        stationUser.set('room', stationID);
+        stationUser.set('role', 'station');
+        stationUser.set('dateJoined', Date.now());
+        stationUser.set('logicalClock', 1);
+        stationUser.set('handRaised', false);
+        stationUser.set('connections', [{ id: '', target: {} }]);
+        userMap.set(stationID, stationUser);
+        userMap.get(peer['peerID']).set('room', stationID);
       });
 
-      expect(userMap.get(peer['peerID']).get('room')).toBe('Lobby');
+      expect(userMap.get(peer['peerID']).get('room')).toBe(stationID);
+      expect(roomMap.has(stationID)).toBe(true);
+
+      const onLeaveCallback = (peer['provider'] as any).onLeave.mock.calls[0][0];
+      onLeaveCallback(stationID);
+      // The next heartbeat tick would call checkForDeadStations.
+      peer['checkForDeadStations']();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
+
+      // A single peer-connection drop must NOT propagate a global eviction.
+      expect(userMap.has(stationID)).toBe(true);
+      expect(roomMap.has(stationID)).toBe(true);
+      expect(userMap.get(peer['peerID']).get('room')).toBe(stationID);
+    });
+
+    test('non-owner student cannot create rooms via addRoom', async () => {
+      // Create a peer whose peerID does NOT match createdBy — a genuine student.
+      const studentPeer = new Peer({
+        id: 'lab1',
+        data: { meta: { defaultNumberOfRooms: 0 }, members: { teacher: [], student: [] }, createdBy: 'some-other-owner' },
+        timestamp: Date.now(),
+        hash: null,
+      }, undefined, i18n.global.t);
+      await vi.advanceTimersByTimeAsync(0);
+      await Promise.resolve();
+
+      studentPeer.addRoom('Sneaky');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(studentPeer['y'].rooms.has('Sneaky')).toBe(false);
+      studentPeer.stop();
     });
   });
 
@@ -367,11 +431,13 @@ describe('Peer Class', () => {
       expect(userMap.has(peer['peerID'])).toBe(true);
     });
 
-    test('should update logicalClock during heartbeat', () => {
-      const user = peer.user();
-      const initialClock = user.get('logicalClock');
+    test('should update logicalClock during heartbeat', async () => {
+      const initialClock = peer.user().get('logicalClock');
       peer['ticktack']();
-      expect(user.get('logicalClock')).toBe(initialClock + 1);
+      // ticktack signs before writing (async); flush microtasks.
+      await vi.advanceTimersByTimeAsync(0);
+      // Re-fetch: _writeAndSignUser replaces the Y.Map, so the old ref is stale.
+      expect(peer.user().get('logicalClock')).toBe(initialClock + 1);
     });
   });
 
@@ -393,7 +459,7 @@ describe('Peer Class', () => {
     });
 
     test('should prevent unauthorized users from broadcasting', async () => {
-      const { debug } = await import('../../../src/api/debugHandler');
+      const { debug } = await import('../../../../src/api/debugHandler');
       const mockDebugPeer = vi.mocked(debug.ts.peer);
       
       const originalAllowedToParticipate = peer['allowedToParticipate'];
@@ -411,7 +477,7 @@ describe('Peer Class', () => {
     });
 
     test('should prevent unauthorized state updates', async () => {
-      const { debug } = await import('../../../src/api/debugHandler');
+      const { debug } = await import('../../../../src/api/debugHandler');
       const mockDebugPeer = vi.mocked(debug.ts.peer);
 
       const originalAllowedToParticipate = peer['allowedToParticipate'];
@@ -644,17 +710,19 @@ describe('Peer Class', () => {
 
   // Communication Tests
   describe('Communication', () => {
-    test('should handle chat messages', () => {
+    test('should handle chat messages', async () => {
       const message = 'Test message';
       const timestamp = Date.now();
       vi.spyOn(Date, 'now').mockReturnValue(timestamp);
 
-      peer.sendMessage(message);
+      await peer.sendMessage(message);
 
-      expect(peer['y'].chat.get(0)).toEqual({
+      expect(peer['y'].chat.get(0)).toMatchObject({
         msg: message,
         timestamp,
-        user: 'test-user'
+        user: 'test-user',
+        signer: expect.any(String),
+        signature: expect.any(String),
       });
     });
 
@@ -690,6 +758,24 @@ describe('Peer Class', () => {
       expect(peer['lab'].data).toEqual(newConfig.data);
       // Verify via lab state (synchronous) instead of CRDT state (async).
       expect(peer['lab'].timestamp).toBe(newConfig.timestamp);
+    });
+
+    test('should fire setup callback when newSetup receives newer config', () => {
+      const callback = vi.fn();
+      peer.on('setup', callback);
+
+      const newConfig = {
+        id: 'new-test-lab',
+        data: {
+          meta: { defaultNumberOfRooms: 3 },
+          members: { teacher: ['teacher-id'], student: [] },
+          createdBy: 'test-peer-id',
+        },
+        timestamp: Date.now() + 1000,
+      };
+
+      peer.newSetup(newConfig);
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ id: newConfig.id }));
     });
 
     test('should not update setup with older timestamp', () => {
@@ -771,7 +857,7 @@ describe('Peer Class', () => {
 
   // Module Change Tests
   describe('Module Change Detection', () => {
-    test('should detect module changes correctly', () => {
+    test('should not show popup on module changes (UI reloads automatically)', () => {
       const updateSpy = vi.spyOn(peer as any, 'update');
 
       peer.logSetupChanges(
@@ -779,7 +865,7 @@ describe('Peer Class', () => {
         { modules: [{ url: 'module2' }], members: {} }
       );
 
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages.en.peer.feedback.moduleChanges);
+      expect(updateSpy).not.toHaveBeenCalledWith('popup', messages.en.peer.feedback.moduleChanges);
     });
 
     test('should not show module changes for initial setup', () => {
@@ -820,12 +906,7 @@ describe('Peer Class', () => {
       peer.updateState(new Uint8Array());
       expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.noAccess);
 
-      // Test module changes message
-      peer.logSetupChanges(
-        { modules: [1], members: {} },
-        { modules: [2], members: {} }
-      );
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.moduleChanges);
+      // Module changes no longer show a popup (UI reloads automatically)
 
       // Test member role change messages
       const testId = 'test-id';

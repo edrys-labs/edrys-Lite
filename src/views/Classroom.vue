@@ -224,9 +224,19 @@ export default {
           this.owner || undefined
         );
         
-        this.communication.on("setup", async (configuration: DatabaseItem) => {          
+        this.communication.on("setup", async (configuration: DatabaseItem) => {
+          const previous = self.data?.modules;
           await self.database.put(clone(configuration));
-          self.init();
+          await self.init();
+          if (!deepEqual(previous, configuration.data?.modules)) {
+            self.data = clone(configuration.data);
+            self.scrapeModules();
+          }
+          // Re-join with correct role if setup arrived after the initial connect-time join
+          const correctRole = self.getRole();
+          if (self.communication.role !== correctRole) {
+            self.communication.join(correctRole);
+          }
         });
 
         this.communication.on("popup", this.addPopup);
@@ -276,7 +286,7 @@ export default {
         return "station";
       }
 
-      if (this.peerID.startsWith(this.configuration.data.createdBy)) {
+      if (this.configuration.data.createdBy && this.peerID.startsWith(this.configuration.data.createdBy)) {
         this.isOwner = true;
         this.isTeacher = true;
         return "teacher";

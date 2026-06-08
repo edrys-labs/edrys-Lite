@@ -316,6 +316,8 @@ describe('Crypto Identity', () => {
     await initCryptoIdentity();
 
     const data = {
+      name: 'Test Classroom',
+      meta: {},
       modules: [{ url: 'https://example.com/mod' }],
       members: { teacher: [], student: [] },
       createdBy: getPeerID(false),
@@ -332,6 +334,8 @@ describe('Crypto Identity', () => {
     await initCryptoIdentity();
 
     const data = {
+      name: 'Test Classroom',
+      meta: {},
       modules: [{ url: 'https://example.com/mod' }],
       members: { teacher: [], student: [] },
       createdBy: getPeerID(false),
@@ -350,6 +354,8 @@ describe('Crypto Identity', () => {
     await initCryptoIdentity();
 
     const data = {
+      name: 'Test Classroom',
+      meta: {},
       modules: [],
       members: { teacher: [], student: [] },
       createdBy: getPeerID(false),
@@ -408,6 +414,95 @@ describe('Crypto Identity', () => {
     const hash2 = await hash2fn(id2(false));
 
     expect(hash1).not.toBe(hash2);
+  });
+
+  // Signed live-state primitives
+
+  test('canonicalize sorts keys deterministically', async () => {
+    const { canonicalize } = await freshUtils();
+    const a = canonicalize({ b: 1, a: 2, c: { y: 1, x: 2 } });
+    const b = canonicalize({ c: { x: 2, y: 1 }, a: 2, b: 1 });
+    expect(a).toBe(b);
+    expect(a).toBe('{"a":2,"b":1,"c":{"x":2,"y":1}}');
+  });
+
+  test('canonicalize preserves array order and handles primitives', async () => {
+    const { canonicalize } = await freshUtils();
+    expect(canonicalize([3, 1, 2])).toBe('[3,1,2]');
+    expect(canonicalize(null)).toBe('null');
+    expect(canonicalize('s')).toBe('"s"');
+    expect(canonicalize(42)).toBe('42');
+    expect(canonicalize(true)).toBe('true');
+  });
+
+  test('signEntry/verifyEntry round-trip on a user payload', async () => {
+    const { initCryptoIdentity, signEntry, verifyEntry } = await freshUtils();
+    await initCryptoIdentity();
+
+    const payload = { room: 'Lobby', role: 'student', displayName: 'Alice' };
+    const env = await signEntry('users', 'pubkey_abc', payload);
+
+    const valid = await verifyEntry('users', 'pubkey_abc', payload, env);
+    expect(valid).toBe(true);
+  });
+
+  test('verifyEntry rejects tampered payload', async () => {
+    const { initCryptoIdentity, signEntry, verifyEntry } = await freshUtils();
+    await initCryptoIdentity();
+
+    const env = await signEntry('users', 'pubkey_abc', { room: 'Lobby' });
+    const tampered = await verifyEntry('users', 'pubkey_abc', { room: 'Room1' }, env);
+    expect(tampered).toBe(false);
+  });
+
+  test('verifyEntry rejects cross-container replay (users <-> rooms)', async () => {
+    const { initCryptoIdentity, signEntry, verifyEntry } = await freshUtils();
+    await initCryptoIdentity();
+
+    const env = await signEntry('users', 'name_x', { foo: 1 });
+    const replay = await verifyEntry('rooms', 'name_x', { foo: 1 }, env);
+    expect(replay).toBe(false);
+  });
+
+  test('verifyEntry rejects cross-key replay', async () => {
+    const { initCryptoIdentity, signEntry, verifyEntry } = await freshUtils();
+    await initCryptoIdentity();
+
+    const env = await signEntry('users', 'key-A', { foo: 1 });
+    const replay = await verifyEntry('users', 'key-B', { foo: 1 }, env);
+    expect(replay).toBe(false);
+  });
+
+  test('verifyEntry rejects stale nonce outside replay window', async () => {
+    const { initCryptoIdentity, signEntry, verifyEntry } = await freshUtils();
+    await initCryptoIdentity();
+
+    // Sign with a nonce far in the past.
+    const env = await signEntry('users', 'k', { x: 1 }, Date.now() - 5 * 60_000);
+    const valid = await verifyEntry('users', 'k', { x: 1 }, env);
+    expect(valid).toBe(false);
+  });
+
+  test('verifyEntry accepts nonce inside replay window', async () => {
+    const { initCryptoIdentity, signEntry, verifyEntry } = await freshUtils();
+    await initCryptoIdentity();
+
+    const env = await signEntry('users', 'k', { x: 1 }, Date.now() - 1_000);
+    const valid = await verifyEntry('users', 'k', { x: 1 }, env);
+    expect(valid).toBe(true);
+  });
+
+  test('verifyEntry rejects malformed envelopes', async () => {
+    const { verifyEntry } = await freshUtils();
+    expect(await verifyEntry('users', 'k', {}, null as any)).toBe(false);
+    expect(await verifyEntry('users', 'k', {}, undefined as any)).toBe(false);
+    expect(await verifyEntry('users', 'k', {}, { signer: 'a', signature: 'b' } as any)).toBe(false);
+    expect(await verifyEntry('users', 'k', {}, { signer: 'a', nonce: NaN, signature: 'b' } as any)).toBe(false);
+  });
+
+  test('REVERT_INVALID_ORIGIN is the expected sentinel string', async () => {
+    const { REVERT_INVALID_ORIGIN } = await freshUtils();
+    expect(REVERT_INVALID_ORIGIN).toBe('revert-invalid');
   });
 });
 
