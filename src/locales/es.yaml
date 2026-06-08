@@ -100,6 +100,7 @@ settings:
     add: "Agregar"
     explore: "Explorar módulos"
     noDescription: "Sin descripción"
+    legend: "Leyenda de salas"
     tooltip: 
       config: "Configuración del Módulo"
       manualConfig: "Configuración Manual"

@@ -103,6 +103,28 @@
         </v-list-item>
       </template>
     </draggable>
+    <div v-if="roomLegend.length > 0" class="legend-anchor">
+      <v-tooltip location="top" content-class="legend-tooltip-surface">
+        <template v-slot:activator="{ props }">
+          <v-icon v-bind="props" icon="mdi-information-outline" size="small" class="legend-icon"></v-icon>
+        </template>
+        <div class="legend-tooltip">
+          <div class="legend-tooltip-title">{{ t('settings.modules.legend') }}</div>
+          <div class="legend-tooltip-chips">
+            <span
+              v-for="room in roomLegend"
+              :key="room.label"
+              class="legend-tooltip-chip"
+              :style="{ borderColor: room.color }"
+            >
+              <span class="legend-tooltip-dot" :style="{ backgroundColor: room.color }"></span>
+              {{ room.label }}
+            </span>
+          </div>
+        </div>
+      </v-tooltip>
+    </div>
+
     <v-list-item :disabled="writeProtection">
       <template v-slot:prepend>
         <v-icon icon="mdi-link"></v-icon>
@@ -219,6 +241,21 @@ export default {
       isConfigDialogOpen: false,
       activeModuleIndex: null,
     };
+  },
+
+  computed: {
+    roomLegend() {
+      const seen = new Set<string>();
+      const rooms: { label: string; color: string }[] = [];
+      for (const mod of this.config.modules) {
+        const key = mod.showInCustom || "*";
+        if (!seen.has(key)) {
+          seen.add(key);
+          rooms.push({ label: key, color: this.stringToColor(key) });
+        }
+      }
+      return rooms;
+    },
   },
 
   methods: {
@@ -374,14 +411,74 @@ export default {
 };
 </script>
 
+<style>
+.legend-tooltip-surface {
+  background-color: white !important;
+  color: rgba(0, 0, 0, 0.87) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.39) !important;
+  border-radius: 8px !important;
+}
+</style>
+
 <style scoped>
 .list-group-item {
   transition: box-shadow 0.3s ease, transform 0.3s ease;
-  background-color: white; /* Optional: Default background color */
+  background-color: white;
 }
 
 .list-group-item:hover {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 3px 10px rgba(0, 0, 0, 0.19);
   transform: translateY(-2px);
 }
+
+.legend-anchor {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 16px 0;
+}
+
+.legend-icon {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.legend-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px;
+}
+
+.legend-tooltip-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+}
+
+.legend-tooltip-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.legend-tooltip-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1.5px solid;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.legend-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
 </style>
