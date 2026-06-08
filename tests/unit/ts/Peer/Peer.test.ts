@@ -1,15 +1,15 @@
 import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest';
 
 const flushPromises = () => new Promise<void>((r) => setTimeout(r, 0));
-import Peer from '../../../src/ts/Peer';
+import Peer from '../../../../src/ts/Peer';
 import * as Y from 'yjs';
-import { EdrysWebrtcProvider } from '../../../src/ts/EdrysWebrtcProvider';
-import { EdrysWebsocketProvider } from '../../../src/ts/EdrysWebsocketProvider';
-import { getPeerID, getShortPeerID, decodeCommConfig, updateUrlWithCommConfig } from '../../../src/ts/Utils';
-import { i18n, messages } from '../../setup';
+import { EdrysWebrtcProvider } from '../../../../src/ts/EdrysWebrtcProvider';
+import { EdrysWebsocketProvider } from '../../../../src/ts/EdrysWebsocketProvider';
+import { getPeerID, getShortPeerID, decodeCommConfig, updateUrlWithCommConfig } from '../../../../src/ts/Utils';
+import { i18n, messages } from '../../../setup';
 
 // Mock debug system
-vi.mock('../../../src/api/debugHandler', () => {
+vi.mock('../../../../src/api/debugHandler', () => {
   return {
     debug: {
       ts: {
@@ -30,7 +30,7 @@ const mockWebrtcEvents = {
   synced: null,
 };
 
-vi.mock('../../../src/ts/EdrysWebrtcProvider', () => ({
+vi.mock('../../../../src/ts/EdrysWebrtcProvider', () => ({
   EdrysWebrtcProvider: vi.fn().mockImplementation(() => ({
     on: vi.fn().mockImplementation((event, callback) => {
       if (event === 'status') mockWebrtcEvents.status = callback;
@@ -44,7 +44,7 @@ vi.mock('../../../src/ts/EdrysWebrtcProvider', () => ({
   })),
 }));
 
-vi.mock('../../../src/ts/EdrysWebsocketProvider', () => ({
+vi.mock('../../../../src/ts/EdrysWebsocketProvider', () => ({
   EdrysWebsocketProvider: vi.fn().mockImplementation(() => ({
     on: vi.fn().mockImplementation((event, callback) => {
       if (event === 'status') mockWebsocketEvents.status = callback;
@@ -58,7 +58,7 @@ vi.mock('../../../src/ts/EdrysWebsocketProvider', () => ({
   })),
 }));
 
-vi.mock('../../../src/ts/Utils', () => ({
+vi.mock('../../../../src/ts/Utils', () => ({
   getPeerID: vi.fn(() => 'test-peer-id'),
   getShortPeerID: vi.fn(() => 'test-user'),
   hashJsonObject: vi.fn().mockResolvedValue('test-hash'),
@@ -422,7 +422,7 @@ describe('Peer Class', () => {
     });
 
     test('should prevent unauthorized users from broadcasting', async () => {
-      const { debug } = await import('../../../src/api/debugHandler');
+      const { debug } = await import('../../../../src/api/debugHandler');
       const mockDebugPeer = vi.mocked(debug.ts.peer);
       
       const originalAllowedToParticipate = peer['allowedToParticipate'];
@@ -440,7 +440,7 @@ describe('Peer Class', () => {
     });
 
     test('should prevent unauthorized state updates', async () => {
-      const { debug } = await import('../../../src/api/debugHandler');
+      const { debug } = await import('../../../../src/api/debugHandler');
       const mockDebugPeer = vi.mocked(debug.ts.peer);
 
       const originalAllowedToParticipate = peer['allowedToParticipate'];

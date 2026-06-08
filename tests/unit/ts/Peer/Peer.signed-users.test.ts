@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import * as Y from 'yjs'
-import { i18n } from '../../setup'
+import { i18n } from '../../../setup'
 
 // y.users sidecar signing integration test.
 // Uses real Utils (real WebCrypto) with mocked Database (so the crypto
@@ -17,14 +17,14 @@ const mockDb = {
   setMigrationDone: vi.fn().mockResolvedValue(undefined),
 }
 
-vi.mock('../../../src/ts/Database', () => ({ Database: vi.fn(() => mockDb) }))
+vi.mock('../../../../src/ts/Database', () => ({ Database: vi.fn(() => mockDb) }))
 vi.mock('secure-ls', () => ({
   default: vi.fn().mockImplementation(() => ({ get: vi.fn(), set: vi.fn(), remove: vi.fn() })),
 }))
-vi.mock('../../../src/api/debugHandler', () => ({
+vi.mock('../../../../src/api/debugHandler', () => ({
   debug: { ts: { peer: vi.fn() } },
 }))
-vi.mock('../../../src/ts/EdrysWebrtcProvider', () => ({
+vi.mock('../../../../src/ts/EdrysWebrtcProvider', () => ({
   EdrysWebrtcProvider: vi.fn().mockImplementation(() => ({
     on: vi.fn(),
     onLeave: vi.fn(),
@@ -34,7 +34,7 @@ vi.mock('../../../src/ts/EdrysWebrtcProvider', () => ({
     destroy: vi.fn(),
   })),
 }))
-vi.mock('../../../src/ts/EdrysWebsocketProvider', () => ({
+vi.mock('../../../../src/ts/EdrysWebsocketProvider', () => ({
   EdrysWebsocketProvider: vi.fn().mockImplementation(() => ({
     on: vi.fn(),
     onLeave: vi.fn(),
@@ -53,8 +53,8 @@ describe('Signed y.users', () => {
     vi.resetModules()
     mockDb.getPublicKeyRaw.mockResolvedValue(null)
     mockDb.getPrivateKey.mockResolvedValue(null)
-    Utils = await import('../../../src/ts/Utils')
-    Peer = (await import('../../../src/ts/Peer')).default
+    Utils = await import('../../../../src/ts/Utils')
+    Peer = (await import('../../../../src/ts/Peer')).default
   })
 
   function makeSetup(createdBy: string) {
@@ -219,7 +219,7 @@ describe('Signed y.users', () => {
     vi.resetModules()
     mockDb.getPublicKeyRaw.mockResolvedValue(null)
     mockDb.getPrivateKey.mockResolvedValue(null)
-    const AttackerUtils: any = await import('../../../src/ts/Utils')
+    const AttackerUtils: any = await import('../../../../src/ts/Utils')
     await AttackerUtils.initCryptoIdentity()
     const attackerPubKey = AttackerUtils.getPeerID(false)
     expect(attackerPubKey).not.toBe(myPubKey)

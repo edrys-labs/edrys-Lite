@@ -5,7 +5,7 @@ import { describe, test, expect, vi } from 'vitest'
 // cleanly in the test harness.
 async function freshPeerHelpers() {
   vi.resetModules()
-  vi.doMock('../../../src/ts/Database', () => ({
+  vi.doMock('../../../../src/ts/Database', () => ({
     Database: vi.fn(() => ({
       getPublicKeyRaw: vi.fn().mockResolvedValue(null),
       getPrivateKey: vi.fn().mockResolvedValue(null),
@@ -13,7 +13,7 @@ async function freshPeerHelpers() {
       setPrivateKey: vi.fn(),
     })),
   }))
-  return import('../../../src/ts/Peer')
+  return import('../../../../src/ts/Peer')
 }
 
 // ---------------------------------------------------------------------------
