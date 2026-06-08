@@ -27,7 +27,10 @@ export default {
     const database = new Database();
     const classrooms: DatabaseItem[] = [];
 
-    database.setObservable("*", (rooms: any) => {
+    database.setObservable("*", async (rooms: any) => {
+      await Promise.all(rooms.map(async (c: any) => {
+        if (c?.data?.createdBy) c.ownerHash = await hashPubKey(c.data.createdBy);
+      }));
       this.classrooms = rooms;
     });
 
@@ -35,13 +38,8 @@ export default {
       database,
       classrooms,
       peerID: getPeerID(false),
-      ownerHash: '',
       showMigrationBanner: sessionStorage.getItem('showMigrationBanner') === '1',
     };
-  },
-
-  async mounted() {
-    this.ownerHash = await hashPubKey(this.peerID);
   },
 
   methods: {
@@ -236,7 +234,7 @@ export default {
                 <v-spacer></v-spacer>
                 <a
                   data-link="true"
-                  :href="`./?/classroom/${classroom.id}/${ownerHash}${
+                  :href="`./?/classroom/${classroom.id}/${classroom.ownerHash}${
                     !!classroom.hash ? `/${classroom.hash}` : ''
                   }`"
                   style="color: white"

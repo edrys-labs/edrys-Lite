@@ -119,7 +119,7 @@ describe('Signed y.rooms', () => {
     peer.stop()
   })
 
-  test('unsigned remote room is reverted by the local observer (Exploit 4)', async () => {
+  test('unsigned remote room is reverted by the local observer', async () => {
     await Utils.initCryptoIdentity()
     const myPubKey = Utils.getPeerID(false)
 
@@ -148,7 +148,7 @@ describe('Signed y.rooms', () => {
     attackerDoc.destroy()
   })
 
-  test('remote station room created by a non-owner/teacher signer is reverted (Exploit 4 signed variant)', async () => {
+  test('remote station room created by a non-owner/teacher signer is reverted', async () => {
     // Owner identity
     await Utils.initCryptoIdentity()
     const myPubKey = Utils.getPeerID(false)
@@ -191,7 +191,7 @@ describe('Signed y.rooms', () => {
     attackerDoc.destroy()
   })
 
-  test('remote delete of a legitimate room is healed from cache (Exploit 3 / 5)', async () => {
+  test('remote delete of a legitimate room is healed from cache', async () => {
     await Utils.initCryptoIdentity()
     const myPubKey = Utils.getPeerID(false)
 

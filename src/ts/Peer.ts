@@ -984,7 +984,7 @@ export default class Peer {
    *  - Add/update with bad/missing sig → revert (delete).
    *  - Add/update with valid sig but unknown authz (setup not yet synced) → defer.
    *  - Add/update with valid sig + authorized → cache as last-good.
-   *  - Delete of a cached room → restore (Exploit 3/5 heal).
+   *  - Delete of a cached room → restore.
    */
   private async _verifyAndRevertRoomChange(
     keys: Set<string>,
@@ -1166,7 +1166,7 @@ export default class Peer {
           this._verifyAndRevertRoomChange(new Set(keysChanged), fromLocal)
         }
 
-        // Move-to-Lobby on local deletes only — remote-origin deletes are healed by _verifyAndRevert (Exploit 5).
+        // Move-to-Lobby on local deletes only — remote-origin deletes are healed by _verifyAndRevert.
         if (fromLocal) {
           keysChanged.forEach((key) => {
             const change = event.changes.keys.get(key)
