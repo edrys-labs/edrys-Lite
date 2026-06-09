@@ -316,105 +316,71 @@ export class StreamClient {
   }
 }
 
-// WebSocket Stream Server 
-export class WebSocketStreamServer {
-  private context: any
-  private stream: MediaStream
-  private canvas: HTMLCanvasElement
-  private ctx: CanvasRenderingContext2D
-  private wsConnection: WebSocket | null = null
-  private frameRequestId: number | null = null
-  private websocketUrl: string
-  private roomId: string
-  
-  constructor(context: any, stream: MediaStream, options: any = {}) {
-    this.context = context
-    this.stream = stream
-    this.websocketUrl = options.websocketUrl
-    this.roomId = this.context.class_id || this.context.liveUser?.room
+// Run setInterval inside a tiny worker (Browsers throttle setInterval to ~1Hz in hidden tabs).
+function createUnthrottledTicker(intervalMs: number, onTick: () => void): { stop: () => void } {
+  try {
+    const source = `setInterval(() => postMessage(0), ${intervalMs})`
+    const url = URL.createObjectURL(new Blob([source], { type: 'application/javascript' }))
+    const worker = new Worker(url)
+    URL.revokeObjectURL(url)
+    worker.onmessage = onTick
+    return { stop: () => worker.terminate() }
+  } catch (err: any) {
+    // No workers available: fall back to a (background-throttled) main timer.
+    debug.api.general('Worker ticker unavailable, using setInterval:', err?.message || err)
+    const id = window.setInterval(onTick, intervalMs)
+    return { stop: () => clearInterval(id) }
+  }
+}
 
-    const videoElement = document.createElement('video')
-    videoElement.srcObject = stream
-    videoElement.muted = true
-    videoElement.play()
-    
+const WS_FPS = 15
+const WS_JPEG_QUALITY = 0.7
+
+abstract class WebSocketStreamBase {
+  protected context: any
+  protected wsConnection: WebSocket | null = null
+  protected canvas: HTMLCanvasElement
+  protected ctx: CanvasRenderingContext2D
+  protected websocketUrl: string
+  protected roomId: string
+  private label: string
+
+  constructor(context: any, options: any, label: string) {
+    this.context = context
+    this.websocketUrl = options.websocketUrl
+    this.roomId = context.class_id || context.liveUser?.room
+    this.label = label
     this.canvas = document.createElement('canvas')
     this.canvas.width = 640
     this.canvas.height = 480
     this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D
-        
-    videoElement.onloadedmetadata = () => {
-      this.canvas.width = videoElement.videoWidth
-      this.canvas.height = videoElement.videoHeight
-      this.startStreaming(videoElement)
-    }
   }
 
-  private startStreaming(videoElement: HTMLVideoElement) {    
+  protected connect() {
     this.wsConnection = new WebSocket(this.websocketUrl)
-    
-    this.wsConnection.onopen = () => {      
-      if (this.wsConnection) {
-        this.wsConnection.send(JSON.stringify({
-          type: 'register-source',
-          roomId: this.roomId
-        }))
-        
-        this.startFrameCapture(videoElement)
-      }
-    }
-    
-    this.wsConnection.onerror = (ev) => {
-      debug.api.general('WebSocketStreamServer WS error:', ev)
+    this.wsConnection.onopen = () => this.onOpen()
+    this.wsConnection.onmessage = (event) => this.onMessage(event)
+    this.wsConnection.onerror = (ev) => debug.api.general(`${this.label} WS error:`, ev)
+  }
+
+  protected send(payload: any) {
+    if (this.wsConnection?.readyState === WebSocket.OPEN) {
+      this.wsConnection.send(JSON.stringify(payload))
     }
   }
 
-  private startFrameCapture(videoElement: HTMLVideoElement) {
-    let lastFrameTime = 0
-    const frameInterval = 1000 / 15 // 15 fps
-    
-    const captureFrame = (timestamp: number) => {
-      if (!this.wsConnection || this.wsConnection.readyState !== WebSocket.OPEN) {
-        return
-      }
-      
-      const elapsed = timestamp - lastFrameTime
-      if (elapsed > frameInterval && videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
-        lastFrameTime = timestamp
-        
-        try {
-          const width = videoElement.videoWidth
-          const height = videoElement.videoHeight
-            
-          if (this.canvas.width !== width || this.canvas.height !== height) {
-            this.canvas.width = width
-            this.canvas.height = height
-          }
-          
-          this.ctx.drawImage(videoElement, 0, 0, width, height)
-          const dataUrl = this.canvas.toDataURL('image/jpeg', 0.7)
-          
-          this.wsConnection.send(JSON.stringify({
-            type: 'frame',
-            data: dataUrl
-          }))
-        } catch (error: any) {
-          debug.api.general('WebSocketStreamServer frame capture error:', error?.message || error)
-        }
-      }
-
-      this.frameRequestId = requestAnimationFrame(captureFrame)
+  // Resize canvas to match the source only when dimensions actually change.
+  protected resizeCanvas(width: number, height: number) {
+    if (this.canvas.width !== width || this.canvas.height !== height) {
+      this.canvas.width = width
+      this.canvas.height = height
     }
-    
-    this.frameRequestId = requestAnimationFrame(captureFrame)
   }
+
+  protected abstract onOpen(): void
+  protected abstract onMessage(event: MessageEvent): void
 
   public stop() {
-    if (this.frameRequestId !== null) {
-      cancelAnimationFrame(this.frameRequestId)
-      this.frameRequestId = null
-    }
-      
     if (this.wsConnection) {
       this.wsConnection.close()
       this.wsConnection = null
@@ -422,92 +388,108 @@ export class WebSocketStreamServer {
   }
 }
 
+// WebSocket Stream Server
+export class WebSocketStreamServer extends WebSocketStreamBase {
+  private videoElement: HTMLVideoElement
+  private ticker: { stop: () => void } | null = null
+
+  constructor(context: any, stream: MediaStream, options: any = {}) {
+    super(context, options, 'WebSocketStreamServer')
+
+    this.videoElement = document.createElement('video')
+    this.videoElement.srcObject = stream
+    this.videoElement.muted = true
+    this.videoElement.play()
+
+    this.videoElement.onloadedmetadata = () => {
+      this.resizeCanvas(this.videoElement.videoWidth, this.videoElement.videoHeight)
+      this.connect()
+    }
+  }
+
+  protected onOpen() {
+    this.send({ type: 'register-source', roomId: this.roomId })
+    this.startFrameCapture()
+  }
+
+  protected onMessage() {
+    // Server doesn't act on inbound messages.
+  }
+
+  private startFrameCapture() {
+    this.ticker = createUnthrottledTicker(1000 / WS_FPS, () => {
+      const video = this.videoElement
+      if (this.wsConnection?.readyState !== WebSocket.OPEN) return
+      if (video.readyState !== video.HAVE_ENOUGH_DATA) return
+
+      try {
+        this.resizeCanvas(video.videoWidth, video.videoHeight)
+        this.ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight)
+        this.send({ type: 'frame', data: this.canvas.toDataURL('image/jpeg', WS_JPEG_QUALITY) })
+      } catch (error: any) {
+        debug.api.general('WebSocketStreamServer frame capture error:', error?.message || error)
+      }
+    })
+  }
+
+  public stop() {
+    this.ticker?.stop()
+    this.ticker = null
+    super.stop()
+  }
+}
+
 // WebSocket Stream Client
-export class WebSocketStreamClient {
-  private context: any
+export class WebSocketStreamClient extends WebSocketStreamBase {
   private handler: (stream: MediaStream, settings: any) => void
-  private wsConnection: WebSocket | null = null
-  private streamCanvas: HTMLCanvasElement
-  private streamCtx: CanvasRenderingContext2D
   private stream: MediaStream | null = null
-  private websocketUrl: string
   private img: HTMLImageElement
-  private roomId: string
 
   constructor(context: any, handler: (stream: MediaStream, settings: any) => void, options: any = {}) {
-    this.context = context
+    super(context, options, 'WebSocketStreamClient')
     this.handler = handler
-    this.websocketUrl = options.websocketUrl
-    this.roomId = this.context.class_id || this.context.liveUser?.room
-    
-    this.streamCanvas = document.createElement('canvas')
-    this.streamCanvas.width = 640
-    this.streamCanvas.height = 480
-    this.streamCtx = this.streamCanvas.getContext('2d') as CanvasRenderingContext2D
-    
+
     this.img = new Image()
-    this.setupImageHandlers()
-    
+    this.img.onload = () => this.renderFrame()
+
     this.connect()
   }
 
-  private setupImageHandlers() {
-    this.img.onload = () => {
-      try {
-        if (this.streamCanvas.width !== this.img.width || 
-            this.streamCanvas.height !== this.img.height) {
-          this.streamCanvas.width = this.img.width
-          this.streamCanvas.height = this.img.height
-        }
-        
-        this.streamCtx.clearRect(0, 0, this.streamCanvas.width, this.streamCanvas.height)
-        this.streamCtx.drawImage(this.img, 0, 0)
-        
-        if (!this.stream) {
-          this.stream = this.streamCanvas.captureStream(30)
-          this.handler(this.stream, this.context.module.stationConfig)
-        }
-      } catch (error: any) {
-        debug.api.general('WebSocketStreamClient image render error:', error?.message || error)
-      }
+  protected onOpen() {
+    if (this.roomId) {
+      this.send({ type: 'join-room', roomId: this.roomId })
     }
   }
 
-  private connect() {
-    this.wsConnection = new WebSocket(this.websocketUrl)
-    
-    this.wsConnection.onopen = () => {
-      if (this.roomId) {
-        this.wsConnection.send(JSON.stringify({
-          type: 'join-room',
-          roomId: this.roomId
-        }))
+  protected onMessage(event: MessageEvent) {
+    try {
+      const message = JSON.parse(event.data)
+      if (message.type === 'frame' && message.data) {
+        this.img.src = message.data
       }
+    } catch (error: any) {
+      debug.api.general('WebSocketStreamClient message parse error:', error?.message || error)
     }
-    
-    this.wsConnection.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data)
-        
-        if (message.type === 'frame' && message.data) {
-          this.img.src = message.data
-        }
-      } catch (error: any) {
-        debug.api.general('WebSocketStreamClient message parse error:', error?.message || error)
-      }
-    }
+  }
 
-    this.wsConnection.onerror = (ev) => {
-      debug.api.general('WebSocketStreamClient WS error:', ev)
+  private renderFrame() {
+    try {
+      this.resizeCanvas(this.img.width, this.img.height)
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+      this.ctx.drawImage(this.img, 0, 0)
+
+      // First frame: build a MediaStream from the canvas and hand it off.
+      if (!this.stream) {
+        this.stream = this.canvas.captureStream(30)
+        this.handler(this.stream, this.context.module.stationConfig)
+      }
+    } catch (error: any) {
+      debug.api.general('WebSocketStreamClient image render error:', error?.message || error)
     }
   }
 
   public stop() {
-    if (this.wsConnection) {
-      this.wsConnection.close()
-      this.wsConnection = null
-    }
-    
+    super.stop()
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop())
       this.stream = null
