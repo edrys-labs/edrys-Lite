@@ -770,6 +770,7 @@ export default class Peer {
       members: data.members,
       createdBy: isLegacyCreatedBy ? data.createdBy : (localCreatedBy || data.createdBy),
       communicationConfig: data.communicationConfig,
+      keepUrlConfig: data.keepUrlConfig,
     }
     this.lab.timestamp = timestamp
     this.update('setup')
