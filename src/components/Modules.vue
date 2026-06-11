@@ -148,10 +148,11 @@ export default {
           element.addEventListener(
             "mousedown",
             (event) => {
-              // Check if the mousedown occurred in the bottom-right corner
               const rect = element.getBoundingClientRect();
+              const nearBottom = rect.bottom - event.clientY < 16;
+              const nearRight  = rect.right  - event.clientX < 16;
 
-              if (event.clientY - rect.top > 20) {
+              if (nearBottom || nearRight) {
                 this.isResizing = true;
                 element.style.setProperty("z-index", "100");
               } else {
@@ -160,22 +161,27 @@ export default {
             },
             true
           );
-
-          element.addEventListener("mouseup", () => {
-            if (this.isResizing) {
-              this.isResizing = false;
-              element.style.setProperty("z-index", "100");
-              this.gridUpdate();
-            } else if (this.isMoving) {
-              this.isMoving = false;
-            }
-          });
         });
+
+        const onMouseUp = () => {
+          if (this.isResizing) {
+            this.isResizing = false;
+            if (this.grid) {
+              this.grid.refreshItems().layout();
+            }
+          }
+          this.isMoving = false;
+        };
+        window.addEventListener("mouseup", onMouseUp);
+        this._resizeMouseUpHandler = onMouseUp;
       }, 1000);
     });
   },
   beforeUnmount() {
     window.removeEventListener("message", this.messageHandler);
+    if (this._resizeMouseUpHandler) {
+      window.removeEventListener("mouseup", this._resizeMouseUpHandler);
+    }
     this.communication.on("message", undefined);
     this.grid.destroy();
   },
@@ -203,8 +209,7 @@ export default {
         },
 
         dragStartPredicate: (item, e) => {
-          // Start moving the item after the item has been dragged for one second.
-          if (e.deltaTime > 100 && !this.isResizing) {
+          if (e.deltaTime > 50 && !this.isResizing) {
             return true;
           }
         },
@@ -385,7 +390,7 @@ export default {
         :ref="'resizableItem_' + i"
       >
         <span class="item-title">{{ m.name }}</span>
-        <div v-show="isMoving" class="item-overlay-protection"></div>
+        <div v-show="isMoving || isResizing" class="item-overlay-protection"></div>
         <Module
           class="item-content"
           :key="i"
@@ -455,6 +460,7 @@ export default {
 
 .item.muuri-item-dragging {
   z-index: 3;
+  cursor: grabbing;
 }
 .item.muuri-item-releasing {
   z-index: 2;

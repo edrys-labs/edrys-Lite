@@ -1,12 +1,17 @@
 import { WebrtcProvider } from 'y-webrtc'
 import { encoding, decoding } from 'lib0'
 import { debug } from '../api/debugHandler'
-import { signChallenge, verifyChallenge, getPeerID } from './Utils'
+import { signChallenge, verifyChallenge, getPeerID, REVERT_INVALID_ORIGIN } from './Utils'
 
 const MESSAGE_TYPE_CUSTOM = 42
 const MESSAGE_TYPE_ID = 43
 const MESSAGE_TYPE_HANDSHAKE = 44
 const MESSAGE_EXPIRATION_TIME = 10000 // 10 seconds
+// Defends against signaling-server subscriptions going stale on long-lived tabs:
+// the WS stays open (ping/pong) but the server stops forwarding announces, making
+// the peer invisible to newcomers. Re-subscribing + re-announcing on the same
+// open WS recovers the room without a reconnect.
+const RE_ANNOUNCE_INTERVAL = 60000 // 60 seconds
 
 // A simple UUID generator (you could use a library like uuid)
 function generateUniqueId() {
@@ -21,6 +26,7 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
   private _bcChannel: BroadcastChannel
   private _processedMessages: Map<string, number>
   private _cleanupInterval: number | null = null
+  private _reAnnounceInterval: number | null = null
   private _leaveListener: Function | null = null
   private _pendingVerification: Map<string, { userid: string; peer: any; expiresAt: number }>
   private _classroomId: string
@@ -28,12 +34,30 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
 
   constructor(roomName: string, doc: any, options: any) {
     super(roomName, doc, options)
+
+    // Revert filter: drop outgoing updates whose origin is REVERT_INVALID_ORIGIN
+    // so local rollback transactions stay local.
+    const baseDocUpdateHandler = (this as any)._docUpdateHandler
+    if (typeof baseDocUpdateHandler === 'function') {
+      doc.off('update', baseDocUpdateHandler)
+      const filteredHandler = (update: Uint8Array, origin: any) => {
+        if (origin === REVERT_INVALID_ORIGIN) return
+        return baseDocUpdateHandler(update, origin)
+      }
+      ;(this as any)._docUpdateHandler = filteredHandler
+      doc.on('update', filteredHandler)
+    }
+
     // Map of processed messages: messageId -> receivedTimestamp
     this._processedMessages = new Map()
     // Start periodic cleanup of old messages
     this._cleanupInterval = window.setInterval(
       () => this._cleanupProcessedMessages(),
       MESSAGE_EXPIRATION_TIME
+    )
+    this._reAnnounceInterval = window.setInterval(
+      () => this._reAnnounceToSignaling(),
+      RE_ANNOUNCE_INTERVAL
     )
 
     // Map to store peers we've already set up listeners for
@@ -330,6 +354,32 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
   }
 
   /**
+   * Re-subscribe + re-announce to every connected signaling conn. y-webrtc only
+   * sends `subscribe` once (on initial WS open); if the server silently drops
+   * the subscription while the WS stays alive, the peer becomes invisible to
+   * newcomers. Periodically re-sending restores forwarding without a reconnect.
+   */
+  private _reAnnounceToSignaling() {
+    const room: any = (this as any).room
+    if (!room) return
+
+    const conns: any[] = (this as any).signalingConns || []
+    for (const conn of conns) {
+      if (!conn?.connected) continue
+
+      conn.send({ type: 'subscribe', topics: [room.name] })
+
+      if (!room.key) {
+        conn.send({
+          type: 'publish',
+          topic: room.name,
+          data: { type: 'announce', from: room.peerId },
+        })
+      }
+    }
+  }
+
+  /**
    * Clean up resources when the provider is destroyed.
    */
   destroy() {
@@ -344,6 +394,11 @@ export class EdrysWebrtcProvider extends WebrtcProvider {
     if (this._cleanupInterval) {
       clearInterval(this._cleanupInterval)
       this._cleanupInterval = null
+    }
+
+    if (this._reAnnounceInterval) {
+      clearInterval(this._reAnnounceInterval)
+      this._reAnnounceInterval = null
     }
 
     this._setupPeers.clear()

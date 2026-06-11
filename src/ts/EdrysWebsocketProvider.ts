@@ -2,7 +2,7 @@ import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { encoding, decoding } from 'lib0'
 import { debug } from '../api/debugHandler'
-import { signChallenge, verifyChallenge, getPeerID } from './Utils'
+import { signChallenge, verifyChallenge, getPeerID, REVERT_INVALID_ORIGIN } from './Utils'
 
 const MESSAGE_TYPE_CUSTOM = 42
 const MESSAGE_TYPE_ID = 43
@@ -50,6 +50,18 @@ export class EdrysWebsocketProvider {
         params: { userid: this.userid }, // Pass userid as a query parameter
       }
     )
+
+    // Revert filter
+    const baseUpdateHandler: any = (this.provider as any)._updateHandler
+    if (typeof baseUpdateHandler === 'function') {
+      this.doc.off('update', baseUpdateHandler)
+      const filteredHandler = (update: Uint8Array, origin: any) => {
+        if (origin === REVERT_INVALID_ORIGIN) return
+        return baseUpdateHandler(update, origin)
+      }
+      ;(this.provider as any)._updateHandler = filteredHandler
+      this.doc.on('update', filteredHandler)
+    }
 
     // Map of processed messages: messageId -> receivedTimestamp
     this._processedMessages = new Map()

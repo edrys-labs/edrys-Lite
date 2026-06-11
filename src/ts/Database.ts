@@ -11,6 +11,7 @@ export type DatabaseItem = {
   timestamp: number
   data: any
   hash: string | null
+  ownerHash?: string
 }
 
 interface LoggerData {

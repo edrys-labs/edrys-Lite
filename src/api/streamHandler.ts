@@ -16,6 +16,10 @@ function generateStreamPeerID(context: any, streamName: string): string {
   return `stream_${cleanId}`.substring(0, 50)
 }
 
+// Namespaced handshake subjects (won't collide with module messages).
+const STREAM_READY = '__edrys_stream_ready'
+const STREAM_REQUEST = '__edrys_stream_request'
+
 // Helper to build PeerJS options from config
 function getPeerOptions(rtcConfig: RTCConfiguration, peerServerConfig?: any) {
   const baseOptions: any = { config: rtcConfig }
@@ -59,30 +63,33 @@ export class StreamServer {
 
   private setupPeerEvents() {
     this.peer.on('open', () => {
-      setTimeout(() => {
-        // Server ready
-      }, 2000) 
+      // Announce readiness so clients can connect without guessing timers.
+      this.announceReady()
+    })
+
+    // Re-announce when a client asks for this stream (handles late joiners).
+    this.context.onMessage(({ subject, body }: any) => {
+      if (subject === STREAM_REQUEST && body?.streamName === this.streamName) {
+        this.announceReady()
+      }
     })
 
     this.peer.on('connection', (conn) => {
       this.connectedClients.add(conn.peer)
-      
-      // Delay before calling to ensure stable connection
-      setTimeout(() => {
-        this.callClient(conn.peer)
-      }, 300)
-      
+      this.callClient(conn.peer)
+
       conn.on('close', () => {
         this.connectedClients.delete(conn.peer)
       })
 
-      conn.on('error', () => {
+      conn.on('error', (err: any) => {
+        debug.api.general('StreamServer connection error:', err?.type || err)
         this.connectedClients.delete(conn.peer)
       })
     })
 
-    this.peer.on('error', () => {
-      // Handle peer errors silently
+    this.peer.on('error', (err: any) => {
+      debug.api.general('StreamServer peer error:', err?.type || err)
     })
 
     this.peer.on('disconnected', () => {
@@ -90,6 +97,10 @@ export class StreamServer {
         this.peer.reconnect()
       }
     })
+  }
+
+  private announceReady() {
+    this.context.sendMessage(STREAM_READY, { streamName: this.streamName })
   }
 
   private callClient(clientPeerId: string) {
@@ -101,7 +112,8 @@ export class StreamServer {
         return
       }
       
-      call.on('error', () => {
+      call.on('error', (err: any) => {
+        debug.api.general('StreamServer call error:', err?.type || err)
         this.connectedClients.delete(clientPeerId)
       })
     }
@@ -154,17 +166,27 @@ export class StreamClient {
 
   private setupPeerEvents() {
     this.peer.on('open', () => {
-      // Auto-connect to default stream with delay to ensure server is ready
-      if (this.defaultStreamName) {
-        setTimeout(() => {
+      // Connect when the server announces it's ready; also ping in case it's already live.
+      this.context.onMessage(({ subject, body }: any) => {
+        if (
+          subject === STREAM_READY &&
+          body?.streamName === this.defaultStreamName &&
+          this.currentStreamName !== this.defaultStreamName
+        ) {
           this.selectStream(this.defaultStreamName!)
-        }, 3000)
+        }
+      })
+
+      if (this.defaultStreamName) {
+        this.context.sendMessage(STREAM_REQUEST, {
+          streamName: this.defaultStreamName,
+        })
       }
     })
 
     this.peer.on('call', (call) => {
       call.answer()
-      
+
       call.on('stream', (remoteStream) => {
         const metadata = {
           streamName: this.currentStreamName || 'unknown',
@@ -175,21 +197,18 @@ export class StreamClient {
     })
 
     this.peer.on('error', (err) => {
-      // Handle "peer not found" errors with retry logic
+      debug.api.general('StreamClient peer error:', err?.type || err)
+
+      // Safety net only: if a connect attempt raced the server registration,
+      // retry briefly. The handshake is the primary connection path.
       if (err.type === 'peer-unavailable' || err.message?.includes('Could not connect to peer')) {
         if (this.currentStreamName && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++
-          
-          const baseDelay = this.isInitialConnection ? this.reconnectDelay * 2 : this.reconnectDelay
-          const delay = baseDelay * Math.pow(2, this.reconnectAttempts - 1)
-          
           this.connectionTimeout = setTimeout(() => {
             if (!this.peer.destroyed && this.currentStreamName) {
               this.selectStream(this.currentStreamName!)
             }
-          }, delay)
-        } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-          this.isInitialConnection = false
+          }, this.reconnectDelay)
         }
       }
     })
@@ -247,12 +266,14 @@ export class StreamClient {
         this.currentConnection = null
       })
 
-      this.currentConnection.on('error', () => {
+      this.currentConnection.on('error', (err: any) => {
+        debug.api.general('StreamClient connection error:', err?.type || err)
         this.currentConnection = null
         this.handleConnectionFailure()
       })
 
-    } catch (error) {
+    } catch (error: any) {
+      debug.api.general('StreamClient makeConnection error:', error?.message || error)
       this.handleConnectionFailure()
     }
   }
