@@ -318,9 +318,11 @@ window['Edrys'] = {
     debug.api.general(`Streaming using method: ${method}`)
 
     if (method === 'websocket') {
-      const wsServer = new WebSocketStreamServer(this, stream, options)
+      const streamName = options.streamName || this.module.stationConfig?.streamName || 'Camera 1'
+      const wsServer = new WebSocketStreamServer(this, stream, { ...options, streamName })
       return {
         stop: () => wsServer.stop(),
+        updateStream: (newStream: MediaStream) => wsServer.updateStream(newStream),
       }
     } else {
       const config = await getWebRTCConfig(this.origin)
@@ -341,7 +343,8 @@ window['Edrys'] = {
     debug.api.general(`Receiving stream using method: ${method}`)
 
     if (method === 'websocket') {
-      const wsClient = new WebSocketStreamClient(this, handler, options)
+      const streamName = options.streamName || this.module.stationConfig?.streamName || 'Camera 1'
+      const wsClient = new WebSocketStreamClient(this, handler, { ...options, streamName })
       return Promise.resolve({
         stop: () => wsClient.stop(),
       })

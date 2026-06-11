@@ -316,48 +316,38 @@ export class StreamClient {
   }
 }
 
-// Run setInterval inside a tiny worker (Browsers throttle setInterval to ~1Hz in hidden tabs).
-function createUnthrottledTicker(intervalMs: number, onTick: () => void): { stop: () => void } {
-  try {
-    const source = `setInterval(() => postMessage(0), ${intervalMs})`
-    const url = URL.createObjectURL(new Blob([source], { type: 'application/javascript' }))
-    const worker = new Worker(url)
-    URL.revokeObjectURL(url)
-    worker.onmessage = onTick
-    return { stop: () => worker.terminate() }
-  } catch (err: any) {
-    // No workers available: fall back to a (background-throttled) main timer.
-    debug.api.general('Worker ticker unavailable, using setInterval:', err?.message || err)
-    const id = window.setInterval(onTick, intervalMs)
-    return { stop: () => clearInterval(id) }
-  }
-}
+// WebSocket fallback transport: the station encodes with
+// MediaRecorder (WebM/VP8[/Opus]) and ships compressed chunks as binary; the
+// viewer feeds them into a MediaSource and plays the resulting <video>. The relay
+// forwards chunks per room.
+const WS_TIMESLICE_MS = 250 // smaller chunks = lower baseline latency
+const WS_MAX_LAG = 1 // seconds behind live before we jump to the edge
 
-const WS_FPS = 15
-const WS_JPEG_QUALITY = 0.7
+// room||streamName keying (mirrors WebRTC) so multiple WS streams coexist per room.
+function buildWsRoomId(context: any, streamName: string): string {
+  const baseRoom = context.class_id || context.liveUser?.room || ''
+  return `${baseRoom}_${streamName}`.replace(/[^a-zA-Z0-9_-]/g, '_')
+}
 
 abstract class WebSocketStreamBase {
   protected context: any
   protected wsConnection: WebSocket | null = null
-  protected canvas: HTMLCanvasElement
-  protected ctx: CanvasRenderingContext2D
   protected websocketUrl: string
+  protected streamName: string
   protected roomId: string
   private label: string
 
   constructor(context: any, options: any, label: string) {
     this.context = context
     this.websocketUrl = options.websocketUrl
-    this.roomId = context.class_id || context.liveUser?.room
+    this.streamName = options.streamName || 'Camera 1'
+    this.roomId = buildWsRoomId(context, this.streamName)
     this.label = label
-    this.canvas = document.createElement('canvas')
-    this.canvas.width = 640
-    this.canvas.height = 480
-    this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D
   }
 
   protected connect() {
     this.wsConnection = new WebSocket(this.websocketUrl)
+    this.wsConnection.binaryType = 'arraybuffer'
     this.wsConnection.onopen = () => this.onOpen()
     this.wsConnection.onmessage = (event) => this.onMessage(event)
     this.wsConnection.onerror = (ev) => debug.api.general(`${this.label} WS error:`, ev)
@@ -369,11 +359,9 @@ abstract class WebSocketStreamBase {
     }
   }
 
-  // Resize canvas to match the source only when dimensions actually change.
-  protected resizeCanvas(width: number, height: number) {
-    if (this.canvas.width !== width || this.canvas.height !== height) {
-      this.canvas.width = width
-      this.canvas.height = height
+  protected sendBinary(chunk: Blob | ArrayBuffer) {
+    if (this.wsConnection?.readyState === WebSocket.OPEN) {
+      this.wsConnection.send(chunk)
     }
   }
 
@@ -388,104 +376,217 @@ abstract class WebSocketStreamBase {
   }
 }
 
-// WebSocket Stream Server
+// Station side: record the camera stream and push chunks to the relay.
 export class WebSocketStreamServer extends WebSocketStreamBase {
-  private videoElement: HTMLVideoElement
-  private ticker: { stop: () => void } | null = null
+  private stream: MediaStream
+  private recorder: MediaRecorder | null = null
 
   constructor(context: any, stream: MediaStream, options: any = {}) {
     super(context, options, 'WebSocketStreamServer')
-
-    this.videoElement = document.createElement('video')
-    this.videoElement.srcObject = stream
-    this.videoElement.muted = true
-    this.videoElement.play()
-
-    this.videoElement.onloadedmetadata = () => {
-      this.resizeCanvas(this.videoElement.videoWidth, this.videoElement.videoHeight)
-      this.connect()
-    }
+    this.stream = stream
+    this.connect()
   }
 
   protected onOpen() {
-    this.send({ type: 'register-source', roomId: this.roomId })
-    this.startFrameCapture()
-  }
-
-  protected onMessage() {
-    // Server doesn't act on inbound messages.
-  }
-
-  private startFrameCapture() {
-    this.ticker = createUnthrottledTicker(1000 / WS_FPS, () => {
-      const video = this.videoElement
-      if (this.wsConnection?.readyState !== WebSocket.OPEN) return
-      if (video.readyState !== video.HAVE_ENOUGH_DATA) return
-
-      try {
-        this.resizeCanvas(video.videoWidth, video.videoHeight)
-        this.ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight)
-        this.send({ type: 'frame', data: this.canvas.toDataURL('image/jpeg', WS_JPEG_QUALITY) })
-      } catch (error: any) {
-        debug.api.general('WebSocketStreamServer frame capture error:', error?.message || error)
-      }
+    this.startRecording()
+    // Register with the EXACT mimeType the recorder produces — the viewer's
+    // SourceBuffer must declare the same codecs or its init segment is rejected.
+    this.send({
+      type: 'register-source',
+      roomId: this.roomId,
+      streamName: this.streamName,
+      mimeType: this.mimeType,
     })
   }
 
+  protected onMessage(event: MessageEvent) {
+    try {
+      const msg = JSON.parse(event.data)
+      // A viewer joined: restart the recorder so they get a fresh init segment at t=0.
+      if (msg.type === 'viewer-joined') this.startRecording()
+    } catch { /* ignore non-JSON */ }
+  }
+
+  // Codec string matching the tracks actually being recorded (vp8-only if no audio).
+  private get mimeType(): string {
+    const codecs = []
+    if (this.stream.getVideoTracks().length) codecs.push('vp8')
+    if (this.stream.getAudioTracks().length) codecs.push('opus')
+    return `video/webm;codecs="${codecs.join(',')}"`
+  }
+
+  private startRecording() {
+    if (this.recorder) this.recorder.stop()
+    try {
+      const mime = this.mimeType
+      const opts = MediaRecorder.isTypeSupported(mime) ? { mimeType: mime } : undefined
+      this.recorder = new MediaRecorder(this.stream, opts)
+      this.recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) this.sendBinary(e.data)
+      }
+      this.recorder.onerror = (e: any) =>
+        console.warn('[ws-station] recorder error', e?.error?.name || e)
+      this.recorder.start(WS_TIMESLICE_MS)
+    } catch (error: any) {
+      debug.api.general('WebSocketStreamServer recorder error:', error?.message || error)
+    }
+  }
+
+  // Camera switch: restart the recorder so it emits a fresh init segment.
+  public updateStream(newStream: MediaStream) {
+    this.stream = newStream
+    this.startRecording()
+  }
+
   public stop() {
-    this.ticker?.stop()
-    this.ticker = null
+    if (this.recorder && this.recorder.state !== 'inactive') this.recorder.stop()
+    this.recorder = null
     super.stop()
   }
 }
 
-// WebSocket Stream Client
+// Viewer side: feed incoming chunks into a MediaSource and hand the <video>'s
+// captured stream back to the module.
 export class WebSocketStreamClient extends WebSocketStreamBase {
-  private handler: (stream: MediaStream, settings: any) => void
+  private handler: (stream: MediaStream, settings: any, metadata?: any) => void
   private stream: MediaStream | null = null
-  private img: HTMLImageElement
+  private video: HTMLVideoElement
+  private mediaSource = new MediaSource()
+  private sourceBuffer: SourceBuffer | null = null
+  private pending: ArrayBuffer[] = []
+  private handedOff = false
+  // Codec the SourceBuffer must declare; announced by the source (vp8-only if no audio).
+  private mimeType: string | null = null
+  private mediaSourceOpen = false
 
-  constructor(context: any, handler: (stream: MediaStream, settings: any) => void, options: any = {}) {
+  constructor(
+    context: any,
+    handler: (stream: MediaStream, settings: any, metadata?: any) => void,
+    options: any = {}
+  ) {
     super(context, options, 'WebSocketStreamClient')
     this.handler = handler
 
-    this.img = new Image()
-    this.img.onload = () => this.renderFrame()
+    this.video = document.createElement('video')
+    this.video.muted = true
+    this.video.playsInline = true
+    this.video.autoplay = true
+    this.video.onloadeddata = () => this.handOff()
+    this.video.onerror = () =>
+      console.warn('[ws-view] video error', this.video.error?.code, this.video.error?.message)
+    this.video.src = URL.createObjectURL(this.mediaSource)
+
+    this.mediaSource.addEventListener('sourceopen', () => {
+      this.mediaSourceOpen = true
+      this.maybeCreateSourceBuffer()
+    })
 
     this.connect()
   }
 
   protected onOpen() {
-    if (this.roomId) {
-      this.send({ type: 'join-room', roomId: this.roomId })
+    if (this.roomId) this.send({ type: 'join-room', roomId: this.roomId })
+  }
+
+  // Needs both the MediaSource open and the source's mimeType; whichever lands last calls this.
+  private maybeCreateSourceBuffer() {
+    if (this.sourceBuffer || !this.mediaSourceOpen || !this.mimeType) return
+    if (!MediaSource.isTypeSupported(this.mimeType)) {
+      debug.api.general('WebSocketStreamClient unsupported mimeType:', this.mimeType)
+      return
     }
+    this.sourceBuffer = this.mediaSource.addSourceBuffer(this.mimeType)
+    this.sourceBuffer.addEventListener('updateend', () => {
+      // Snap to live, then play the offscreen <video> → onloadeddata → hand-off.
+      this.syncToLive()
+      if (this.video.paused) this.video.play().catch(() => {})
+      this.flush()
+    })
+    this.flush()
   }
 
   protected onMessage(event: MessageEvent) {
+    // Binary = media chunk; string = JSON control message.
+    if (typeof event.data !== 'string') {
+      const chunk = event.data as ArrayBuffer
+      // An init segment mid-stream means the source restarted (its timeline resets
+      // to ~0) — rebuild the MediaSource so the new stream starts clean.
+      if (this.sourceBuffer && this.isInitSegment(chunk)) {
+        this.rebuild()
+      }
+      this.pending.push(chunk)
+      this.flush()
+      return
+    }
     try {
-      const message = JSON.parse(event.data)
-      if (message.type === 'frame' && message.data) {
-        this.img.src = message.data
+      const msg = JSON.parse(event.data)
+      // The source announces the codec string its init segment uses.
+      if (msg.type === 'source-available' && msg.mimeType) {
+        this.mimeType = msg.mimeType
+        this.maybeCreateSourceBuffer()
       }
     } catch (error: any) {
       debug.api.general('WebSocketStreamClient message parse error:', error?.message || error)
     }
   }
 
-  private renderFrame() {
-    try {
-      this.resizeCanvas(this.img.width, this.img.height)
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
-      this.ctx.drawImage(this.img, 0, 0)
+  // WebM streams begin with the EBML header magic bytes 0x1A45DFA3.
+  private isInitSegment(chunk: ArrayBuffer): boolean {
+    if (chunk.byteLength < 4) return false
+    const b = new Uint8Array(chunk, 0, 4)
+    return b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3
+  }
 
-      // First frame: build a MediaStream from the canvas and hand it off.
-      if (!this.stream) {
-        this.stream = this.canvas.captureStream(30)
-        this.handler(this.stream, this.context.module.stationConfig)
-      }
-    } catch (error: any) {
-      debug.api.general('WebSocketStreamClient image render error:', error?.message || error)
+  // Source restarted: rebuild the MediaSource/SourceBuffer and re-hand off (changing
+  // video.src kills the previously captured stream's tracks).
+  private rebuild() {
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop())
+      this.stream = null
     }
+    this.pending = []
+    this.sourceBuffer = null
+    this.mediaSourceOpen = false
+    this.handedOff = false
+    this.mediaSource = new MediaSource()
+    this.mediaSource.addEventListener('sourceopen', () => {
+      this.mediaSourceOpen = true
+      this.maybeCreateSourceBuffer()
+    })
+    this.video.src = URL.createObjectURL(this.mediaSource)
+  }
+
+  // Seek to the live edge once, before hand-off only — repeated seeks corrupt the decoder.
+  private syncToLive() {
+    if (this.handedOff) return
+    const sb = this.sourceBuffer
+    if (!sb || sb.buffered.length === 0) return
+    const liveEnd = sb.buffered.end(sb.buffered.length - 1)
+    if (liveEnd - this.video.currentTime > WS_MAX_LAG) {
+      this.video.currentTime = Math.max(sb.buffered.start(sb.buffered.length - 1), liveEnd - 0.3)
+    }
+  }
+
+  // Append chunks one at a time (a SourceBuffer takes a single append at a time).
+  private flush() {
+    const sb = this.sourceBuffer
+    if (!sb || sb.updating || this.pending.length === 0) return
+    try {
+      sb.appendBuffer(this.pending.shift()!)
+    } catch (error: any) {
+      debug.api.general('WebSocketStreamClient appendBuffer error:', error?.message || error)
+      this.rebuild()
+    }
+  }
+
+  private handOff() {
+    if (this.handedOff) return
+    this.handedOff = true
+    this.stream = (this.video as any).captureStream()
+    this.handler(this.stream!, this.context.module.stationConfig || {}, {
+      streamName: this.streamName,
+      room: this.context.liveUser?.room,
+    })
   }
 
   public stop() {
@@ -494,5 +595,9 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
       this.stream.getTracks().forEach(track => track.stop())
       this.stream = null
     }
+    this.video.pause()
+    this.video.removeAttribute('src')
+    this.sourceBuffer = null
+    this.pending = []
   }
 }
