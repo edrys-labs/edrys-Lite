@@ -171,7 +171,7 @@ export class StreamClient {
         if (
           subject === STREAM_READY &&
           body?.streamName === this.defaultStreamName &&
-          this.currentStreamName !== this.defaultStreamName
+          !this.currentConnection
         ) {
           this.selectStream(this.defaultStreamName!)
         }
