@@ -147,6 +147,7 @@ export class StreamClient {
   private reconnectDelay: number = 3000
   private isInitialConnection: boolean = true
   private connectionTimeout: any = null
+  private requestInterval: any = null
 
   constructor(
     context: any, 
@@ -178,9 +179,13 @@ export class StreamClient {
       })
 
       if (this.defaultStreamName) {
-        this.context.sendMessage(STREAM_REQUEST, {
-          streamName: this.defaultStreamName,
-        })
+        // Retry until connected: the comm layer can drop messages right after joining.
+        this.requestStream()
+        this.requestInterval = setInterval(() => {
+          if (!this.currentConnection) {
+            this.requestStream()
+          }
+        }, 3000)
       }
     })
 
@@ -221,6 +226,12 @@ export class StreamClient {
   }
 
   private currentStreamName?: string
+
+  private requestStream() {
+    this.context.sendMessage(STREAM_REQUEST, {
+      streamName: this.defaultStreamName,
+    })
+  }
 
   public selectStream(streamName: string) {
     // Clear any pending connection attempts
@@ -298,11 +309,16 @@ export class StreamClient {
     // Reset reconnection attempts when stopping
     this.reconnectAttempts = 0
     this.isInitialConnection = true // Reset for next connection
-    
+
     // Clear any pending connection attempts
     if (this.connectionTimeout) {
       clearTimeout(this.connectionTimeout)
       this.connectionTimeout = null
+    }
+
+    if (this.requestInterval) {
+      clearInterval(this.requestInterval)
+      this.requestInterval = null
     }
     
     if (this.currentConnection) {

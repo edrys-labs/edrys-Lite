@@ -121,6 +121,8 @@ export class EdrysWebsocketProvider {
       added.forEach(clientId => {
         const state = this.provider.awareness.getStates().get(clientId)
         if (state && state.user && state.user.id !== this.userid) {
+          // Verify immediately instead of waiting for the next heartbeat update
+          this._verifyPeer(state.user)
           this._connectedUsers.add(state.user.id)
           this._lastHeartbeats.set(state.user.id, Date.now())
         }
@@ -132,20 +134,9 @@ export class EdrysWebsocketProvider {
         if (state) {
           // Track heartbeat and verify identity for this user
           if (state.user && state.user.id !== this.userid) {
-            const { id: remoteId, publicKey, signature } = state.user
-
-            if (publicKey && signature && !this._verifiedUsers.has(remoteId)) {
-              verifyChallenge(this._classroomId, publicKey, signature).then((valid) => {
-                if (valid) {
-                  this._verifiedUsers.add(remoteId)
-                } else {
-                  console.warn(`WebSocket peer ${remoteId} failed handshake — ignoring`)
-                }
-              })
-            }
-
-            this._lastHeartbeats.set(remoteId, Date.now())
-            this._connectedUsers.add(remoteId)
+            this._verifyPeer(state.user)
+            this._lastHeartbeats.set(state.user.id, Date.now())
+            this._connectedUsers.add(state.user.id)
           }
 
           // Process custom message if present, not from this client, and from a verified peer
@@ -220,6 +211,23 @@ export class EdrysWebsocketProvider {
           }
         }, 500)
       }
+    }
+  }
+
+  /**
+   * Verifies a remote peer's identity once, based on its signed challenge.
+   */
+  _verifyPeer(user: any) {
+    const { id: remoteId, publicKey, signature } = user
+
+    if (publicKey && signature && !this._verifiedUsers.has(remoteId)) {
+      verifyChallenge(this._classroomId, publicKey, signature).then((valid) => {
+        if (valid) {
+          this._verifiedUsers.add(remoteId)
+        } else {
+          console.warn(`WebSocket peer ${remoteId} failed handshake — ignoring`)
+        }
+      })
     }
   }
 
