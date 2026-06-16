@@ -322,11 +322,14 @@ export class StreamClient {
 // forwards chunks per room.
 const WS_TIMESLICE_MS = 250 // smaller chunks = lower baseline latency
 const WS_MAX_LAG = 1 // seconds behind live before we jump to the edge
+const WS_BUFFER_KEEP_S = 30 // history retained behind playback after a trim
+const WS_BUFFER_TRIM_AT_S = 60 // trim once history exceeds this
+const WS_RECONNECT_BASE_MS = 1000
+const WS_RECONNECT_MAX_MS = 15000
 
-// room||streamName keying (mirrors WebRTC) so multiple WS streams coexist per room.
 function buildWsRoomId(context: any, streamName: string): string {
-  const baseRoom = context.class_id || context.liveUser?.room || ''
-  return `${baseRoom}_${streamName}`.replace(/[^a-zA-Z0-9_-]/g, '_')
+  const baseId = `${context.class_id}_${context.liveUser?.room}_${streamName}`
+  return baseId.replace(/[^a-zA-Z0-9_-]/g, '_')
 }
 
 abstract class WebSocketStreamBase {
@@ -336,6 +339,9 @@ abstract class WebSocketStreamBase {
   protected streamName: string
   protected roomId: string
   private label: string
+  private reconnectDelay = WS_RECONNECT_BASE_MS
+  private reconnectTimer: any = null
+  private stopped = false
 
   constructor(context: any, options: any, label: string) {
     this.context = context
@@ -348,9 +354,20 @@ abstract class WebSocketStreamBase {
   protected connect() {
     this.wsConnection = new WebSocket(this.websocketUrl)
     this.wsConnection.binaryType = 'arraybuffer'
-    this.wsConnection.onopen = () => this.onOpen()
+    this.wsConnection.onopen = () => {
+      this.reconnectDelay = WS_RECONNECT_BASE_MS
+      this.onOpen()
+    }
     this.wsConnection.onmessage = (event) => this.onMessage(event)
     this.wsConnection.onerror = (ev) => debug.api.general(`${this.label} WS error:`, ev)
+    // Any close we didn't initiate (relay restart, network blip): reconnect with
+    // backoff. onOpen re-registers/re-joins, so the stream recovers by itself.
+    this.wsConnection.onclose = () => {
+      this.wsConnection = null
+      if (this.stopped) return
+      this.reconnectTimer = setTimeout(() => this.connect(), this.reconnectDelay)
+      this.reconnectDelay = Math.min(this.reconnectDelay * 2, WS_RECONNECT_MAX_MS)
+    }
   }
 
   protected send(payload: any) {
@@ -369,6 +386,11 @@ abstract class WebSocketStreamBase {
   protected abstract onMessage(event: MessageEvent): void
 
   public stop() {
+    this.stopped = true
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
     if (this.wsConnection) {
       this.wsConnection.close()
       this.wsConnection = null
@@ -380,6 +402,7 @@ abstract class WebSocketStreamBase {
 export class WebSocketStreamServer extends WebSocketStreamBase {
   private stream: MediaStream
   private recorder: MediaRecorder | null = null
+  private restartTimer: any = null
 
   constructor(context: any, stream: MediaStream, options: any = {}) {
     super(context, options, 'WebSocketStreamServer')
@@ -389,8 +412,12 @@ export class WebSocketStreamServer extends WebSocketStreamBase {
 
   protected onOpen() {
     this.startRecording()
-    // Register with the EXACT mimeType the recorder produces — the viewer's
-    // SourceBuffer must declare the same codecs or its init segment is rejected.
+    this.register()
+  }
+
+  // Register with the EXACT mimeType the recorder produces — the viewer's
+  // SourceBuffer must declare the same codecs or its init segment is rejected.
+  private register() {
     this.send({
       type: 'register-source',
       roomId: this.roomId,
@@ -402,8 +429,13 @@ export class WebSocketStreamServer extends WebSocketStreamBase {
   protected onMessage(event: MessageEvent) {
     try {
       const msg = JSON.parse(event.data)
-      // A viewer joined: restart the recorder so they get a fresh init segment at t=0.
-      if (msg.type === 'viewer-joined') this.startRecording()
+      // A viewer joined: restart the recorder so they get a fresh init segment at
+      // t=0. Debounced so a class joining at once causes one restart, not N
+      // (every restart glitches all existing viewers).
+      if (msg.type === 'viewer-joined') {
+        clearTimeout(this.restartTimer)
+        this.restartTimer = setTimeout(() => this.startRecording(), 500)
+      }
     } catch { /* ignore non-JSON */ }
   }
 
@@ -416,7 +448,12 @@ export class WebSocketStreamServer extends WebSocketStreamBase {
   }
 
   private startRecording() {
-    if (this.recorder) this.recorder.stop()
+    if (this.recorder) {
+      // Detach first so a trailing chunk from the old recorder can't arrive
+      // after the new recorder's init segment.
+      this.recorder.ondataavailable = null
+      if (this.recorder.state !== 'inactive') this.recorder.stop()
+    }
     try {
       const mime = this.mimeType
       const opts = MediaRecorder.isTypeSupported(mime) ? { mimeType: mime } : undefined
@@ -434,12 +471,19 @@ export class WebSocketStreamServer extends WebSocketStreamBase {
 
   // Camera switch: restart the recorder so it emits a fresh init segment.
   public updateStream(newStream: MediaStream) {
+    const oldMime = this.mimeType
     this.stream = newStream
     this.startRecording()
+    // Track composition changed (e.g. audio toggled): viewers must re-declare codecs.
+    if (this.mimeType !== oldMime) this.register()
   }
 
   public stop() {
-    if (this.recorder && this.recorder.state !== 'inactive') this.recorder.stop()
+    clearTimeout(this.restartTimer)
+    if (this.recorder) {
+      this.recorder.ondataavailable = null
+      if (this.recorder.state !== 'inactive') this.recorder.stop()
+    }
     this.recorder = null
     super.stop()
   }
@@ -500,9 +544,26 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
       // Snap to live, then play the offscreen <video> → onloadeddata → hand-off.
       this.syncToLive()
       if (this.video.paused) this.video.play().catch(() => {})
-      this.flush()
+      // If a trim started, its own updateend resumes the flush.
+      if (!this.trim()) this.flush()
     })
     this.flush()
+  }
+
+  // Drop old history so the SourceBuffer never hits the browser's quota
+  // (~100-150MB in Chrome — minutes at camera bitrates): quota exhaustion kills
+  // the stream with no recovery path. Returns true if a removal was started.
+  private trim(): boolean {
+    const sb = this.sourceBuffer
+    if (!sb || sb.updating || sb.buffered.length === 0) return false
+    const start = sb.buffered.start(0)
+    if (this.video.currentTime - start < WS_BUFFER_TRIM_AT_S) return false
+    try {
+      sb.remove(start, this.video.currentTime - WS_BUFFER_KEEP_S)
+      return true
+    } catch {
+      return false
+    }
   }
 
   protected onMessage(event: MessageEvent) {
@@ -520,8 +581,10 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
     }
     try {
       const msg = JSON.parse(event.data)
-      // The source announces the codec string its init segment uses.
+      // The source announces the codec string its init segment uses. A changed
+      // codec (e.g. audio toggled) needs a SourceBuffer with the new declaration.
       if (msg.type === 'source-available' && msg.mimeType) {
+        if (this.sourceBuffer && msg.mimeType !== this.mimeType) this.rebuild()
         this.mimeType = msg.mimeType
         this.maybeCreateSourceBuffer()
       }
@@ -553,6 +616,7 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
       this.mediaSourceOpen = true
       this.maybeCreateSourceBuffer()
     })
+    URL.revokeObjectURL(this.video.src)
     this.video.src = URL.createObjectURL(this.mediaSource)
   }
 
@@ -596,6 +660,7 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
       this.stream = null
     }
     this.video.pause()
+    URL.revokeObjectURL(this.video.src)
     this.video.removeAttribute('src')
     this.sourceBuffer = null
     this.pending = []
