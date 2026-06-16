@@ -182,6 +182,7 @@ export default class Peer {
   private peerID: string
 
   private expectedOwner: string | null = null
+  private ownerMismatch: boolean = false
 
   constructor(
     setup: { id: string; data: any; timestamp: number; hash: string | null },
@@ -732,6 +733,8 @@ export default class Peer {
       const incomingHash = await hashPubKey(data.createdBy)
       if (incomingHash !== this.expectedOwner) {
         LOG('Setup rejected: createdBy does not match expected owner from URL')
+        this.ownerMismatch = true
+        this.update('room')
         return false
       }
     }
@@ -1381,6 +1384,10 @@ export default class Peer {
         break
       }
       case 'room': {
+        if (this.ownerMismatch) {
+          if (callback) callback(null)
+          break
+        }
         if (callback && this.connected) {
           callback(await this.toJSON())
           this.callbackUpdate[event] = false
