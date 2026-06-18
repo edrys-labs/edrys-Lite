@@ -249,7 +249,7 @@ export default {
       const seen = new Set<string>();
       const rooms: { label: string; color: string }[] = [];
       for (const mod of this.config.modules) {
-        const key = mod.showInCustom || "*";
+        const key = (mod.showInCustom || "*").toLowerCase();
         if (!seen.has(key)) {
           seen.add(key);
           rooms.push({ label: key, color: this.stringToColor(key) });
@@ -287,14 +287,14 @@ export default {
     },
 
     borderStyle(element, index) {
-      const color = this.stringToColor(element.showInCustom);
+      const color = this.stringToColor(element.showInCustom?.toLowerCase());
       let style = `border-left: 5px solid ${color}; border-right: 5px solid ${color};`;
 
       const prev = this.config.modules[index - 1];
       const next = this.config.modules[index + 1];
 
       // Determine if module is first in its group
-      if (!prev || prev.showInCustom !== element.showInCustom) {
+      if (!prev || prev.showInCustom?.toLowerCase() !== element.showInCustom?.toLowerCase()) {
         style += `
         border-top: 5px solid ${color};
         border-top-left-radius: 10px !important;
@@ -302,7 +302,7 @@ export default {
       `;
       }
       // Determine if module is last in its group
-      if (!next || next.showInCustom !== element.showInCustom) {
+      if (!next || next.showInCustom?.toLowerCase() !== element.showInCustom?.toLowerCase()) {
         style += `
         border-bottom: 5px solid ${color};
         border-bottom-left-radius: 10px !important;
