@@ -35,36 +35,14 @@
             <v-tooltip location="top">
               <template v-slot:activator="{ props }">
                 <v-btn
-                  v-if="scrapedModules[index]?.moduleConfig"
-                  icon="mdi-playlist-edit"
+                  icon="mdi-cog"
                   variant="text"
                   v-bind="props"
-                  @click="openConfigDialog(index)"
+                  :style="validate_config(index) ? '' : 'color: red'"
+                  @click="openModuleDialog(index)"
                 ></v-btn>
               </template>
               <span>{{ t('settings.modules.tooltip.config') }}</span>
-            </v-tooltip>
-            
-            <v-tooltip location="top">
-              <template v-slot:activator="{ props: tooltipProps }">
-                <v-menu :close-on-content-click="false">
-                  <template v-slot:activator="{ props: menuProps }">
-                    <v-btn
-                      icon="mdi-cog"
-                      variant="text"
-                      v-bind="{ ...tooltipProps, ...menuProps }"
-                      :style="validate_config(index) ? '' : 'color: red'"
-                    ></v-btn>
-                  </template>
-
-                  <Module
-                    v-model:module="config.modules[index]"
-                    v-model:error="errors[index]"
-                    :writeProtection="writeProtection"
-                  ></Module>
-                </v-menu>
-              </template>
-              <span>{{ t('settings.modules.tooltip.manualConfig') }}</span>
             </v-tooltip>
 
             <v-tooltip location="top">
@@ -148,24 +126,95 @@
     </v-list-item>
   </v-list>
 
-  <v-dialog 
-    v-model="isConfigDialogOpen" 
+  <v-dialog
+    v-model="isModuleDialogOpen"
     max-width="800px"
     scrollable
     persistent
   >
-    <ModuleConfigForm
-      v-if="activeModuleIndex !== null"
-      :moduleName="scrapedModules[activeModuleIndex]?.name"
-      :moduleConfig="scrapedModules[activeModuleIndex]?.moduleConfig"
-      :currentConfig="config.modules[activeModuleIndex]?.config"
-      :currentStudentConfig="config.modules[activeModuleIndex]?.studentConfig"
-      :currentTeacherConfig="config.modules[activeModuleIndex]?.teacherConfig"
-      :currentStationConfig="config.modules[activeModuleIndex]?.stationConfig"
-      :writeProtection="writeProtection"
-      @save="updateModuleConfig($event, activeModuleIndex)"
-      @close="closeConfigDialog"
-    />
+    <v-card v-if="moduleDialogIndex !== null" style="display: flex; flex-direction: column; max-height: 90vh">
+      <v-toolbar color="grey-darken-4" density="comfortable">
+        <v-icon class="ml-4 mr-1">{{ scrapedModules[moduleDialogIndex]?.icon || 'mdi-package' }}</v-icon>
+        <v-toolbar-title class="text-h6 font-weight-medium">
+          {{ scrapedModules[moduleDialogIndex]?.name }}
+        </v-toolbar-title>
+        <v-btn icon @click="closeModuleDialog">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-toolbar>
+
+      <v-card-text style="overflow-y: auto; flex: 1 1 auto; padding: 0">
+        <v-expansion-panels variant="accordion" mandatory v-model="activeEditor">
+          <!-- Structured, schema-driven form (only when the module declares a schema) -->
+          <v-expansion-panel
+            v-if="scrapedModules[moduleDialogIndex]?.moduleConfig"
+            value="form"
+            elevation="0"
+          >
+            <v-expansion-panel-title class="editor-panel-title">
+              <v-icon size="18" class="mr-2">mdi-form-select</v-icon>
+              {{ t('settings.modules.moduleConfig.title') }}
+              <template v-slot:actions="{ expanded }">
+                <v-icon>{{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+              </template>
+            </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <ModuleConfigForm
+                ref="moduleConfigForm"
+                :standalone="false"
+                :moduleName="scrapedModules[moduleDialogIndex]?.name"
+                :moduleConfig="scrapedModules[moduleDialogIndex]?.moduleConfig"
+                :currentConfig="moduleDialogDraft?.config"
+                :currentStudentConfig="moduleDialogDraft?.studentConfig"
+                :currentTeacherConfig="moduleDialogDraft?.teacherConfig"
+                :currentStationConfig="moduleDialogDraft?.stationConfig"
+                :writeProtection="writeProtection"
+                @update:hasChanges="formHasChanges = $event"
+              />
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+
+          <!-- Raw manual config -->
+          <v-expansion-panel value="manual" elevation="0">
+            <v-expansion-panel-title class="editor-panel-title">
+              <v-icon size="18" class="mr-2">mdi-code-braces</v-icon>
+              {{ t('settings.modules.tooltip.manualConfig') }}
+              <template v-slot:actions="{ expanded }">
+                <v-icon>{{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+              </template>
+            </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <Module
+                v-model:module="moduleDialogDraft"
+                v-model:error="errors[moduleDialogIndex]"
+                :writeProtection="writeProtection"
+              ></Module>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-card-text>
+
+      <v-divider></v-divider>
+      <v-card-actions>
+        <v-btn variant="outlined" color="grey-darken-4" @click="closeModuleDialog">
+          {{ t('settings.modules.moduleConfig.cancel') }}
+        </v-btn>
+        <v-btn
+          variant="flat"
+          color="grey-darken-4"
+          @click="saveModuleDialog"
+          :disabled="writeProtection"
+        >
+          {{ t('settings.modules.moduleConfig.save') }}
+          <v-badge
+            v-if="dialogHasChanges"
+            color="red"
+            dot
+            style="position: absolute; top: 0; right: 0"
+          ></v-badge>
+        </v-btn>
+      </v-card-actions>
+    </v-card>
   </v-dialog>
 
   <v-divider class="pb-2"></v-divider>
@@ -182,7 +231,7 @@
 </template>
 
 <script lang="ts">
-import { scrapeModule, validateUrl } from "../../ts/Utils";
+import { scrapeModule, validateUrl, parse } from "../../ts/Utils";
 import draggable from "vuedraggable";
 import Module from "./Module.vue";
 import { useI18n } from 'vue-i18n';
@@ -239,12 +288,22 @@ export default {
       colors: {},
 
       isOpenModulesExplorer: false,
-      isConfigDialogOpen: false,
-      activeModuleIndex: null,
+      isModuleDialogOpen: false,
+      moduleDialogIndex: null as number | null,
+      moduleDialogDraft: null as any,
+      formHasChanges: false,
+      moduleDialogOriginal: null as any,
+      activeEditor: "form" as "form" | "manual",
     };
   },
 
   computed: {
+    dialogHasChanges(): boolean {
+      if (this.formHasChanges) return true;
+      if (!this.moduleDialogDraft || !this.moduleDialogOriginal) return false;
+      return JSON.stringify(this.moduleDialogDraft) !== JSON.stringify(this.moduleDialogOriginal);
+    },
+
     roomLegend() {
       const seen = new Set<string>();
       const rooms: { label: string; color: string }[] = [];
@@ -385,22 +444,59 @@ export default {
       this.moduleImportUrl = "";
     },
 
-    openConfigDialog(index) {
-      this.activeModuleIndex = index;
-      this.isConfigDialogOpen = true;
+    openModuleDialog(index: number) {
+      this.moduleDialogIndex = index;
+      const base = {
+        config: "",
+        studentConfig: "",
+        teacherConfig: "",
+        stationConfig: "",
+        showInCustom: "",
+        width: "full",
+        height: "tall",
+      };
+      this.moduleDialogDraft = { ...base, ...JSON.parse(JSON.stringify(this.config.modules[index])) };
+      this.moduleDialogOriginal = JSON.parse(JSON.stringify(this.moduleDialogDraft));
+      this.formHasChanges = false;
+      this.activeEditor = this.scrapedModules[index]?.moduleConfig ? "form" : "manual";
+      this.isModuleDialogOpen = true;
     },
-    
-    closeConfigDialog() {
-      this.isConfigDialogOpen = false;
-      this.activeModuleIndex = null;
+
+    closeModuleDialog() {
+      this.isModuleDialogOpen = false;
+      this.moduleDialogIndex = null;
+      this.moduleDialogDraft = null;
     },
-    
-    updateModuleConfig(formValues, index) {
-      Object.entries(formValues).forEach(([configType, value]) => {
-        this.config.modules[index][configType] = value;
-      });
-      
-      this.closeConfigDialog();
+
+    // Safely turn a config field (YAML/JSON string or object) into a plain object.
+    parseConfig(value: any) {
+      if (!value) return {};
+      if (typeof value === "object") return value;
+      if (typeof value === "string") {
+        try {
+          return value.trim() !== "" ? parse(value) || {} : {};
+        } catch (e) {
+          console.error("Failed to parse module config value:", e);
+          return {};
+        }
+      }
+      return {};
+    },
+
+    saveModuleDialog() {
+      if (this.moduleDialogIndex === null) return;
+
+      const form = this.$refs.moduleConfigForm as any;
+      if (this.activeEditor === "form" && form) {
+        const formConfig = form.saveConfig();
+        Object.entries(formConfig).forEach(([configType, value]) => {
+          const existing = this.parseConfig(this.moduleDialogDraft[configType]);
+          this.moduleDialogDraft[configType] = { ...existing, ...(value as object) };
+        });
+      }
+
+      Object.assign(this.config.modules[this.moduleDialogIndex], this.moduleDialogDraft);
+      this.closeModuleDialog();
     },
   },
   components: { 
@@ -422,6 +518,32 @@ export default {
 </style>
 
 <style scoped>
+.editor-panel-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  min-height: 48px;
+}
+
+.editor-panel-title :deep(.v-icon) {
+  opacity: 1;
+}
+
+.editor-panel-title,
+.editor-panel-title :deep(.v-icon) {
+  color: #757575 !important;
+}
+
+.editor-panel-title.v-expansion-panel-title--active,
+.editor-panel-title.v-expansion-panel-title--active :deep(.v-icon) {
+  color: #1565c0 !important;
+}
+
+.editor-panel-title.v-expansion-panel-title--active {
+  background-color: rgba(21, 101, 192, 0.08);
+}
+
 .drag-ghost {
   opacity: 0;
 }

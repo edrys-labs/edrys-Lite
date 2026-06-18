@@ -103,7 +103,7 @@ settings:
     legend: "دليل الغرف"
     tooltip: 
       config: "تكوين الوحدة"
-      manualConfig: "التكوين اليدوي"
+      manualConfig: "متقدم (تكوين خام)"
       delete: "حذف الوحدة"
     moduleConfig:
       title: "تكوين الوحدة"

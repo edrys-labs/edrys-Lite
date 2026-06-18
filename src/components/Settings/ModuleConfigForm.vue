@@ -1,6 +1,6 @@
 <template>
-  <v-card>
-    <v-toolbar>
+  <v-card :flat="!standalone" :elevation="standalone ? undefined : 0">
+    <v-toolbar v-if="standalone">
       <v-toolbar-title>
         {{ t("settings.modules.moduleConfig.title") }} - {{ moduleName }}
       </v-toolbar-title>
@@ -18,8 +18,10 @@
     <template v-else>
       <v-tabs
         v-model="activeTab"
-        bg-color="surface-variant"
+        bg-color="transparent"
+        color="primary"
         align-tabs="center"
+        density="comfortable"
       >
         <v-tab v-if="configSchemas.config" value="config">
           {{ t("settings.modules.module.generalSettings") }}
@@ -75,10 +77,10 @@
                 </div>
 
                 <!-- Radio Button fields -->
-                <div v-else-if="fieldConfig.type === 'radio-button'">
+                <div v-else-if="fieldConfig.type === 'radio-button'" class="mt-3">
+                  <div class="mb-1 custom-label">{{ field }}</div>
                   <v-radio-group
                     v-model="formValues[configType][field]"
-                    :label="String(field)"
                     :disabled="writeProtection"
                     :hint="fieldConfig.hint"
                     density="compact"
@@ -199,26 +201,28 @@
       </v-card-text>
     </template>
 
-    <v-divider></v-divider>
-    <v-card-actions>
-      <v-btn variant="outlined" color="grey-darken-4" @click="$emit('close')">
-        {{ t("settings.modules.moduleConfig.cancel") }}
-      </v-btn>
-      <v-btn
-        variant="flat"
-        color="grey-darken-4"
-        @click="saveConfig"
-        :disabled="writeProtection"
-      >
-        {{ t("settings.modules.moduleConfig.save") }}
-        <v-badge
-          v-if="hasChanges"
-          color="red"
-          dot
-          style="position: absolute; top: 0; right: 0"
-        ></v-badge>
-      </v-btn>
-    </v-card-actions>
+    <template v-if="standalone">
+      <v-divider></v-divider>
+      <v-card-actions>
+        <v-btn variant="outlined" color="grey-darken-4" @click="$emit('close')">
+          {{ t("settings.modules.moduleConfig.cancel") }}
+        </v-btn>
+        <v-btn
+          variant="flat"
+          color="grey-darken-4"
+          @click="saveConfig"
+          :disabled="writeProtection"
+        >
+          {{ t("settings.modules.moduleConfig.save") }}
+          <v-badge
+            v-if="hasChanges"
+            color="red"
+            dot
+            style="position: absolute; top: 0; right: 0"
+          ></v-badge>
+        </v-btn>
+      </v-card-actions>
+    </template>
   </v-card>
 </template>
 
@@ -268,6 +272,11 @@ export default {
     writeProtection: {
       type: Boolean,
       required: true,
+    },
+
+    standalone: {
+      type: Boolean,
+      default: true,
     },
   },
 
@@ -325,6 +334,12 @@ export default {
         }
       }
       return false;
+    },
+  },
+
+  watch: {
+    hasChanges(val: boolean) {
+      if (!this.standalone) this.$emit('update:hasChanges', val);
     },
   },
 
@@ -481,7 +496,8 @@ export default {
       });
 
       this.$emit("save", configResult);
-      this.$emit("close");
+      if (this.standalone) this.$emit("close");
+      return configResult;
     },
   },
 };
@@ -526,8 +542,19 @@ export default {
 }
 
 .custom-label {
-  font-size: 14px;
-  opacity: 0.7;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #37474f;
+}
+
+:deep(.v-field-label) {
+  color: #37474f;
+  font-weight: 600;
+  opacity: 1;
+}
+
+:deep(.v-field-label--floating) {
+  font-size: 0.78rem;
 }
 
 .code-editor-container {

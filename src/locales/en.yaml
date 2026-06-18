@@ -103,7 +103,7 @@ settings:
     legend: "Room legend"
     tooltip: 
       config: "Module Configuration"
-      manualConfig: "Manual Configuration"
+      manualConfig: "Advanced (raw config)"
       delete: "Delete Module"
     moduleConfig:
       title: "Module Configuration"

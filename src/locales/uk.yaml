@@ -103,7 +103,7 @@ settings:
     legend: "Легенда кімнат"
     tooltip: 
       config: "Конфігурація модуля"
-      manualConfig: "Ручна конфігурація"
+      manualConfig: "Розширена (необроблена конфігурація)"
       delete: "Видалити модуль"
     moduleConfig:
       title: "Конфігурація модуля"

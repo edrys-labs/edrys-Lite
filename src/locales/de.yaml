@@ -103,7 +103,7 @@ settings:
     legend: "Raumlegende"
     tooltip: 
       config: "Modulkonfiguration"
-      manualConfig: "Manuelle Konfiguration"
+      manualConfig: "Erweitert (Rohkonfiguration)"
       delete: "Modul löschen"
     moduleConfig:
       title: "Modulkonfiguration"

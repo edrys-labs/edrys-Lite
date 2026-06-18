@@ -103,7 +103,7 @@ settings:
     legend: "Leyenda de salas"
     tooltip: 
       config: "Configuración del Módulo"
-      manualConfig: "Configuración Manual"
+      manualConfig: "Avanzado (configuración sin procesar)"
       delete: "Eliminar Módulo"
     moduleConfig:
       title: "Configuración del Módulo"
