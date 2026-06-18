@@ -5,6 +5,7 @@
       item-key="id"
       @end="move"
       class="list-group"
+      ghost-class="drag-ghost"
       :disabled="writeProtection"
     >
       <template #item="{ element, index }">
@@ -421,6 +422,10 @@ export default {
 </style>
 
 <style scoped>
+.drag-ghost {
+  opacity: 0;
+}
+
 .list-group-item {
   transition: box-shadow 0.3s ease, transform 0.3s ease;
   background-color: white;
