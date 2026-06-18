@@ -385,9 +385,9 @@ export default {
 
       const icon = {
         teacher: "mdi-account-star-outline",
-        student: "mdi-account-plus-outline",
+        student: "mdi-account-outline",
         station: "mdi-account-cog-outline",
-        visitor: "mdi-account-minus-outline",
+        visitor: "mdi-eye-outline",
       };
 
       for (const id in this.liveClassProxy.users) {

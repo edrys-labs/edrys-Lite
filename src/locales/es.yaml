@@ -60,8 +60,8 @@ deploy:
     fetchingError: "Error al obtener datos"
   overlay:
     isReady: "Felicitaciones, tu laboratorio está listo"
-    redirect: "Serás redirigido automáticamente al nuevo aula que se ha creado en"
-    info: "Eres propietario de esta aula y eres el único que puede modificarla y puedes compartir el enlace con tus estudiantes. El enlace es único y recrear o recargar este enlace creará una nueva sala."
+    redirect: "Haz clic en el botón de abajo para ir a tu nueva aula. Si marcas \"No mostrar este mensaje de nuevo\", serás redirigido automáticamente la próxima vez."
+    info: "Eres propietario de esta aula y eres el único que puede modificarla. Comparte el enlace a esta página con tus estudiantes para que puedan unirse. El enlace es único — recrearlo o recargarlo creará una nueva sala."
     checkbox: "No mostrar este mensaje de nuevo"
     goto: "Ir al Aula"
 

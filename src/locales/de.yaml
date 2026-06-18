@@ -60,8 +60,8 @@ deploy:
     fetchingError: "Fehler beim Abrufen von Daten"
   overlay:
     isReady: "Herzlichen Glückwunsch, Ihr Labor ist bereit"
-    redirect: "Sie werden automatisch zu dem neuen Klassenzimmer umgeleitet, das erstellt wurde"
-    info: "Sie besitzen dieses Klassenzimmer und sind der einzige, der es ändern kann, und Sie können den Link mit Ihren Schülern teilen. Der Link ist einzigartig und das Erstellen oder Neuladen dieses Links erstellt einen neuen Raum."
+    redirect: "Klicken Sie auf die Schaltfläche unten, um zu Ihrem neuen Klassenzimmer zu gelangen. Wenn Sie \"Diese Nachricht nicht mehr anzeigen\" aktivieren, werden Sie beim nächsten Mal automatisch weitergeleitet."
+    info: "Sie besitzen dieses Klassenzimmer und sind der einzige, der es ändern kann. Teilen Sie den Link zu dieser Webseite mit Ihren Schülern, damit diese beitreten können. Der Link ist einzigartig — ein neues Erstellen oder Neuladen erstellt einen neuen Raum."
     checkbox: "Diese Nachricht nicht mehr anzeigen"
     goto: "Zum Klassenzimmer"
 

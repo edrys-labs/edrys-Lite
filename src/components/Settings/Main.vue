@@ -32,12 +32,14 @@
     :disabled="writeProtection"
   ></v-text-field>
 
+  <!-- selfAssign checkbox hidden until the feature is implemented
   <v-checkbox
     v-model="config.meta.selfAssign"
     :label="t('settings.main.selfAssign')"
     outlined
     :disabled="writeProtection"
   ></v-checkbox>
+  -->
 </template>
 
 <script lang="ts">

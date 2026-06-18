@@ -60,8 +60,8 @@ deploy:
     fetchingError: "Error fetching data"
   overlay:
     isReady: "Congratulations, your lab is ready"
-    redirect: "You will be automatically redirected to the new classroom that has been created at"
-    info: "You own this classroom and you are the only one who can modify it and you can share the link with your students. The link is unique and recreating or reloading this link will create a new room."
+    redirect: "Click the button below to go to your new classroom. If you check \"Don't show this again\", you will be redirected automatically next time."
+    info: "You own this classroom and are the only one who can modify it. Share the link to this page with your students to let them join. The link is unique — recreating or reloading it will create a new room."
     checkbox: "Don't show this message again"
     goto: "Goto Classroom"
 
