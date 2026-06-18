@@ -270,10 +270,8 @@ export default {
     getRooms() {
       if (!this.liveClassProxy) return;
 
-      const sortedKeys = Object.keys(this.liveClassProxy.rooms).sort();
-
       const rooms = {};
-      sortedKeys.forEach((key) => {
+      this.orderedRooms().forEach((key) => {
         rooms[key] = this.liveClassProxy.rooms[key];
       });
 
@@ -282,7 +280,10 @@ export default {
 
     orderedRooms(): string[] {
       if (!this.liveClassProxy) return [];
-      return Object.keys(this.liveClassProxy.rooms).sort();
+
+      return Object.keys(this.liveClassProxy.rooms).sort((a, b) =>
+        a.localeCompare(b, undefined, { numeric: true })
+      );
     },
 
     getRole() {

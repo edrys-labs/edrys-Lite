@@ -311,7 +311,10 @@ export default {
 
     orderedRooms(): string[] {
       const seen = new Set<string>(this.config.modules.map(roomOf));
-      return Array.from(seen).sort();
+
+      return Array.from(seen).sort((a, b) =>
+        a.localeCompare(b, undefined, { numeric: true })
+      );
     },
 
     // Index → room name, only at the first module of each room group.
