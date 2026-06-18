@@ -92,7 +92,9 @@ describe('Modules Settings Component', () => {
   // Mock the scrapeModule function
   vi.mock('../../../../src/ts/Utils', () => ({
     scrapeModule: vi.fn().mockResolvedValue({ name: 'New Module', description: 'New Description' }),
-    validateUrl: vi.fn().mockReturnValue(true)
+    validateUrl: vi.fn().mockReturnValue(true),
+    parse: vi.fn().mockReturnValue({}),
+    roomColor: vi.fn().mockReturnValue('#1E88E5')
   }));
 
   test('renders module list', () => {
@@ -106,7 +108,7 @@ describe('Modules Settings Component', () => {
     wrapper.vm.deleteModule(0);
     expect(wrapper.vm.config.modules).toHaveLength(1);
     expect(wrapper.vm.errors).toHaveLength(1);
-    expect(wrapper.vm.scrapedModules).toHaveLength(1);
+    expect(wrapper.vm.localScrapedModules).toHaveLength(1);
   });
 
   test('handles module addition', async () => {

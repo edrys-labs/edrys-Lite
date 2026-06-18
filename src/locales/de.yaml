@@ -100,8 +100,7 @@ settings:
     add: "Hinzufügen"
     explore: "Module erkunden"
     noDescription: "Keine Beschreibung"
-    legend: "Raumlegende"
-    tooltip: 
+    tooltip:
       config: "Modulkonfiguration"
       manualConfig: "Erweitert (Rohkonfiguration)"
       delete: "Modul löschen"

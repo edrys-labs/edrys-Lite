@@ -6,7 +6,7 @@ import Stations from "./Settings/Stations.vue";
 import Share from "./Settings/Share.vue";
 import { useI18n } from "vue-i18n";
 import Communication from "./Settings/Communication.vue";
-import { decodeCommConfig, encodeCommConfig } from "../ts/Utils";
+import { decodeCommConfig } from "../ts/Utils";
 import { debug } from "../api/debugHandler";
 
 export default {
@@ -42,6 +42,13 @@ export default {
   },
 
   data() {
+    // Backfill stable module ids on the source before cloning so the clone and
+    // the original agree (otherwise the id-only diff would falsely flag unsaved
+    // changes).
+    for (const module of this.config.modules || []) {
+      if (!module.id) module.id = crypto.randomUUID();
+    }
+
     return {
       tab: 0,
       configClone: JSON.parse(JSON.stringify(this.config)),
@@ -54,10 +61,10 @@ export default {
       debug.components.settings("updateModules", this.scrapedModules);
     },
     saveClass() {
+      Object.assign(this.config, JSON.parse(JSON.stringify(this.configClone)));
       this.$emit("saveClass", this.config);
-      this.configClone = JSON.parse(JSON.stringify(this.config));
       this.configChanged = false;
-      
+
       if (this.$refs.CommunicationComponent) {
         this.$refs.CommunicationComponent.onSettingsSaved();
       }
@@ -66,46 +73,36 @@ export default {
       this.$emit("deleteClass");
     },
     updateClass() {
-      this.$emit("updateClass", this.config);
+      this.$emit("updateClass", this.configClone);
     },
-    updateMembers(members) {
-      this.config.members = members;
+    updateMembers(members: any) {
+      this.configClone.members = members;
     },
-    updateCommunicationConfig(encodedConfig) {
-      // Check if the configuration has actually changed
-      const currentConfig = this.config.communicationConfig;
-
-      if (currentConfig === encodedConfig) {
-        return;
-      }
-
-      // Store the encoded config and mark as changed
-      this.config.communicationConfig = encodedConfig;
+    updateCommunicationConfig(encodedConfig: string) {
+      if (this.configClone.communicationConfig === encodedConfig) return;
+      this.configClone.communicationConfig = encodedConfig;
       this.configChanged = true;
     },
 
-    updateKeepUrlConfig(keepConfig) {
-      this.config.keepUrlConfig = keepConfig;
+    updateKeepUrlConfig(keepConfig: boolean) {
+      this.configClone.keepUrlConfig = keepConfig;
       this.configChanged = true;
+    },
+
+    refreshConfigChanged() {
+      this.configChanged =
+        JSON.stringify(this.configClone) !== JSON.stringify(this.config);
     },
   },
 
   watch: {
-    config: {
-      handler() {
-        if (JSON.stringify(this.config) !== JSON.stringify(this.configClone)) {
-          this.configChanged = true;
-        } else {
-          this.configChanged = false;
-        }
-      },
-      deep: true,
-    },
+    configClone: { handler: "refreshConfigChanged", deep: true },
+    config: { handler: "refreshConfigChanged", deep: true },
   },
 
   computed: {
     decodedCommunicationConfig() {
-      const encodedConfig = this.config.communicationConfig;
+      const encodedConfig = this.configClone.communicationConfig;
       if (!encodedConfig) return {};
 
       return decodeCommConfig(encodedConfig) || {};
@@ -168,12 +165,12 @@ export default {
     <v-card-text style="height: 565px">
       <v-window v-model="tab" class="pt-5">
         <v-window-item>
-          <Main :config="config" :writeProtection="writeProtection"></Main>
+          <Main :config="configClone" :writeProtection="writeProtection"></Main>
         </v-window-item>
 
         <v-window-item>
           <Members
-            :members="config.members"
+            :members="configClone.members"
             @updateMembers="updateMembers"
             :writeProtection="membersWriteProtection !== null ? membersWriteProtection : writeProtection"
           ></Members>
@@ -181,28 +178,28 @@ export default {
 
         <v-window-item>
           <Modules
-            :config="config"
+            :config="configClone"
             :scraped-modules="scrapedModules"
             :writeProtection="writeProtection"
           ></Modules>
         </v-window-item>
 
         <v-window-item>
-          <Stations :config="config" :writeProtection="writeProtection"></Stations>
+          <Stations :config="configClone" :writeProtection="writeProtection"></Stations>
         </v-window-item>
 
         <v-window-item>
-          <Share :config="config" :writeProtection="writeProtection"></Share>
+          <Share :config="configClone" :writeProtection="writeProtection"></Share>
         </v-window-item>
 
         <v-window-item>
           <Communication
             ref="CommunicationComponent"
-            :config="config.communicationConfig || ''"
+            :config="configClone.communicationConfig || ''"
             @update:config="updateCommunicationConfig"
             :writeProtection="writeProtection"
-            :classId="config.id || ''"
-            :keepUrlConfig="config.keepUrlConfig || false"
+            :classId="configClone.id || ''"
+            :keepUrlConfig="configClone.keepUrlConfig || false"
             @update:keepUrlConfig="updateKeepUrlConfig"
           ></Communication>
         </v-window-item>

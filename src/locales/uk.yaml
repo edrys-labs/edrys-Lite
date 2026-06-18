@@ -100,8 +100,7 @@ settings:
     add: "Додати"
     explore: "Досліджуйте модулі"
     noDescription: "Немає опису"
-    legend: "Легенда кімнат"
-    tooltip: 
+    tooltip:
       config: "Конфігурація модуля"
       manualConfig: "Розширена (необроблена конфігурація)"
       delete: "Видалити модуль"

@@ -100,8 +100,7 @@ settings:
     add: "إضافة"
     explore: "استكشاف الوحدات"
     noDescription: "لا يوجد وصف"
-    legend: "دليل الغرف"
-    tooltip: 
+    tooltip:
       config: "تكوين الوحدة"
       manualConfig: "متقدم (تكوين خام)"
       delete: "حذف الوحدة"

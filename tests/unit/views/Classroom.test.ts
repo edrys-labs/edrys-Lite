@@ -32,6 +32,7 @@ vi.mock('../../../src/ts/Utils', () => ({
   getDisplayPeerID: vi.fn(() => 'test-user'),
   deepEqual: vi.fn(),
   copyToClipboard: vi.fn(),
+  roomColor: vi.fn(() => '#1E88E5'),
   hashPubKey: vi.fn(() => Promise.resolve('testhash1234')),
   initCryptoIdentity: vi.fn(() => Promise.resolve()),
   signSetup: vi.fn(() => Promise.resolve('mock-signature')),

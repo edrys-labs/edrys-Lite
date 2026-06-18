@@ -323,6 +323,35 @@ export function setToValue(obj, pathArr, value) {
   //     delete obj[pathArr[i]]
 }
 
+// Rooms colour palette: 8 distinct but soft colours.
+const ROOM_PALETTE = [
+  "#6FB37A", // soft green
+  "#5C9DD6", // soft blue
+  "#E0A86B", // soft amber
+  "#A98BC9", // soft purple
+  "#5FB8B8", // soft teal
+  "#D98F9A", // muted rose
+  "#7986CB", // soft indigo
+  "#C2A24A", // soft gold
+];
+
+const ROOM_NEUTRAL_COLORS: Record<string, string> = {
+  lobby: "#5C7A8A", // cool blue-grey
+  "*": "#A1887F", // warm taupe-grey
+};
+
+export function roomColor(name: string, orderedRooms: string[]): string {
+  const key = (name || "*").toLowerCase();
+  if (ROOM_NEUTRAL_COLORS[key]) return ROOM_NEUTRAL_COLORS[key];
+  // Colour by position among the non-neutral rooms only, so a neutral Lobby
+  // doesn't consume (and shift) a palette slot.
+  const idx = orderedRooms
+    .map(r => (r || "*").toLowerCase())
+    .filter(r => !ROOM_NEUTRAL_COLORS[r])
+    .indexOf(key);
+  return ROOM_PALETTE[Math.max(0, idx) % ROOM_PALETTE.length];
+}
+
 export function validateUrl(string: string) {
   try {
     const url = new URL(string)

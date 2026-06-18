@@ -26,7 +26,7 @@ import {
 import { onMounted } from "vue";
 import Peer from "../ts/Peer";
 
-import { copyToClipboard, deepEqual } from "../ts/Utils";
+import { copyToClipboard, deepEqual, roomColor } from "../ts/Utils";
 
 import { debug } from "../api/debugHandler";
 
@@ -35,7 +35,7 @@ export default {
 
   setup() {
     const { t, locale } = useI18n();
-    return { t, locale };
+    return { t, locale, roomColor };
   },
 
   data() {
@@ -278,6 +278,11 @@ export default {
       });
 
       return rooms;
+    },
+
+    orderedRooms(): string[] {
+      if (!this.liveClassProxy) return [];
+      return Object.keys(this.liveClassProxy.rooms).sort();
     },
 
     getRole() {
@@ -627,12 +632,13 @@ export default {
           <v-list-item
             :prepend-icon="name === 'Lobby' ? 'mdi-account-group' : 'mdi-forum'"
             :title="translateRoomName(name)"
-            style="
-              background-color: lightgray;
-              padding-top: 0px;
-              padding-bottom: 0px;
-              min-height: 2rem;
-            "
+            :style="{
+              backgroundColor: roomColor(name, orderedRooms()) + '22',
+              borderLeft: '4px solid ' + roomColor(name, orderedRooms()),
+              paddingTop: '0px',
+              paddingBottom: '0px',
+              minHeight: '2rem',
+            }"
           >
             <template v-slot:append>
               <v-btn

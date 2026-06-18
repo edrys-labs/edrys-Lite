@@ -3,30 +3,43 @@
     <draggable
       :list="config.modules"
       item-key="id"
+      :move="canMove"
       @end="move"
       class="list-group"
       ghost-class="drag-ghost"
       :disabled="writeProtection"
+      :scroll="true"
+      :bubbleScroll="true"
+      :scrollSensitivity="80"
+      :scrollSpeed="12"
+      :forceFallback="true"
+      :fallbackOnBody="true"
+      :fallbackTolerance="0"
     >
       <template #item="{ element, index }">
+        <div>
+        <div
+          v-if="groupHeaderAt[index] !== undefined"
+          class="room-group-header"
+          :style="{ borderLeftColor: roomColor(element.showInCustom, orderedRooms) }"
+        >
+          {{ element.showInCustom || "*" }}
+        </div>
         <v-list-item
-          :key="index"
+          :key="element.id"
           class="list-group-item"
           :style="borderStyle(element, index)"
         >
           <template v-slot:prepend>
-            <v-icon :icon="scrapedModules[index].icon || 'mdi-package'"></v-icon>
+            <v-icon :icon="localScrapedModules[index].icon || 'mdi-package'"></v-icon>
           </template>
 
           <v-list-item-title>
-            {{ scrapedModules[index].name }}
-            <v-chip size="x-small">
-              {{ element.showInCustom || "*" }}
-            </v-chip>
+            {{ localScrapedModules[index].name }}
           </v-list-item-title>
 
           <v-list-item-subtitle
-            v-html="scrapedModules[index]?.description || t('settings.modules.noDescription')"
+            v-html="localScrapedModules[index]?.description || t('settings.modules.noDescription')"
             style="white-space: break-spaces"
           >
           </v-list-item-subtitle>
@@ -80,30 +93,9 @@
             </v-tooltip>
           </template>
         </v-list-item>
+        </div>
       </template>
     </draggable>
-    <div v-if="roomLegend.length > 0" class="legend-anchor">
-      <v-tooltip location="top" content-class="legend-tooltip-surface">
-        <template v-slot:activator="{ props }">
-          <v-icon v-bind="props" icon="mdi-information-outline" size="small" class="legend-icon"></v-icon>
-        </template>
-        <div class="legend-tooltip">
-          <div class="legend-tooltip-title">{{ t('settings.modules.legend') }}</div>
-          <div class="legend-tooltip-chips">
-            <span
-              v-for="room in roomLegend"
-              :key="room.label"
-              class="legend-tooltip-chip"
-              :style="{ borderColor: room.color }"
-            >
-              <span class="legend-tooltip-dot" :style="{ backgroundColor: room.color }"></span>
-              {{ room.label }}
-            </span>
-          </div>
-        </div>
-      </v-tooltip>
-    </div>
-
     <v-list-item :disabled="writeProtection">
       <template v-slot:prepend>
         <v-icon icon="mdi-link"></v-icon>
@@ -134,9 +126,9 @@
   >
     <v-card v-if="moduleDialogIndex !== null" style="display: flex; flex-direction: column; max-height: 90vh">
       <v-toolbar color="grey-darken-4" density="comfortable">
-        <v-icon class="ml-4 mr-1">{{ scrapedModules[moduleDialogIndex]?.icon || 'mdi-package' }}</v-icon>
+        <v-icon class="ml-4 mr-1">{{ localScrapedModules[moduleDialogIndex]?.icon || 'mdi-package' }}</v-icon>
         <v-toolbar-title class="text-h6 font-weight-medium">
-          {{ scrapedModules[moduleDialogIndex]?.name }}
+          {{ localScrapedModules[moduleDialogIndex]?.name }}
         </v-toolbar-title>
         <v-btn icon @click="closeModuleDialog">
           <v-icon>mdi-close</v-icon>
@@ -147,7 +139,7 @@
         <v-expansion-panels variant="accordion" mandatory v-model="activeEditor">
           <!-- Structured, schema-driven form (only when the module declares a schema) -->
           <v-expansion-panel
-            v-if="scrapedModules[moduleDialogIndex]?.moduleConfig"
+            v-if="localScrapedModules[moduleDialogIndex]?.moduleConfig"
             value="form"
             elevation="0"
           >
@@ -162,8 +154,8 @@
               <ModuleConfigForm
                 ref="moduleConfigForm"
                 :standalone="false"
-                :moduleName="scrapedModules[moduleDialogIndex]?.name"
-                :moduleConfig="scrapedModules[moduleDialogIndex]?.moduleConfig"
+                :moduleName="localScrapedModules[moduleDialogIndex]?.name"
+                :moduleConfig="localScrapedModules[moduleDialogIndex]?.moduleConfig"
                 :currentConfig="moduleDialogDraft?.config"
                 :currentStudentConfig="moduleDialogDraft?.studentConfig"
                 :currentTeacherConfig="moduleDialogDraft?.teacherConfig"
@@ -231,12 +223,16 @@
 </template>
 
 <script lang="ts">
-import { scrapeModule, validateUrl, parse } from "../../ts/Utils";
+import { scrapeModule, validateUrl, parse, roomColor } from "../../ts/Utils";
 import draggable from "vuedraggable";
 import Module from "./Module.vue";
 import { useI18n } from 'vue-i18n';
-import ModulesExplorer from "./ModulesExplorer.vue";  
+import ModulesExplorer from "./ModulesExplorer.vue";
 import ModuleConfigForm from "./ModuleConfigForm.vue";
+
+// A module's room key. Missing modules (list edges) get a unique sentinel so
+// group-boundary checks treat them as "no neighbour".
+const roomOf = (m: any): string => (m ? (m.showInCustom || "*").toLowerCase() : "\0none");
 
 export default {
   name: "Settings-Modules",
@@ -260,7 +256,7 @@ export default {
 
   setup() {
     const { t, locale } = useI18n();
-    return { t, locale };
+    return { t, locale, roomColor };
   },
 
   data() {
@@ -285,7 +281,9 @@ export default {
     return {
       moduleImportUrl: "",
       errors,
-      colors: {},
+      // Local copy so drag-reorder doesn't mutate the shared scrapedModules
+      // prop (which the main classroom view renders from) before saving.
+      localScrapedModules: [...(this.scrapedModules as any[])],
 
       isOpenModulesExplorer: false,
       isModuleDialogOpen: false,
@@ -297,6 +295,13 @@ export default {
     };
   },
 
+  watch: {
+    // Re-sync the local copy whenever the parent re-scrapes the modules.
+    scrapedModules(next: any[]) {
+      this.localScrapedModules = [...next];
+    },
+  },
+
   computed: {
     dialogHasChanges(): boolean {
       if (this.formHasChanges) return true;
@@ -304,90 +309,49 @@ export default {
       return JSON.stringify(this.moduleDialogDraft) !== JSON.stringify(this.moduleDialogOriginal);
     },
 
-    roomLegend() {
-      const seen = new Set<string>();
-      const rooms: { label: string; color: string }[] = [];
-      for (const mod of this.config.modules) {
-        const key = (mod.showInCustom || "*").toLowerCase();
-        if (!seen.has(key)) {
-          seen.add(key);
-          rooms.push({ label: key, color: this.stringToColor(key) });
-        }
-      }
-      return rooms;
+    orderedRooms(): string[] {
+      const seen = new Set<string>(this.config.modules.map(roomOf));
+      return Array.from(seen).sort();
+    },
+
+    // Index → room name, only at the first module of each room group.
+    groupHeaderAt() {
+      const headers: Record<number, string> = {};
+      this.config.modules.forEach((mod: any, i: number) => {
+        const cur = roomOf(mod);
+        if (cur !== (i > 0 ? roomOf(this.config.modules[i - 1]) : null)) headers[i] = cur;
+      });
+      return headers;
     },
   },
 
   methods: {
-    stringToColor(str: string) {
-      str = str || "*";
-      str = str.toLowerCase();
-
-      if (this.colors[str]) return this.colors[str];
-
-      const uid = str + str + str;
-
-      // Generate a hash value from the string
-      let hash = 0;
-      for (let i = 0; i < uid.length; i++) {
-        hash = uid.charCodeAt(i) + ((hash << 5) - hash);
-      }
-
-      // Convert hash to a valid color code
-      let color = "#";
-      for (let i = 0; i < 3; i++) {
-        const value = (hash >> (i * 8)) & 0xff;
-        color += ("00" + value.toString(16)).slice(-2); // Ensure two hex digits
-      }
-
-      this.colors[str] = color;
-
-      return color;
+    borderStyle(element: any, index: number) {
+      const color = roomColor(element.showInCustom, this.orderedRooms);
+      const isFirst = roomOf(element) !== roomOf(this.config.modules[index - 1]);
+      const isLast = roomOf(element) !== roomOf(this.config.modules[index + 1]);
+      return [
+        `border-left: 4px solid ${color}`,
+        `background-color: ${color}14`,
+        isFirst ? `border-top: 1px solid ${color}40` : '',
+        isLast ? `border-bottom: 1px solid ${color}40; margin-bottom: 10px;` : '',
+      ].filter(Boolean).join('; ');
     },
 
-    borderStyle(element, index) {
-      const color = this.stringToColor(element.showInCustom?.toLowerCase());
-      let style = `border-left: 5px solid ${color}; border-right: 5px solid ${color};`;
-
-      const prev = this.config.modules[index - 1];
-      const next = this.config.modules[index + 1];
-
-      // Determine if module is first in its group
-      if (!prev || prev.showInCustom?.toLowerCase() !== element.showInCustom?.toLowerCase()) {
-        style += `
-        border-top: 5px solid ${color};
-        border-top-left-radius: 10px !important;
-        border-top-right-radius: 10px !important;
-      `;
-      }
-      // Determine if module is last in its group
-      if (!next || next.showInCustom?.toLowerCase() !== element.showInCustom?.toLowerCase()) {
-        style += `
-        border-bottom: 5px solid ${color};
-        border-bottom-left-radius: 10px !important;
-        border-bottom-right-radius: 10px !important;
-        margin-bottom: 10px;
-      `;
-      }
-
-      return style;
-    },
-
-    async update() {
-      this.scrapedModules = [];
-      for (let i = 0; i < this.config.modules.length; i++) {
-        let module = await scrapeModule(this.config.modules[i]);
-        this.scrapedModules.push(module);
-      }
+    // Only allow reordering within the same room.
+    canMove(event: any) {
+      const target = event.relatedContext?.element;
+      if (!target) return false; // no same-room neighbour here → block
+      return roomOf(event.draggedContext?.element) === roomOf(target);
     },
 
     move(event: any) {
-      const element = this.scrapedModules[event.oldIndex];
-
-      this.scrapedModules[event.oldIndex] = this.scrapedModules[event.newIndex];
-      this.scrapedModules[event.newIndex] = element;
-
-      return true;
+      // draggable already reordered config.modules; mirror the same move in the
+      // local metadata + errors arrays so they stay aligned by index.
+      const [sm] = this.localScrapedModules.splice(event.oldIndex, 1);
+      this.localScrapedModules.splice(event.newIndex, 0, sm);
+      const [er] = this.errors.splice(event.oldIndex, 1);
+      this.errors.splice(event.newIndex, 0, er);
     },
 
     validate_config(i: number) {
@@ -405,7 +369,7 @@ export default {
 
     deleteModule(index: number) {
       this.config.modules.splice(index, 1);
-      this.scrapedModules.splice(index, 1);
+      this.localScrapedModules.splice(index, 1);
       this.errors.splice(index, 1);
     },
 
@@ -417,6 +381,7 @@ export default {
 
     async loadURL() {
       const module = {
+        id: crypto.randomUUID(),
         url: this.moduleImportUrl,
         config: "",
         studentConfig: "",
@@ -432,7 +397,7 @@ export default {
       module.showInCustom = scrapedModule.showInCustom;
 
       this.config.modules.push(module);
-      this.scrapedModules.push(scrapedModule);
+      this.localScrapedModules.push(scrapedModule);
       this.errors.push({
         config: "",
         studentConfig: "",
@@ -458,7 +423,7 @@ export default {
       this.moduleDialogDraft = { ...base, ...JSON.parse(JSON.stringify(this.config.modules[index])) };
       this.moduleDialogOriginal = JSON.parse(JSON.stringify(this.moduleDialogDraft));
       this.formHasChanges = false;
-      this.activeEditor = this.scrapedModules[index]?.moduleConfig ? "form" : "manual";
+      this.activeEditor = this.localScrapedModules[index]?.moduleConfig ? "form" : "manual";
       this.isModuleDialogOpen = true;
     },
 
@@ -508,15 +473,6 @@ export default {
 };
 </script>
 
-<style>
-.legend-tooltip-surface {
-  background-color: white !important;
-  color: rgba(0, 0, 0, 0.87) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.39) !important;
-  border-radius: 8px !important;
-}
-</style>
-
 <style scoped>
 .editor-panel-title {
   font-size: 0.8rem;
@@ -558,54 +514,15 @@ export default {
   transform: translateY(-2px);
 }
 
-.legend-anchor {
-  display: flex;
-  justify-content: flex-end;
-  padding: 4px 16px 0;
-}
-
-.legend-icon {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.legend-tooltip {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 4px 2px;
-}
-
-.legend-tooltip-title {
+.room-group-header {
+  padding: 4px 16px 2px;
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.6;
-}
-
-.legend-tooltip-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.legend-tooltip-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 1.5px solid;
-  border-radius: 12px;
-  padding: 2px 8px;
-  font-size: 0.8rem;
-  white-space: nowrap;
-}
-
-.legend-tooltip-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  flex-shrink: 0;
+  letter-spacing: 0.08em;
+  color: #555;
+  border-left: 4px solid transparent;
+  margin-top: 16px;
 }
 
 </style>
