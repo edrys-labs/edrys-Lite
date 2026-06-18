@@ -387,7 +387,7 @@ export default {
         teacher: "mdi-account-star-outline",
         student: "mdi-account-outline",
         station: "mdi-account-cog-outline",
-        visitor: "mdi-eye-outline",
+        visitor: "mdi-account-eye-outline",
       };
 
       for (const id in this.liveClassProxy.users) {

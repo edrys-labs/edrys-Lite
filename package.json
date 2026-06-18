@@ -18,6 +18,7 @@
   "author": "André Dietrich",
   "license": "Mozilla Public License Version 2.0",
   "devDependencies": {
+    "@mdi/font": "^7.4.47",
     "@parcel/reporter-bundle-analyzer": "^2.15.2",
     "@parcel/transformer-sass": "^2.15.2",
     "@parcel/transformer-vue": "^2.15.2",
