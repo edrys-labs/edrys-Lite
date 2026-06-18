@@ -84,9 +84,10 @@ export default {
       }, 1000);
 
       return this.scrapedModules_.filter((m) => {
-        const showIn = m.showInCustom
+        const rawShowIn = m.showInCustom
           ? m.showInCustom.split(",").map((e) => e.trim())
           : m.showIn;
+        const showIn = Array.isArray(rawShowIn) ? rawShowIn : [rawShowIn || "*"];
 
         const translatedRoomNames = {
           [this.t('classroom.sideMenu.lobby').toLowerCase()]: 'lobby',
@@ -99,19 +100,19 @@ export default {
 
         if (this.roleTranslations.teacher.some(trans => normalizedShowIn.includes(trans))) {
           return (
-            (normalizedShowIn.includes(this.modulesType) || isInRoom || normalizedShowIn == "*") &&
+            (normalizedShowIn.includes(this.modulesType) || isInRoom || normalizedShowIn.includes("*")) &&
             this.role == "teacher"
           );
         }
 
         if (this.roleTranslations.station.some(trans => normalizedShowIn.includes(trans))) {
           return (
-            (normalizedShowIn.includes(this.modulesType) || isInRoom || normalizedShowIn == "*") &&
+            (normalizedShowIn.includes(this.modulesType) || isInRoom || normalizedShowIn.includes("*")) &&
             this.role == "station"
           );
         }
         
-        return normalizedShowIn.includes(this.modulesType) || isInRoom || normalizedShowIn == "*";
+        return normalizedShowIn.includes(this.modulesType) || isInRoom || normalizedShowIn.includes("*");
       });
     },
   },

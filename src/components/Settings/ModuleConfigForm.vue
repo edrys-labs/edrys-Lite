@@ -530,7 +530,6 @@ export default {
   opacity: 0.7;
 }
 
-
 .code-editor-container {
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 4px;
