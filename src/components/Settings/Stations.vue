@@ -1,12 +1,13 @@
 <template>
   <v-alert
-    outlined
+    variant="tonal"
     dense
-    type="info"
+    color="#1565c0"
+    icon="mdi-information"
     :text="t('settings.stations.info')"
   >
     <v-container>
-      <a :href="url" target="_blank">{{ url }}</a>
+      <a :href="url" target="_blank" class="info-link">{{ url }}</a>
     </v-container>
 
     <template v-slot:append>
@@ -47,3 +48,12 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.info-link,
+.info-link:visited,
+.info-link:hover,
+.info-link:active {
+  color: #1e88e5;
+}
+</style>

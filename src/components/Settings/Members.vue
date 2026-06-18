@@ -1,7 +1,12 @@
 <template>
-  <v-alert outlined dense type="info" :text="t('settings.members.info')">
+  <v-alert 
+    variant="tonal" 
+    dense 
+    color="#1565c0" 
+    icon="mdi-information" 
+    :text="t('settings.members.info')">
     <v-container>
-      <a :href="url">{{ url }}</a>
+      <a :href="url" class="info-link">{{ url }}</a>
     </v-container>
 
     <template v-slot:append>
@@ -102,3 +107,12 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.info-link,
+.info-link:visited,
+.info-link:hover,
+.info-link:active {
+  color: #1e88e5;
+}
+</style>

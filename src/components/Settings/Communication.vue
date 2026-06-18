@@ -62,12 +62,10 @@
     </div>
 
     <v-alert
-      type="info"
-      variant="outlined"
-      prominent
+      variant="tonal"
       density="compact"
-      color="primary"
-      icon="mdi-information-outline"
+      color="#1565c0"
+      icon="mdi-information"
       class="my-4"
     >
       {{ $t("settings.communication.alert.first") }}
