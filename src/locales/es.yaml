@@ -183,6 +183,7 @@ settings:
 chat:
   deletedMessage: "mensajes anteriores han sido eliminados ..."
   sendButton: "Enviar"
+  messagePlaceholder: "Mensaje (Enter para enviar, Ctrl+Enter para nueva línea)"
 
 checks:
   webRTCSupport: "Soporte WebRTC"

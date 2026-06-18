@@ -183,6 +183,7 @@ settings:
 chat:
   deletedMessage: "vorherige Nachrichten wurden gelöscht ..."
   sendButton: "Senden"
+  messagePlaceholder: "Nachricht (Enter zum Senden, Strg+Enter für Zeilenumbruch)"
 
 checks:
   webRTCSupport: "WebRTC-Unterstützung"

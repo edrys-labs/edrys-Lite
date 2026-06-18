@@ -183,6 +183,7 @@ settings:
 chat:
   deletedMessage: "تم حذف الرسائل السابقة ..."
   sendButton: "إرسال"
+  messagePlaceholder: "رسالة (Enter للإرسال، Ctrl+Enter لسطر جديد)"
 
 checks:
   webRTCSupport: "دعم WebRTC"

@@ -183,6 +183,7 @@ settings:
 chat:
   deletedMessage: "попередні повідомлення були видалені ..."
   sendButton: "Надіслати"
+  messagePlaceholder: "Повідомлення (Enter для надсилання, Ctrl+Enter для нового рядка)"
 
 checks:
   webRTCSupport: "Підтримка WebRTC"

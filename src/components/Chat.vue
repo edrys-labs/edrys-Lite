@@ -149,26 +149,18 @@ export default {
     </v-container>
     <template v-slot:append>
       <div class="pa-2">
-        <prism-editor
-          ref="editor"
+        <v-textarea
           v-model="message"
-          :highlight="highlighter"
-          :readonly="false"
-          rows="4"
+          :label="t('chat.messagePlaceholder')"
+          variant="outlined"
+          density="compact"
+          no-resize
+          rows="3"
+          maxlength="2000"
+          hide-details
           @keydown.enter.exact.prevent="send()"
           @keyup.ctrl.enter="send()"
-          style="height: 100px; border: 1px solid black; padding: 2px 5px"
-        ></prism-editor>
-
-        <!--v-textarea
-          counter
-          no-resize
-          rows="4"
-          v-model="message"
-          maxlength="2000"
-          @keyup.ctrl.enter="send()"
-        >
-        </v-textarea-->
+        ></v-textarea>
 
         <v-btn
           append-icon="mdi-send-outline"
