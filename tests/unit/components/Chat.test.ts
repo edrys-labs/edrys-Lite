@@ -95,7 +95,7 @@ describe('Chat Component', () => {
     wrapper = createWrapper();
     console.log('wrapper', wrapper.html());
     expect(wrapper.find('.v-navigation-drawer').exists()).toBe(true);
-    expect(wrapper.find('.prism-editor').exists()).toBe(true);
+    expect(wrapper.find('textarea').exists()).toBe(true);
     expect(wrapper.find('.v-btn').exists()).toBe(true);
   });
 

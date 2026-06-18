@@ -13,6 +13,12 @@ async function freshPeerHelpers() {
       setPrivateKey: vi.fn(),
     })),
   }))
+  vi.doMock('../../../../src/ts/EdrysWebrtcProvider', () => ({
+    EdrysWebrtcProvider: vi.fn(),
+  }))
+  vi.doMock('../../../../src/ts/EdrysWebsocketProvider', () => ({
+    EdrysWebsocketProvider: vi.fn(),
+  }))
   return import('../../../../src/ts/Peer')
 }
 

@@ -20,6 +20,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'y-webrtc': path.resolve(__dirname, './node_modules/y-webrtc/src/y-webrtc.js'),
     },
   }
 });

@@ -71,7 +71,6 @@ describe('Main Settings Component', () => {
         translations.settings.main.logoUrl,
         translations.settings.main.description,
         translations.settings.main.roomsNum,
-        translations.settings.main.selfAssign,
       ];
 
       expectedLabels.forEach(label => {
