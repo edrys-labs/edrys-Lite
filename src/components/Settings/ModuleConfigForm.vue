@@ -530,11 +530,18 @@ export default {
   opacity: 0.7;
 }
 
+
 .code-editor-container {
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 4px;
   max-height: 300px;
   overflow: auto;
+  transition: border-color 0.2s;
+}
+
+.code-editor-container:focus-within {
+  border-color: rgba(0, 0, 0, 0.87);
+  border-width: 2px;
 }
 
 .code-editor-container :deep(.prism-editor__container) {
