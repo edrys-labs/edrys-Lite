@@ -1,5 +1,5 @@
 <template>
-  <v-menu>
+  <v-menu :close-on-content-click="false">
     <template v-slot:activator="{ props }">
       <v-btn v-bind="props" icon="mdi-dots-vertical"> </v-btn>
     </template>
