@@ -45,16 +45,16 @@ export class StreamServer {
   private connectedClients: Set<string> = new Set()
 
   constructor(
-    context: any, 
-    stream: MediaStream, 
-    rtcConfig: RTCConfiguration, 
-    streamName?: string, 
+    context: any,
+    stream: MediaStream,
+    rtcConfig: RTCConfiguration,
+    streamName?: string,
     peerServerConfig?: any
   ) {
     this.context = context
     this.stream = stream
     this.streamName = streamName || `${this.context.username}-stream`
-    
+
     const peerId = generateStreamPeerID(context, this.streamName)
     const peerOptions = getPeerOptions(rtcConfig, peerServerConfig)
     this.peer = new Peer(peerId, peerOptions)
@@ -106,12 +106,12 @@ export class StreamServer {
   private callClient(clientPeerId: string) {
     if (this.stream) {
       const call = this.peer.call(clientPeerId, this.stream)
-      
+
       if (!call) {
         this.connectedClients.delete(clientPeerId)
         return
       }
-      
+
       call.on('error', (err: any) => {
         debug.api.general('StreamServer call error:', err?.type || err)
         this.connectedClients.delete(clientPeerId)
@@ -121,7 +121,7 @@ export class StreamServer {
 
   public updateStream(newStream: MediaStream) {
     this.stream = newStream
-    
+
     // Call all connected clients with the new stream
     this.connectedClients.forEach(clientPeerId => {
       this.callClient(clientPeerId)
@@ -150,7 +150,7 @@ export class StreamClient {
   private requestInterval: any = null
 
   constructor(
-    context: any, 
+    context: any,
     handler: (stream: MediaStream, settings: any, metadata?: any) => void,
     rtcConfig: RTCConfiguration,
     defaultStreamName?: string,
@@ -159,7 +159,7 @@ export class StreamClient {
     this.context = context
     this.handler = handler
     this.defaultStreamName = defaultStreamName
-    
+
     const peerOptions = getPeerOptions(rtcConfig, peerServerConfig)
     this.peer = new Peer(peerOptions)
     this.setupPeerEvents()
@@ -239,16 +239,16 @@ export class StreamClient {
       clearTimeout(this.connectionTimeout)
       this.connectionTimeout = null
     }
-    
+
     const streamPeerID = generateStreamPeerID(this.context, streamName)
     this.currentStreamName = streamName
-    
+
     // Close existing connection if any
     if (this.currentConnection) {
       this.currentConnection.close()
       this.currentConnection = null
     }
-    
+
     // Wait for peer to be ready or make connection immediately
     if (!this.peer.open) {
       this.peer.on('open', () => {
@@ -262,12 +262,12 @@ export class StreamClient {
   private makeConnection(streamPeerID: string) {
     try {
       this.currentConnection = this.peer.connect(streamPeerID)
-      
+
       if (!this.currentConnection) {
         this.handleConnectionFailure()
         return
       }
-      
+
       this.currentConnection.on('open', () => {
         this.reconnectAttempts = 0
         this.isInitialConnection = false
@@ -294,7 +294,7 @@ export class StreamClient {
       const baseDelay = this.isInitialConnection ? this.reconnectDelay * 2 : this.reconnectDelay
       const delay = baseDelay * Math.pow(2, this.reconnectAttempts)
       this.reconnectAttempts++
-      
+
       this.connectionTimeout = setTimeout(() => {
         if (!this.peer.destroyed && this.currentStreamName) {
           this.selectStream(this.currentStreamName)
@@ -320,117 +320,93 @@ export class StreamClient {
       clearInterval(this.requestInterval)
       this.requestInterval = null
     }
-    
+
     if (this.currentConnection) {
       this.currentConnection.close()
       this.currentConnection = null
     }
-    
+
     if (this.peer && !this.peer.destroyed) {
       this.peer.destroy()
     }
   }
 }
 
-// WebSocket Stream Server 
-export class WebSocketStreamServer {
-  private context: any
-  private stream: MediaStream
-  private canvas: HTMLCanvasElement
-  private ctx: CanvasRenderingContext2D
-  private wsConnection: WebSocket | null = null
-  private frameRequestId: number | null = null
-  private websocketUrl: string
-  private roomId: string
-  
-  constructor(context: any, stream: MediaStream, options: any = {}) {
+// WebSocket fallback: the station encodes with
+// MediaRecorder and ships compressed chunks as binary; the
+// viewer feeds them into a MediaSource and plays the resulting <video>. The relay
+// forwards chunks per room.
+const WS_TIMESLICE_MS = 250 // smaller chunks = lower baseline latency
+const WS_MAX_LAG = 1 // seconds behind live before we jump to the edge
+const WS_BUFFER_KEEP_S = 30 // history retained behind playback after a trim
+const WS_BUFFER_TRIM_AT_S = 60 // trim once history exceeds this
+const WS_RECONNECT_BASE_MS = 1000
+const WS_RECONNECT_MAX_MS = 15000
+
+function buildWsRoomId(context: any, streamName: string): string {
+  const baseId = `${context.class_id}_${context.liveUser?.room}_${streamName}`
+  return baseId.replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
+abstract class WebSocketStreamBase {
+  protected context: any
+  protected wsConnection: WebSocket | null = null
+  protected websocketUrl: string
+  protected streamName: string
+  protected roomId: string
+  private label: string
+  private reconnectDelay = WS_RECONNECT_BASE_MS
+  private reconnectTimer: any = null
+  private stopped = false
+
+  constructor(context: any, options: any, label: string) {
     this.context = context
-    this.stream = stream
     this.websocketUrl = options.websocketUrl
-    this.roomId = this.context.class_id || this.context.liveUser?.room
-
-    const videoElement = document.createElement('video')
-    videoElement.srcObject = stream
-    videoElement.muted = true
-    videoElement.play()
-    
-    this.canvas = document.createElement('canvas')
-    this.canvas.width = 640
-    this.canvas.height = 480
-    this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D
-        
-    videoElement.onloadedmetadata = () => {
-      this.canvas.width = videoElement.videoWidth
-      this.canvas.height = videoElement.videoHeight
-      this.startStreaming(videoElement)
-    }
+    this.streamName = options.streamName || 'Camera 1'
+    this.roomId = buildWsRoomId(context, this.streamName)
+    this.label = label
   }
 
-  private startStreaming(videoElement: HTMLVideoElement) {    
+  protected connect() {
     this.wsConnection = new WebSocket(this.websocketUrl)
-    
-    this.wsConnection.onopen = () => {      
-      if (this.wsConnection) {
-        this.wsConnection.send(JSON.stringify({
-          type: 'register-source',
-          roomId: this.roomId
-        }))
-        
-        this.startFrameCapture(videoElement)
-      }
+    this.wsConnection.binaryType = 'arraybuffer'
+    this.wsConnection.onopen = () => {
+      this.reconnectDelay = WS_RECONNECT_BASE_MS
+      this.onOpen()
     }
-    
-    this.wsConnection.onerror = () => {
-      // Handle errors silently
+    this.wsConnection.onmessage = (event) => this.onMessage(event)
+    this.wsConnection.onerror = (ev) => debug.api.general(`${this.label} WS error:`, ev)
+    // Any close we didn't initiate (relay restart, network blip): reconnect with
+    // backoff. onOpen re-registers/re-joins, so the stream recovers by itself.
+    this.wsConnection.onclose = () => {
+      this.wsConnection = null
+      if (this.stopped) return
+      this.reconnectTimer = setTimeout(() => this.connect(), this.reconnectDelay)
+      this.reconnectDelay = Math.min(this.reconnectDelay * 2, WS_RECONNECT_MAX_MS)
     }
   }
 
-  private startFrameCapture(videoElement: HTMLVideoElement) {
-    let lastFrameTime = 0
-    const frameInterval = 1000 / 15 // 15 fps
-    
-    const captureFrame = (timestamp: number) => {
-      if (!this.wsConnection || this.wsConnection.readyState !== WebSocket.OPEN) {
-        return
-      }
-      
-      const elapsed = timestamp - lastFrameTime
-      if (elapsed > frameInterval && videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
-        lastFrameTime = timestamp
-        
-        try {
-          const width = videoElement.videoWidth
-          const height = videoElement.videoHeight
-            
-          if (this.canvas.width !== width || this.canvas.height !== height) {
-            this.canvas.width = width
-            this.canvas.height = height
-          }
-          
-          this.ctx.drawImage(videoElement, 0, 0, width, height)
-          const dataUrl = this.canvas.toDataURL('image/jpeg', 0.7)
-          
-          this.wsConnection.send(JSON.stringify({
-            type: 'frame',
-            data: dataUrl
-          }))
-        } catch (error) {
-          // Handle errors silently
-        }
-      }
-      
-      this.frameRequestId = requestAnimationFrame(captureFrame)
+  protected send(payload: any) {
+    if (this.wsConnection?.readyState === WebSocket.OPEN) {
+      this.wsConnection.send(JSON.stringify(payload))
     }
-    
-    this.frameRequestId = requestAnimationFrame(captureFrame)
   }
+
+  protected sendBinary(chunk: Blob | ArrayBuffer) {
+    if (this.wsConnection?.readyState === WebSocket.OPEN) {
+      this.wsConnection.send(chunk)
+    }
+  }
+
+  protected abstract onOpen(): void
+  protected abstract onMessage(event: MessageEvent): void
 
   public stop() {
-    if (this.frameRequestId !== null) {
-      cancelAnimationFrame(this.frameRequestId)
-      this.frameRequestId = null
+    this.stopped = true
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
     }
-      
     if (this.wsConnection) {
       this.wsConnection.close()
       this.wsConnection = null
@@ -438,95 +414,271 @@ export class WebSocketStreamServer {
   }
 }
 
-// WebSocket Stream Client
-export class WebSocketStreamClient {
-  private context: any
-  private handler: (stream: MediaStream, settings: any) => void
-  private wsConnection: WebSocket | null = null
-  private streamCanvas: HTMLCanvasElement
-  private streamCtx: CanvasRenderingContext2D
-  private stream: MediaStream | null = null
-  private websocketUrl: string
-  private img: HTMLImageElement
-  private roomId: string
+// Station side: record the camera stream and push chunks to the relay.
+export class WebSocketStreamServer extends WebSocketStreamBase {
+  private stream: MediaStream
+  private recorder: MediaRecorder | null = null
+  private restartTimer: any = null
 
-  constructor(context: any, handler: (stream: MediaStream, settings: any) => void, options: any = {}) {
-    this.context = context
-    this.handler = handler
-    this.websocketUrl = options.websocketUrl
-    this.roomId = this.context.class_id || this.context.liveUser?.room
-    
-    this.streamCanvas = document.createElement('canvas')
-    this.streamCanvas.width = 640
-    this.streamCanvas.height = 480
-    this.streamCtx = this.streamCanvas.getContext('2d') as CanvasRenderingContext2D
-    
-    this.img = new Image()
-    this.setupImageHandlers()
-    
+  constructor(context: any, stream: MediaStream, options: any = {}) {
+    super(context, options, 'WebSocketStreamServer')
+    this.stream = stream
     this.connect()
   }
 
-  private setupImageHandlers() {
-    this.img.onload = () => {
-      try {
-        if (this.streamCanvas.width !== this.img.width || 
-            this.streamCanvas.height !== this.img.height) {
-          this.streamCanvas.width = this.img.width
-          this.streamCanvas.height = this.img.height
-        }
-        
-        this.streamCtx.clearRect(0, 0, this.streamCanvas.width, this.streamCanvas.height)
-        this.streamCtx.drawImage(this.img, 0, 0)
-        
-        if (!this.stream) {
-          this.stream = this.streamCanvas.captureStream(30)
-          this.handler(this.stream, this.context.module.stationConfig)
-        }
-      } catch (error) {
-        // Handle errors silently
+  protected onOpen() {
+    this.startRecording()
+    this.register()
+  }
+
+  // Register with the EXACT mimeType the recorder produces — the viewer's
+  // SourceBuffer must declare the same codecs or its init segment is rejected.
+  private register() {
+    this.send({
+      type: 'register-source',
+      roomId: this.roomId,
+      streamName: this.streamName,
+      mimeType: this.mimeType,
+    })
+  }
+
+  protected onMessage(event: MessageEvent) {
+    try {
+      const msg = JSON.parse(event.data)
+      // A viewer joined: restart the recorder so they get a fresh init segment at
+      // t=0. Debounced so a class joining at once causes one restart, not N
+      // (every restart glitches all existing viewers).
+      if (msg.type === 'viewer-joined') {
+        clearTimeout(this.restartTimer)
+        this.restartTimer = setTimeout(() => this.startRecording(), 500)
       }
+    } catch { /* ignore non-JSON */ }
+  }
+
+  // Codec string matching the tracks actually being recorded (vp8-only if no audio).
+  private get mimeType(): string {
+    const codecs = []
+    if (this.stream.getVideoTracks().length) codecs.push('vp8')
+    if (this.stream.getAudioTracks().length) codecs.push('opus')
+    return `video/webm;codecs="${codecs.join(',')}"`
+  }
+
+  private startRecording() {
+    if (this.recorder) {
+      // Detach first so a trailing chunk from the old recorder can't arrive
+      // after the new recorder's init segment.
+      this.recorder.ondataavailable = null
+      if (this.recorder.state !== 'inactive') this.recorder.stop()
+    }
+    try {
+      const mime = this.mimeType
+      const opts = MediaRecorder.isTypeSupported(mime) ? { mimeType: mime } : undefined
+      this.recorder = new MediaRecorder(this.stream, opts)
+      this.recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) this.sendBinary(e.data)
+      }
+      this.recorder.onerror = (e: any) =>
+        console.warn('[ws-station] recorder error', e?.error?.name || e)
+      this.recorder.start(WS_TIMESLICE_MS)
+    } catch (error: any) {
+      debug.api.general('WebSocketStreamServer recorder error:', error?.message || error)
     }
   }
 
-  private connect() {
-    this.wsConnection = new WebSocket(this.websocketUrl)
-    
-    this.wsConnection.onopen = () => {
-      if (this.roomId) {
-        this.wsConnection.send(JSON.stringify({
-          type: 'join-room',
-          roomId: this.roomId
-        }))
-      }
-    }
-    
-    this.wsConnection.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data)
-        
-        if (message.type === 'frame' && message.data) {
-          this.img.src = message.data
-        }
-      } catch (error) {
-        // Handle errors silently
-      }
-    }
-    
-    this.wsConnection.onerror = () => {
-      // Handle errors silently
-    }
+  // Camera switch: restart the recorder so it emits a fresh init segment.
+  public updateStream(newStream: MediaStream) {
+    const oldMime = this.mimeType
+    this.stream = newStream
+    this.startRecording()
+    // Track composition changed (e.g. audio toggled): viewers must re-declare codecs.
+    if (this.mimeType !== oldMime) this.register()
   }
 
   public stop() {
-    if (this.wsConnection) {
-      this.wsConnection.close()
-      this.wsConnection = null
+    clearTimeout(this.restartTimer)
+    if (this.recorder) {
+      this.recorder.ondataavailable = null
+      if (this.recorder.state !== 'inactive') this.recorder.stop()
     }
-    
+    this.recorder = null
+    super.stop()
+  }
+}
+
+// Viewer side: feed incoming chunks into a MediaSource and hand the <video>'s
+// captured stream back to the module.
+export class WebSocketStreamClient extends WebSocketStreamBase {
+  private handler: (stream: MediaStream, settings: any, metadata?: any) => void
+  private stream: MediaStream | null = null
+  private video: HTMLVideoElement
+  private mediaSource = new MediaSource()
+  private sourceBuffer: SourceBuffer | null = null
+  private pending: ArrayBuffer[] = []
+  private handedOff = false
+  // Codec the SourceBuffer must declare; announced by the source (vp8-only if no audio).
+  private mimeType: string | null = null
+  private mediaSourceOpen = false
+
+  constructor(
+    context: any,
+    handler: (stream: MediaStream, settings: any, metadata?: any) => void,
+    options: any = {}
+  ) {
+    super(context, options, 'WebSocketStreamClient')
+    this.handler = handler
+
+    this.video = document.createElement('video')
+    this.video.muted = true
+    this.video.playsInline = true
+    this.video.autoplay = true
+    this.video.onloadeddata = () => this.handOff()
+    this.video.onerror = () =>
+      console.warn('[ws-view] video error', this.video.error?.code, this.video.error?.message)
+    this.video.src = URL.createObjectURL(this.mediaSource)
+
+    this.mediaSource.addEventListener('sourceopen', () => {
+      this.mediaSourceOpen = true
+      this.maybeCreateSourceBuffer()
+    })
+
+    this.connect()
+  }
+
+  protected onOpen() {
+    if (this.roomId) this.send({ type: 'join-room', roomId: this.roomId })
+  }
+
+  // Needs both the MediaSource open and the source's mimeType; whichever lands last calls this.
+  private maybeCreateSourceBuffer() {
+    if (this.sourceBuffer || !this.mediaSourceOpen || !this.mimeType) return
+    if (!MediaSource.isTypeSupported(this.mimeType)) {
+      debug.api.general('WebSocketStreamClient unsupported mimeType:', this.mimeType)
+      return
+    }
+    this.sourceBuffer = this.mediaSource.addSourceBuffer(this.mimeType)
+    this.sourceBuffer.addEventListener('updateend', () => {
+      // Snap to live, then play the offscreen <video> → onloadeddata → hand-off.
+      this.syncToLive()
+      if (this.video.paused) this.video.play().catch(() => {})
+      // If a trim started, its own updateend resumes the flush.
+      if (!this.trim()) this.flush()
+    })
+    this.flush()
+  }
+
+  // Drop old history so the SourceBuffer never hits the browser's quota
+  // (~100-150MB in Chrome — minutes at camera bitrates): quota exhaustion kills
+  // the stream with no recovery path. Returns true if a removal was started.
+  private trim(): boolean {
+    const sb = this.sourceBuffer
+    if (!sb || sb.updating || sb.buffered.length === 0) return false
+    const start = sb.buffered.start(0)
+    if (this.video.currentTime - start < WS_BUFFER_TRIM_AT_S) return false
+    try {
+      sb.remove(start, this.video.currentTime - WS_BUFFER_KEEP_S)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  protected onMessage(event: MessageEvent) {
+    // Binary = media chunk; string = JSON control message.
+    if (typeof event.data !== 'string') {
+      const chunk = event.data as ArrayBuffer
+      // An init segment mid-stream means the source restarted (its timeline resets
+      // to ~0) — rebuild the MediaSource so the new stream starts clean.
+      if (this.sourceBuffer && this.isInitSegment(chunk)) {
+        this.rebuild()
+      }
+      this.pending.push(chunk)
+      this.flush()
+      return
+    }
+    try {
+      const msg = JSON.parse(event.data)
+      // The source announces the codec string its init segment uses. A changed
+      // codec (e.g. audio toggled) needs a SourceBuffer with the new declaration.
+      if (msg.type === 'source-available' && msg.mimeType) {
+        if (this.sourceBuffer && msg.mimeType !== this.mimeType) this.rebuild()
+        this.mimeType = msg.mimeType
+        this.maybeCreateSourceBuffer()
+      }
+    } catch (error: any) {
+      debug.api.general('WebSocketStreamClient message parse error:', error?.message || error)
+    }
+  }
+
+  // WebM streams begin with the EBML header magic bytes 0x1A45DFA3.
+  private isInitSegment(chunk: ArrayBuffer): boolean {
+    if (chunk.byteLength < 4) return false
+    const b = new Uint8Array(chunk, 0, 4)
+    return b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3
+  }
+
+  // Source restarted: rebuild the MediaSource/SourceBuffer and re-hand off (changing
+  // video.src kills the previously captured stream's tracks).
+  private rebuild() {
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop())
       this.stream = null
     }
+    this.pending = []
+    this.sourceBuffer = null
+    this.mediaSourceOpen = false
+    this.handedOff = false
+    this.mediaSource = new MediaSource()
+    this.mediaSource.addEventListener('sourceopen', () => {
+      this.mediaSourceOpen = true
+      this.maybeCreateSourceBuffer()
+    })
+    URL.revokeObjectURL(this.video.src)
+    this.video.src = URL.createObjectURL(this.mediaSource)
+  }
+
+  // Seek to the live edge once, before hand-off only — repeated seeks corrupt the decoder.
+  private syncToLive() {
+    if (this.handedOff) return
+    const sb = this.sourceBuffer
+    if (!sb || sb.buffered.length === 0) return
+    const liveEnd = sb.buffered.end(sb.buffered.length - 1)
+    if (liveEnd - this.video.currentTime > WS_MAX_LAG) {
+      this.video.currentTime = Math.max(sb.buffered.start(sb.buffered.length - 1), liveEnd - 0.3)
+    }
+  }
+
+  // Append chunks one at a time (a SourceBuffer takes a single append at a time).
+  private flush() {
+    const sb = this.sourceBuffer
+    if (!sb || sb.updating || this.pending.length === 0) return
+    try {
+      sb.appendBuffer(this.pending.shift()!)
+    } catch (error: any) {
+      debug.api.general('WebSocketStreamClient appendBuffer error:', error?.message || error)
+      this.rebuild()
+    }
+  }
+
+  private handOff() {
+    if (this.handedOff) return
+    this.handedOff = true
+    this.stream = (this.video as any).captureStream()
+    this.handler(this.stream!, this.context.module.stationConfig || {}, {
+      streamName: this.streamName,
+      room: this.context.liveUser?.room,
+    })
+  }
+
+  public stop() {
+    super.stop()
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop())
+      this.stream = null
+    }
+    this.video.pause()
+    URL.revokeObjectURL(this.video.src)
+    this.video.removeAttribute('src')
+    this.sourceBuffer = null
+    this.pending = []
   }
 }
