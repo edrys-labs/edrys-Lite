@@ -43,6 +43,7 @@ export class StreamServer {
   private peer: Peer
   private streamName: string
   private connectedClients: Set<string> = new Set()
+  private unsubscribeMessage: (() => void) | null = null
 
   constructor(
     context: any,
@@ -68,7 +69,7 @@ export class StreamServer {
     })
 
     // Re-announce when a client asks for this stream (handles late joiners).
-    this.context.onMessage(({ subject, body }: any) => {
+    this.unsubscribeMessage = this.context.onMessage(({ subject, body }: any) => {
       if (subject === STREAM_REQUEST && body?.streamName === this.streamName) {
         this.announceReady()
       }
@@ -129,6 +130,10 @@ export class StreamServer {
   }
 
   public stop() {
+    if (this.unsubscribeMessage) {
+      this.unsubscribeMessage()
+      this.unsubscribeMessage = null
+    }
     if (this.peer && !this.peer.destroyed) {
       this.peer.destroy()
     }
@@ -148,6 +153,7 @@ export class StreamClient {
   private isInitialConnection: boolean = true
   private connectionTimeout: any = null
   private requestInterval: any = null
+  private unsubscribeMessage: (() => void) | null = null
 
   constructor(
     context: any,
@@ -166,18 +172,18 @@ export class StreamClient {
   }
 
   private setupPeerEvents() {
-    this.peer.on('open', () => {
-      // Connect when the server announces it's ready; also ping in case it's already live.
-      this.context.onMessage(({ subject, body }: any) => {
-        if (
-          subject === STREAM_READY &&
-          body?.streamName === this.defaultStreamName &&
-          !this.currentConnection
-        ) {
-          this.selectStream(this.defaultStreamName!)
-        }
-      })
+    // Connect when the server announces it's ready.
+    this.unsubscribeMessage = this.context.onMessage(({ subject, body }: any) => {
+      if (
+        subject === STREAM_READY &&
+        body?.streamName === this.defaultStreamName &&
+        !this.currentConnection
+      ) {
+        this.selectStream(this.defaultStreamName!)
+      }
+    })
 
+    this.peer.on('open', () => {
       if (this.defaultStreamName) {
         // Retry until connected: the comm layer can drop messages right after joining.
         this.requestStream()
@@ -309,6 +315,11 @@ export class StreamClient {
     // Reset reconnection attempts when stopping
     this.reconnectAttempts = 0
     this.isInitialConnection = true // Reset for next connection
+
+    if (this.unsubscribeMessage) {
+      this.unsubscribeMessage()
+      this.unsubscribeMessage = null
+    }
 
     // Clear any pending connection attempts
     if (this.connectionTimeout) {

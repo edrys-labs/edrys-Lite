@@ -167,7 +167,7 @@ window['Edrys'] = {
   },
 
   onMessage(handler, promiscuous = false) {
-    window.addEventListener('$Edrys.message', (e) => {
+    const listener = (e: Event) => {
       const customEvent = e as CustomEvent
       if (
         !promiscuous &&
@@ -190,7 +190,11 @@ window['Edrys'] = {
       LOG('RECEIVED MESSAGE', message.subject, message.body)
 
       handler(message)
-    })
+    }
+
+    window.addEventListener('$Edrys.message', listener)
+
+    return () => window.removeEventListener('$Edrys.message', listener)
   },
   sendMessage: (subject: any, body: any, user?: string) => {
     if (typeof subject !== 'string') subject = JSON.stringify(subject)
