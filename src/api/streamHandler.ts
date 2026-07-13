@@ -42,7 +42,7 @@ export class StreamServer {
   private stream: MediaStream
   private peer: Peer
   private streamName: string
-  private connectedClients: Set<string> = new Set()
+  private calls: Map<string, any> = new Map()
   private unsubscribeMessage: (() => void) | null = null
 
   constructor(
@@ -76,16 +76,15 @@ export class StreamServer {
     })
 
     this.peer.on('connection', (conn) => {
-      this.connectedClients.add(conn.peer)
       this.callClient(conn.peer)
 
       conn.on('close', () => {
-        this.connectedClients.delete(conn.peer)
+        this.closeCall(conn.peer)
       })
 
       conn.on('error', (err: any) => {
         debug.api.general('StreamServer connection error:', err?.type || err)
-        this.connectedClients.delete(conn.peer)
+        this.closeCall(conn.peer)
       })
     })
 
@@ -105,27 +104,61 @@ export class StreamServer {
   }
 
   private callClient(clientPeerId: string) {
-    if (this.stream) {
-      const call = this.peer.call(clientPeerId, this.stream)
+    if (!this.stream) return
 
-      if (!call) {
-        this.connectedClients.delete(clientPeerId)
-        return
+    this.closeCall(clientPeerId)
+
+    const call = this.peer.call(clientPeerId, this.stream)
+    if (!call) return
+
+    this.calls.set(clientPeerId, call)
+
+    call.on('close', () => this.closeCall(clientPeerId))
+    call.on('error', (err: any) => {
+      debug.api.general('StreamServer call error:', err?.type || err)
+      this.closeCall(clientPeerId)
+    })
+  }
+
+  // Close and forget the media call for one client, releasing its
+  // RTCPeerConnection and video encoder.
+  private closeCall(clientPeerId: string) {
+    const call = this.calls.get(clientPeerId)
+    if (call) {
+      try {
+        call.close()
+      } catch (err: any) {
+        debug.api.general('StreamServer closeCall error:', err?.type || err)
       }
-
-      call.on('error', (err: any) => {
-        debug.api.general('StreamServer call error:', err?.type || err)
-        this.connectedClients.delete(clientPeerId)
-      })
+      this.calls.delete(clientPeerId)
     }
   }
 
   public updateStream(newStream: MediaStream) {
     this.stream = newStream
 
-    // Call all connected clients with the new stream
-    this.connectedClients.forEach(clientPeerId => {
-      this.callClient(clientPeerId)
+    // Swap the outgoing track in place on every live call instead of placing new
+    // calls: this reuses the existing RTCPeerConnections (no leak, no glitch).
+    const newVideoTrack = newStream.getVideoTracks()[0] || null
+    const newAudioTrack = newStream.getAudioTracks()[0] || null
+
+    this.calls.forEach((call, clientPeerId) => {
+      const pc: RTCPeerConnection | undefined = call.peerConnection
+      if (!pc) {
+        // No PC handle (call not yet established): fall back to a fresh call.
+        this.callClient(clientPeerId)
+        return
+      }
+      for (const sender of pc.getSenders()) {
+        const kind = sender.track?.kind
+        const replacement =
+          kind === 'video' ? newVideoTrack : kind === 'audio' ? newAudioTrack : null
+        if (replacement) {
+          sender.replaceTrack(replacement).catch((err: any) =>
+            debug.api.general('StreamServer replaceTrack error:', err?.name || err)
+          )
+        }
+      }
     })
   }
 
@@ -134,6 +167,9 @@ export class StreamServer {
       this.unsubscribeMessage()
       this.unsubscribeMessage = null
     }
+    // Close every outstanding media call, then the peer itself.
+    this.calls.forEach((_call, clientPeerId) => this.closeCall(clientPeerId))
+    this.calls.clear()
     if (this.peer && !this.peer.destroyed) {
       this.peer.destroy()
     }
@@ -255,9 +291,9 @@ export class StreamClient {
       this.currentConnection = null
     }
 
-    // Wait for peer to be ready or make connection immediately
+    // Wait for peer to be ready or make connection immediately.
     if (!this.peer.open) {
-      this.peer.on('open', () => {
+      this.peer.once('open', () => {
         this.makeConnection(streamPeerID)
       })
     } else {
