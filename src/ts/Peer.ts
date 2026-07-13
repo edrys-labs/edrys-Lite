@@ -21,6 +21,12 @@ import * as Y from 'yjs'
 // @ts-ignore
 import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
 import { EdrysWebsocketProvider } from './EdrysWebsocketProvider'
+import { GenericWebrtcProviderAdapter } from './GenericProviderAdapter'
+
+// Migration flag: route the WebRTC path through GenericProvider +
+// EdrysSimplePeerTransport (y-generic) instead of the legacy EdrysWebrtcProvider.
+// Temporary — removed when E4 lands and the old provider is deleted.
+const USE_GENERIC_WEBRTC = true
 import { debug } from '../api/debugHandler'
 
 function LOG(...args: any[]) {
@@ -139,7 +145,10 @@ const SignallingServer = JSON.parse(
 const WebSocketServer = process.env.WEBSOCKET_SERVER || 'wss://demos.yjs.dev'
 
 export default class Peer {
-  private provider: EdrysWebrtcProvider | EdrysWebsocketProvider
+  private provider:
+    | EdrysWebrtcProvider
+    | EdrysWebsocketProvider
+    | GenericWebrtcProviderAdapter
   private providerType: 'WebRTC' | 'Websocket' = 'WebRTC'
   private websocketUrl: string = WebSocketServer
   private webrtcConfig: any = RTCConfiguration
@@ -304,7 +313,7 @@ export default class Peer {
       if (this.providerType === 'WebRTC') {
         LOG('Connecting using WebRTC provider')
 
-        this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
+        const webrtcOptions = {
           signaling: this.signalingServer,
           password: password || 'password',
           userid: this.peerID,
@@ -312,7 +321,11 @@ export default class Peer {
           peerOpts: {
             config: this.webrtcConfig
           }
-        })
+        }
+
+        this.provider = USE_GENERIC_WEBRTC
+          ? new GenericWebrtcProviderAdapter(room, this.y.doc, webrtcOptions)
+          : new EdrysWebrtcProvider(room, this.y.doc, webrtcOptions)
 
         // Handle provider status events
         this.provider.on('status', this.handleStatus.bind(this))

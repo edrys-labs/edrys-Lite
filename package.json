@@ -56,6 +56,7 @@
   },
   "dependencies": {
     "echarts": "^5.6.0",
+    "genericprovider": "file:../y-generic",
     "jest-environment-jsdom": "^29.7.0",
     "lz-string": "^1.5.0",
     "msgpackr": "^1.11.4",
@@ -69,6 +70,7 @@
     "cover 85.0%"
   ],
   "alias": {
-    "yjs": "./node_modules/yjs/dist/yjs.mjs"
+    "yjs": "./node_modules/yjs/dist/yjs.mjs",
+    "genericprovider/providers/simple-peer": "./node_modules/genericprovider/dist/providers/simple-peer/index.js"
   }
 }

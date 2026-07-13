@@ -41,6 +41,7 @@ export const debug = {
   ts: {
     database: createDebug('ts:database'),
     edrysWebrtcProvider: createDebug('ts:edrysWebrtcProvider'),
+    edrysSimplePeerTransport: createDebug('ts:edrysSimplePeerTransport'),
     edrysWebsocketProvider: createDebug('ts:edrysWebsocketProvider'),
     peer: createDebug('ts:peer'),
     utils: createDebug('ts:utils'),
