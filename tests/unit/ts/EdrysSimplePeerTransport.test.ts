@@ -170,6 +170,34 @@ describe('EdrysSimplePeerTransport identity gate', () => {
     expect(left).toEqual(['pubA_s1'])
     expect(t.peerIdForUser('pubA_s1')).toBeUndefined()
   })
+
+  test('sendTo(userid) resolves to the verified peer (not treated as a peerId)', async () => {
+    const t = makeTransport()
+    await t.connect({ room: 'room-1' })
+    const peerId = 'peer-msg'
+    const peer = await attachPeer(t, peerId)
+
+    deliverControl(t, peerId, idFrame('pubA_s1'))
+    deliverControl(t, peerId, hsFrame('pubA', 'good-sig'))
+    await flush()
+
+    const sendSpy = vi.spyOn(peer, 'send')
+    t.sendTo('pubA_s1', new Uint8Array([1, 2, 3]))
+    expect(sendSpy).toHaveBeenCalled()
+  })
+
+  test('sendTo(userid) for an unverified target falls back to broadcast', async () => {
+    const t = makeTransport()
+    await t.connect({ room: 'room-1' })
+    const peerId = 'peer-bc'
+    const peer = await attachPeer(t, peerId)
+
+    // peer-bc is connected but never completed the handshake, so the target
+    // userid is unknown; sendTo must still broadcast to all connected peers.
+    const sendSpy = vi.spyOn(peer, 'send')
+    t.sendTo('unknown_user', new Uint8Array([9]))
+    expect(sendSpy).toHaveBeenCalled()
+  })
 })
 
 describe('excludeOrigins kills revert propagation', () => {

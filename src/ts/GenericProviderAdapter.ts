@@ -7,12 +7,20 @@ import { REVERT_INVALID_ORIGIN } from './Utils'
 // Topic used for edrys custom messages carried over the provider's pubsub.
 const EDRYS_MSG_TOPIC = 'edrys'
 
+// How long a processed message id is remembered before it's forgotten.
+const MESSAGE_EXPIRATION_TIME = 10000
+
+function generateUniqueId(): string {
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 11)
+}
+
 /**
  * Adapter that presents a GenericProvider + EdrysSimplePeerTransport behind the
  * legacy provider API that Peer.ts consumes (on/onLeave/onMessage/sendMessage/
  * disconnect/destroy). Temporary scaffolding for the y-generic migration: E4
- * will fold this into Peer.ts directly, and E3 will replace the minimal pubsub
- * messaging here with the full dedup/history/BroadcastChannel implementation.
+ * will fold this into Peer.ts directly. Cross-tab delivery and per-transport
+ * dedup are handled by the provider's pubsub itself; this layer only adds the
+ * app-level message id/sender stamping and dedup edrys callers expect.
  */
 export class GenericWebrtcProviderAdapter {
   public userid: string
@@ -21,6 +29,12 @@ export class GenericWebrtcProviderAdapter {
   private _statusListener: ((event: { status: string }) => void) | null = null
   private _syncedListener: ((event: any) => void) | null = null
   private _messageUnsub: (() => void) | null = null
+  // Dedup: the provider's pubsub already dedups within a transport, but a
+  // message sent both directly (sendTo) and broadcast (self-echo across tabs
+  // via the provider's own BroadcastChannel bridge) can still be delivered
+  // twice at the app layer — mirrors the old providers' _processedMessages.
+  private _processedMessages = new Map<string, number>()
+  private _cleanupInterval: ReturnType<typeof setInterval> | null = null
 
   constructor(room: string, doc: Y.Doc, options: any) {
     this.userid = options.userid || doc.clientID.toString()
@@ -55,6 +69,11 @@ export class GenericWebrtcProviderAdapter {
     this.provider.connect({ room }).catch((e) => {
       console.error('GenericProvider connect failed:', e)
     })
+
+    this._cleanupInterval = setInterval(
+      () => this._cleanupProcessedMessages(),
+      MESSAGE_EXPIRATION_TIME
+    )
   }
 
   on(eventName: string, callback: (event: any) => void) {
@@ -69,16 +88,44 @@ export class GenericWebrtcProviderAdapter {
   onMessage(callback: (msg: any) => void) {
     this._messageUnsub?.()
     this._messageUnsub = this.provider.pubsub.subscribe(EDRYS_MSG_TOPIC, (msg) => {
+      if (this._isDuplicateMessage(msg)) return
       callback(msg)
     })
   }
 
   sendMessage(message: any, targetUserId: string | null = null) {
+    if (!message.id) {
+      message.id = generateUniqueId()
+    }
+    if (!message.sender) {
+      message.sender = this.userid
+    }
+    // Own sends never round-trip back through pubsub.subscribe, so mark them
+    // processed up front in case a future echo path (e.g. relay fallback)
+    // ever delivers our own message back to us.
+    this._processedMessages.set(message.id, Date.now())
+
     if (targetUserId) {
       // localId filtering delivers to exactly the target userid.
       this.provider.pubsub.publishTo(targetUserId, EDRYS_MSG_TOPIC, message)
     } else {
       this.provider.pubsub.publish(EDRYS_MSG_TOPIC, message)
+    }
+  }
+
+  private _isDuplicateMessage(message: any): boolean {
+    if (!message || !message.id) return false
+    if (this._processedMessages.has(message.id)) return true
+    this._processedMessages.set(message.id, Date.now())
+    return false
+  }
+
+  private _cleanupProcessedMessages() {
+    const now = Date.now()
+    for (const [id, timestamp] of this._processedMessages.entries()) {
+      if (now - timestamp > MESSAGE_EXPIRATION_TIME) {
+        this._processedMessages.delete(id)
+      }
     }
   }
 
@@ -91,6 +138,11 @@ export class GenericWebrtcProviderAdapter {
     this._messageUnsub = null
     this._statusListener = null
     this._syncedListener = null
+    if (this._cleanupInterval) {
+      clearInterval(this._cleanupInterval)
+      this._cleanupInterval = null
+    }
+    this._processedMessages.clear()
     this.provider.destroy()
   }
 }

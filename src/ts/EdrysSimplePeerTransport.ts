@@ -69,6 +69,20 @@ export class EdrysSimplePeerTransport extends SimplePeerTransport {
     return this._userIdToPeer.get(userid)
   }
 
+  /**
+   * pubsub `publishTo` targets by edrys userid; the base sendTo expects a
+   * transport peerId. Translate; broadcast as fallback when unresolved
+   * (receivers drop by the frame's embedded target id).
+   */
+  sendTo(userid: string, data: Uint8Array): void {
+    const peerId = this._userIdToPeer.get(userid)
+    if (peerId) {
+      super.sendTo(peerId, data)
+    } else {
+      this.send(data)
+    }
+  }
+
   private _sendOwnIdentity(peerId: string): void {
     // Announce userid immediately; the receiver holds it pending until the
     // signed handshake that follows verifies it.
