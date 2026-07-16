@@ -71,6 +71,7 @@
   ],
   "alias": {
     "yjs": "./node_modules/yjs/dist/yjs.mjs",
-    "genericprovider/providers/simple-peer": "./node_modules/genericprovider/dist/providers/simple-peer/index.js"
+    "genericprovider/providers/simple-peer": "./node_modules/genericprovider/dist/providers/simple-peer/index.js",
+    "genericprovider/providers/websocket": "./node_modules/genericprovider/dist/providers/websocket/index.js"
   }
 }

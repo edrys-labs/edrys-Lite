@@ -13,3 +13,4 @@ tests-examples/
 playwright.config.ts
 .env
 .vscode/
+.playwright-cli

@@ -84,7 +84,7 @@ async function attachPeer(t: EdrysSimplePeerTransport, peerId: string) {
 
 // Deliver an inbound control frame to the transport as if `peer` sent it.
 function deliverControl(t: EdrysSimplePeerTransport, peerId: string, frame: Uint8Array) {
-  ;(t as any)._controlCallback(peerId, frame)
+  for (const cb of (t as any)._controlCallbacks) cb(peerId, frame)
 }
 
 describe('EdrysSimplePeerTransport identity gate', () => {
