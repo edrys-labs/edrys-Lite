@@ -1,5 +1,6 @@
 import {
   getPeerID,
+  getBasePeerID,
   initCryptoIdentity,
   deepEqual,
   getShortPeerID,
@@ -355,8 +356,15 @@ export default class Peer {
 
       // Register the onLeave callback
       this.provider.onLeave((userid) => {
-        debug.ts.peer(`Peer with userid ${userid} has left the room.`)
         if (userid && userid.startsWith(STATION + ' ')) return
+
+        const base = getBasePeerID(userid)
+        const stillPresent = Object.keys(this.y.users.toJSON()).some(
+          (id) => id !== userid && getBasePeerID(id) === base
+        )
+        if (!stillPresent) {
+          debug.ts.peer(`Peer with userid ${userid} has left the room.`)
+        }
         this.removePeers([userid])
       })
 
