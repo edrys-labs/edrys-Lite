@@ -29,10 +29,6 @@ export class GenericWebrtcProviderAdapter {
   private _statusListener: ((event: { status: string }) => void) | null = null
   private _syncedListener: ((event: any) => void) | null = null
   private _messageUnsub: (() => void) | null = null
-  // Dedup: the provider's pubsub already dedups within a transport, but a
-  // message sent both directly (sendTo) and broadcast (self-echo across tabs
-  // via the provider's own BroadcastChannel bridge) can still be delivered
-  // twice at the app layer — mirrors the old providers' _processedMessages.
   private _processedMessages = new Map<string, number>()
   private _cleanupInterval: ReturnType<typeof setInterval> | null = null
 

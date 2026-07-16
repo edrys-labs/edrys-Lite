@@ -105,6 +105,29 @@ describe('EdrysSimplePeerTransport identity gate', () => {
     expect(t.peerIdForUser('pubA_s1')).toBe(peerId)
   })
 
+  test('onPeerConnect fans out: a later registration fires alongside our own handshake', async () => {
+    // Mirrors production, where GenericProvider.connect() registers its own
+    // onPeerConnect after our constructor did — both must fire (the base
+    // transport supports multiple listeners; a single-callback base would have
+    // clobbered our handshake trigger).
+    const t = makeTransport()
+    await t.connect({ room: 'room-1' })
+
+    const extra: string[] = []
+    t.onPeerConnect((peerId) => extra.push(peerId))
+
+    const peerId = 'peer-fanout'
+    await attachPeer(t, peerId)
+
+    // The extra listener fired...
+    expect(extra).toEqual([peerId])
+    // ...and our own handshake still runs (verifies end-to-end).
+    deliverControl(t, peerId, idFrame('pubA_s1'))
+    deliverControl(t, peerId, hsFrame('pubA', 'good-sig'))
+    await flush()
+    expect(t.peerIdForUser('pubA_s1')).toBe(peerId)
+  })
+
   test('a spoofed peer (bad signature) is rejected and torn down', async () => {
     verifyImpl = () => Promise.resolve(false)
     const t = makeTransport()
