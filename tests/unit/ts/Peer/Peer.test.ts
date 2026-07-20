@@ -3,8 +3,8 @@ import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest';
 const flushPromises = () => new Promise<void>((r) => setTimeout(r, 0));
 import Peer from '../../../../src/ts/Peer';
 import * as Y from 'yjs';
-import { EdrysWebrtcProvider } from '../../../../src/ts/EdrysWebrtcProvider';
-import { EdrysWebsocketProvider } from '../../../../src/ts/EdrysWebsocketProvider';
+import { GenericWebrtcProviderAdapter } from '../../../../src/ts/GenericProviderAdapter';
+import { GenericWebsocketProviderAdapter } from '../../../../src/ts/GenericWebsocketProviderAdapter';
 import { getPeerID, getShortPeerID, decodeCommConfig, updateUrlWithCommConfig } from '../../../../src/ts/Utils';
 import { i18n, messages } from '../../../setup';
 
@@ -30,8 +30,8 @@ const mockWebrtcEvents = {
   synced: null,
 };
 
-vi.mock('../../../../src/ts/EdrysWebrtcProvider', () => ({
-  EdrysWebrtcProvider: vi.fn().mockImplementation(() => ({
+vi.mock('../../../../src/ts/GenericProviderAdapter', () => ({
+  GenericWebrtcProviderAdapter: vi.fn().mockImplementation(() => ({
     on: vi.fn().mockImplementation((event, callback) => {
       if (event === 'status') mockWebrtcEvents.status = callback;
       if (event === 'synced') mockWebrtcEvents.synced = callback;
@@ -44,8 +44,8 @@ vi.mock('../../../../src/ts/EdrysWebrtcProvider', () => ({
   })),
 }));
 
-vi.mock('../../../../src/ts/EdrysWebsocketProvider', () => ({
-  EdrysWebsocketProvider: vi.fn().mockImplementation(() => ({
+vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
+  GenericWebsocketProviderAdapter: vi.fn().mockImplementation(() => ({
     on: vi.fn().mockImplementation((event, callback) => {
       if (event === 'status') mockWebsocketEvents.status = callback;
       if (event === 'synced') mockWebsocketEvents.synced = callback;
@@ -155,7 +155,7 @@ describe('Peer Class', () => {
     });
 
     test('should call connectProvider on instantiation', () => {
-      expect(EdrysWebrtcProvider).toHaveBeenCalledWith(
+      expect(GenericWebrtcProviderAdapter).toHaveBeenCalledWith(
         expect.any(String),
         expect.anything(),
         expect.objectContaining({
@@ -172,8 +172,8 @@ describe('Peer Class', () => {
   describe('Communication Provider Management', () => {
     test('initializes with WebRTC provider by default', () => {
       const peer = new Peer(setup);
-      expect(EdrysWebrtcProvider).toHaveBeenCalled();
-      expect(EdrysWebsocketProvider).not.toHaveBeenCalled();
+      expect(GenericWebrtcProviderAdapter).toHaveBeenCalled();
+      expect(GenericWebsocketProviderAdapter).not.toHaveBeenCalled();
       expect(peer['providerType']).toBe('WebRTC');
     });
 
@@ -190,7 +190,7 @@ describe('Peer Class', () => {
       // providerType and websocketUrl are set synchronously in the constructor
       expect(peer['providerType']).toBe('Websocket');
       expect(peer['websocketUrl']).toBe('wss://test.com');
-      // EdrysWebsocketProvider is instantiated inside initCryptoIdentity().then() — verified via providerType above
+      // GenericWebsocketProviderAdapter is instantiated inside initCryptoIdentity().then() — verified via providerType above
     });
 
     test('initializes with WebRTC provider from encoded config', () => {
@@ -203,7 +203,7 @@ describe('Peer Class', () => {
       };
       
       const peer = new Peer(rtcConfig);
-      expect(EdrysWebrtcProvider).toHaveBeenCalled();
+      expect(GenericWebrtcProviderAdapter).toHaveBeenCalled();
       expect(peer['providerType']).toBe('WebRTC');
       expect(peer['signalingServer']).toContain('wss://test.com');
     });

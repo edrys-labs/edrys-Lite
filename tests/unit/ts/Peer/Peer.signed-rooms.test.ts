@@ -24,8 +24,8 @@ vi.mock('secure-ls', () => ({
 vi.mock('../../../../src/api/debugHandler', () => ({
   debug: { ts: { peer: vi.fn() } },
 }))
-vi.mock('../../../../src/ts/EdrysWebrtcProvider', () => ({
-  EdrysWebrtcProvider: vi.fn().mockImplementation(() => ({
+vi.mock('../../../../src/ts/GenericProviderAdapter', () => ({
+  GenericWebrtcProviderAdapter: vi.fn().mockImplementation(() => ({
     on: vi.fn(),
     onLeave: vi.fn(),
     onMessage: vi.fn(),
@@ -34,8 +34,8 @@ vi.mock('../../../../src/ts/EdrysWebrtcProvider', () => ({
     destroy: vi.fn(),
   })),
 }))
-vi.mock('../../../../src/ts/EdrysWebsocketProvider', () => ({
-  EdrysWebsocketProvider: vi.fn().mockImplementation(() => ({
+vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
+  GenericWebsocketProviderAdapter: vi.fn().mockImplementation(() => ({
     on: vi.fn(),
     onLeave: vi.fn(),
     onMessage: vi.fn(),
