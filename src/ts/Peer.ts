@@ -20,16 +20,8 @@ import {
 } from './Utils'
 import * as Y from 'yjs'
 // @ts-ignore
-import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
-import { EdrysWebsocketProvider } from './EdrysWebsocketProvider'
 import { GenericWebrtcProviderAdapter } from './GenericProviderAdapter'
 import { GenericWebsocketProviderAdapter } from './GenericWebsocketProviderAdapter'
-
-// Migration flags: route each path through GenericProvider + a y-generic
-// transport instead of the legacy Edrys*Provider classes.
-// Temporary — removed when E4 lands and the old providers are deleted.
-const USE_GENERIC_WEBRTC = true
-const USE_GENERIC_WEBSOCKET = true
 import { debug } from '../api/debugHandler'
 
 function LOG(...args: any[]) {
@@ -149,8 +141,6 @@ const WebSocketServer = process.env.WEBSOCKET_SERVER || 'wss://demos.yjs.dev'
 
 export default class Peer {
   private provider:
-    | EdrysWebrtcProvider
-    | EdrysWebsocketProvider
     | GenericWebrtcProviderAdapter
     | GenericWebsocketProviderAdapter
   private providerType: 'WebRTC' | 'Websocket' = 'WebRTC'
@@ -327,9 +317,7 @@ export default class Peer {
           }
         }
 
-        this.provider = USE_GENERIC_WEBRTC
-          ? new GenericWebrtcProviderAdapter(room, this.y.doc, webrtcOptions)
-          : new EdrysWebrtcProvider(room, this.y.doc, webrtcOptions)
+        this.provider = new GenericWebrtcProviderAdapter(room, this.y.doc, webrtcOptions)
 
         // Handle provider status events
         this.provider.on('status', this.handleStatus.bind(this))
@@ -345,9 +333,7 @@ export default class Peer {
           classroomId: room,
         }
 
-        this.provider = USE_GENERIC_WEBSOCKET
-          ? new GenericWebsocketProviderAdapter(room, this.y.doc, websocketOptions)
-          : new EdrysWebsocketProvider(room, this.y.doc, websocketOptions)
+        this.provider = new GenericWebsocketProviderAdapter(room, this.y.doc, websocketOptions)
 
         // Event handlers for WebSocket provider (status and synced)
         this.provider.on('status', this.handleStatus.bind(this))

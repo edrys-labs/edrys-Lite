@@ -6,13 +6,13 @@ import { WebSocketTransport } from 'genericprovider/providers/websocket'
 import { debug } from '../api/debugHandler'
 import { signChallenge, verifyChallenge, getPeerID, REVERT_INVALID_ORIGIN } from './Utils'
 
-// Awareness field carrying a custom message (see messaging note below).
+// Awareness field carrying a custom message.
 const CUSTOM_MESSAGE_FIELD = 'customMessage'
 
-// How long a processed message id is remembered before it's forgotten.
+// How long a processed message id is remembered (dedup).
 const MESSAGE_EXPIRATION_TIME = 10000
 
-// Heartbeat cadence and the window after which a silent peer is considered gone.
+// Heartbeat cadence; window after which a silent peer counts as gone.
 const HEARTBEAT_INTERVAL = 5000
 const PEER_TIMEOUT = 15000
 
@@ -21,29 +21,18 @@ function generateUniqueId(): string {
 }
 
 /**
- * edrys WebSocket adapter: GenericProvider + the stock WebSocketTransport behind
- * the legacy provider API that Peer.ts consumes (on/onLeave/onMessage/
- * sendMessage/disconnect/destroy).
+ * WebSocket adapter: GenericProvider + stock WebSocketTransport behind the
+ * provider API Peer.ts consumes.
  *
- * PROTOCOL CONSTRAINT (why this diverges from the WebRTC adapter): a stock
- * y-websocket server only relays two message opcodes — sync (0) and awareness
- * (1). GenericProvider's other opcodes (pubsub 2/4, verified-sync 3) are
- * silently dropped by such a server. So this adapter:
- *   - sets `verifyUpdates: false`, forcing doc updates onto the plain sync
- *     opcode (0) the server relays, instead of the verified-sync opcode (3);
- *   - rides **Yjs awareness** for both the identity gate AND custom messages
- *     (the WebRTC adapter uses pubsub for messages, but pubsub opcodes don't
- *     survive a y-websocket relay), exactly like the old EdrysWebsocketProvider;
- *   - sets `syncMode: 'pull'` so it does not push its full local doc on connect.
- *     edrys seeds the doc (initUser/initRooms) before connecting; pushing that
- *     on a relay (where the server holds authoritative state) makes peers fight
- *     over competing copies via the signed-state revert gate — one-sided
- *     self-only divergence on reload. Pulling lets a peer adopt server state.
+ * PROTOCOL CONSTRAINT (why it diverges from the WebRTC adapter): a stock
+ * y-websocket server only relays sync (0) and awareness (1) opcodes; pubsub
+ * (2/4) and verified-sync (3) are dropped. Hence the three provider options
+ * below, and identity + custom messages ride awareness (not pubsub).
  *
- * Identity: each client publishes {id, publicKey, signature, heartbeat} in its
- * awareness state; a peer is trusted only once verifyChallenge() passes, and a
- * peer whose heartbeat goes stale is treated as having left (WS has no per-peer
- * disconnect signal). Custom messages are only accepted from verified peers.
+ * Identity: each client publishes {id, publicKey, signature, heartbeat} into
+ * awareness; a peer is trusted only after verifyChallenge() passes, and a stale
+ * heartbeat counts as a leave (WS has no per-peer disconnect). Custom messages
+ * are accepted only from verified peers.
  */
 export class GenericWebsocketProviderAdapter {
   public userid: string
@@ -74,21 +63,18 @@ export class GenericWebsocketProviderAdapter {
     this.transport = new WebSocketTransport()
 
     this.provider = new GenericProvider(doc, this.transport, {
-      // Local rollback transactions must stay local (revert-filter parity).
+      // Keep local rollback transactions local (revert-filter parity).
       excludeOrigins: [REVERT_INVALID_ORIGIN],
-      // Plain sync opcode (0) so a stock y-websocket server relays our updates;
-      // the verified-sync opcode (3) would be dropped. See class note.
+      // Use plain sync opcode (0), relayed; verified-sync (3) would be dropped.
       verifyUpdates: false,
-      // Pull-only on connect: the y-websocket server holds authoritative room
-      // state; a reconnecting peer must ADOPT it, not push its freshly
-      // initialized local copy (initUser/initRooms run before connect). Pushing
-      // feeds edrys's signed-state revert gate competing state it can't
-      // reconcile over a relay, causing self-only divergence on reload.
+      // Pull-only on connect: adopt the server's authoritative doc instead of
+      // pushing our pre-seeded local copy (else signed-state revert can't
+      // reconcile over the relay → self-only divergence on reload).
       syncMode: 'pull',
     })
     this.awareness = this.provider.awareness
 
-    // Map GenericProvider's ConnectionStatus -> legacy { status } shape.
+    // ConnectionStatus -> legacy { status } shape.
     this.provider.on('status', (status: any) => {
       if (status?.state === 'connected' && this._statusListener) {
         this._statusListener({ status: 'connected' })
@@ -132,12 +118,11 @@ export class GenericWebsocketProviderAdapter {
   sendMessage(message: any, _targetUserId: string | null = null) {
     if (!message.id) message.id = generateUniqueId()
     if (!message.sender) message.sender = this.userid
-    // Remember our own id so an echo of it via awareness isn't re-delivered.
+    // Remember our own id so its awareness echo isn't re-delivered.
     this._processedMessages.set(message.id, Date.now())
 
-    // Publish the message into awareness; targeting is not supported on this
-    // transport (awareness is broadcast), matching the old WS provider — the
-    // recipient-fan-out that Peer.broadcast() does still routes each copy here.
+    // Publish into awareness (broadcast — no targeting on this transport;
+    // Peer.broadcast() fans out one copy per recipient anyway).
     const local = this.awareness.getLocalState() || {}
     this.awareness.setLocalState({
       ...local,
@@ -145,8 +130,7 @@ export class GenericWebsocketProviderAdapter {
       [CUSTOM_MESSAGE_FIELD]: message,
     })
 
-    // Clear the message shortly after so it isn't re-sent on future awareness
-    // updates (old provider's hack — awareness state is sticky).
+    // Clear it shortly after — awareness state is sticky and would re-send.
     setTimeout(() => {
       const current = this.awareness.getLocalState() || {}
       if (current[CUSTOM_MESSAGE_FIELD]?.id === message.id) {
@@ -155,10 +139,7 @@ export class GenericWebsocketProviderAdapter {
     }, 1000)
   }
 
-  /**
-   * Awareness update: verify newly-seen peers, refresh their heartbeat clocks,
-   * and deliver any custom message a verified peer is carrying.
-   */
+  // Verify new peers, refresh heartbeats, deliver messages from verified peers.
   private _onAwarenessUpdate = ({ added, updated }: any) => {
     const states = this.awareness.getStates()
     for (const clientId of [...added, ...updated]) {
@@ -169,7 +150,7 @@ export class GenericWebsocketProviderAdapter {
       this._verifyPeer(user)
       this._lastHeartbeats.set(user.id, Date.now())
 
-      // Deliver a custom message only from a verified peer, once.
+      // Deliver a message only from a verified peer, once.
       const message = state[CUSTOM_MESSAGE_FIELD]
       if (message && this._verifiedUsers.has(user.id) && !this._isDuplicateMessage(message)) {
         if (this._messageListener) this._messageListener(message)

@@ -4,10 +4,10 @@ import Peer from 'simple-peer/simplepeer.min.js'
 import { EdrysSimplePeerTransport } from './EdrysSimplePeerTransport'
 import { REVERT_INVALID_ORIGIN } from './Utils'
 
-// Topic used for edrys custom messages carried over the provider's pubsub.
+// Pubsub topic for edrys custom messages.
 const EDRYS_MSG_TOPIC = 'edrys'
 
-// How long a processed message id is remembered before it's forgotten.
+// How long a processed message id is remembered (dedup).
 const MESSAGE_EXPIRATION_TIME = 10000
 
 function generateUniqueId(): string {
@@ -15,12 +15,10 @@ function generateUniqueId(): string {
 }
 
 /**
- * Adapter that presents a GenericProvider + EdrysSimplePeerTransport behind the
- * legacy provider API that Peer.ts consumes (on/onLeave/onMessage/sendMessage/
- * disconnect/destroy). Temporary scaffolding for the y-generic migration: E4
- * will fold this into Peer.ts directly. Cross-tab delivery and per-transport
- * dedup are handled by the provider's pubsub itself; this layer only adds the
- * app-level message id/sender stamping and dedup edrys callers expect.
+ * WebRTC adapter: GenericProvider + EdrysSimplePeerTransport behind the provider
+ * API Peer.ts consumes (on/onLeave/onMessage/sendMessage/disconnect/destroy).
+ * Cross-tab delivery and dedup are the provider's pubsub; this layer only adds
+ * app-level message id/sender stamping.
  */
 export class GenericWebrtcProviderAdapter {
   public userid: string
@@ -44,13 +42,13 @@ export class GenericWebrtcProviderAdapter {
     })
 
     this.provider = new GenericProvider(doc, this.transport, {
-      // Local rollback transactions must stay local (revert-filter parity).
+      // Keep local rollback transactions local (revert-filter parity).
       excludeOrigins: [REVERT_INVALID_ORIGIN],
       // Identity for targeted pubsub (publishTo by userid).
       localId: this.userid,
     })
 
-    // Map GenericProvider's ConnectionStatus -> legacy { status } shape.
+    // ConnectionStatus -> legacy { status } shape.
     this.provider.on('status', (status: any) => {
       if (status?.state === 'connected' && this._statusListener) {
         this._statusListener({ status: 'connected' })
@@ -96,9 +94,7 @@ export class GenericWebrtcProviderAdapter {
     if (!message.sender) {
       message.sender = this.userid
     }
-    // Own sends never round-trip back through pubsub.subscribe, so mark them
-    // processed up front in case a future echo path (e.g. relay fallback)
-    // ever delivers our own message back to us.
+    // Mark own id processed up front, guarding a future echo path.
     this._processedMessages.set(message.id, Date.now())
 
     if (targetUserId) {
