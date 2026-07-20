@@ -26,7 +26,7 @@ class FakePubSub {
 
 let fakePubSub: FakePubSub
 
-vi.mock('genericprovider', () => {
+vi.mock('@edryslabs/genericprovider', () => {
   return {
     GenericProvider: vi.fn().mockImplementation(() => {
       return {

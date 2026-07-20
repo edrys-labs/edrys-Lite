@@ -1,5 +1,5 @@
 import * as Y from 'yjs'
-import { GenericProvider } from 'genericprovider'
+import { GenericProvider } from '@edryslabs/genericprovider'
 import Peer from 'simple-peer/simplepeer.min.js'
 import { EdrysSimplePeerTransport } from './EdrysSimplePeerTransport'
 import { REVERT_INVALID_ORIGIN } from './Utils'

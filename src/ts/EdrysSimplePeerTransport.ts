@@ -1,7 +1,5 @@
-// Vite/vitest resolve this exports subpath; Parcel can't, so package.json's
-// "alias" maps it to the concrete dist file for the parcel build.
-import { SimplePeerTransport } from 'genericprovider/providers/simple-peer'
-import type { SimplePeerTransportOptions } from 'genericprovider/providers/simple-peer'
+import { SimplePeerTransport } from '@edryslabs/genericprovider/providers/simple-peer'
+import type { SimplePeerTransportOptions } from '@edryslabs/genericprovider/providers/simple-peer'
 import { encoding, decoding } from 'lib0'
 import { debug } from '../api/debugHandler'
 import { signChallenge, verifyChallenge, getPeerID } from './Utils'

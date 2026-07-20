@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import * as Y from 'yjs'
 import { encoding } from 'lib0'
-import { GenericProvider } from 'genericprovider'
+import { GenericProvider } from '@edryslabs/genericprovider'
 import { EdrysSimplePeerTransport } from '../../../src/ts/EdrysSimplePeerTransport'
 import { REVERT_INVALID_ORIGIN } from '../../../src/ts/Utils'
 

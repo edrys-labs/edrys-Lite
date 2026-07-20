@@ -33,7 +33,7 @@ class FakeAwareness {
 
 let fakeAwareness: FakeAwareness
 
-vi.mock('genericprovider', () => ({
+vi.mock('@edryslabs/genericprovider', () => ({
   GenericProvider: vi.fn().mockImplementation(() => ({
     awareness: fakeAwareness,
     on: vi.fn(),
@@ -43,7 +43,7 @@ vi.mock('genericprovider', () => ({
   })),
 }))
 
-vi.mock('genericprovider/providers/websocket', () => ({
+vi.mock('@edryslabs/genericprovider/providers/websocket', () => ({
   WebSocketTransport: vi.fn().mockImplementation(() => ({})),
 }))
 

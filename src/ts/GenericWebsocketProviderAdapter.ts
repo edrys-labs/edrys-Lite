@@ -1,8 +1,6 @@
 import * as Y from 'yjs'
-import { GenericProvider } from 'genericprovider'
-// Vite/vitest resolve this exports subpath; Parcel can't, so package.json's
-// "alias" maps it to the concrete dist file for the parcel build.
-import { WebSocketTransport } from 'genericprovider/providers/websocket'
+import { GenericProvider } from '@edryslabs/genericprovider'
+import { WebSocketTransport } from '@edryslabs/genericprovider/providers/websocket'
 import { debug } from '../api/debugHandler'
 import { signChallenge, verifyChallenge, getPeerID, REVERT_INVALID_ORIGIN } from './Utils'
 

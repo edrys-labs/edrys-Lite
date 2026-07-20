@@ -45,6 +45,7 @@
     "parcel-reporter-static-files-copy": "^1.5.3",
     "patch-package": "^8.0.0",
     "process": "^0.11.10",
+    "typescript": "^7.0.2",
     "vitest": "^3.2.3",
     "vue-i18n": "^11.1.6",
     "vue-prism-editor": "^2.0.0-alpha.2",
@@ -55,8 +56,8 @@
     "yjs": "^13.6.27"
   },
   "dependencies": {
+    "@edryslabs/genericprovider": "^1.0.1",
     "echarts": "^5.6.0",
-    "genericprovider": "file:../y-generic",
     "jest-environment-jsdom": "^29.7.0",
     "lz-string": "^1.5.0",
     "msgpackr": "^1.11.4",
@@ -71,7 +72,7 @@
   ],
   "alias": {
     "yjs": "./node_modules/yjs/dist/yjs.mjs",
-    "genericprovider/providers/simple-peer": "./node_modules/genericprovider/dist/providers/simple-peer/index.js",
-    "genericprovider/providers/websocket": "./node_modules/genericprovider/dist/providers/websocket/index.js"
+    "@edryslabs/genericprovider/providers/simple-peer": "./node_modules/@edryslabs/genericprovider/dist/providers/simple-peer/index.js",
+    "@edryslabs/genericprovider/providers/websocket": "./node_modules/@edryslabs/genericprovider/dist/providers/websocket/index.js"
   }
 }
