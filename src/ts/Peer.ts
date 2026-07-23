@@ -139,6 +139,9 @@ const SignallingServer = JSON.parse(
 
 const WebSocketServer = process.env.WEBSOCKET_SERVER || 'wss://demos.yjs.dev'
 
+// Origin for deleting a never-legitimate (forged/unauthorized) y.users entry.
+const PURGE_UNAUTHORIZED_ORIGIN = 'purge-unauthorized'
+
 export default class Peer {
   private provider:
     | GenericWebrtcProviderAdapter
@@ -843,17 +846,24 @@ export default class Peer {
   /** Restore the cached good state for key, or delete if no cache exists. */
   private _restoreOrDelete(key: string): void {
     const cached = this._lastGoodUser.get(key)
-    this.y.doc.transact(() => {
-      if (cached) {
+    if (cached) {
+      // Restore last-good signed state. Stays local (REVERT_INVALID_ORIGIN):
+      // the legit entry already exists on other peers, so no need to propagate.
+      this.y.doc.transact(() => {
         const m = new Y.Map()
         for (const k of Object.keys(cached.payload)) m.set(k, cached.payload[k])
         this.y.users.set(key, m)
         this.y.userSigs.set(key, cached.envelope)
-      } else {
+      }, REVERT_INVALID_ORIGIN)
+    } else {
+      // No last-good state → the entry was never legitimate (forged/unauthorized).
+      // Propagate the delete so a relay's authoritative server doc is corrected
+      // once; otherwise the server re-delivers the forgery forever (WS transport).
+      this.y.doc.transact(() => {
         this.y.users.delete(key)
         this.y.userSigs.delete(key)
-      }
-    }, REVERT_INVALID_ORIGIN)
+      }, PURGE_UNAUTHORIZED_ORIGIN)
+    }
   }
 
   /**
