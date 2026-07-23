@@ -172,13 +172,6 @@ export default class Peer {
 
   private callback: { [key: string]: any } = {}
   private callbackUpdate: { [key: string]: boolean } = {}
-  private logicalClocks: {
-    [key: string]: {
-      clock: number
-      lastModified: number
-    }
-  } = {}
-
   private peerID: string
 
   private expectedOwner: string | null = null
@@ -495,7 +488,6 @@ export default class Peer {
         if (peerIds.includes(id)) {
           this.y.users.delete(id)
           this.y.userSigs.delete(id)
-          delete this.logicalClocks[id]
         }
       }
     }, 'removePeers')
@@ -867,7 +859,6 @@ export default class Peer {
           const sigEnv = this.y.userSigs.get(key) as Envelope | undefined
           if (await this._isValidTombstone('users', key, sigEnv)) {
             this._lastGoodUser.delete(key)
-            delete this.logicalClocks[key]
             LOG('y.users entry tombstoned', key)
           } else {
             this._restoreOrDelete(key)
@@ -1084,8 +1075,7 @@ export default class Peer {
 
     heartbeatID = setInterval(() => {
       if (this.y.users.has(this.peerID)) {
-        this.ticktack()
-        this.checkLogicalClocks()
+        this.checkForDeadStations()
       } else {
         LOG('user not found', this.peerID)
       }
@@ -1253,41 +1243,6 @@ export default class Peer {
         this.update('chat')
       })
     }, 'initChat')
-  }
-
-  checkLogicalClocks() {
-    const timeNow = Date.now()
-    const users = this.y.users.toJSON()
-    const deadPeers: string[] = []
-    const timeout = 15000
-
-    for (const id in users) {
-      if (id === this.peerID) continue
-      // Stations disappearance from one peer's view is not authority to evict them globally.
-      if (id.startsWith(STATION + ' ')) continue
-
-      const user = users[id]
-
-      if (this.logicalClocks[id] === undefined) {
-        this.logicalClocks[id] = {
-          clock: user.logicalClock,
-          lastModified: timeNow,
-        }
-      } else {
-        if (user.logicalClock != this.logicalClocks[id].clock) {
-          this.logicalClocks[id].clock = user.logicalClock
-          this.logicalClocks[id].lastModified = timeNow
-        } else if (timeNow - this.logicalClocks[id].lastModified > timeout) {
-          deadPeers.push(id)
-        }
-      }
-    }
-
-    if (deadPeers.length > 0) {
-      this.removePeers(deadPeers)
-    } else {
-      this.checkForDeadStations()
-    }
   }
 
   checkForDeadStations() {
@@ -1632,14 +1587,6 @@ export default class Peer {
     if (next) this._writeAndSignUser(this.peerID, next, 'gotoRoom')
   }
 
-  ticktack() {
-    const current = this.user()
-    if (!current) return
-    const next = this._nextUserPayload(this.peerID, {
-      logicalClock: (current.get('logicalClock') || 0) + 1,
-    })
-    if (next) this._writeAndSignUser(this.peerID, next, 'ticktack')
-  }
 
   /**
    * Sends a chat message.
