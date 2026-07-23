@@ -96,7 +96,7 @@ describe('Signed y.users', () => {
     peer.stop()
   })
 
-  test('ticktack re-signs after bumping logicalClock', async () => {
+  test('heartbeat does not re-sign the user entry', async () => {
     await Utils.initCryptoIdentity()
     const myPubKey = Utils.getPeerID(false)
 
@@ -106,17 +106,15 @@ describe('Signed y.users', () => {
 
     const peerID = peer['peerID']
     const firstEnv = peer['y'].userSigs.get(peerID)
-    const firstNonce = firstEnv.nonce
 
-    // Sleep slightly so the new nonce differs deterministically
-    await new Promise((r) => setTimeout(r, 5))
-
-    peer.ticktack()
+    await new Promise((r) => setTimeout(r, 10))
     await flushPromises()
 
     const secondEnv = peer['y'].userSigs.get(peerID)
-    expect(secondEnv.nonce).toBeGreaterThanOrEqual(firstNonce)
-    // The signature must still verify against the (now updated) payload.
+    // Same signature/nonce -> no re-sign churn occurred.
+    expect(secondEnv.nonce).toBe(firstEnv.nonce)
+    expect(secondEnv.signature).toBe(firstEnv.signature)
+    // And it still verifies against the current payload.
     const payload = peer['y'].users.get(peerID).toJSON()
     const valid = await Utils.verifyEntry('users', peerID, payload, secondEnv)
     expect(valid).toBe(true)

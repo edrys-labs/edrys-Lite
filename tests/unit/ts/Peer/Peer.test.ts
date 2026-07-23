@@ -405,10 +405,10 @@ describe('Peer Class', () => {
 
   // Peer Management Tests
   describe('Peer Management', () => {
-    test('should remove stale peers using logical clocks', () => {
+    test('should remove a departed peer via removePeers', () => {
       const userMap = peer['y'].users as Y.Map<any>;
       const stalePeerID = 'stalePeer';
-      
+
       peer['y'].doc.transact(() => {
         const staleUser = new Y.Map();
         staleUser.set('displayName', 'Stale User');
@@ -419,25 +419,19 @@ describe('Peer Class', () => {
         userMap.set(stalePeerID, staleUser);
       });
 
-      peer['logicalClocks'][stalePeerID] = {
-        clock: 1,
-        lastModified: Date.now() - 16000
-      };
-
       expect(userMap.has(stalePeerID)).toBe(true);
-      peer['checkLogicalClocks']();
+      peer['removePeers']([stalePeerID]);
       expect(userMap.has(stalePeerID)).toBe(false);
-      expect(peer['logicalClocks'][stalePeerID]).toBeUndefined();
       expect(userMap.has(peer['peerID'])).toBe(true);
     });
 
-    test('should update logicalClock during heartbeat', async () => {
-      const initialClock = peer.user().get('logicalClock');
-      peer['ticktack']();
-      // ticktack signs before writing (async); flush microtasks.
-      await vi.advanceTimersByTimeAsync(0);
-      // Re-fetch: _writeAndSignUser replaces the Y.Map, so the old ref is stale.
-      expect(peer.user().get('logicalClock')).toBe(initialClock + 1);
+    test('the heartbeat interval does not rewrite y.users', () => {
+      const before = peer.user();
+      vi.advanceTimersByTime(15000); // three 5s ticks
+      // Same Y.Map instance -> no replacement occurred.
+      expect(peer.user()).toBe(before);
+      expect((peer as any).ticktack).toBeUndefined();
+      expect((peer as any).checkLogicalClocks).toBeUndefined();
     });
   });
 
