@@ -75,6 +75,11 @@ export class GenericWebrtcProviderAdapter {
     else if (eventName === 'synced') this._syncedListener = callback
   }
 
+  /** App Awareness for modules (cursors/presence); isolated from identity. */
+  getAwareness(): any {
+    return this.provider.appAwareness
+  }
+
   onLeave(callback: (userid: string) => void) {
     this.transport.onLeave(callback)
   }

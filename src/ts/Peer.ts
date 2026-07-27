@@ -19,6 +19,7 @@ import {
   Envelope,
 } from './Utils'
 import * as Y from 'yjs'
+import * as awarenessProtocol from 'y-protocols/awareness'
 // @ts-ignore
 import { GenericWebrtcProviderAdapter } from './GenericProviderAdapter'
 import { GenericWebsocketProviderAdapter } from './GenericWebsocketProviderAdapter'
@@ -891,8 +892,10 @@ export default class Peer {
         }
         const envelope = this.y.userSigs.get(key) as Envelope | undefined
         const payload = value.toJSON()
+        // Long-lived presence, signed once — bypass the freshness window so old
+        // entries aren't rejected and purge-looped.
         const sigValid = envelope
-          ? await verifyEntry('users', key, payload, envelope)
+          ? await verifyEntry('users', key, payload, envelope, Number.POSITIVE_INFINITY)
           : false
         if (!sigValid) {
           LOG('y.users entry rejected (bad sig)', key, { hasEnvelope: !!envelope })
@@ -1645,6 +1648,41 @@ export default class Peer {
     }
 
     Y.applyUpdate(this.y.doc, data, { transactionId: 'extern' })
+  }
+
+  /**
+   * Y.Doc changes as encoded updates, for forwarding to module iframes.
+   * `origin` lets the caller drop echoes it just applied ('extern').
+   */
+  onState(callback: (data: Uint8Array, origin: any) => void): () => void {
+    this.y.doc.on('update', callback)
+    return () => this.y.doc.off('update', callback)
+  }
+
+  /** The app-awareness channel (module cursors/presence), isolated from identity. */
+  getAwareness(): any {
+    return this.provider.getAwareness()
+  }
+
+  /** Applies a module's encoded awareness update into the shared channel. */
+  updateAwareness(data: Uint8Array) {
+    if (!this.allowedToParticipate()) return
+    awarenessProtocol.applyAwarenessUpdate(this.getAwareness(), data, 'extern')
+  }
+
+  /**
+   * App-awareness changes as encoded updates for the changed clients.
+   * `origin` lets the caller drop echoes it just applied ('extern').
+   */
+  onAwareness(callback: (data: Uint8Array, origin: any) => void): () => void {
+    const awareness = this.getAwareness()
+    const handler = ({ added, updated, removed }: any, origin: any) => {
+      const changed = added.concat(updated).concat(removed)
+      if (changed.length === 0) return
+      callback(awarenessProtocol.encodeAwarenessUpdate(awareness, changed), origin)
+    }
+    awareness.on('update', handler)
+    return () => awareness.off('update', handler)
   }
 
   /**

@@ -105,6 +105,11 @@ export class GenericWebsocketProviderAdapter {
     else if (eventName === 'synced') this._syncedListener = callback
   }
 
+  /** App Awareness for modules (cursors/presence); isolated from the handshake. */
+  getAwareness(): any {
+    return this.provider.appAwareness
+  }
+
   onLeave(callback: (userid: string) => void) {
     this._leaveListener = callback
   }

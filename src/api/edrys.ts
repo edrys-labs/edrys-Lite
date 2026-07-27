@@ -23,8 +23,8 @@
 
 import * as Y from 'yjs'
 ;(window as any).Y = Y
-// import * as YP from 'y-protocols/awareness.js'
-// import { RoomAwarenessManager } from './awarenessManager'
+import * as YP from 'y-protocols/awareness'
+import { RoomAwarenessManager } from './awarenessManager'
 import { unpack, pack } from 'msgpackr'
 import {
   StreamServer,
@@ -35,11 +35,14 @@ import {
 import { debug, enableDebug, disableDebug, disableSpecificDebug } from './debugHandler'
 
 const EXTERN = 'extern'
-// var awareness: any
-// var awarenessManager: any
+var awareness: any
+var awarenessManager: any
 var liveClass = false
 var doc: any
 var callback = { onReady: false, onUpdate: false }
+// Latched when the $Edrys.ready dispatch is scheduled, so concurrent EXTERN
+// updates can't each queue their own.
+var readyScheduled = false
 var rtcConfig: RTCConfiguration | null = null
 
 function LOG(...args) {
@@ -151,10 +154,16 @@ window['Edrys'] = {
       LOG('READY')
       handler(window['Edrys'])
     } else
-      window.addEventListener('$Edrys.ready', (e) => {
-        LOG('READY')
-        handler(window['Edrys'])
-      })
+      // `once`: onReady is one-shot init (e.g. monaco.editor.create(), which
+      // throws on a second run against the same element).
+      window.addEventListener(
+        '$Edrys.ready',
+        (e) => {
+          LOG('READY')
+          handler(window['Edrys'])
+        },
+        { once: true }
+      )
   },
   onUpdate(handler) {
     callback.onUpdate = true
@@ -247,15 +256,20 @@ window['Edrys'] = {
       | 'XmlFragment'
       | 'XmlText'
       | 'XmlElement'
-      | 'Value',
-    // | 'Awareness',
+      | 'Value'
+      | 'Awareness',
     value?: any
   ) {
-    // if (type === 'Awareness') {
-    //   return awarenessManager.getAwareness(
-    //     window['Edrys'].liveUser.room + '.' + key
-    //   )
-    // }
+    if (type === 'Awareness') {
+      if (!awarenessManager) {
+        throw new Error(
+          "Edrys: awareness is not available yet — call getState(…, 'Awareness') from within onReady()."
+        )
+      }
+      return awarenessManager.getAwareness(
+        window['Edrys'].liveUser.room + '.' + key
+      )
+    }
 
     const map = doc.getMap('rooms').get(window['Edrys'].liveUser.room)
 
@@ -445,9 +459,8 @@ window.addEventListener(
 
         if (!doc) {
           doc = new Y.Doc()
-          // awareness = new YP.Awareness(doc)
-
-          // awarenessManager = new RoomAwarenessManager(awareness)
+          awareness = new YP.Awareness(doc)
+          awarenessManager = new RoomAwarenessManager(awareness)
 
           doc.getMap('users')
           doc.getMap('rooms')
@@ -458,7 +471,11 @@ window.addEventListener(
             LOG('DOC', state, origin)
             if (origin === EXTERN) {
               // onReady can only be sent if it has been updated by the parent
-              if (!window['Edrys'].ready && liveClass) {
+              if (!window['Edrys'].ready && !readyScheduled && liveClass) {
+                // Latch synchronously: `ready` is only set inside the timeout
+                // below, so every EXTERN update in that 1s window would
+                // otherwise pass the guard and re-run module init.
+                readyScheduled = true
                 this.setTimeout(() => {
                   window['Edrys'].ready = true
 
@@ -505,21 +522,18 @@ window.addEventListener(
             )
           })
 
-          // awareness.on('update', ({ added, updated, removed }, origin) => {
-          //   LOG('AWARENESS UPDATE', origin, added, updated, removed)
-          //   if (origin !== EXTERN) {
-          //     const changedClients = added.concat(updated, removed)
+          awareness.on('update', ({ added, updated, removed }, origin) => {
+            if (origin === EXTERN) return
+            const changedClients = added.concat(updated, removed)
+            window.parent.postMessage(
+              {
+                event: 'awareness',
+                data: YP.encodeAwarenessUpdate(awareness, changedClients),
+              },
+              window['Edrys'].origin
+            )
+          })
 
-          //     // Send the update to the parent window
-          //     window.parent.postMessage(
-          //       {
-          //         event: 'awareness',
-          //         data: YP.encodeAwarenessUpdate(awareness, changedClients),
-          //       },
-          //       window['Edrys'].origin
-          //     )
-          //   }
-          // })
         }
 
         try {
@@ -548,10 +562,18 @@ window.addEventListener(
           Y.applyUpdate(doc, e.data.liveClass, EXTERN)
         }
 
-        // if (e.data.awareness) {
-        //   YP.applyAwarenessUpdate(awareness, e.data.awareness, EXTERN)
-        // }
-
+        break
+      case 'state':
+        // Remote peer update relayed by the parent. EXTERN stops
+        // doc.on('update') posting it straight back.
+        if (e.data.data && doc) {
+          Y.applyUpdate(doc, new Uint8Array(e.data.data), EXTERN)
+        }
+        break
+      case 'awareness':
+        if (e.data.data && awareness) {
+          YP.applyAwarenessUpdate(awareness, new Uint8Array(e.data.data), EXTERN)
+        }
         break
       case 'message':
         // available: e.data.from, e.data.subject, e.data.body
