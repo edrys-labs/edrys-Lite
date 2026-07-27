@@ -856,6 +856,8 @@ export default class Peer {
         this.y.users.set(key, m)
         this.y.userSigs.set(key, cached.envelope)
       }, REVERT_INVALID_ORIGIN)
+    } else if (key === this.peerID) {
+      LOG('y.users own entry uncached — skipping purge', key)
     } else {
       // No last-good state → the entry was never legitimate (forged/unauthorized).
       // Propagate the delete so a relay's authoritative server doc is corrected
