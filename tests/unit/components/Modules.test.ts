@@ -31,6 +31,10 @@ describe('Modules Component', () => {
     broadcast: vi.fn(),
     update: vi.fn(),
     updateState: vi.fn(),
+    updateAwareness: vi.fn(),
+    onState: vi.fn(() => vi.fn()),
+    onAwareness: vi.fn(() => vi.fn()),
+    getWebRTCConfig: vi.fn(() => Promise.resolve({})),
   };
 
   const mockScrapedModules = [
