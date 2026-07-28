@@ -4,8 +4,8 @@ import { WebSocketTransport } from '@edryslabs/genericprovider/providers/websock
 import { debug } from '../api/debugHandler'
 import { signChallenge, verifyChallenge, getPeerID, REVERT_INVALID_ORIGIN } from './Utils'
 
-// Awareness field carrying a custom message.
-const CUSTOM_MESSAGE_FIELD = 'customMessage'
+// Pubsub topic for edrys custom messages (matches the WebRTC adapter).
+const EDRYS_MSG_TOPIC = 'edrys'
 
 // How long a processed message id is remembered (dedup).
 const MESSAGE_EXPIRATION_TIME = 10000
@@ -22,15 +22,18 @@ function generateUniqueId(): string {
  * WebSocket adapter: GenericProvider + stock WebSocketTransport behind the
  * provider API Peer.ts consumes.
  *
- * PROTOCOL CONSTRAINT (why it diverges from the WebRTC adapter): a stock
- * y-websocket server only relays sync (0) and awareness (1) opcodes; pubsub
- * (2/4) and verified-sync (3) are dropped. Hence the three provider options
- * below, and identity + custom messages ride awareness (not pubsub).
+ * PROTOCOL CONSTRAINT (why it diverges from the WebRTC adapter): the server
+ * relays sync (0), awareness (1) and pubsub (2/4), but verified-sync (3) is
+ * still dropped — hence verifyUpdates:false and syncMode:'pull' below.
+ * REQUIRES a server that relays opcodes 2/4 verbatim (edrys websocket-server
+ * >= "relay pubsub frames"); against a stock y-websocket server custom
+ * messages are silently dropped.
  *
  * Identity: each client publishes {id, publicKey, signature, heartbeat} into
  * awareness; a peer is trusted only after verifyChallenge() passes, and a stale
  * heartbeat counts as a leave (WS has no per-peer disconnect). Custom messages
- * are accepted only from verified peers.
+ * ride pubsub (one frame each, order preserved) and are accepted only from
+ * verified peers.
  */
 export class GenericWebsocketProviderAdapter {
   public userid: string
@@ -42,7 +45,7 @@ export class GenericWebsocketProviderAdapter {
   private _statusListener: ((event: { status: string }) => void) | null = null
   private _syncedListener: ((event: any) => void) | null = null
   private _leaveListener: ((userid: string) => void) | null = null
-  private _messageListener: ((msg: any) => void) | null = null
+  private _messageUnsub: (() => void) | null = null
 
   // userids that passed signature verification.
   private _verifiedUsers = new Set<string>()
@@ -69,6 +72,8 @@ export class GenericWebsocketProviderAdapter {
       // pushing our pre-seeded local copy (else signed-state revert can't
       // reconcile over the relay → self-only divergence on reload).
       syncMode: 'pull',
+      // Identity for targeted pubsub (publishTo by userid).
+      localId: this.userid,
     })
     this.awareness = this.provider.awareness
 
@@ -82,7 +87,7 @@ export class GenericWebsocketProviderAdapter {
       if (isSynced && this._syncedListener) this._syncedListener({ synced: true })
     })
 
-    // Awareness carries the identity handshake, heartbeats, and custom messages.
+    // Awareness carries the identity handshake and heartbeats.
     this.awareness.on('update', this._onAwarenessUpdate)
 
     this.provider
@@ -115,34 +120,30 @@ export class GenericWebsocketProviderAdapter {
   }
 
   onMessage(callback: (msg: any) => void) {
-    this._messageListener = callback
+    this._messageUnsub?.()
+    this._messageUnsub = this.provider.pubsub.subscribe(EDRYS_MSG_TOPIC, (msg: any) => {
+      // Same trust boundary as before: only verified peers may deliver.
+      if (!msg?.sender || !this._verifiedUsers.has(msg.sender)) return
+      if (this._isDuplicateMessage(msg)) return
+      callback(msg)
+    })
   }
 
-  sendMessage(message: any, _targetUserId: string | null = null) {
+  sendMessage(message: any, targetUserId: string | null = null) {
     if (!message.id) message.id = generateUniqueId()
     if (!message.sender) message.sender = this.userid
-    // Remember our own id so its awareness echo isn't re-delivered.
     this._processedMessages.set(message.id, Date.now())
 
-    // Publish into awareness (broadcast — no targeting on this transport;
-    // Peer.broadcast() fans out one copy per recipient anyway).
-    const local = this.awareness.getLocalState() || {}
-    this.awareness.setLocalState({
-      ...local,
-      user: { ...(local.user || {}), id: this.userid },
-      [CUSTOM_MESSAGE_FIELD]: message,
-    })
-
-    // Clear it shortly after — awareness state is sticky and would re-send.
-    setTimeout(() => {
-      const current = this.awareness.getLocalState() || {}
-      if (current[CUSTOM_MESSAGE_FIELD]?.id === message.id) {
-        this.awareness.setLocalState({ ...current, [CUSTOM_MESSAGE_FIELD]: null })
-      }
-    }, 1000)
+    // Pubsub, not awareness: each message is its own frame, so ordering and
+    // every message in a burst survive.
+    if (targetUserId) {
+      this.provider.pubsub.publishTo(targetUserId, EDRYS_MSG_TOPIC, message)
+    } else {
+      this.provider.pubsub.publish(EDRYS_MSG_TOPIC, message)
+    }
   }
 
-  // Verify new peers, refresh heartbeats, deliver messages from verified peers.
+  // Verify new peers and refresh their heartbeats.
   private _onAwarenessUpdate = ({ added, updated }: any) => {
     const states = this.awareness.getStates()
     for (const clientId of [...added, ...updated]) {
@@ -152,12 +153,6 @@ export class GenericWebsocketProviderAdapter {
 
       this._verifyPeer(user)
       this._lastHeartbeats.set(user.id, Date.now())
-
-      // Deliver a message only from a verified peer, once.
-      const message = state[CUSTOM_MESSAGE_FIELD]
-      if (message && this._verifiedUsers.has(user.id) && !this._isDuplicateMessage(message)) {
-        if (this._messageListener) this._messageListener(message)
-      }
     }
   }
 
@@ -177,11 +172,15 @@ export class GenericWebsocketProviderAdapter {
     }
   }
 
-  /** Publish our signed identity + a fresh heartbeat into awareness. */
+  /**
+   * Publish our signed identity + a fresh heartbeat into awareness.
+   * Re-reads local state after the async sign so anything written meanwhile
+   * isn't clobbered by a stale snapshot.
+   */
   private _sendHeartbeat() {
-    const local = this.awareness.getLocalState() || {}
     signChallenge(this._classroomId)
       .then((signature) => {
+        const local = this.awareness.getLocalState() || {}
         this.awareness.setLocalState({
           ...local,
           user: {
@@ -194,6 +193,7 @@ export class GenericWebsocketProviderAdapter {
         })
       })
       .catch(() => {
+        const local = this.awareness.getLocalState() || {}
         this.awareness.setLocalState({
           ...local,
           user: { ...(local.user || {}), id: this.userid, heartbeat: Date.now() },
@@ -234,10 +234,11 @@ export class GenericWebsocketProviderAdapter {
   }
 
   destroy() {
+    this._messageUnsub?.()
+    this._messageUnsub = null
     this._statusListener = null
     this._syncedListener = null
     this._leaveListener = null
-    this._messageListener = null
     this.awareness.off('update', this._onAwarenessUpdate)
     for (const t of [this._cleanupInterval, this._heartbeatInterval, this._timeoutInterval]) {
       if (t) clearInterval(t)
