@@ -879,8 +879,10 @@ export default class Peer {
         }
         const envelope = this.y.userSigs.get(key) as Envelope | undefined
         const payload = value.toJSON()
+        // Long-lived presence, signed once — bypass the freshness window so old
+        // entries aren't rejected and purge-looped.
         const sigValid = envelope
-          ? await verifyEntry('users', key, payload, envelope)
+          ? await verifyEntry('users', key, payload, envelope, Number.POSITIVE_INFINITY)
           : false
         if (!sigValid) {
           LOG('y.users entry rejected (bad sig)', key, { hasEnvelope: !!envelope })
