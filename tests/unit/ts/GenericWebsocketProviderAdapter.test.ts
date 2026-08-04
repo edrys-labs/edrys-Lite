@@ -31,11 +31,39 @@ class FakeAwareness {
   }
 }
 
+// Fake pubsub: captures publish/publishTo and lets the test simulate an
+// incoming message through the same subscribe() callback the adapter wires up.
+// Custom messages ride pubsub (not awareness).
+class FakePubSub {
+  handlers: Array<(msg: any, topic: string) => void> = []
+  publishCalls: Array<{ topic: string; message: any }> = []
+  publishToCalls: Array<{ target: string; topic: string; message: any }> = []
+
+  publish(topic: string, message: any) {
+    this.publishCalls.push({ topic, message })
+  }
+  publishTo(target: string, topic: string, message: any) {
+    this.publishToCalls.push({ target, topic, message })
+  }
+  subscribe(topic: string, cb: (msg: any, topic: string) => void) {
+    this.handlers.push(cb)
+    return () => {
+      this.handlers = this.handlers.filter((h) => h !== cb)
+    }
+  }
+  emit(topic: string, msg: any) {
+    this.handlers.forEach((h) => h(msg, topic))
+  }
+}
+
 let fakeAwareness: FakeAwareness
+let fakePubSub: FakePubSub
 
 vi.mock('@edryslabs/genericprovider', () => ({
   GenericProvider: vi.fn().mockImplementation(() => ({
     awareness: fakeAwareness,
+    appAwareness: fakeAwareness,
+    pubsub: fakePubSub,
     on: vi.fn(),
     connect: vi.fn().mockResolvedValue(undefined),
     disconnect: vi.fn(),
@@ -65,6 +93,7 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
   beforeEach(() => {
     vi.useRealTimers()
     fakeAwareness = new FakeAwareness()
+    fakePubSub = new FakePubSub()
     verifiablePubkeys.clear()
   })
 
@@ -84,16 +113,27 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
     await Promise.resolve()
   }
 
-  // --- messaging (awareness, WS-specific) ---
+  // --- messaging (pubsub; identity/liveness still ride awareness) ---
 
-  test('sendMessage stamps id/sender and writes the message into awareness', () => {
+  test('sendMessage stamps id/sender and publishes on the pubsub topic', () => {
     const adapter = makeAdapter()
     const msg: any = { text: 'hi' }
     adapter.sendMessage(msg)
 
     expect(msg.id).toBeTruthy()
     expect(msg.sender).toBe('alice')
-    expect(fakeAwareness.getLocalState().customMessage).toBe(msg)
+    expect(fakePubSub.publishCalls).toHaveLength(1)
+    expect(fakePubSub.publishCalls[0].message).toBe(msg)
+    adapter.destroy()
+  })
+
+  test('sendMessage with a target uses publishTo', () => {
+    const adapter = makeAdapter()
+    adapter.sendMessage({ text: 'psst' }, 'bob')
+
+    expect(fakePubSub.publishCalls).toHaveLength(0)
+    expect(fakePubSub.publishToCalls).toHaveLength(1)
+    expect(fakePubSub.publishToCalls[0].target).toBe('bob')
     adapter.destroy()
   })
 
@@ -102,16 +142,11 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
     const received: any[] = []
     adapter.onMessage((m) => received.push(m))
 
+    // Verification still rides awareness; only the message itself is pubsub.
     await seatVerified('bobkey', 'bob', 2)
-    // A subsequent awareness update carrying the message.
-    fakeAwareness.seat(
-      2,
-      { user: { id: 'bob', publicKey: 'bobkey', signature: 'sig' }, customMessage: { id: 'm1', text: 'hey' } },
-      'updated'
-    )
-    await Promise.resolve()
+    fakePubSub.emit('edrys', { id: 'm1', sender: 'bob', text: 'hey' })
 
-    expect(received).toEqual([{ id: 'm1', text: 'hey' }])
+    expect(received).toEqual([{ id: 'm1', sender: 'bob', text: 'hey' }])
     adapter.destroy()
   })
 
@@ -121,13 +156,9 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
     adapter.onMessage((m) => received.push(m))
 
     await seatVerified('bobkey', 'bob', 2)
-    const state = {
-      user: { id: 'bob', publicKey: 'bobkey', signature: 'sig' },
-      customMessage: { id: 'm1', text: 'hey' },
-    }
-    fakeAwareness.seat(2, state, 'updated')
-    fakeAwareness.seat(2, state, 'updated')
-    await Promise.resolve()
+    const msg = { id: 'm1', sender: 'bob', text: 'hey' }
+    fakePubSub.emit('edrys', msg)
+    fakePubSub.emit('edrys', msg)
 
     expect(received).toHaveLength(1)
     adapter.destroy()
@@ -138,13 +169,8 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
     const received: any[] = []
     adapter.onMessage((m) => received.push(m))
 
-    // malkey is never whitelisted -> peer stays unverified.
-    fakeAwareness.seat(
-      3,
-      { user: { id: 'mallory', publicKey: 'malkey', signature: 'sig' }, customMessage: { id: 'x', text: 'spoof' } },
-      'added'
-    )
-    await Promise.resolve()
+    // mallory is never verified via awareness -> her pubsub message is dropped.
+    fakePubSub.emit('edrys', { id: 'x', sender: 'mallory', text: 'spoof' })
 
     expect(received).toHaveLength(0)
     adapter.destroy()

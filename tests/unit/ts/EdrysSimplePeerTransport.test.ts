@@ -315,7 +315,8 @@ describe('computeDocHash convergence (verifyUpdates)', () => {
     docA.getMap('m').set('a2', 3)
     docB.getMap('m').set('b2', 4)
     await flush()
-    await new Promise((r) => setTimeout(r, 30))
+    // Settle budget. Needs to outlast the provider's post-connect sync round trips.
+    await new Promise((r) => setTimeout(r, 150))
     await flush()
 
     // Both docs converge to the same content...
