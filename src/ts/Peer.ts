@@ -1638,6 +1638,15 @@ export default class Peer {
   }
 
   /**
+   * Y.Doc changes as encoded updates, for forwarding to module iframes.
+   * `origin` lets the caller drop echoes it just applied ('extern').
+   */
+  onState(callback: (data: Uint8Array, origin: any) => void): () => void {
+    this.y.doc.on('update', callback)
+    return () => this.y.doc.off('update', callback)
+  }
+
+  /**
    * Joins a role and initializes necessary components.
    * @param role The role to join as.
    */

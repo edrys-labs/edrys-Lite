@@ -38,6 +38,9 @@ const EXTERN = 'extern'
 // var awareness: any
 // var awarenessManager: any
 var liveClass = false
+// Latched when the $Edrys.ready dispatch is scheduled, so concurrent EXTERN
+// updates during the 1s window don't schedule it again.
+var readyScheduled = false
 var doc: any
 var callback = { onReady: false, onUpdate: false }
 var rtcConfig: RTCConfiguration | null = null
@@ -458,7 +461,11 @@ window.addEventListener(
             LOG('DOC', state, origin)
             if (origin === EXTERN) {
               // onReady can only be sent if it has been updated by the parent
-              if (!window['Edrys'].ready && liveClass) {
+              if (!window['Edrys'].ready && !readyScheduled && liveClass) {
+                // Latch synchronously: `ready` is only set inside the timeout
+                // below, so every EXTERN update in that 1s window would
+                // otherwise pass the guard and re-run module init.
+                readyScheduled = true
                 this.setTimeout(() => {
                   window['Edrys'].ready = true
 
@@ -552,6 +559,13 @@ window.addEventListener(
         //   YP.applyAwarenessUpdate(awareness, e.data.awareness, EXTERN)
         // }
 
+        break
+      case 'state':
+        // Remote peer update relayed by the parent. EXTERN stops
+        // doc.on('update') posting it straight back.
+        if (e.data.data && doc) {
+          Y.applyUpdate(doc, new Uint8Array(e.data.data), EXTERN)
+        }
         break
       case 'message':
         // available: e.data.from, e.data.subject, e.data.body

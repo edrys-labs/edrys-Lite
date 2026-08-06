@@ -119,27 +119,32 @@ export default {
   created() {
     window.addEventListener("message", this.messageHandler);
     const iframes = document.getElementsByTagName("iframe");
+
+    // Post to every module iframe, each at its own origin.
+    const broadcast = (payload: any) => {
+      for (let i = 0; i < iframes.length; i++) {
+        const module = this.scrapedModulesFilter[i];
+        if (!module) continue;
+        iframes[i].contentWindow?.postMessage(
+          payload,
+          module.origin || new URL(module.url).origin
+        );
+      }
+    };
+
     this.communication.on(
       "message",
       (msg: { subject: string; body: any; module_url: string; date: number }) => {
-        for (let i = 0; i < iframes.length; i++) {
-          // Get the corresponding module for this iframe to use its origin
-          const moduleIndex = i;
-          const module = this.scrapedModulesFilter[moduleIndex];
-          if (module) {
-            const targetOrigin = module.origin || new URL(module.url).origin;
-            iframes[i].contentWindow?.postMessage(
-              {
-                event: "message",
-                ...msg,
-              },
-              targetOrigin
-            );
-          }
-        }
+        broadcast({ event: "message", ...msg });
       }
-      //self.scrapedModule.origin || self.iframeOrigin
     );
+
+    // Forward doc updates: remote edits reach the local Y.Doc but not the
+    // module, so content would only appear on reload. Skip 'extern' echoes.
+    this._stateUnsub = this.communication.onState((data: Uint8Array, origin: any) => {
+      if (origin?.transactionId === "extern") return;
+      broadcast({ event: "state", data });
+    });
 
     this.$nextTick(() => {
       setTimeout(() => {
@@ -184,6 +189,7 @@ export default {
       window.removeEventListener("mouseup", this._resizeMouseUpHandler);
     }
     this.communication.on("message", undefined);
+    this._stateUnsub?.();
     this.grid.destroy();
   },
 
