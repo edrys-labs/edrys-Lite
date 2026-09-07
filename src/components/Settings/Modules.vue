@@ -362,6 +362,35 @@ export default {
       this.errors.splice(event.newIndex, 0, er);
     },
 
+    // Modules of the same room must sit next to each other for the group
+    // headers/borders to render one block per room.
+    regroup() {
+      const modules = this.config.modules as any[];
+      const order: string[] = [];
+      modules.forEach((m) => {
+        const room = roomOf(m);
+        if (!order.includes(room)) order.push(room);
+      });
+
+      const indices = modules.map((_, i) => i);
+      indices.sort(
+        (a, b) =>
+          order.indexOf(roomOf(modules[a])) - order.indexOf(roomOf(modules[b])) || a - b
+      );
+
+      // Already grouped → don't touch the arrays (keeps reactivity churn down).
+      if (indices.every((from, to) => from === to)) return;
+
+      // Splice in place: `config` is a prop object whose `modules` array is
+      // bound elsewhere (draggable, parent), so keep the same array instance.
+      const reorder = (arr: any[]) => indices.map((i) => arr[i]);
+      const sortedScraped = reorder(this.localScrapedModules);
+      const sortedErrors = reorder(this.errors);
+      modules.splice(0, modules.length, ...reorder(modules));
+      this.localScrapedModules = sortedScraped;
+      this.errors = sortedErrors;
+    },
+
     validate_config(i: number) {
       return (
         this.errors[i].config === "" &&
@@ -413,6 +442,8 @@ export default {
         stationConfig: "",
         showInCustom: "",
       });
+
+      this.regroup();
 
       this.moduleImportUrl = "";
     },
@@ -476,6 +507,7 @@ export default {
 
       Object.assign(this.config.modules[this.moduleDialogIndex], this.moduleDialogDraft);
       this.closeModuleDialog();
+      this.regroup();
     },
   },
   components: { 
