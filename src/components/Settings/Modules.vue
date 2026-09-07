@@ -300,6 +300,11 @@ export default {
     scrapedModules(next: any[]) {
       this.localScrapedModules = [...next];
     },
+
+    // Flush form edits into draft before it unmounts (panel switch).
+    activeEditor(next: string, prev: string) {
+      if (prev === "form") this.collectFormIntoDraft();
+    },
   },
 
   computed: {
@@ -451,17 +456,23 @@ export default {
       return {};
     },
 
+    // Merge the schema form's current values into the draft, so they survive a
+    // panel switch or a save. No-op when the form isn't mounted.
+    collectFormIntoDraft() {
+      const form = this.$refs.moduleConfigForm as any;
+      if (!form || !this.moduleDialogDraft) return;
+
+      const formConfig = form.collectConfig();
+      Object.entries(formConfig).forEach(([configType, value]) => {
+        const existing = this.parseConfig(this.moduleDialogDraft[configType]);
+        this.moduleDialogDraft[configType] = { ...existing, ...(value as object) };
+      });
+    },
+
     saveModuleDialog() {
       if (this.moduleDialogIndex === null) return;
 
-      const form = this.$refs.moduleConfigForm as any;
-      if (this.activeEditor === "form" && form) {
-        const formConfig = form.saveConfig();
-        Object.entries(formConfig).forEach(([configType, value]) => {
-          const existing = this.parseConfig(this.moduleDialogDraft[configType]);
-          this.moduleDialogDraft[configType] = { ...existing, ...(value as object) };
-        });
-      }
+      if (this.activeEditor === "form") this.collectFormIntoDraft();
 
       Object.assign(this.config.modules[this.moduleDialogIndex], this.moduleDialogDraft);
       this.closeModuleDialog();

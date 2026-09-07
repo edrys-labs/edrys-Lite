@@ -482,8 +482,8 @@ export default {
       }
     },
 
-    saveConfig() {
-      // Emit events for each config type that has values
+    // Current form values, keyed by config type.
+    collectConfig() {
       const configResult = {};
 
       Object.keys(this.configSchemas).forEach((configType) => {
@@ -494,6 +494,12 @@ export default {
           configResult[configType] = this.formValues[configType];
         }
       });
+
+      return configResult;
+    },
+
+    saveConfig() {
+      const configResult = this.collectConfig();
 
       this.$emit("save", configResult);
       if (this.standalone) this.$emit("close");
