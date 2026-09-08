@@ -109,6 +109,7 @@ settings:
       save: "حفظ التكوين"
       cancel: "إلغاء"
       noSchema: "هذه الوحدة لا توفر مخططًا صالحًا للتكوين"
+      presetHint: "تغيير هذا يستبدل الحقول أدناه"
     module:
       url:
         title: "رابط"

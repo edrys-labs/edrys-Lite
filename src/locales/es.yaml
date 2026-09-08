@@ -109,6 +109,7 @@ settings:
       save: "Guardar Configuración"
       cancel: "Cancelar"
       noSchema: "Este módulo no proporciona un esquema de configuración válido"
+      presetHint: "Cambiar esto reemplaza los campos siguientes"
     module:
       url:
         title: "URL"

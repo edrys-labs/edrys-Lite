@@ -109,6 +109,7 @@ settings:
       save: "Save Configuration"
       cancel: "Cancel"
       noSchema: "This module doesn't provide a valid configuration schema"
+      presetHint: "Changing this replaces the fields below"
     module:
       url:
         title: "URL"

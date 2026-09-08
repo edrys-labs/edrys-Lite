@@ -98,6 +98,45 @@
                   </v-radio-group>
                 </div>
 
+                <!-- Select fields (fixed list of options) -->
+                <div v-else-if="fieldConfig.type === 'select'" class="mt-3">
+                  <v-select
+                    v-model="formValues[configType][field]"
+                    :items="fieldConfig.options || []"
+                    :label="String(field)"
+                    variant="outlined"
+                    :disabled="writeProtection"
+                    :hint="fieldConfig.hint"
+                    persistent-hint
+                    clearable
+                    density="compact"
+                    @update:modelValue="
+                      applyPreset(configType, field, fieldConfig, $event)
+                    "
+                  ></v-select>
+                  <div
+                    v-if="fieldConfig.presets"
+                    class="text-caption text-grey mt-1"
+                  >
+                    {{ t("settings.modules.moduleConfig.presetHint") }}
+                  </div>
+                </div>
+
+                <!-- Combobox fields (suggestions, but free text is allowed) -->
+                <v-combobox
+                  v-else-if="fieldConfig.type === 'combobox'"
+                  v-model="formValues[configType][field]"
+                  :items="fieldOptions(configType, field, fieldConfig)"
+                  :label="String(field)"
+                  variant="outlined"
+                  :disabled="writeProtection"
+                  :hint="fieldConfig.hint"
+                  persistent-hint
+                  clearable
+                  density="compact"
+                  class="mt-3"
+                ></v-combobox>
+
                 <!-- Number fields -->
                 <v-text-field
                   v-else-if="fieldConfig.type === 'number'"
@@ -303,6 +342,7 @@ export default {
         stationConfig: {},
       },
       activeTab: null,
+      presetOptions: {},
       originalValues: {
         config: {},
         studentConfig: {},
@@ -439,6 +479,8 @@ export default {
                   case "code-area":
                     initialValues[key] = "";
                     break;
+                  // select/combobox fall through: they start empty, unlike
+                  // radio-button, so no option is chosen on the author's behalf
                   default:
                     initialValues[key] = "";
                     break;
@@ -464,6 +506,8 @@ export default {
                 ...parsedValues,
               };
 
+              this.restorePresetOptions(configType);
+
               // Store a deep copy of the initial values for comparison
               this.originalValues[configType] = JSON.parse(
                 JSON.stringify(this.formValues[configType])
@@ -479,6 +523,56 @@ export default {
           teacherConfig: null,
           stationConfig: null,
         };
+      }
+    },
+
+    // Suggestions for a field: the active preset's list, else the schema's.
+    fieldOptions(configType, field, fieldConfig) {
+      return (
+        this.presetOptions[`${configType}.${field}`] ||
+        fieldConfig.options ||
+        []
+      );
+    },
+
+    // A `select` field may carry `presets`: option -> values for sibling fields
+    // of the same config type. Each entry is a plain value, or
+    // `{ value, options }` to also narrow that sibling's suggestions (a
+    // combobox still accepts any typed value). Last action wins: a preset
+    // overwrites siblings even if hand-edited.
+    applyPreset(configType, field, fieldConfig, option, valuesToo = true) {
+      const preset = fieldConfig?.presets?.[option];
+
+      if (!preset) return;
+
+      for (const key in preset) {
+        // ignore keys the module never declared
+        if (key === field || !this.configSchemas[configType]?.[key]) continue;
+
+        const entry = preset[key];
+        const scoped = !!entry && typeof entry === "object";
+
+        if (valuesToo) {
+          this.formValues[configType][key] = scoped ? entry.value : entry;
+        }
+
+        // kept out of formValues so option lists are never saved
+        if (scoped && Array.isArray(entry.options)) {
+          this.presetOptions[`${configType}.${key}`] = entry.options;
+        } else {
+          delete this.presetOptions[`${configType}.${key}`];
+        }
+      }
+    },
+
+    // On load, restore the suggestions implied by the already-saved values.
+    restorePresetOptions(configType) {
+      const schema = this.configSchemas[configType];
+
+      for (const field in schema) {
+        const option = this.formValues[configType][field];
+
+        this.applyPreset(configType, field, schema[field], option, false);
       }
     },
 
