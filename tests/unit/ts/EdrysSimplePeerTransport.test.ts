@@ -224,7 +224,7 @@ describe('EdrysSimplePeerTransport identity gate', () => {
 })
 
 describe('excludeOrigins kills revert propagation', () => {
-  test('updates tagged REVERT_INVALID_ORIGIN never reach the transport', () => {
+  test('updates tagged REVERT_INVALID_ORIGIN never reach the transport', async () => {
     const doc = new Y.Doc()
     const sent: Uint8Array[] = []
     const transport: any = {
@@ -241,8 +241,10 @@ describe('excludeOrigins kills revert propagation', () => {
       excludeOrigins: [REVERT_INVALID_ORIGIN],
     })
 
-    // A normal edit must be forwarded.
+    // A normal edit must be forwarded. The provider batches local updates and
+    // flushes them on a microtask (batchUpdates=0), so drain before asserting.
     doc.getMap('m').set('k', 'normal')
+    await flush()
     const afterNormal = sent.length
     expect(afterNormal).toBeGreaterThan(0)
 
@@ -250,6 +252,7 @@ describe('excludeOrigins kills revert propagation', () => {
     doc.transact(() => {
       doc.getMap('m').set('k', 'reverted')
     }, REVERT_INVALID_ORIGIN)
+    await flush()
 
     expect(sent.length).toBe(afterNormal)
 
