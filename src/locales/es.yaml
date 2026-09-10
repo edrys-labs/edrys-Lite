@@ -201,6 +201,8 @@ footer:
   explore: "Explorar Aulas"
 
 modules:
+  loading: "Cargando módulos…"
+  noModulesInRoom: "Ninguno de los módulos de esta clase está configurado para mostrarse en esta sala."
   noModules:
     1: "Lo siento, parece que no has cargado ningún "
     2: " módulo. Agrega algunos en la configuración de la clase para comenzar."

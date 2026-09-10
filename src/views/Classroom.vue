@@ -94,6 +94,7 @@ export default {
       showSettings: false,
 
       scrapedModules: [] as any[],
+      isLoadingModules: false,
 
       liveClassProxy: liveClassProxy,
 
@@ -192,6 +193,9 @@ export default {
           meta: { defaultNumberOfRooms: 0 },
           createdBy: ""
         };
+      } else {
+        // A real configuration: its (possibly empty) module list is authoritative.
+        this.states.receivedConfiguration = true;
       }
 
       const configurationCopy = JSON.parse(JSON.stringify(this.configuration));
@@ -229,6 +233,7 @@ export default {
           await self.database.put(clone(configuration));
           await self.init();
           self.data = clone(configuration.data);
+          self.states.receivedConfiguration = true;
           if (!deepEqual(previousModules, configuration.data?.modules)) {
             self.scrapeModules();
           }
@@ -312,12 +317,16 @@ export default {
     async scrapeModules() {
       if (!this.data) return;
 
-      this.states.receivedConfiguration = true;
-
-      const scrapedModules: any[] = [];
-      for (let i = 0; i < this.data.modules.length; i++) {
-        let module = await scrapeModule(this.data.modules[i]);
-        scrapedModules.push(module);
+      // Each scrapeModule() is a network round-trip; run them together so the
+      // loading window is one RTT rather than one per module.
+      this.isLoadingModules = true;
+      let scrapedModules: any[];
+      try {
+        scrapedModules = await Promise.all(
+          this.data.modules.map((module: any) => scrapeModule(module))
+        );
+      } finally {
+        this.isLoadingModules = false;
       }
 
       this.componentKey++;
@@ -696,6 +705,7 @@ export default {
             :username_="peerID"
             :liveClassProxy="liveClassProxy"
             :scrapedModules_="scrapedModules"
+            :isLoading="isLoadingModules || !states.receivedConfiguration"
             :communication="communication"
             v-if="liveClassProxy !== null"
             :key="componentKey"

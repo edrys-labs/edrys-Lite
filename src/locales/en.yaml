@@ -201,6 +201,8 @@ footer:
   explore: "Explore Classrooms"
 
 modules:
+  loading: "Loading modules…"
+  noModulesInRoom: "None of this classroom's modules are configured to show in this room."
   noModules:
     1: "Sorry, looks like you have not loaded up any "
     2: " modules. Add some in the class settings to get started."

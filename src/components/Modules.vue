@@ -21,6 +21,7 @@ export default {
     "username_",
     "liveClassProxy",
     "scrapedModules_",
+    "isLoading",
     "communication",
     "class_id",
   ],
@@ -418,12 +419,25 @@ export default {
       </div>
     </div>
 
-    <v-card v-if="!scrapedModules_.length">
+    <v-card v-if="isLoading">
+      <v-card-text class="d-flex align-center">
+        <v-progress-circular indeterminate size="20" width="2" class="mr-3" />
+        {{ t('modules.loading') }}
+      </v-card-text>
+    </v-card>
+
+    <v-card v-else-if="!scrapedModules_.length">
       <v-card-text v-if="role == 'teacher' || role == 'station'">
         {{ t('modules.noModules.1') }} {{ modulesType }} {{ t('modules.noModules.2') }}
       </v-card-text>
       <v-card-text v-if="role == 'student'">
         {{ t('modules.noModules.3') }}
+      </v-card-text>
+    </v-card>
+
+    <v-card v-else-if="!scrapedModulesFilter.length">
+      <v-card-text>
+        {{ t('modules.noModulesInRoom') }}
       </v-card-text>
     </v-card>
   </div>

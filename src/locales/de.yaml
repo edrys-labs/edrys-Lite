@@ -201,6 +201,8 @@ footer:
   explore: "Auf Github erkunden"
 
 modules:
+  loading: "Module werden geladen…"
+  noModulesInRoom: "Keines der Module dieser Klasse ist für diesen Raum konfiguriert."
   noModules:
     1: "Sorry, aber es sieht so aus, als hätten Sie keine "
     2: " Module geladen. Fügen Sie einige in den Klasseneinstellungen hinzu, um loszulegen."
