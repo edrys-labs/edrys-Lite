@@ -56,6 +56,7 @@ const mockCommunication = {
   addRoom: vi.fn(),
   sendMessage: vi.fn(),
   newSetup: vi.fn(),
+  stop: vi.fn(),
   allowedToParticipate: vi.fn().mockReturnValue(true)  
 };
 
@@ -163,6 +164,18 @@ describe('Classroom View', () => {
     expect(wrapper.vm.states.webRTCSupport).toBeDefined();
     expect(wrapper.vm.database).toBeDefined();
     expect(wrapper.vm.peerID).toBe('test-peer-id');
+  });
+
+  test('stops its Peer when unmounted', async () => {
+    // The router remounts the app on popstate; the old Peer must leave the room.
+    const wrapper = createWrapper();
+    await wrapper.vm.init();
+    expect(wrapper.vm.communication).toBeTruthy();
+    mockCommunication.stop.mockClear();
+
+    wrapper.unmount();
+
+    expect(mockCommunication.stop).toHaveBeenCalledTimes(1);
   });
 
   test('handles room management', async () => {

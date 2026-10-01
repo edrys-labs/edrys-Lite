@@ -97,29 +97,33 @@ describe('Signed y.users', () => {
   })
 
   test('heartbeat does not re-sign the user entry', async () => {
-    await Utils.initCryptoIdentity()
-    const myPubKey = Utils.getPeerID(false)
+    // Fake only intervals: the 5s heartbeat becomes drivable, while
+    // flushPromises' setTimeout and WebCrypto keep running for real.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    try {
+      await Utils.initCryptoIdentity()
+      const myPubKey = Utils.getPeerID(false)
 
-    const peer: any = new Peer(makeSetup(myPubKey), undefined, i18n.global.t)
-    await flushPromises()
-    await flushPromises()
+      const peer: any = new Peer(makeSetup(myPubKey), undefined, i18n.global.t)
+      await flushPromises()
+      await flushPromises()
 
-    const peerID = peer['peerID']
-    const firstEnv = peer['y'].userSigs.get(peerID)
+      const peerID = peer['peerID']
+      const firstEntry = peer['y'].users.get(peerID)
+      const firstEnv = peer['y'].userSigs.get(peerID)
 
-    await new Promise((r) => setTimeout(r, 10))
-    await flushPromises()
+      vi.advanceTimersByTime(15000) // three heartbeat ticks
+      await flushPromises()
+      await flushPromises()
 
-    const secondEnv = peer['y'].userSigs.get(peerID)
-    // Same signature/nonce -> no re-sign churn occurred.
-    expect(secondEnv.nonce).toBe(firstEnv.nonce)
-    expect(secondEnv.signature).toBe(firstEnv.signature)
-    // And it still verifies against the current payload.
-    const payload = peer['y'].users.get(peerID).toJSON()
-    const valid = await Utils.verifyEntry('users', peerID, payload, secondEnv)
-    expect(valid).toBe(true)
+      // Same entry and envelope -> no re-sign churn occurred.
+      expect(peer['y'].users.get(peerID)).toBe(firstEntry)
+      expect(peer['y'].userSigs.get(peerID)).toEqual(firstEnv)
 
-    peer.stop()
+      peer.stop()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   test('gotoRoom updates the room field and re-signs', async () => {
@@ -158,6 +162,9 @@ describe('Signed y.users', () => {
     expect(peer['y'].userSigs.has(peerID)).toBe(true)
 
     peer.stop()
+
+    expect(peer['y'].users.has(peerID)).toBe(false)
+    expect(peer['y'].userSigs.has(peerID)).toBe(false)
   })
 
   test('an unsigned remote user entry is reverted by the local observer', async () => {
@@ -167,7 +174,7 @@ describe('Signed y.users', () => {
     const peer: any = new Peer(makeSetup(myPubKey), undefined, i18n.global.t)
     await flushPromises()
     await flushPromises()
-    // Attach observers; constructor's initUser call sets withObserver=false.
+    // join() attaches the observers; the constructor's initUser doesn't.
     await peer.join('student')
     await flushPromises()
 

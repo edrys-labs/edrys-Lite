@@ -132,7 +132,7 @@ describe('Signed y.rooms', () => {
     const peer: any = new Peer(makeSetup(myPubKey), undefined, i18n.global.t)
     await flushPromises()
     await flushPromises()
-    // join() wires the observer; constructor's initRooms uses withObserver=false.
+    // join() seeds the rooms and wires the observer.
     await peer.join('student')
     await flushPromises()
 
@@ -292,6 +292,81 @@ describe('Signed y.rooms', () => {
     peer.stop()
     attackerDoc.destroy()
     ackDoc.destroy()
+  })
+
+  // A station and a participant, both run by the owner, with the station's
+  // doc updates relayed into the participant's doc.
+  async function stationWithParticipant() {
+    await Utils.initCryptoIdentity()
+    const owner = Utils.getPeerID(false)
+
+    const station: any = new Peer(makeSetup(owner), 'stn1', i18n.global.t)
+    const participant: any = new Peer(makeSetup(owner), undefined, i18n.global.t)
+    await flushPromises()
+    await flushPromises()
+    await station.join('station')
+    await participant.join('student')
+    await flushPromises()
+
+    station['y'].doc.on('update', (u: Uint8Array) => Y.applyUpdate(participant['y'].doc, u, 'relay'))
+    Y.applyUpdate(participant['y'].doc, Y.encodeStateAsUpdate(station['y'].doc), 'relay')
+    await flushPromises()
+    await flushPromises()
+
+    expect(participant['y'].rooms.has('Station stn1')).toBe(true)
+    expect(participant['y'].users.has('Station stn1')).toBe(true)
+    return { station, participant }
+  }
+
+  test('station shutdown removes the station everywhere and moves its visitors to Lobby', async () => {
+    const { station, participant } = await stationWithParticipant()
+    participant.gotoRoom('Station stn1')
+    await flushPromises()
+
+    station.stop()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+
+    // The signed tombstones are accepted, not healed back from cache.
+    expect(participant['y'].rooms.has('Station stn1')).toBe(false)
+    expect(participant['y'].users.has('Station stn1')).toBe(false)
+    expect(participant.user().get('room')).toBe('Lobby')
+
+    participant.stop()
+  })
+
+  test('a station tombstone signed by a non-owner/teacher is healed', async () => {
+    const { station, participant } = await stationWithParticipant()
+
+    vi.resetModules()
+    mockDb.getPublicKeyRaw.mockResolvedValue(null)
+    mockDb.getPrivateKey.mockResolvedValue(null)
+    const AttackerUtils: any = await import('../../../../src/ts/Utils')
+    await AttackerUtils.initCryptoIdentity()
+    const tombstone = { tombstone: true }
+    const userTomb = await AttackerUtils.signEntry('users', 'Station stn1', tombstone)
+    const roomTomb = await AttackerUtils.signEntry('rooms', 'Station stn1', tombstone)
+
+    const attackerDoc = new Y.Doc()
+    Y.applyUpdate(attackerDoc, Y.encodeStateAsUpdate(participant['y'].doc))
+    attackerDoc.transact(() => {
+      attackerDoc.getMap('users').delete('Station stn1')
+      attackerDoc.getMap('userSigs').set('Station stn1', userTomb)
+      attackerDoc.getMap('rooms').delete('Station stn1')
+      attackerDoc.getMap('roomSigs').set('Station stn1', roomTomb)
+    })
+    Y.applyUpdate(participant['y'].doc, Y.encodeStateAsUpdate(attackerDoc))
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+
+    expect(participant['y'].rooms.has('Station stn1')).toBe(true)
+    expect(participant['y'].users.has('Station stn1')).toBe(true)
+
+    station.stop()
+    participant.stop()
+    attackerDoc.destroy()
   })
 
   test('local delete (checkForDeadStations) still moves user to Lobby and removes sig', async () => {

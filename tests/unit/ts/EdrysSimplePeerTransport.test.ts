@@ -37,12 +37,40 @@ function hsFrame(pubkey: string, sig: string): Uint8Array {
   return encoding.toUint8Array(e)
 }
 
+// Fake RTCPeerConnection: `on*` properties plus addEventListener, like the real one.
+class FakePC {
+  iceConnectionState = 'new'
+  connectionState = 'new'
+  oniceconnectionstatechange: (() => void) | null = null
+  onconnectionstatechange: (() => void) | null = null
+  private listeners: Record<string, Function[]> = {}
+  addEventListener(event: string, cb: Function) {
+    ;(this.listeners[event] ||= []).push(cb)
+  }
+  // The browser reports a dead remote: ICE and the connection both fail.
+  fail() {
+    this.iceConnectionState = 'failed'
+    this.connectionState = 'failed'
+    this.oniceconnectionstatechange?.()
+    this.onconnectionstatechange?.()
+    for (const ev of ['iceconnectionstatechange', 'connectionstatechange']) {
+      ;(this.listeners[ev] || []).forEach((cb) => cb())
+    }
+  }
+}
+
 // Fake simple-peer: minimal event emitter, one instance per createPeerConnection.
 class FakePeer {
   private listeners: Record<string, Function[]> = {}
   connected = false
   destroyed = false
-  constructor(_opts: any) {}
+  _pc = new FakePC()
+  constructor(_opts: any) {
+    // Like simple-peer: its own handlers tear the peer down when ICE fails.
+    this._pc.oniceconnectionstatechange = () => {
+      if (this._pc.iceConnectionState === 'failed') this.destroy()
+    }
+  }
   on(event: string, cb: Function) {
     ;(this.listeners[event] ||= []).push(cb)
   }
@@ -191,6 +219,28 @@ describe('EdrysSimplePeerTransport identity gate', () => {
 
     expect(left).toEqual(['pubA_s1'])
     expect(t.peerIdForUser('pubA_s1')).toBeUndefined()
+  })
+
+  test('onLeave fires when a verified peer’s connection fails (no ghost user)', async () => {
+    // A remote that dies without closing only shows up as a failed connection.
+    // simple-peer's own handlers turn that into a close; the transport must not
+    // replace them, or the peer is never reported as gone.
+    const t = makeTransport()
+    await t.connect({ room: 'room-1' })
+    const peerId = 'peer-dead'
+    const peer = await attachPeer(t, peerId)
+
+    const left: string[] = []
+    t.onLeave((userid) => left.push(userid))
+
+    deliverControl(t, peerId, idFrame('pubA_s1'))
+    deliverControl(t, peerId, hsFrame('pubA', 'good-sig'))
+    await flush()
+
+    peer._pc.fail()
+    await flush()
+
+    expect(left).toEqual(['pubA_s1'])
   })
 
   test('sendTo(userid) resolves to the verified peer (not treated as a peerId)', async () => {

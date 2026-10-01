@@ -193,6 +193,18 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
     adapter.destroy()
   })
 
+  test('announces our identity as soon as connect resolves', async () => {
+    // Peers only start our leave timer after a first heartbeat; waiting for the
+    // 5s interval meant a peer that left early was never reaped.
+    const adapter = makeAdapter()
+    for (let i = 0; i < 4; i++) await Promise.resolve()
+
+    const local = fakeAwareness.getLocalState()
+    expect(local.user?.id).toBe('alice')
+    expect(local.user?.signature).toBe('sig')
+    adapter.destroy()
+  })
+
   test('heartbeat writes our signed identity into awareness', async () => {
     const adapter = makeAdapter()
     await (adapter as any)._sendHeartbeat()

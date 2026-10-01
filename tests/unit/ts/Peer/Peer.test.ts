@@ -5,7 +5,7 @@ import Peer from '../../../../src/ts/Peer';
 import * as Y from 'yjs';
 import { GenericWebrtcProviderAdapter } from '../../../../src/ts/GenericProviderAdapter';
 import { GenericWebsocketProviderAdapter } from '../../../../src/ts/GenericWebsocketProviderAdapter';
-import { getPeerID, getShortPeerID, decodeCommConfig, updateUrlWithCommConfig } from '../../../../src/ts/Utils';
+import { getPeerID, getShortPeerID, decodeCommConfig, updateUrlWithCommConfig, verifySetup } from '../../../../src/ts/Utils';
 import { i18n, messages } from '../../../setup';
 
 // Mock debug system
@@ -61,6 +61,10 @@ vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
 vi.mock('../../../../src/ts/Utils', () => ({
   getPeerID: vi.fn(() => 'test-peer-id'),
   getShortPeerID: vi.fn(() => 'test-user'),
+  getBasePeerID: vi.fn((id: string) => {
+    const sep = id.lastIndexOf('_');
+    return sep > 0 ? id.slice(0, sep) : id;
+  }),
   hashJsonObject: vi.fn().mockResolvedValue('test-hash'),
   hashPubKey: vi.fn(() => Promise.resolve('testhash1234')),
   initCryptoIdentity: vi.fn(() => Promise.resolve()),
@@ -102,6 +106,8 @@ describe('Peer Class', () => {
   let setup: any;
 
   beforeEach(async () => {
+    // Tests below reassign getPeerID; clearAllMocks doesn't undo that.
+    vi.mocked(getPeerID).mockReturnValue('test-peer-id');
     setup = {
       id: 'lab1',
       data: {
@@ -301,6 +307,28 @@ describe('Peer Class', () => {
       
       expect(callback).toHaveBeenCalledWith(true);
     });
+
+    test('synced reports connected once and seeds an empty y.setup from local data', async () => {
+      // A fresh room: nothing in y.setup yet.
+      peer['y'].doc.transact(() => {
+        peer['y'].setup.delete('config');
+        peer['y'].setup.delete('timestamp');
+      });
+      const callback = vi.fn();
+      peer.on('connected', callback);
+
+      mockWebrtcEvents.synced?.({ synced: true });
+      mockWebrtcEvents.synced?.({ synced: true });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledWith(true);
+      expect(peer['y'].setup.get('timestamp')).toBe(setup.timestamp);
+      expect(peer['y'].setup.get('config')).toMatchObject({
+        createdBy: 'test-peer-id',
+        setupSigner: 'test-peer-id',
+      });
+    });
   });
 
   // Room Management Tests
@@ -431,13 +459,24 @@ describe('Peer Class', () => {
       expect(userMap.has(peer['peerID'])).toBe(true);
     });
 
-    test('the heartbeat interval does not rewrite y.users', () => {
-      const before = peer.user();
-      vi.advanceTimersByTime(15000); // three 5s ticks
-      // Same Y.Map instance -> no replacement occurred.
-      expect(peer.user()).toBe(before);
-      expect((peer as any).ticktack).toBeUndefined();
-      expect((peer as any).checkLogicalClocks).toBeUndefined();
+    test('provider onLeave removes the departed peer and its signature', () => {
+      const userMap = peer['y'].users as Y.Map<any>;
+      const sigMap = peer['y'].userSigs as Y.Map<any>;
+      const leaverID = 'leaverPubKey_s1';
+
+      peer['y'].doc.transact(() => {
+        const leaver = new Y.Map();
+        leaver.set('room', 'Lobby');
+        userMap.set(leaverID, leaver);
+        sigMap.set(leaverID, { signer: 'leaverPubKey', nonce: 1, signature: 'sig' });
+      });
+
+      const onLeaveCallback = (peer['provider'] as any).onLeave.mock.calls[0][0];
+      onLeaveCallback(leaverID);
+
+      expect(userMap.has(leaverID)).toBe(false);
+      expect(sigMap.has(leaverID)).toBe(false);
+      expect(userMap.has(peer['peerID'])).toBe(true);
     });
   });
 
@@ -621,27 +660,100 @@ describe('Peer Class', () => {
       expect(newConfig.createdBy).toBe('test-peer-id');
     });
 
-    test('_verifyAndAccept rejects payload with mismatched createdBy', async () => {
-      peer['lab'].data = {
-        ...peer['lab'].data,
-        createdBy: 'owner-peer-id',
-        members: { teacher: ['teacher-peer-id'], student: [] },
-      };
+    describe('_verifyAndAccept (incoming setup)', () => {
+      // Real pubkeys are long; keys under 40 chars take the legacy-ID path.
+      const OWNER = 'O'.repeat(44);
+      const TEACHER = 'T'.repeat(44);
+      const STUDENT = 'S'.repeat(44);
 
-      // Tampered payload: createdBy doesn't match established localCreatedBy
-      const tampered = {
-        createdBy: 'HACKER_KEY',
-        setupSigner: 'teacher-peer-id',
-        setupSignature: 'mock-signature',
-        members: { teacher: ['teacher-peer-id'], student: [] },
-        modules: [],
-        name: 'lab',
+      const incoming = (overrides: any = {}) => ({
+        name: 'renamed',
         meta: {},
-      };
+        modules: [],
+        members: { teacher: [TEACHER], student: [] },
+        createdBy: OWNER,
+        setupSigner: OWNER,
+        setupSignature: 'mock-signature',
+        ...overrides,
+      });
 
-      const accepted = await peer['_verifyAndAccept'](tampered, Date.now() + 1000);
-      expect(accepted).toBe(false);
-      expect(peer['lab'].data.createdBy).toBe('owner-peer-id');
+      beforeEach(() => {
+        peer['lab'].data = {
+          ...peer['lab'].data,
+          name: 'lab',
+          meta: {},
+          modules: [],
+          members: { teacher: [TEACHER], student: [] },
+          createdBy: OWNER,
+        };
+        peer['expectedOwner'] = null;
+      });
+
+      test('accepts a setup signed by the owner', async () => {
+        expect(await peer['_verifyAndAccept'](incoming(), Date.now() + 1000)).toBe(true);
+        expect(peer['lab'].data.name).toBe('renamed');
+      });
+
+      test('accepts a teacher-signed change that leaves members alone', async () => {
+        const data = incoming({ setupSigner: TEACHER });
+        expect(await peer['_verifyAndAccept'](data, Date.now() + 1000)).toBe(true);
+        expect(peer['lab'].data.name).toBe('renamed');
+      });
+
+      test('rejects a teacher-signed setup that claims ownership', async () => {
+        // The signer is authorized; only the owner check stops the takeover.
+        const data = incoming({ createdBy: TEACHER, setupSigner: TEACHER });
+        expect(await peer['_verifyAndAccept'](data, Date.now() + 1000)).toBe(false);
+        expect(peer['lab'].data.createdBy).toBe(OWNER);
+        expect(peer['lab'].data.name).toBe('lab');
+        expect(verifySetup).not.toHaveBeenCalled();
+      });
+
+      test('rejects a setup signed by a student', async () => {
+        const data = incoming({ setupSigner: STUDENT });
+        expect(await peer['_verifyAndAccept'](data, Date.now() + 1000)).toBe(false);
+        expect(peer['lab'].data.name).toBe('lab');
+        expect(verifySetup).not.toHaveBeenCalled();
+      });
+
+      test('rejects a teacher-signed members change that moves the owner to students', async () => {
+        const data = incoming({
+          setupSigner: TEACHER,
+          members: { teacher: [TEACHER], student: [OWNER] },
+        });
+        expect(await peer['_verifyAndAccept'](data, Date.now() + 1000)).toBe(false);
+        expect(peer['lab'].data.members.student).toEqual([]);
+      });
+
+      test('rejects a setup whose signature does not verify', async () => {
+        vi.mocked(verifySetup).mockResolvedValueOnce(false);
+        const setupCallback = vi.fn();
+        peer.on('setup', setupCallback);
+
+        expect(await peer['_verifyAndAccept'](incoming(), Date.now() + 1000)).toBe(false);
+        expect(peer['lab'].data.name).toBe('lab');
+        expect(setupCallback).not.toHaveBeenCalled();
+      });
+
+      test('rejects an owner that does not match the owner hash from the URL', async () => {
+        // A first-time joiner: no local owner yet, only the link's trust anchor.
+        peer['lab'].data.createdBy = '';
+        peer['expectedOwner'] = 'hash-of-the-real-owner'; // hashPubKey mock yields 'testhash1234'
+        const roomCallback = vi.fn();
+        peer.on('room', roomCallback);
+
+        expect(await peer['_verifyAndAccept'](incoming(), Date.now() + 1000)).toBe(false);
+        expect(peer['lab'].data.createdBy).toBe('');
+        expect(roomCallback).toHaveBeenCalledWith(null);
+      });
+
+      test('adopts the owner when it matches the owner hash from the URL', async () => {
+        peer['lab'].data.createdBy = '';
+        peer['expectedOwner'] = 'testhash1234';
+
+        expect(await peer['_verifyAndAccept'](incoming(), Date.now() + 1000)).toBe(true);
+        expect(peer['lab'].data.createdBy).toBe(OWNER);
+      });
     });
 
     test('_verifyAndAccept accepts owner migration broadcast when local createdBy is a legacy ID', async () => {
