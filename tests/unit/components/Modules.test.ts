@@ -68,8 +68,9 @@ describe('Modules Component', () => {
     },
   };
 
-  const createWrapper = (props = {}) => {
+  const createWrapper = (props = {}, options = {}) => {
     return mount(Modules, {
+      ...options,
       props: {
         role: 'student',
         username_: 'test-user',
@@ -90,7 +91,22 @@ describe('Modules Component', () => {
     vi.useFakeTimers(); 
   });
 
+  // Module is stubbed, so give the component a stand-in module iframe (it must
+  // be in the document to get a window). Returns that module's window.
+  let frames: HTMLIFrameElement[] = [];
+  const mountWithModuleFrame = (props = {}) => {
+    wrapper = createWrapper(props, { attachTo: document.body });
+    const frame = document.createElement('iframe');
+    wrapper.element.appendChild(frame);
+    frames.push(frame);
+    return frame.contentWindow as Window;
+  };
+  const postFrom = (source: Window | null, data: any, origin = 'https://example.com') =>
+    window.dispatchEvent(new MessageEvent('message', { data, origin, source }));
+
   afterEach(() => {
+    frames.forEach((f) => f.remove());
+    frames = [];
     if (wrapper) wrapper.unmount();
     vi.clearAllTimers(); 
     vi.useRealTimers(); 
@@ -179,56 +195,54 @@ describe('Modules Component', () => {
     );
   });
 
-  test('handles window messages correctly', async () => {
-    wrapper = createWrapper();
-    
-    const messageEvent = new MessageEvent('message', {
-      data: {
-        event: 'message',
-        subject: 'test',
-        body: 'hello',
-      },
-    });
-    
-    window.dispatchEvent(messageEvent);
-    await wrapper.vm.$nextTick();
-    vi.advanceTimersByTime(100); 
-    
+  test('acts on messages and state from its module iframes', () => {
+    const moduleWindow = mountWithModuleFrame();
+
+    postFrom(moduleWindow, { event: 'message', subject: 'test', body: 'hello' });
     expect(mockCommunication.broadcast).toHaveBeenCalled();
-    
-    const stateEvent = new MessageEvent('message', {
-      data: {
-        event: 'state',
-        data: { test: true },
-      },
-    });
-    
-    window.dispatchEvent(stateEvent);
-    await wrapper.vm.$nextTick();
-    
-    expect(mockCommunication.updateState).toHaveBeenCalled();
+
+    const update = [1, 2, 3];
+    postFrom(moduleWindow, { event: 'state', data: update });
+    expect(mockCommunication.updateState).toHaveBeenCalledWith(update);
+
+    // Inlined (data:) modules post with an opaque "null" origin.
+    postFrom(moduleWindow, { event: 'awareness', data: update }, 'null');
+    expect(mockCommunication.updateAwareness).toHaveBeenCalledWith(update);
   });
 
-  test('answers a WebRTC config request only from a module origin', async () => {
-    wrapper = createWrapper(); // student in lobby: Module 1 at https://example.com
-    const request = (origin: string) => {
-      const source = { postMessage: vi.fn() };
-      wrapper.vm.messageHandler({ data: { event: 'requestWebRTCConfig' }, origin, source });
-      return source;
-    };
+  test('ignores messages from any window that is not one of its modules', () => {
+    mountWithModuleFrame();
+    const outsider = document.createElement('iframe'); // e.g. another frame on the page
+    document.body.appendChild(outsider);
+    frames.push(outsider);
 
-    const foreign = request('https://evil.example');
+    for (const source of [null, window, outsider.contentWindow]) {
+      postFrom(source, { event: 'message', subject: 'spoof', body: 'x' });
+      postFrom(source, { event: 'state', data: [1] });
+      postFrom(source, { event: 'awareness', data: [1] });
+      postFrom(source, { event: 'reload' });
+    }
+    vi.advanceTimersByTime(100);
+
+    expect(mockCommunication.broadcast).not.toHaveBeenCalled();
+    expect(mockCommunication.updateState).not.toHaveBeenCalled();
+    expect(mockCommunication.updateAwareness).not.toHaveBeenCalled();
+    expect(mockCommunication.update).not.toHaveBeenCalled();
+  });
+
+  test('answers a WebRTC config request only from a module at its own origin', async () => {
+    // Student in lobby: Module 1 at https://example.com.
+    const moduleWindow = mountWithModuleFrame();
+    const reply = vi.spyOn(moduleWindow, 'postMessage').mockImplementation(() => {});
+
+    postFrom(moduleWindow, { event: 'requestWebRTCConfig' }, 'https://evil.example');
     await Promise.resolve();
     expect(mockCommunication.getWebRTCConfig).not.toHaveBeenCalled();
-    expect(foreign.postMessage).not.toHaveBeenCalled();
 
-    const module = request('https://example.com');
+    postFrom(moduleWindow, { event: 'requestWebRTCConfig' }, 'https://example.com');
     await Promise.resolve();
     await Promise.resolve();
-    expect(module.postMessage).toHaveBeenCalledWith(
-      { event: 'webrtcConfig', config: {} },
-      'https://example.com'
-    );
+    expect(reply).toHaveBeenCalledWith({ event: 'webrtcConfig', config: {} }, 'https://example.com');
   });
 
   describe('forwarding live updates into module iframes', () => {

@@ -304,7 +304,23 @@ export default {
       return result.join(" ");
     },
 
+    // True if `source` is one of our module iframes. Inlined modules run on a
+    // data: URL with an opaque "null" origin, so the sender window, not the
+    // origin, is what identifies a module.
+    isModuleWindow(source: MessageEventSource | null): boolean {
+      if (!source) return false;
+      const iframes = this.$el?.querySelectorAll?.("iframe") ?? [];
+      return Array.from(iframes).some((f: HTMLIFrameElement) => f.contentWindow === source);
+    },
+
     messageHandler(e) {
+      // Any window that holds a reference to this one (an opener, another
+      // frame) can post here; only modules may write state or send messages.
+      if (!this.isModuleWindow(e.source)) {
+        debug.components.modules("[Security] Ignored message from a non-module window:", e.origin);
+        return;
+      }
+
       switch (e.data.event) {
         case "message":
           this.sendMessage(e.data.subject, e.data.body, e.data.user, e.data.module);
