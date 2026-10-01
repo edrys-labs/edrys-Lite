@@ -205,13 +205,17 @@ export default {
         const encodedConfig = encodeCommConfig(commConfig);
         
         const urlBase = window.location.origin + window.location.pathname;
-        
+
+        // Keep the /:owner[/:hash] segments of the current URL: the owner hash
+        // is the first-join trust anchor.
+        const anchor =
+          (window.location.search || "").match(
+            /^\?\/(?:classroom|station)\/[^/?#]+((?:\/[^/?#]+)*)/
+          )?.[1] || "";
+        const link = `${urlBase}?/classroom/${this.classId}${anchor}`;
+
         // Only append comm parameter if there's actually encoded config
-        if (encodedConfig) {
-          this.shareableLink = `${urlBase}?/classroom/${this.classId}#comm=${encodedConfig}`;
-        } else {
-          this.shareableLink = `${urlBase}?/classroom/${this.classId}`;
-        }
+        this.shareableLink = encodedConfig ? `${link}#comm=${encodedConfig}` : link;
       } catch (e) {
         console.error('Error generating shareable link:', e);
         this.shareableLink = this.$t('settings.communication.shareLink.error');

@@ -179,6 +179,28 @@ describe('Communication Component', () => {
       expect(wrapper.vm.shareableLink).toBe('http://localhost:6999/?/classroom/test-class#comm=encodedCustomWebRTC');
     });
 
+    test('keeps the owner hash (and write-protection hash) of the current URL', async () => {
+      const at = (search: string) =>
+        Object.defineProperty(window, 'location', {
+          value: { origin: 'http://localhost:6999', pathname: '/', search },
+          writable: true
+        });
+
+      at('?/classroom/test-class/OWNERHASH');
+      wrapper = createWrapper('ws');
+      wrapper.vm.generateShareableLink();
+      expect(wrapper.vm.shareableLink).toBe('http://localhost:6999/?/classroom/test-class/OWNERHASH#comm=ws');
+
+      at('?/classroom/test-class/OWNERHASH/DATAHASH');
+      wrapper.vm.generateShareableLink();
+      expect(wrapper.vm.shareableLink).toBe('http://localhost:6999/?/classroom/test-class/OWNERHASH/DATAHASH#comm=ws');
+
+      // Opened from a station page: share the classroom link, same anchor.
+      at('?/station/test-class/OWNERHASH');
+      wrapper.vm.generateShareableLink();
+      expect(wrapper.vm.shareableLink).toBe('http://localhost:6999/?/classroom/test-class/OWNERHASH#comm=ws');
+    });
+
     test('copies link to clipboard', async () => {
       const mockClipboard = {
         writeText: vi.fn().mockResolvedValue(undefined)
