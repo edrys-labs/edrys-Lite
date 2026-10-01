@@ -1,320 +1,90 @@
 import { describe, test, expect, vi } from 'vitest'
 
 // Unit tests for the pure authorization rules exported from Peer.ts.
-// The rules themselves are pure; the Database mock just lets Peer.ts import
-// cleanly in the test harness.
-async function freshPeerHelpers() {
-  vi.resetModules()
-  vi.doMock('../../../../src/ts/Database', () => ({
-    Database: vi.fn(() => ({
-      getPublicKeyRaw: vi.fn().mockResolvedValue(null),
-      getPrivateKey: vi.fn().mockResolvedValue(null),
-      setPublicKeyRaw: vi.fn(),
-      setPrivateKey: vi.fn(),
-    })),
-  }))
-  vi.doMock('../../../../src/ts/GenericProviderAdapter', () => ({
-    GenericWebrtcProviderAdapter: vi.fn(),
-  }))
-  vi.doMock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
-    GenericWebsocketProviderAdapter: vi.fn(),
-  }))
-  return import('../../../../src/ts/Peer')
-}
+// The mocks only let Peer.ts import cleanly in the test harness.
+vi.mock('../../../../src/ts/Database', () => ({
+  Database: vi.fn(() => ({
+    getPublicKeyRaw: vi.fn().mockResolvedValue(null),
+    getPrivateKey: vi.fn().mockResolvedValue(null),
+    setPublicKeyRaw: vi.fn(),
+    setPrivateKey: vi.fn(),
+  })),
+}))
+vi.mock('../../../../src/ts/GenericProviderAdapter', () => ({ GenericWebrtcProviderAdapter: vi.fn() }))
+vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({ GenericWebsocketProviderAdapter: vi.fn() }))
 
-// ---------------------------------------------------------------------------
-// y.users authorization rule (isAuthorizedUserSigner)
-// ---------------------------------------------------------------------------
-describe('isAuthorizedUserSigner', () => {
-  test('human peer: signer matching pubkey prefix is authorized', async () => {
-    const { isAuthorizedUserSigner } = await freshPeerHelpers()
-    const pubkey = 'BGdxv12345abc'
-    const id = `${pubkey}_sess001`
-    expect(isAuthorizedUserSigner(id, pubkey, 'owner-pk', [])).toBe(true)
-  })
+import { isAuthorizedUserSigner, isAuthorizedRoomSigner } from '../../../../src/ts/Peer'
 
-  test('human peer: signer with different pubkey is rejected (spoofing)', async () => {
-    const { isAuthorizedUserSigner } = await freshPeerHelpers()
-    const id = 'BGdxv12345abc_sess001'
-    expect(isAuthorizedUserSigner(id, 'attacker-pk', 'owner-pk', [])).toBe(false)
-  })
+const OWNER = 'owner-pk'
+const TEACHERS = ['teacher-pk']
 
-  test('human peer: base64 padding (=) is ignored when matching', async () => {
-    const { isAuthorizedUserSigner } = await freshPeerHelpers()
-    const id = 'BGdxv12345abc==_sess001'
-    expect(isAuthorizedUserSigner(id, 'BGdxv12345abc', 'owner-pk', [])).toBe(true)
-    expect(isAuthorizedUserSigner(id, 'BGdxv12345abc==', 'owner-pk', [])).toBe(true)
-  })
-
-  test('human peer: missing session separator is rejected', async () => {
-    const { isAuthorizedUserSigner } = await freshPeerHelpers()
-    expect(isAuthorizedUserSigner('NoSeparator', 'NoSeparator', 'owner-pk', [])).toBe(false)
-  })
-
-  test('station peer: owner signature is authorized', async () => {
-    const { isAuthorizedUserSigner } = await freshPeerHelpers()
-    const id = 'Station myStn1'
-    const owner = 'owner-pk'
-    expect(isAuthorizedUserSigner(id, owner, owner, [])).toBe(true)
-  })
-
-  test('station peer: teacher signature is authorized', async () => {
-    const { isAuthorizedUserSigner } = await freshPeerHelpers()
-    const id = 'Station myStn1'
-    expect(isAuthorizedUserSigner(id, 'teacher-pk', 'owner-pk', ['teacher-pk'])).toBe(true)
-  })
-
-  test('station peer: random participant is rejected', async () => {
-    const { isAuthorizedUserSigner } = await freshPeerHelpers()
-    const id = 'Station myStn1'
-    expect(isAuthorizedUserSigner(id, 'random-pk', 'owner-pk', ['teacher-pk'])).toBe(false)
-  })
-
-  test('empty signer is rejected', async () => {
-    const { isAuthorizedUserSigner } = await freshPeerHelpers()
-    expect(isAuthorizedUserSigner('any_id', '', 'owner', [])).toBe(false)
+// [case, id, signer, teachers, students (allowlist; omitted = none), expected]
+describe('isAuthorizedUserSigner (y.users writes)', () => {
+  test.each([
+    // Human peers: id is "<pubkey>_<session>" and only that pubkey may sign it.
+    ['own entry', 'BGdxv12345abc_sess001', 'BGdxv12345abc', [], undefined, true],
+    ['someone else signs it (spoofing)', 'BGdxv12345abc_sess001', 'attacker-pk', [], undefined, false],
+    ['id padded, signer not', 'BGdxv12345abc==_sess001', 'BGdxv12345abc', [], undefined, true],
+    ['both padded', 'BGdxv12345abc==_sess001', 'BGdxv12345abc==', [], undefined, true],
+    ['id without a session separator', 'NoSeparator', 'NoSeparator', [], undefined, false],
+    ['empty signer', 'any_id', '', [], undefined, false],
+    // Stations: only the owner or a teacher may sign them.
+    ['station signed by the owner', 'Station myStn1', OWNER, [], undefined, true],
+    ['station signed by a teacher', 'Station myStn1', 'teacher-pk', TEACHERS, undefined, true],
+    ['station signed by anyone else', 'Station myStn1', 'random-pk', TEACHERS, undefined, false],
+    // With a student allowlist, the signer must also be a member.
+    ['listed student, own entry', 'student-pk_sess001', 'student-pk', [], ['student-pk'], true],
+    ['non-member, own entry', 'random-pk_sess001', 'random-pk', [], ['alice-pk', 'bob-pk'], false],
+    ['owner, not listed', 'owner-pk_sess001', OWNER, [], ['alice-pk'], true],
+    ['teacher, not listed', 'teacher-pk_sess001', 'teacher-pk', TEACHERS, ['alice-pk'], true],
+    ['station signed by an unlisted teacher', 'Station S1', 'rogue-teacher-pk', ['rogue-teacher-pk'], ['alice-pk'], true],
+    ['station signed by a non-member', 'Station S1', 'random-pk', [], ['alice-pk'], false],
+    ['listed student writing another student\'s entry', 'bob-pk_sess001', 'alice-pk', [], ['alice-pk', 'bob-pk'], false],
+    ['allowlist entry padded', 'alice-pk==_sess001', 'alice-pk', [], ['alice-pk=='], true],
+    ['wildcard allowlist', 'random-pk_sess001', 'random-pk', [], ['*'], true],
+    ['empty allowlist', 'random-pk_sess001', 'random-pk', [], [], true],
+  ])('%s', (_case, id, signer, teachers, students, expected) => {
+    expect(isAuthorizedUserSigner(id, signer, OWNER, teachers as string[], students as string[] | undefined)).toBe(expected)
   })
 })
 
-// ---------------------------------------------------------------------------
-// y.rooms authorization rule (isAuthorizedRoomSigner)
-// ---------------------------------------------------------------------------
-describe('isAuthorizedRoomSigner', () => {
-  test('default room "Lobby" is creatable by any signer (bootstrap)', async () => {
-    const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-    expect(isAuthorizedRoomSigner('Lobby', 'any-student-pk', 'owner-pk', [])).toBe(true)
-  })
-
-  test('"Room N" requires owner or teacher (not any signer)', async () => {
-    const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-    expect(isAuthorizedRoomSigner('Room 1', 'student-pk', 'owner-pk', [])).toBe(false)
-    expect(isAuthorizedRoomSigner('Room 42', 'student-pk', 'owner-pk', [])).toBe(false)
-    expect(isAuthorizedRoomSigner('Room 1', 'owner-pk', 'owner-pk', [])).toBe(true)
-    expect(isAuthorizedRoomSigner('Room 1', 'teacher-pk', 'owner-pk', ['teacher-pk'])).toBe(true)
-  })
-
-  test('non-default room: owner is authorized', async () => {
-    const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-    expect(isAuthorizedRoomSigner('Discussion', 'owner-pk', 'owner-pk', [])).toBe(true)
-  })
-
-  test('non-default room: teacher is authorized', async () => {
-    const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-    expect(isAuthorizedRoomSigner('Discussion', 'teacher-pk', 'owner-pk', ['teacher-pk'])).toBe(true)
-  })
-
-  test('non-default room: random participant is rejected', async () => {
-    const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-    expect(isAuthorizedRoomSigner('Discussion', 'student-pk', 'owner-pk', ['teacher-pk'])).toBe(false)
-  })
-
-  test('station room: owner is authorized', async () => {
-    const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-    expect(isAuthorizedRoomSigner('Station myStn', 'owner-pk', 'owner-pk', [])).toBe(true)
-  })
-
-  test('station room: teacher is authorized', async () => {
-    const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-    expect(isAuthorizedRoomSigner('Station myStn', 'teacher-pk', 'owner-pk', ['teacher-pk'])).toBe(true)
-  })
-
-  test('station room: random participant is rejected', async () => {
-    const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-    expect(isAuthorizedRoomSigner('Station myStn', 'random-pk', 'owner-pk', ['teacher-pk'])).toBe(false)
-  })
-
-  test('base64 padding (=) is ignored when matching owner/teacher', async () => {
-    const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-    expect(isAuthorizedRoomSigner('Discussion', 'owner-pk==', 'owner-pk', [])).toBe(true)
-    expect(isAuthorizedRoomSigner('Discussion', 'teacher-pk', 'owner-pk', ['teacher-pk=='])).toBe(true)
-  })
-
-  test('empty signer is rejected', async () => {
-    const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-    expect(isAuthorizedRoomSigner('Discussion', '', 'owner-pk', ['teacher-pk'])).toBe(false)
-  })
-
-  test('room name that looks like default but isn\'t (e.g., "Room foo") requires owner/teacher', async () => {
-    const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-    expect(isAuthorizedRoomSigner('Room foo', 'student-pk', 'owner-pk', [])).toBe(false)
-    expect(isAuthorizedRoomSigner('Room foo', 'owner-pk', 'owner-pk', [])).toBe(true)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// Members allowlist gating (binds `members.student` to authz)
-// ---------------------------------------------------------------------------
-describe('members allowlist gating', () => {
-  describe('isAuthorizedUserSigner with allowlist', () => {
-    test('listed student signing own entry is accepted', async () => {
-      const { isAuthorizedUserSigner } = await freshPeerHelpers()
-      const id = 'student-pk_sess001'
-      expect(
-        isAuthorizedUserSigner(id, 'student-pk', 'owner-pk', [], ['student-pk'])
-      ).toBe(true)
-    })
-
-    test('non-member signing own (valid id prefix) entry is rejected', async () => {
-      const { isAuthorizedUserSigner } = await freshPeerHelpers()
-      const id = 'random-pk_sess001'
-      expect(
-        isAuthorizedUserSigner(id, 'random-pk', 'owner-pk', [], ['alice-pk', 'bob-pk'])
-      ).toBe(false)
-    })
-
-    test('owner always passes even when not explicitly listed', async () => {
-      const { isAuthorizedUserSigner } = await freshPeerHelpers()
-      const id = 'owner-pk_sess001'
-      expect(
-        isAuthorizedUserSigner(id, 'owner-pk', 'owner-pk', [], ['alice-pk'])
-      ).toBe(true)
-    })
-
-    test('teacher always passes even when not explicitly listed', async () => {
-      const { isAuthorizedUserSigner } = await freshPeerHelpers()
-      const id = 'teacher-pk_sess001'
-      expect(
-        isAuthorizedUserSigner(id, 'teacher-pk', 'owner-pk', ['teacher-pk'], ['alice-pk'])
-      ).toBe(true)
-    })
-
-    test('station record from non-member teacher is rejected', async () => {
-      const { isAuthorizedUserSigner } = await freshPeerHelpers()
-      expect(
-        isAuthorizedUserSigner(
-          'Station S1',
-          'rogue-teacher-pk',
-          'owner-pk',
-          ['rogue-teacher-pk'],
-          ['alice-pk']
-        )
-      ).toBe(true)
-      // sanity: rogue teacher is in teachers list so membership passes
-      expect(
-        isAuthorizedUserSigner('Station S1', 'random-pk', 'owner-pk', [], ['alice-pk'])
-      ).toBe(false)
-    })
-
-    test('wildcard student list preserves permissive behaviour', async () => {
-      const { isAuthorizedUserSigner } = await freshPeerHelpers()
-      const id = 'random-pk_sess001'
-      expect(
-        isAuthorizedUserSigner(id, 'random-pk', 'owner-pk', [], ['*'])
-      ).toBe(true)
-    })
-
-    test('empty student list preserves permissive behaviour', async () => {
-      const { isAuthorizedUserSigner } = await freshPeerHelpers()
-      const id = 'random-pk_sess001'
-      expect(
-        isAuthorizedUserSigner(id, 'random-pk', 'owner-pk', [], [])
-      ).toBe(true)
-    })
-
-    test('listed student spoofing another student id is still rejected by prefix rule', async () => {
-      const { isAuthorizedUserSigner } = await freshPeerHelpers()
-      // alice tries to write bob's record — id prefix doesn't match her pubkey
-      expect(
-        isAuthorizedUserSigner(
-          'bob-pk_sess001',
-          'alice-pk',
-          'owner-pk',
-          [],
-          ['alice-pk', 'bob-pk']
-        )
-      ).toBe(false)
-    })
-
-    test('base64 padding is ignored when matching against students list', async () => {
-      const { isAuthorizedUserSigner } = await freshPeerHelpers()
-      const id = 'alice-pk==_sess001'
-      expect(
-        isAuthorizedUserSigner(id, 'alice-pk', 'owner-pk', [], ['alice-pk=='])
-      ).toBe(true)
-    })
-  })
-
-  describe('isAuthorizedRoomSigner with allowlist', () => {
-    test('listed student can create Lobby', async () => {
-      const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-      expect(
-        isAuthorizedRoomSigner('Lobby', 'alice-pk', 'owner-pk', [], ['alice-pk'])
-      ).toBe(true)
-    })
-
-    test('non-member can still create Lobby (Lobby is always open)', async () => {
-      const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-      expect(
-        isAuthorizedRoomSigner('Lobby', 'random-pk', 'owner-pk', [], ['alice-pk'])
-      ).toBe(true)
-    })
-
-    test('"Room N" requires owner or teacher even with allowlist', async () => {
-      const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-      expect(
-        isAuthorizedRoomSigner('Room 1', 'alice-pk', 'owner-pk', [], ['alice-pk'])
-      ).toBe(false)
-      expect(
-        isAuthorizedRoomSigner('Room 1', 'owner-pk', 'owner-pk', [], ['alice-pk'])
-      ).toBe(true)
-    })
-
-    test('non-member cannot create "Room N"', async () => {
-      const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-      expect(
-        isAuthorizedRoomSigner('Room 5', 'random-pk', 'owner-pk', [], ['alice-pk'])
-      ).toBe(false)
-    })
-
-    test('listed student cannot create a named room (owner/teacher only)', async () => {
-      const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-      expect(
-        isAuthorizedRoomSigner('Discussion', 'alice-pk', 'owner-pk', [], ['alice-pk'])
-      ).toBe(false)
-    })
-
-    test('owner always permitted under allowlist', async () => {
-      const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-      expect(
-        isAuthorizedRoomSigner('Discussion', 'owner-pk', 'owner-pk', [], ['alice-pk'])
-      ).toBe(true)
-      expect(
-        isAuthorizedRoomSigner('Station S1', 'owner-pk', 'owner-pk', [], ['alice-pk'])
-      ).toBe(true)
-    })
-
-    test('teacher always permitted under allowlist', async () => {
-      const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-      expect(
-        isAuthorizedRoomSigner('Discussion', 'teacher-pk', 'owner-pk', ['teacher-pk'], ['alice-pk'])
-      ).toBe(true)
-    })
-
-    test('non-member cannot create a station room', async () => {
-      const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-      expect(
-        isAuthorizedRoomSigner('Station S1', 'random-pk', 'owner-pk', [], ['alice-pk'])
-      ).toBe(false)
-    })
-
-    test('wildcard student list preserves permissive default-room behaviour', async () => {
-      const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-      expect(
-        isAuthorizedRoomSigner('Lobby', 'random-pk', 'owner-pk', [], ['*'])
-      ).toBe(true)
-      expect(
-        isAuthorizedRoomSigner('Room 1', 'random-pk', 'owner-pk', [], ['*'])
-      ).toBe(false)
-    })
-
-    test('empty student list preserves the no-allowlist behaviour', async () => {
-      const { isAuthorizedRoomSigner } = await freshPeerHelpers()
-      expect(
-        isAuthorizedRoomSigner('Lobby', 'random-pk', 'owner-pk', [], [])
-      ).toBe(true)
-      expect(
-        isAuthorizedRoomSigner('Discussion', 'random-pk', 'owner-pk', [], [])
-      ).toBe(false)
-    })
+// [case, room, signer, teachers, students (allowlist; omitted = none), expected]
+describe('isAuthorizedRoomSigner (y.rooms writes)', () => {
+  test.each([
+    // Lobby is the bootstrap room: anyone may create it.
+    ['Lobby by a student', 'Lobby', 'any-student-pk', [], undefined, true],
+    ['Lobby by a listed student', 'Lobby', 'alice-pk', [], ['alice-pk'], true],
+    ['Lobby by a non-member', 'Lobby', 'random-pk', [], ['alice-pk'], true],
+    ['Lobby, wildcard allowlist', 'Lobby', 'random-pk', [], ['*'], true],
+    ['Lobby, empty allowlist', 'Lobby', 'random-pk', [], [], true],
+    // Every other room needs the owner or a teacher.
+    ['"Room 1" by a student', 'Room 1', 'student-pk', [], undefined, false],
+    ['"Room 42" by a student', 'Room 42', 'student-pk', [], undefined, false],
+    ['"Room 1" by the owner', 'Room 1', OWNER, [], undefined, true],
+    ['"Room 1" by a teacher', 'Room 1', 'teacher-pk', TEACHERS, undefined, true],
+    ['"Room foo" by a student', 'Room foo', 'student-pk', [], undefined, false],
+    ['"Room foo" by the owner', 'Room foo', OWNER, [], undefined, true],
+    ['named room by the owner', 'Discussion', OWNER, [], undefined, true],
+    ['named room by a teacher', 'Discussion', 'teacher-pk', TEACHERS, undefined, true],
+    ['named room by anyone else', 'Discussion', 'student-pk', TEACHERS, undefined, false],
+    ['named room, empty signer', 'Discussion', '', TEACHERS, undefined, false],
+    ['station room by the owner', 'Station myStn', OWNER, [], undefined, true],
+    ['station room by a teacher', 'Station myStn', 'teacher-pk', TEACHERS, undefined, true],
+    ['station room by anyone else', 'Station myStn', 'random-pk', TEACHERS, undefined, false],
+    ['owner signer padded', 'Discussion', 'owner-pk==', [], undefined, true],
+    ['teacher list padded', 'Discussion', 'teacher-pk', ['teacher-pk=='], undefined, true],
+    // Membership in the allowlist doesn't grant room creation.
+    ['"Room 1" by a listed student', 'Room 1', 'alice-pk', [], ['alice-pk'], false],
+    ['"Room 1" by the owner, allowlist set', 'Room 1', OWNER, [], ['alice-pk'], true],
+    ['"Room 5" by a non-member', 'Room 5', 'random-pk', [], ['alice-pk'], false],
+    ['named room by a listed student', 'Discussion', 'alice-pk', [], ['alice-pk'], false],
+    ['named room by the owner, allowlist set', 'Discussion', OWNER, [], ['alice-pk'], true],
+    ['station room by the owner, allowlist set', 'Station S1', OWNER, [], ['alice-pk'], true],
+    ['named room by a teacher, allowlist set', 'Discussion', 'teacher-pk', TEACHERS, ['alice-pk'], true],
+    ['station room by a non-member', 'Station S1', 'random-pk', [], ['alice-pk'], false],
+    ['"Room 1", wildcard allowlist', 'Room 1', 'random-pk', [], ['*'], false],
+    ['named room, empty allowlist', 'Discussion', 'random-pk', [], [], false],
+  ])('%s', (_case, name, signer, teachers, students, expected) => {
+    expect(isAuthorizedRoomSigner(name, signer, OWNER, teachers as string[], students as string[] | undefined)).toBe(expected)
   })
 })

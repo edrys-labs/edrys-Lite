@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as Y from 'yjs';
 
 // edrys.ts registers its 'message' listener and side effects at import time,
@@ -59,11 +59,26 @@ function sendInitialUpdate(overrides: any = {}) {
 }
 
 describe('edrys.ts (module API bridge)', () => {
+  // Each test imports a fresh edrys.ts; drop the window listeners the previous
+  // copy (and its handlers) added, or every old copy reacts to new messages.
+  let listeners: Array<[string, any]> = [];
+
   beforeEach(async () => {
     vi.resetModules();
     delete (window as any).Edrys;
     delete (window as any).Y;
+    const add = window.addEventListener.bind(window);
+    vi.spyOn(window, 'addEventListener').mockImplementation((type: string, listener: any, options?: any) => {
+      listeners.push([type, listener]);
+      add(type, listener, options);
+    });
     await import('../../../src/api/edrys');
+  });
+
+  afterEach(() => {
+    vi.mocked(window.addEventListener).mockRestore();
+    for (const [type, listener] of listeners) window.removeEventListener(type, listener);
+    listeners = [];
   });
 
   test('locks trusted origin to the first message received', () => {
@@ -163,9 +178,38 @@ describe('edrys.ts (module API bridge)', () => {
 
     sendFromParent({ event: 'state', data: remoteUpdate });
 
-    // No outbound 'state' postMessage for an EXTERN-applied update.
+    // Applied locally...
+    expect(Object.keys(window['Edrys'].liveClass.rooms)).toContain('Room B');
+    // ...but no outbound 'state' postMessage for an EXTERN-applied update.
     expect(
       postSpy.mock.calls.some(([msg]: any) => msg.event === 'state')
     ).toBe(false);
+  });
+
+  test('init runs once and each change fires onUpdate once, however many updates arrive first', () => {
+    vi.useFakeTimers();
+    try {
+      const ready = vi.fn();
+      const updated = vi.fn();
+      window['Edrys'].onReady(ready);
+      window['Edrys'].onUpdate(updated);
+
+      const roomUpdate = (name: string) =>
+        Array.from(buildLiveClassUpdate((doc) => doc.getMap('rooms').set(name, new Y.Map())));
+
+      // Several parent updates land before the 1s ready delay elapses.
+      sendInitialUpdate();
+      sendFromParent({ event: 'state', data: roomUpdate('Room B') });
+      sendFromParent({ event: 'state', data: roomUpdate('Room C') });
+      vi.advanceTimersByTime(1500);
+
+      expect(ready).toHaveBeenCalledTimes(1);
+
+      updated.mockClear();
+      sendFromParent({ event: 'state', data: roomUpdate('Room D') });
+      expect(updated).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

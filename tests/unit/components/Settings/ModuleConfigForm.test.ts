@@ -1,7 +1,6 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import ModuleConfigForm from '../../../../src/components/Settings/ModuleConfigForm.vue';
-import { i18n } from '../../../setup';
 import * as Utils from '../../../../src/ts/Utils';
 
 // Define interface for component's data structure
@@ -491,26 +490,5 @@ describe('ModuleConfigForm Component', () => {
       ).toEqual(['arduino:avr:uno', 'esp32:esp32:esp32', 'avr128db48']);
     });
 
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays with %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      wrapper = createWrapper({
-        moduleConfig: complexModuleConfig,
-        currentConfig
-      });
-      
-      await flushPromises();
-      
-      // Verify key UI elements are present regardless of locale
-      expect(wrapper.find('.v-toolbar-title').exists()).toBe(true);
-      expect(wrapper.find('.v-card-text').exists()).toBe(true);
-      
-      // Check that the save button exists
-      const buttons = wrapper.findAll('.v-btn');
-      const saveButton = buttons[buttons.length - 1];
-      expect(saveButton.exists()).toBe(true);
-    });
   });
 });

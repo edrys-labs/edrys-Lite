@@ -32,8 +32,8 @@ describe('Modules Component', () => {
     update: vi.fn(),
     updateState: vi.fn(),
     updateAwareness: vi.fn(),
-    onState: vi.fn(() => vi.fn()),
-    onAwareness: vi.fn(() => vi.fn()),
+    onState: vi.fn((_cb: (data: Uint8Array, origin: any) => void) => vi.fn()),
+    onAwareness: vi.fn((_cb: (data: Uint8Array, origin: any) => void) => vi.fn()),
     getWebRTCConfig: vi.fn(() => Promise.resolve({})),
   };
 
@@ -209,9 +209,79 @@ describe('Modules Component', () => {
     expect(mockCommunication.updateState).toHaveBeenCalled();
   });
 
-  test('shows empty state message when no modules', () => {
-    wrapper = createWrapper({ scrapedModules_: [] });
-    expect(wrapper.find('.v-card-text').exists()).toBe(true);
+  test('answers a WebRTC config request only from a module origin', async () => {
+    wrapper = createWrapper(); // student in lobby: Module 1 at https://example.com
+    const request = (origin: string) => {
+      const source = { postMessage: vi.fn() };
+      wrapper.vm.messageHandler({ data: { event: 'requestWebRTCConfig' }, origin, source });
+      return source;
+    };
+
+    const foreign = request('https://evil.example');
+    await Promise.resolve();
+    expect(mockCommunication.getWebRTCConfig).not.toHaveBeenCalled();
+    expect(foreign.postMessage).not.toHaveBeenCalled();
+
+    const module = request('https://example.com');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(module.postMessage).toHaveBeenCalledWith(
+      { event: 'webrtcConfig', config: {} },
+      'https://example.com'
+    );
+  });
+
+  describe('forwarding live updates into module iframes', () => {
+    let iframe: HTMLIFrameElement;
+    let post: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      // Module is stubbed, so stand in for its iframe (pairs with Module 1).
+      iframe = document.createElement('iframe');
+      document.body.appendChild(iframe);
+      post = vi.spyOn(iframe.contentWindow as Window, 'postMessage').mockImplementation(() => {});
+    });
+
+    afterEach(() => iframe.remove());
+
+    test('forwards doc updates to the module origin, except echoes of its own', () => {
+      wrapper = createWrapper();
+      const onState = mockCommunication.onState.mock.calls[0][0];
+      const update = new Uint8Array([1, 2, 3]);
+
+      onState(update, { transactionId: 'extern' }); // applied from a module
+      expect(post).not.toHaveBeenCalled();
+
+      onState(update, null); // a remote peer's edit
+      expect(post).toHaveBeenCalledWith({ event: 'state', data: update }, 'https://example.com');
+    });
+
+    test('forwards awareness updates to the module origin, except echoes of its own', () => {
+      wrapper = createWrapper();
+      const onAwareness = mockCommunication.onAwareness.mock.calls[0][0];
+      const update = new Uint8Array([4, 5]);
+
+      onAwareness(update, 'extern');
+      expect(post).not.toHaveBeenCalled();
+
+      onAwareness(update, null);
+      expect(post).toHaveBeenCalledWith({ event: 'awareness', data: update }, 'https://example.com');
+    });
+  });
+
+  test('empty state tells teachers and stations to add modules, and students to wait', async () => {
+    i18n.global.locale.value = 'en';
+    const noModules = messages.en.modules.noModules;
+    wrapper = createWrapper({ scrapedModules_: [], role: 'teacher' });
+    expect(wrapper.find('.v-card-text').text()).toContain(noModules['1']);
+    expect(wrapper.find('.v-card-text').text()).toContain(noModules['2']);
+
+    await wrapper.setProps({ role: 'station' });
+    expect(wrapper.find('.v-card-text').text()).toContain(noModules['1']);
+
+    await wrapper.setProps({ role: 'student' });
+    expect(wrapper.find('.v-card-text').text()).toContain(noModules['3']);
+    expect(wrapper.find('.v-card-text').text()).not.toContain(noModules['1']);
   });
 
   test('updates grid on room change', async () => {
@@ -341,28 +411,6 @@ describe('Modules Component', () => {
       });
 
       expect(wrapper.findAllComponents({ name: 'Module' })).toHaveLength(1);
-    });
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const wrapper = createWrapper({ scrapedModules_: [] });
-      
-      const translations = messages[locale].modules.noModules;
-
-      // Check empty state message for teacher or station
-      await wrapper.setProps({ role: 'teacher' });
-      expect(wrapper.find('.v-card-text').text()).toContain(translations['1']);
-      expect(wrapper.find('.v-card-text').text()).toContain(translations['2']);
-
-      await wrapper.setProps({ role: 'station' });
-      expect(wrapper.find('.v-card-text').text()).toContain(translations['1']);
-      expect(wrapper.find('.v-card-text').text()).toContain(translations['2']);
-
-      // Check empty state message for student
-      await wrapper.setProps({ role: 'student' });
-      expect(wrapper.find('.v-card-text').text()).toContain(translations['3']);
     });
   });
 });

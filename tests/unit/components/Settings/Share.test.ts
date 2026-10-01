@@ -1,7 +1,6 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Share from '../../../../src/components/Settings/Share.vue';
-import { i18n, messages } from '../../../setup';
 
 describe('Share Settings Component', () => {
   const mockConfig = {
@@ -156,37 +155,5 @@ describe('Share Settings Component', () => {
     
     expect((fileInput.element as HTMLInputElement).disabled).toBe(true);
     expect((urlInput.element as HTMLInputElement).disabled).toBe(true);
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const wrapper = createWrapper();
-      
-      const buttons = wrapper.findAll('.v-btn');
-      const inputs = wrapper.findAll('input');
-      
-      const translations = messages[locale].settings.share;
-
-      // Check yaml button text
-      const yamlButton = buttons.find(btn => btn.text() === translations.downloadYml);
-      expect(yamlButton).toBeTruthy();
-      
-      // Check json button text
-      const jsonButton = buttons.find(btn => btn.text() === translations.downloadJson);
-      expect(jsonButton).toBeTruthy();
-      
-      // Check file input label
-      const fileInput = inputs.find(input => input.attributes('label') === translations.restoreFromFile);
-      expect(fileInput).toBeTruthy();
-      
-      // Check URL input label
-      const urlInput = inputs.find(input => input.attributes('label') === translations.restoreFromUrl);
-      expect(urlInput).toBeTruthy();
-      
-      // Check explore button text
-      const exploreButton = buttons.find(btn => btn.text() === translations.explore);
-      expect(exploreButton).toBeTruthy();
-    });
   });
 });

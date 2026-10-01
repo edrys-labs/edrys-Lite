@@ -1,3 +1,4 @@
+import { afterEach } from 'vitest'
 import { createVuetify } from 'vuetify'
 import { createI18n } from 'vue-i18n'
 import * as components from 'vuetify/components'
@@ -19,6 +20,17 @@ class ResizeObserver {
 
 // Add to global
 global.ResizeObserver = ResizeObserver;
+
+// Tests replace window.location/history with stubs; put the real ones back so
+// a stub never leaks into the next test.
+const realWindowProps = ['location', 'history'].map(
+  (key) => [key, Object.getOwnPropertyDescriptor(window, key)] as const
+);
+afterEach(() => {
+  for (const [key, descriptor] of realWindowProps) {
+    if (descriptor) Object.defineProperty(window, key, descriptor);
+  }
+});
 
 const vuetify = createVuetify({
   components,

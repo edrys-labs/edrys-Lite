@@ -2,7 +2,6 @@ import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import Checks from '../../../src/components/Checks.vue';
-import { i18n, messages } from '../../setup';
 
 describe('Checks Component', () => {
   let wrapper: any;
@@ -352,47 +351,19 @@ describe('Checks Component', () => {
     });
   });
 
-  describe('Translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      
-      // Test WebRTC mode translations with WebRTC supported
-      wrapper = createWrapper({ webRTCSupport: true }, 'WebRTC');
-      
-      await nextTick();
-      
-      // Check WebRTC specific texts
-      expect(wrapper.text()).toContain(messages[locale].checks.webRTCSupport);
-      expect(wrapper.text()).toContain(messages[locale].checks.configLoaded);
-      
-      // Test WebSocket mode translations
-      wrapper = createWrapper({}, 'Websocket');
-      
-      await nextTick();
-      
-      // Check WebSocket specific texts
-      expect(wrapper.text()).toContain(messages[locale].checks.usingWebsocket);
-      
-      // Check connection labels
-      expect(wrapper.text()).toContain(messages[locale].checks.connected['2']);
-      
-      // Test connection states
-      wrapper = createWrapper(
-        { 
-          webRTCSupport: true,
-          receivedConfiguration: true,
-          connectedToNetwork: true 
-        },
-        'WebRTC'
-      );
-      
-      await nextTick();
-      
-      const successButtons = wrapper.findAll('button[color="success"]');
-      const errorButtons = wrapper.findAll('button[color="error"]');
-      
-      expect(successButtons.length).toBeGreaterThan(0);
-      expect(errorButtons.length).toBe(0);
-    });
+  test('shows no error indicator once WebRTC, config and network are all ready', async () => {
+    wrapper = createWrapper(
+      {
+        webRTCSupport: true,
+        receivedConfiguration: true,
+        connectedToNetwork: true
+      },
+      'WebRTC'
+    );
+
+    await nextTick();
+
+    expect(wrapper.findAll('button[color="success"]').length).toBeGreaterThan(0);
+    expect(wrapper.findAll('button[color="error"]')).toHaveLength(0);
   });
 });

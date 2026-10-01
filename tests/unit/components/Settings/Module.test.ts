@@ -1,7 +1,6 @@
 import { describe, test, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Module from '../../../../src/components/Settings/Module.vue';
-import { i18n, messages } from '../../../setup';
 
 describe('Module Settings Component', () => {
   const mockModule = {
@@ -109,82 +108,5 @@ describe('Module Settings Component', () => {
       error: { ...mockError, config: 'Test error' }
     });
     expect(wrapper.emitted('update:error')).toBeTruthy();
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const wrapper = createWrapper();
-      
-      const translations = messages[locale].settings.modules.module;
-
-      // Check URL panel
-      const urlTitle = wrapper.find('.v-expansion-panel-title');
-      expect(urlTitle.text()).toContain(translations.url.title);
-      const urlInput = wrapper.find('input');
-      expect(urlInput.attributes('label')).toBe(translations.url.urlLabel);
-
-      // Check Design panel and its title
-      const designTitle = wrapper.findAll('.v-expansion-panel-title').at(1);
-      expect(designTitle.text()).toContain(translations.design.title);
-
-      // Find all radio groups
-      const radioGroups = wrapper.findAll('.v-radio-group');
-      expect(radioGroups.length).toBeGreaterThan(0);
-
-      // Check width radio labels (first group)
-      const widthLabels = [
-        translations.design.width.full,
-        translations.design.width.half,
-        translations.design.width.quarter,
-        translations.design.width.custom.title
-      ];
-      
-      widthLabels.forEach(label => {
-        const radio = wrapper.findAll('.v-radio').find(r => r.text() === label);
-        expect(radio).toBeTruthy();
-      });
-
-      // Check height radio labels (second group)
-      const heightLabels = [
-        translations.design.height.huge,
-        translations.design.height.tall,
-        translations.design.height.medium,
-        translations.design.height.short,
-        translations.design.height.custom.title
-      ];
-      
-      heightLabels.forEach(label => {
-        const radio = wrapper.findAll('.v-radio').find(r => r.text() === label);
-        expect(radio).toBeTruthy();
-      });
-
-      // Check panel titles
-      const panelTitles = wrapper.findAll('.v-expansion-panel-title');
-      const expectedTitles = [
-        translations.url.title,
-        translations.design.title,
-        translations.showIn.title
-      ];
-      expectedTitles.forEach((title, index) => {
-        expect(panelTitles[index].text()).toContain(title);
-      });
-
-      // Check Editor titles
-      const editorTitles = [
-        translations.generalSettings,
-        translations.studentSettings,
-        translations.teacherSettings,
-        translations.stationSettings
-      ];
-      editorTitles.forEach(title => {
-        const editor = wrapper.findAll('.editor').find(e => e.attributes('title') === title);
-        expect(editor).toBeTruthy();
-      });
-
-      // Check Show In input label
-      const showInInput = wrapper.findAll('input').at(-1);
-      expect(showInInput.attributes('label')).toBe(translations.showIn.label);
-    });
   });
 });

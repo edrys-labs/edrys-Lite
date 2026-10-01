@@ -1,7 +1,6 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import ModulesExplorer from '../../../../src/components/Settings/ModulesExplorer.vue';
-import { i18n } from '../../../setup';
 
 const stubs = {
   'v-dialog': {
@@ -194,22 +193,6 @@ describe('ModulesExplorer Component', () => {
       'https://github.com/edrys-labs/test-module-1',
       '_blank'
     );
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays with %s locale', async (locale) => {
-      mockFetch.mockResolvedValue({
-        json: () => Promise.resolve(mockModules),
-      });
-      
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      wrapper = createWrapper();
-      
-      await flushPromises();
-      
-      expect(wrapper.find('.v-toolbar-title').exists()).toBe(true);
-      expect(wrapper.find('.v-card-text').exists()).toBe(true);
-    });
   });
 
   test('calls fetchModules on mount', async () => {

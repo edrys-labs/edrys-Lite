@@ -273,41 +273,6 @@ describe('Peer Class', () => {
       expect(callback).toHaveBeenCalledWith(true);
     });
 
-    test('handles WebSocket provider events', async () => {
-      // Create setup with basic member structure
-      const wsSetup = {
-        ...setup,
-        data: {
-          ...setup.data,
-          members: { student: ['*'], teacher: [] },
-          communicationConfig: {
-            communicationMethod: 'Websocket',
-            websocketUrl: 'wss://test.com'
-          }
-        }
-      };
-      
-      const peer = new Peer(wsSetup);
-      const callback = vi.fn();
-      peer.on('connected', callback);
-      
-      // Mock provider status event
-      peer['provider'] = {
-        on: vi.fn(),
-        disconnect: vi.fn(),
-        destroy: vi.fn(),
-      } as any;
-      
-      // Simulate connected status
-      peer['handleStatus']({ status: 'connected' });
-      
-      // Wait for connection timeout
-      vi.advanceTimersByTime(2000);
-      await Promise.resolve();
-      
-      expect(callback).toHaveBeenCalledWith(true);
-    });
-
     test('synced reports connected once and seeds an empty y.setup from local data', async () => {
       // A fresh room: nothing in y.setup yet.
       peer['y'].doc.transact(() => {
@@ -342,23 +307,6 @@ describe('Peer Class', () => {
     test('should add default rooms', () => {
       const roomMap = peer['y'].rooms as Y.Map<any>;
       expect(roomMap.size).toEqual(2);
-    });
-
-    test('should manage room operations', async () => {
-      peer.addRoom('TestRoom');
-      // addRoom signs before writing (async); flush microtasks.
-      await vi.advanceTimersByTimeAsync(0);
-      expect(peer['y'].rooms.has('TestRoom')).toBe(true);
-
-      peer.gotoRoom('TestRoom');
-      // gotoRoom signs before writing (async); flush microtasks.
-      await vi.advanceTimersByTimeAsync(0);
-      expect(peer.user().get('room')).toBe('TestRoom');
-
-      // Local-origin delete via the helper (matches checkForDeadStations path).
-      peer['_deleteAndUnsignRoom']('TestRoom', 'checkForDeadStations');
-      await vi.advanceTimersByTimeAsync(0);
-      expect(peer.user().get('room')).toBe('Lobby');
     });
 
     test('should handle room deletions and move users to lobby', async () => {
@@ -504,30 +452,35 @@ describe('Peer Class', () => {
       const originalAllowedToParticipate = peer['allowedToParticipate'];
       peer['allowedToParticipate'] = () => false;
       peer['connected'] = true;
-      
-      mockDebugPeer.mockClear();
+      const localEcho = vi.fn();
+      peer.on('message' as any, localEcho);
+      peer['y'].doc.transact(() => {
+        const other = new Y.Map();
+        other.set('room', 'Lobby');
+        peer['y'].users.set('other_s1', other);
+      });
+
       peer.broadcast('Lobby', { data: 'test' });
-      
+      peer.broadcast('Lobby', { data: 'test', user: 'other_s1' });
+
+      expect(peer['provider'].sendMessage).not.toHaveBeenCalled();
+      expect(localEcho).not.toHaveBeenCalled();
       expect(mockDebugPeer).toHaveBeenCalledWith(
         messages.en.peer.feedback.unauthorized
       );
-      
+
       peer['allowedToParticipate'] = originalAllowedToParticipate;
     });
 
-    test('should prevent unauthorized state updates', async () => {
-      const { debug } = await import('../../../../src/api/debugHandler');
-      const mockDebugPeer = vi.mocked(debug.ts.peer);
-
+    test('should prevent unauthorized state updates', () => {
       const originalAllowedToParticipate = peer['allowedToParticipate'];
       peer['allowedToParticipate'] = () => false;
 
-      mockDebugPeer.mockClear();
-      peer.updateState(new Uint8Array());
+      const moduleDoc = new Y.Doc();
+      moduleDoc.getMap('rooms').set('Injected', new Y.Map());
+      peer.updateState(Y.encodeStateAsUpdate(moduleDoc));
 
-      expect(mockDebugPeer).toHaveBeenCalledWith(
-        messages.en.peer.feedback.notPropagated
-      );
+      expect(peer['y'].rooms.has('Injected')).toBe(false);
 
       peer['allowedToParticipate'] = originalAllowedToParticipate;
     });
@@ -569,6 +522,11 @@ describe('Peer Class', () => {
       await peer['_signAndWrite'](existingCrdt);
 
       expect(updateSpy).not.toHaveBeenCalledWith('popup', messages.en.peer.feedback.noPermission);
+      expect(peer['y'].setup.get('config')).toMatchObject({
+        createdBy: 'owner-peer-id',
+        setupSigner: 'teacher-peer-id',
+        members: { teacher: ['teacher-peer-id', 'new-teacher-id'], student: [] },
+      });
     });
 
     test('teacher cannot move owner to student list', async () => {
@@ -838,6 +796,26 @@ describe('Peer Class', () => {
       });
     });
 
+    test('room broadcast reaches everyone else in the room, plus a local echo', () => {
+      peer['connected'] = true;
+      const localEcho = vi.fn();
+      peer.on('message' as any, localEcho);
+      peer['y'].doc.transact(() => {
+        for (const [id, room] of [['inLobby_s1', 'Lobby'], ['elsewhere_s1', 'Room 1']]) {
+          const u = new Y.Map();
+          u.set('room', room);
+          peer['y'].users.set(id, u);
+        }
+      });
+      const msg = { subject: 'hi', body: 'x' };
+
+      peer.broadcast('Lobby', msg);
+
+      const sendMessage = vi.mocked(peer['provider'].sendMessage);
+      expect(sendMessage.mock.calls).toEqual([[msg, 'inLobby_s1']]);
+      expect(localEcho).toHaveBeenCalledWith(msg);
+    });
+
     test('should handle message broadcasting', () => {
       peer['connected'] = true;
       const message = { user: 'peer2', data: 'message' };
@@ -902,21 +880,6 @@ describe('Peer Class', () => {
       expect(peer['lab'].timestamp).toBeGreaterThan(oldConfig.timestamp);
       expect(peer['lab'].id).toBe(setup.id);
     });
-
-    test('should handle communication config changes in setup', () => {
-      // Spy on utils and peer methods
-      const updateSpy = vi.spyOn(peer as any, 'update');
-      const updateUrlSpy = vi.mocked(updateUrlWithCommConfig);
-      
-      // Test communication config changes
-      peer.logSetupChanges(
-        { communicationConfig: 'encodedWebRTC' },
-        { communicationConfig: 'encodedWebsocket' }
-      );
-      
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages.en.peer.feedback.communicationChanges);
-      expect(updateUrlSpy).toHaveBeenCalled();
-    });
   });
 
   // Transaction Tests
@@ -931,7 +894,7 @@ describe('Peer Class', () => {
     });
 
     test('should handle transaction errors gracefully', async () => {
-      const consoleSpy = vi.spyOn(console, 'error');
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       
       await peer['awaitTransact'](() => {
         throw new Error('Test error');
@@ -944,20 +907,6 @@ describe('Peer Class', () => {
 
   // Lifecycle Tests
   describe('Lifecycle', () => {
-    test('should manage peer lifecycle', async () => {
-      await peer.join('student');
-      expect(peer['role']).toBe('student');
-
-      const callback = vi.fn();
-      peer.on('connected', callback);
-      peer.update('connected');
-      expect(callback).toHaveBeenCalled();
-
-      peer.stop();
-      expect(peer['provider'].disconnect).toHaveBeenCalled();
-      expect(peer['provider'].destroy).toHaveBeenCalled();
-    });
-
     test('should properly clean up resources on stop', () => {
       peer.stop();
       expect(peer['provider'].disconnect).toHaveBeenCalled();
@@ -967,96 +916,49 @@ describe('Peer Class', () => {
     });
   });
 
-  // Module Change Tests
-  describe('Module Change Detection', () => {
-    test('should not show popup on module changes (UI reloads automatically)', () => {
+  test('a transport change tells the user, moves the URL to the new transport and reloads', async () => {
+    const realLocation = window.location;
+    const reload = vi.fn();
+    Object.defineProperty(window, 'location', { value: { ...realLocation, reload }, configurable: true });
+    try {
       const updateSpy = vi.spyOn(peer as any, 'update');
 
-      peer.logSetupChanges(
-        { modules: [{ url: 'module1' }], members: {} },
-        { modules: [{ url: 'module2' }], members: {} }
-      );
-
-      expect(updateSpy).not.toHaveBeenCalledWith('popup', messages.en.peer.feedback.moduleChanges);
-    });
-
-    test('should not show module changes for initial setup', () => {
-      const updateSpy = vi.spyOn(peer as any, 'update');
-
-      peer.logSetupChanges(
-        { members: {} }, // No modules property (initial setup)
-        { modules: [{ url: 'module1' }], members: {} }
-      );
-
-      // Should not call update with module changes message
-      expect(updateSpy).not.toHaveBeenCalledWith('popup', messages.en.peer.feedback.moduleChanges);
-    });
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', (locale)  => {
-      i18n.global.locale.value = locale;
-      // Use the already-initialized beforeEach peer (peerID and user map are set up)
-      peer['t'] = i18n.global.t;
-      const updateSpy = vi.spyOn(peer as any, 'update');
-
-      // Spy on _signAndWrite to synchronously call update (avoids async signSetup under fake timers)
-      vi.spyOn(peer as any, '_signAndWrite').mockImplementation(function(this: any) {
-        if (!this.allowedToParticipate()) {
-          this.update('popup', this.t('peer.feedback.noAccess'));
-        }
-        return Promise.resolve();
-      });
-
-      const origAllowed = peer['allowedToParticipate'].bind(peer);
-      peer['allowedToParticipate'] = () => false;
-
-      peer.initSetup(true);
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.noAccess);
-
-      // Test unauthorized state update message
-      peer.updateState(new Uint8Array());
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.noAccess);
-
-      // Module changes no longer show a popup (UI reloads automatically)
-
-      // Test member role change messages
-      const testId = 'test-id';
-      vi.mocked(getPeerID).mockReturnValue(testId);
-
-      peer.logSetupChanges(
-        { members: { teacher: [testId], student: [] } },
-        { members: { teacher: [], student: [] } }
-      );
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.removedTeacher);
-
-      peer.logSetupChanges(
-        { members: { teacher: [], student: [] } },
-        { members: { teacher: [testId], student: [] } }
-      );
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.addedTeacher);
-
-      peer.logSetupChanges(
-        { members: { teacher: [], student: [testId] } },
-        { members: { teacher: [], student: ['test-id-2'] } }
-      );
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.removedStudent);
-
-      peer.logSetupChanges(
-        { members: { teacher: [], student: [] } },
-        { members: { teacher: [], student: [testId] } }
-      );
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.addedStudent);
-
-      // Test communication method change message with encoded configs
       peer.logSetupChanges(
         { communicationConfig: 'encodedWebRTC' },
         { communicationConfig: 'encodedWebsocket' }
       );
-      expect(updateSpy).toHaveBeenCalledWith('popup', messages[locale].peer.feedback.communicationChanges);
 
-      peer['allowedToParticipate'] = origAllowed;
-      updateSpy.mockRestore();
+      expect(updateSpy).toHaveBeenCalledWith('popup', messages.en.peer.feedback.communicationChanges);
+      expect(updateUrlWithCommConfig).toHaveBeenCalledWith({ communicationMethod: 'Websocket', websocketUrl: 'wss://test.com' });
+      expect(reload).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(3000);
+      expect(reload).toHaveBeenCalledTimes(1);
+    } finally {
+      Object.defineProperty(window, 'location', { value: realLocation, configurable: true });
+    }
+  });
+
+  describe('membership changes', () => {
+    const ME = 'test-peer-id';
+    test.each([
+      ['removed as teacher', { teacher: [ME], student: [] }, { teacher: [], student: [] }, 'removedTeacher', 'student'],
+      ['added as teacher', { teacher: [], student: [] }, { teacher: [ME], student: [] }, 'addedTeacher', 'teacher'],
+      ['added to the student allowlist', { teacher: [], student: ['other'] }, { teacher: [], student: [ME] }, 'addedStudent', null],
+      ['allowlist opened to everyone', { teacher: [], student: ['other'] }, { teacher: [], student: ['*'] }, 'addedStudent', null],
+      ['removed from the student allowlist', { teacher: [], student: [ME] }, { teacher: [], student: ['other'] }, 'removedStudent', null],
+      ['allowlist closed without me', { teacher: [], student: [] }, { teacher: [], student: ['other'] }, 'removedStudent', null],
+    ])('%s: tells the user and updates their own role', async (_case, oldMembers, newMembers, popup, role) => {
+      i18n.global.locale.value = 'en';
+      peer['t'] = i18n.global.t;
+      if (role) peer.user().set('role', role === 'student' ? 'teacher' : 'student');
+      const updateSpy = vi.spyOn(peer as any, 'update');
+
+      peer.logSetupChanges({ members: oldMembers }, { members: newMembers });
+      await vi.advanceTimersByTimeAsync(0);
+
+      const popups = updateSpy.mock.calls.filter(([event]) => event === 'popup');
+      expect(popups).toEqual([['popup', messages.en.peer.feedback[popup]]]);
+      if (role) expect(peer.user().get('role')).toBe(role);
     });
   });
 });

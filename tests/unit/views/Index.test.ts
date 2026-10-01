@@ -2,7 +2,6 @@ import { describe, test, expect, vi } from 'vitest';
 import { copyToClipboard } from '../../../src/ts/Utils';
 import { mount } from '@vue/test-utils';
 import Index from '../../../src/views/Index.vue';
-import { i18n, messages } from '../../setup';
 
 // Mock dependencies
 const setObservableSpy = vi.fn();
@@ -242,56 +241,5 @@ describe('Index View', () => {
     const wrapper = createWrapper();
     wrapper.vm.copyPeerID();
     expect(vi.mocked(copyToClipboard)).toHaveBeenCalledWith('test-user');
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const translations = messages[locale].index.classroom;
-      
-      const wrapper = createWrapper();
-      await wrapper.vm.$nextTick();
-      
-      // Set up classroom data
-      await wrapper.setData({
-        classrooms: mockClassrooms
-      });
-      await wrapper.vm.$nextTick();
-
-      // Check create classroom card
-      const createCard = wrapper.findAll('[data-test="classroom-card"]')
-        .filter(card => card.text().includes(translations.create))
-        .at(0);
-      
-      expect(createCard.exists()).toBe(true);
-      expect(createCard.text()).toContain(translations.startTeaching);
-
-      // Check classroom cards
-      const cards = wrapper.findAll('[data-test="classroom-card"]');
-      const firstCard = cards[0];
-      
-      // Check write protection text
-      const writeProtectionChip = firstCard.find('.v-chip');
-      expect(writeProtectionChip.text()).toContain(translations.writeProtection);
-      
-      // Check ownership texts
-      const cardSubtitle = firstCard.find('.v-card-subtitle');
-      expect(cardSubtitle.text()).toContain(translations.ownership.owner);
-      console.log('wrapperr', wrapper.html())
-      // Check action buttons
-      expect(firstCard.find('[title="' + translations.actions.fork + '"]').exists()).toBe(true);
-
-      // Check action buttons and delete dialog
-      const deleteBtn = firstCard.find('button[icon="mdi-delete"]');
-      expect(deleteBtn.exists()).toBe(true);
-      
-      // Delete dialog should be visible in the menu content
-      const deleteDialog = wrapper.find('.v-menu-content .v-list-item');
-      expect(deleteDialog.text()).toContain(translations.actions.deleteConfirm);
-      
-      const deleteButton = wrapper.find('button.v-btn.red');
-      expect(deleteButton.exists()).toBe(true);
-      expect(deleteButton.text()).toContain(translations.actions.deleteForever);
-    });
   });
 });

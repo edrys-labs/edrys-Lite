@@ -243,6 +243,32 @@ describe('EdrysSimplePeerTransport identity gate', () => {
     expect(left).toEqual(['pubA_s1'])
   })
 
+  test('a peer that never completes the handshake is dropped; a verified one is kept', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+    try {
+      const t = makeTransport()
+      await t.connect({ room: 'room-1' })
+      const stalled = await attachPeer(t, 'peer-stalled')
+      const verified = await attachPeer(t, 'peer-ok')
+
+      deliverControl(t, 'peer-stalled', idFrame('pubS_s1')) // announces, never signs
+      deliverControl(t, 'peer-ok', idFrame('pubA_s1'))
+      deliverControl(t, 'peer-ok', hsFrame('pubA', 'good-sig'))
+      await flush()
+
+      vi.advanceTimersByTime(30000) // first sweep: not expired yet
+      expect(stalled.destroyed).toBe(false)
+
+      vi.advanceTimersByTime(30000)
+      expect(stalled.destroyed).toBe(true)
+      expect(verified.destroyed).toBe(false)
+      expect(t.peerIdForUser('pubA_s1')).toBe('peer-ok')
+      t.disconnect()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   test('sendTo(userid) resolves to the verified peer (not treated as a peerId)', async () => {
     const t = makeTransport()
     await t.connect({ room: 'room-1' })
@@ -329,18 +355,16 @@ describe('computeDocHash convergence (verifyUpdates)', () => {
     // More interleaved edits after connect (delivered as verified updates).
     docA.getMap('m').set('a2', 3)
     docB.getMap('m').set('b2', 4)
-    await flush()
-    // Settle budget. Needs to outlast the provider's post-connect sync round trips.
-    await new Promise((r) => setTimeout(r, 150))
-    await flush()
-
-    // Both docs converge to the same content...
-    expect(docA.getMap('m').toJSON()).toEqual(docB.getMap('m').toJSON())
-    // ...and synced fires (only emitted when localHash === expectedHash).
-    expect(aSynced && bSynced).toBe(true)
+    // Both docs converge to the same content, and synced fires (only emitted
+    // when localHash === expectedHash).
+    await vi.waitFor(() => {
+      expect(docA.getMap('m').toJSON()).toEqual(docB.getMap('m').toJSON())
+      expect(docA.getMap('m').size).toBe(4)
+      expect(aSynced && bSynced).toBe(true)
+    })
 
     // Once converged, a convergence-invariant hash must NOT keep detecting
-    // mismatches (the pre-fix bug looped here forever).
+    // mismatches (the pre-fix bug looped here forever). Absence needs a window.
     warnings.length = 0
     await new Promise((r) => setTimeout(r, 50))
     await flush()

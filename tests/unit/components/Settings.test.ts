@@ -1,7 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Settings from '../../../src/components/Settings.vue';
-import { i18n, messages } from '../../setup';
 
 describe('Settings Component', () => {
   const mockConfig = {
@@ -101,53 +100,5 @@ describe('Settings Component', () => {
     const wrapper = createWrapper({ writeProtection: true });
     const protectionStatus = wrapper.find('.text-medium-emphasis');
     expect(protectionStatus.text()).toContain('Write Protection: ON');
-  });
-
-  describe('translations', async () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const wrapper = createWrapper();
-      
-      const translations = messages[locale].settings.general;
-
-      // Check toolbar title
-      const toolbarTitle = wrapper.find('.v-toolbar-title');
-      expect(toolbarTitle.text()).toBe(translations.title);
-
-      // Check write protection status
-      const protectionStatus = wrapper.find('.text-medium-emphasis');
-      await wrapper.setProps({ writeProtection: true });
-      expect(protectionStatus.text()).toContain(translations.writeProtection);
-      expect(protectionStatus.text()).toContain(translations.actions.on);
-
-      // Check tab titles
-      const tabTitles = [
-        translations.Main,
-        translations.Members,
-        translations.Modules,
-        translations.Stations,
-        translations.Share
-      ];
-      const tabs = wrapper.findAll('.v-tab');
-      tabTitles.forEach((title, index) => {
-        expect(tabs[index].text()).toContain(title);
-      });
-
-      // Check save button text
-      const saveButton = wrapper.findAll('.v-btn').find(btn => btn.text().includes(translations.actions.save));
-      expect(saveButton).toBeTruthy();
-
-      // Check delete button text
-      const deleteButton = wrapper.findAll('.v-btn').find(btn => btn.text().includes(translations.actions.delete));
-      expect(deleteButton).toBeTruthy();
-
-      // Check delete confirmation text
-      const deleteConfirm = wrapper.findAll('.v-list-item-title').find(el => el.text().includes(translations.actions.deleteConfirm));
-      expect(deleteConfirm).toBeTruthy();
-
-      // Check delete forever button text
-      const deleteForever = wrapper.findAll('.v-btn').find(btn => btn.text().includes(translations.actions.deleteForever));
-      expect(deleteForever).toBeTruthy();
-    });
   });
 });

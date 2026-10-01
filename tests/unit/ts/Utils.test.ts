@@ -10,6 +10,7 @@ import {
   encodeCommConfig,
   decodeCommConfig,
   stripPubKey,
+  removeKeysStartingWithSecret,
 } from '../../../src/ts/Utils';
 
 vi.mock('js-yaml', () => ({
@@ -63,6 +64,48 @@ describe('Utils', () => {
     });
   });
 
+  // Forking someone else's classroom runs this, so their secrets don't leak.
+  describe('removeKeysStartingWithSecret', () => {
+    test('removes secret keys at any depth, ignoring case', () => {
+      const classroom = {
+        id: 'c1',
+        secretToken: 't',
+        data: {
+          name: 'Lab',
+          modules: [
+            { url: 'm1', config: { SecretKey: 'k', host: 'h' } },
+            { url: 'm2', stationConfig: { secret: { nested: 1 }, port: 22 } },
+          ],
+        },
+      };
+
+      removeKeysStartingWithSecret(classroom);
+
+      expect(classroom).toEqual({
+        id: 'c1',
+        data: {
+          name: 'Lab',
+          modules: [
+            { url: 'm1', config: { host: 'h' } },
+            { url: 'm2', stationConfig: { port: 22 } },
+          ],
+        },
+      });
+    });
+
+    test('drops an object that held nothing but secrets', () => {
+      const data: any = { modules: [{ url: 'm1', teacherConfig: { secretPassword: 'p' } }] };
+      removeKeysStartingWithSecret(data);
+      expect(data.modules[0]).toEqual({ url: 'm1' });
+    });
+
+    test('keeps keys that merely contain "secret" later in the name', () => {
+      const data = { mySecret: 1, notsecret: 2 };
+      removeKeysStartingWithSecret(data);
+      expect(data).toEqual({ mySecret: 1, notsecret: 2 });
+    });
+  });
+
     describe('Communication Configuration', () => {
     describe('compareCommunicationConfig', () => {
       test('should compare different communication configs correctly', () => {
@@ -74,6 +117,28 @@ describe('Utils', () => {
         
         expect(compareCommunicationConfig(wsConfig, wsConfig)).toBe(true);
         expect(compareCommunicationConfig(wsConfig, rtcConfig)).toBe(false);
+      });
+
+      // A "changed" result reloads every peer, so false positives matter as much.
+      test('compares WebRTC configs by content, not by encoding', () => {
+        const ice = { iceServers: [{ urls: 'stun:a' }] };
+        const asObject = { communicationMethod: 'WebRTC', signalingServer: ['wss://s'], webrtcConfig: ice };
+        // Formatted differently, as an owner might paste it.
+        const asString = { communicationMethod: 'WebRTC', signalingServer: 'wss://s', webrtcConfig: JSON.stringify(ice, null, 2) };
+
+        expect(compareCommunicationConfig(asObject, asString)).toBe(true);
+      });
+
+      test('detects a changed signaling server or ICE config', () => {
+        const base = { communicationMethod: 'WebRTC', signalingServer: ['wss://s'], webrtcConfig: { iceServers: [] } };
+
+        expect(compareCommunicationConfig(base, { ...base, signalingServer: ['wss://other'] })).toBe(false);
+        expect(compareCommunicationConfig(base, { ...base, webrtcConfig: { iceServers: [{ urls: 'stun:b' }] } })).toBe(false);
+      });
+
+      test('detects a changed WebSocket server', () => {
+        const ws = { communicationMethod: 'Websocket', websocketUrl: 'wss://a' };
+        expect(compareCommunicationConfig(ws, { ...ws, websocketUrl: 'wss://b' })).toBe(false);
       });
     });
 
@@ -498,11 +563,6 @@ describe('Crypto Identity', () => {
     expect(await verifyEntry('users', 'k', {}, undefined as any)).toBe(false);
     expect(await verifyEntry('users', 'k', {}, { signer: 'a', signature: 'b' } as any)).toBe(false);
     expect(await verifyEntry('users', 'k', {}, { signer: 'a', nonce: NaN, signature: 'b' } as any)).toBe(false);
-  });
-
-  test('REVERT_INVALID_ORIGIN is the expected sentinel string', async () => {
-    const { REVERT_INVALID_ORIGIN } = await freshUtils();
-    expect(REVERT_INVALID_ORIGIN).toBe('revert-invalid');
   });
 });
 

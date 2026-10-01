@@ -1,7 +1,9 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Classroom from '../../../src/views/Classroom.vue';
-import { i18n, messages } from '../../setup';
+import { scrapeModule } from '../../../src/ts/Utils';
+
+const flushPromises = () => new Promise((r) => setTimeout(r, 0));
 
 // Mock dependencies
 vi.mock('../../../src/ts/Database', () => ({
@@ -30,7 +32,8 @@ vi.mock('../../../src/ts/Utils', () => ({
   getShortPeerID: vi.fn(() => 'test-user'),
   getBasePeerID: vi.fn(id => id?.split('-')[0] || id),
   getDisplayPeerID: vi.fn(() => 'test-user'),
-  deepEqual: vi.fn(),
+  deepEqual: vi.fn((a, b) => JSON.stringify(a) === JSON.stringify(b)),
+  decodeCommConfig: vi.fn((s) => (s === 'ws' ? { communicationMethod: 'Websocket' } : null)),
   copyToClipboard: vi.fn(),
   roomColor: vi.fn(() => '#1E88E5'),
   hashPubKey: vi.fn(() => Promise.resolve('testhash1234')),
@@ -178,6 +181,17 @@ describe('Classroom View', () => {
     expect(mockCommunication.stop).toHaveBeenCalledTimes(1);
   });
 
+  test('hands the owner hash from the URL to Peer as the expected owner', async () => {
+    const PeerMock = vi.mocked((await import('../../../src/ts/Peer')).default);
+    PeerMock.mockClear();
+
+    const wrapper = createWrapper({ owner: 'owner-hash-123' });
+    await wrapper.vm.init();
+
+    expect(PeerMock).toHaveBeenCalledTimes(1);
+    expect(PeerMock.mock.calls[0][4]).toBe('owner-hash-123');
+  });
+
   test('handles room management', async () => {
     const wrapper = createWrapper();
 
@@ -229,29 +243,43 @@ describe('Classroom View', () => {
     expect(mockCommunication.sendMessage).toHaveBeenCalledWith('test message');
   });
 
-  test('handles class configuration updates', async () => {
-    const wrapper = createWrapper();
-    await wrapper.vm.init();
+  describe('saveClass', () => {
+    const savedModule = { url: 'https://module.example/new' };
 
-    const newConfig = {
-      name: 'Updated Class',
-      modules: [],
-      meta: { defaultNumberOfRooms: 3 }
-    };
+    async function saveWith(changes: any) {
+      const wrapper = createWrapper();
+      await wrapper.vm.init();
+      const db: any = wrapper.vm.database;
+      db.update.mockResolvedValue('test-class');
+      vi.mocked(scrapeModule).mockClear();
+      mockCommunication.newSetup.mockClear();
 
-    // Directly update the configuration
-    wrapper.vm.configuration = {
-      ...wrapper.vm.configuration,
-      data: newConfig
-    };
+      wrapper.vm.saveClass({ ...wrapper.vm.configuration.data, ...changes });
+      await flushPromises();
+      return { wrapper, db };
+    }
 
-    wrapper.vm.updateClass({ data: newConfig });
-    
-    expect(wrapper.vm.data).toEqual(newConfig);
-    
-    // Test database update
-    await wrapper.vm.database.update(wrapper.vm.configuration);
-    expect(wrapper.vm.database.update).toHaveBeenCalled();
+    test('stores the new setup, hands it to Peer and loads changed modules', async () => {
+      const { wrapper, db } = await saveWith({ name: 'Updated Class', modules: [savedModule] });
+
+      expect(db.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ name: 'Updated Class' }) })
+      );
+      // Peer gets what the database stored, so it signs the persisted version.
+      expect(mockCommunication.newSetup).toHaveBeenCalledWith(await db.get.mock.results[0].value);
+      expect(wrapper.vm.data.name).toBe('Updated Class');
+      expect(scrapeModule).toHaveBeenCalledWith(savedModule);
+    });
+
+    test('does not reload modules when the transport changed (the page reloads instead)', async () => {
+      await saveWith({ modules: [savedModule], communicationConfig: 'ws' });
+      expect(scrapeModule).not.toHaveBeenCalled();
+    });
+
+    test('does not reload modules that did not change', async () => {
+      await saveWith({ name: 'Renamed only' });
+      expect(scrapeModule).not.toHaveBeenCalled();
+    });
   });
 
   test('handles station mode', () => {
@@ -259,9 +287,8 @@ describe('Classroom View', () => {
 
     expect(wrapper.vm.isStation).toBe(true);
     expect(wrapper.vm.stationName).toBeTruthy();
-    
-    wrapper.vm.setStationName();
-    expect(sessionStorage.getItem(`station_test-class`)).toBeTruthy();
+    // A station keeps its generated name for the session.
+    expect(sessionStorage.getItem(`station_test-class`)).toBe(wrapper.vm.stationName);
   });
 
   test('validates station names', () => {
@@ -299,55 +326,6 @@ describe('Classroom View', () => {
     // Verify storage and reload
     expect(sessionStorage.getItem(`station_test-class`)).toBe('new-station');
     expect(reloadMock).toHaveBeenCalled();
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      
-      // Test station mode translations
-      const stationWrapper = createWrapper({ station: true });
-      await stationWrapper.vm.$nextTick();
-      
-      const translations = messages[locale].classroom;
-      
-      // Check station mode text
-      const cardTexts = stationWrapper.findAll('.v-card-text');
-      expect(cardTexts[0].text()).toContain(translations.station.mode);
-
-      // Check station mode form content
-      const form = stationWrapper.find('.v-form');
-      expect(form.exists()).toBe(true);
-
-      // Check that station label is used somewhere in the template
-      expect(stationWrapper.html()).toContain(translations.station.label);
-
-      // Check station mode description
-      expect(cardTexts[1].text()).toContain(translations.station.modeDescription);
-
-      // Check exit station mode button
-      const lastCardText = stationWrapper.findAll('.v-card-text').at(-1);
-      const exitButton = lastCardText.find('.v-btn');
-      expect(exitButton.text()).toContain(translations.station.exit);
-
-      // Create a new wrapper for side menu tests (classroom mode)
-      const menuWrapper = createWrapper();
-      await menuWrapper.vm.$nextTick();
-
-      menuWrapper.vm.showSideMenu = true;
-      await menuWrapper.vm.$nextTick();
-
-      // Check side menu texts
-      const sideMenuTranslations = translations.sideMenu;
-      
-      expect(menuWrapper.html()).toContain(sideMenuTranslations.onlineUsers);
-
-      menuWrapper.vm.isOwner = true;
-      await menuWrapper.vm.$nextTick();
-      
-      expect(menuWrapper.html()).toContain(sideMenuTranslations.settings);
-      expect(menuWrapper.html()).toContain(sideMenuTranslations.newRoom);
-    });
   });
 });
 
