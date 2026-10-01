@@ -21,8 +21,19 @@ own surfaces are under test, the UI and module iframes.
 
 ## Running
 
-Always pass one `--project` (browser) and `--workers=1`: peers of parallel
-tests would share the signaling server and the relay.
+The npm scripts run `comm/` and `app/` with the right flags:
+
+```bash
+npm run test:e2e                          # WebRTC, chromium
+npm run test:e2e:ws                       # over the WebSocket relay
+E2E_BROWSER=firefox npm run test:e2e      # another browser (firefox, webkit)
+npm run test:e2e -- --repeat-each=5       # extra Playwright flags go after --
+npm run test:e2e:load                     # load/ (chromium only, see below)
+```
+
+Running Playwright directly, always pass one `--project` (browser) and
+`--workers=1`: peers of parallel tests would share the signaling server and
+the relay.
 
 ```bash
 # WebRTC (the app's default transport)
@@ -45,6 +56,7 @@ only.
 | Variable        | Default                 | Meaning                                                    |
 | --------------- | ----------------------- | ---------------------------------------------------------- |
 | `E2E_TRANSPORT` | `webrtc`                | `ws` runs over the WebSocket relay                          |
+| `E2E_BROWSER`   | `chromium`              | browser for `npm run test:e2e` / `test:e2e:ws`              |
 | `E2E_BASE_URL`  | `http://localhost:6999` | where the dev server is served                              |
 | `ROUNDS`        | `3`                     | reload rounds in `comm.lifecycle`                           |
 

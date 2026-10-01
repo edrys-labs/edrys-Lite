@@ -5,6 +5,9 @@
   "scripts": {
     "postinstall": "patch-package",
     "test": "npx vitest",
+    "test:e2e": "playwright test tests/e2e-tests/comm tests/e2e-tests/app --project=${E2E_BROWSER:-chromium} --workers=1",
+    "test:e2e:ws": "E2E_TRANSPORT=ws npm run test:e2e --",
+    "test:e2e:load": "playwright test tests/e2e-tests/load --project=chromium --workers=1",
     "sw": "npx workbox injectManifest workbox-config.js",
     "build": "rm -rf .parcel-cache && rm -rf dist && npm run build:edrys && npx parcel build src/index.html --log-level verbose  --no-scope-hoist --no-source-maps --public-url ./ && cp -r public/* dist/",
     "watch": "rm -rf dist && npm run watch:edrys && npx parcel serve src/*.html --no-cache --open --port 6999",
