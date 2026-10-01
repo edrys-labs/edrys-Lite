@@ -305,6 +305,12 @@ describe('Peer Class', () => {
 
   // Room Management Tests
   describe('Room Management', () => {
+    // Rooms are seeded on join(), once connected — not at construction.
+    beforeEach(async () => {
+      peer.initRooms();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
     test('should add default rooms', () => {
       const roomMap = peer['y'].rooms as Y.Map<any>;
       expect(roomMap.size).toEqual(2);

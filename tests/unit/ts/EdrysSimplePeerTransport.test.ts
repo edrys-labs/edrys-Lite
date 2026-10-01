@@ -3,7 +3,6 @@ import * as Y from 'yjs'
 import { encoding } from 'lib0'
 import { GenericProvider } from '@edryslabs/genericprovider'
 import { EdrysSimplePeerTransport } from '../../../src/ts/EdrysSimplePeerTransport'
-import { REVERT_INVALID_ORIGIN } from '../../../src/ts/Utils'
 
 // verifyChallenge is driven per-test; sign/getPeerID are stubbed but the
 // receiver-side gate (the security-critical half) is exercised by injecting
@@ -220,43 +219,6 @@ describe('EdrysSimplePeerTransport identity gate', () => {
     const sendSpy = vi.spyOn(peer, 'send')
     t.sendTo('unknown_user', new Uint8Array([9]))
     expect(sendSpy).toHaveBeenCalled()
-  })
-})
-
-describe('excludeOrigins kills revert propagation', () => {
-  test('updates tagged REVERT_INVALID_ORIGIN never reach the transport', async () => {
-    const doc = new Y.Doc()
-    const sent: Uint8Array[] = []
-    const transport: any = {
-      get isConnected() {
-        return true
-      },
-      connect: vi.fn(() => Promise.resolve()),
-      disconnect: vi.fn(),
-      send: (d: Uint8Array) => sent.push(d),
-      onMessage: () => () => {},
-    }
-
-    const provider = new GenericProvider(doc, transport, {
-      excludeOrigins: [REVERT_INVALID_ORIGIN],
-    })
-
-    // A normal edit must be forwarded. The provider batches local updates and
-    // flushes them on a microtask (batchUpdates=0), so drain before asserting.
-    doc.getMap('m').set('k', 'normal')
-    await flush()
-    const afterNormal = sent.length
-    expect(afterNormal).toBeGreaterThan(0)
-
-    // A revert transaction must be dropped.
-    doc.transact(() => {
-      doc.getMap('m').set('k', 'reverted')
-    }, REVERT_INVALID_ORIGIN)
-    await flush()
-
-    expect(sent.length).toBe(afterNormal)
-
-    provider.destroy?.()
   })
 })
 

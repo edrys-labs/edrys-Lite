@@ -95,11 +95,17 @@ describe('Signed y.rooms', () => {
     peer.stop()
   })
 
-  test('default rooms (Lobby) are signed during bootstrap', async () => {
+  test('default rooms (Lobby) are signed when joining', async () => {
     await Utils.initCryptoIdentity()
     const myPubKey = Utils.getPeerID(false)
 
     const peer: any = new Peer(makeSetup(myPubKey, 1), undefined, i18n.global.t)
+    await flushPromises()
+    await flushPromises()
+    // Not seeded before connecting, so an unsynced doc can't overwrite Lobby.
+    expect(peer['y'].rooms.size).toBe(0)
+
+    await peer.join('student')
     await flushPromises()
     await flushPromises()
 

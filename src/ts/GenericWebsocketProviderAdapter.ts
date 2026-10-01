@@ -2,7 +2,7 @@ import * as Y from 'yjs'
 import { GenericProvider } from '@edryslabs/genericprovider'
 import { WebSocketTransport } from '@edryslabs/genericprovider/providers/websocket'
 import { debug } from '../api/debugHandler'
-import { signChallenge, verifyChallenge, getPeerID, REVERT_INVALID_ORIGIN } from './Utils'
+import { signChallenge, verifyChallenge, getPeerID } from './Utils'
 
 // Pubsub topic for edrys custom messages (matches the WebRTC adapter).
 const EDRYS_MSG_TOPIC = 'edrys'
@@ -64,8 +64,6 @@ export class GenericWebsocketProviderAdapter {
     this.transport = new WebSocketTransport()
 
     this.provider = new GenericProvider(doc, this.transport, {
-      // Keep local rollback transactions local (revert-filter parity).
-      excludeOrigins: [REVERT_INVALID_ORIGIN],
       // Use plain sync opcode (0), relayed; verified-sync (3) would be dropped.
       verifyUpdates: false,
       // Pull-only on connect: adopt the server's authoritative doc instead of

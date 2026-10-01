@@ -281,10 +281,11 @@ export default class Peer {
         this.peerID = getPeerID()
       }
 
-      // Initialize local state now that peerID is known
+      // Initialize local state now that peerID is known. Rooms are seeded by
+      // join() once connected: seeding Lobby into an unsynced doc overwrites
+      // the room's existing Lobby, which every other peer then reverts.
       this.y.doc.transact(() => {
         this.initUser(this.role, false)
-        this.initRooms()
         this.initChat()
         this.initSetup()
       }, 'initialization')
@@ -848,8 +849,8 @@ export default class Peer {
   private _restoreOrDelete(key: string): void {
     const cached = this._lastGoodUser.get(key)
     if (cached) {
-      // Restore last-good signed state. Stays local (REVERT_INVALID_ORIGIN):
-      // the legit entry already exists on other peers, so no need to propagate.
+      // Restore last-good signed state. Propagates like any update: a
+      // never-sent transaction would leave a gap in our Yjs clock.
       this.y.doc.transact(() => {
         const m = new Y.Map()
         for (const k of Object.keys(cached.payload)) m.set(k, cached.payload[k])

@@ -2,7 +2,6 @@ import * as Y from 'yjs'
 import { GenericProvider } from '@edryslabs/genericprovider'
 import Peer from 'simple-peer/simplepeer.min.js'
 import { EdrysSimplePeerTransport } from './EdrysSimplePeerTransport'
-import { REVERT_INVALID_ORIGIN } from './Utils'
 
 // Pubsub topic for edrys custom messages.
 const EDRYS_MSG_TOPIC = 'edrys'
@@ -42,8 +41,6 @@ export class GenericWebrtcProviderAdapter {
     })
 
     this.provider = new GenericProvider(doc, this.transport, {
-      // Keep local rollback transactions local (revert-filter parity).
-      excludeOrigins: [REVERT_INVALID_ORIGIN],
       // Identity for targeted pubsub (publishTo by userid).
       localId: this.userid,
     })
