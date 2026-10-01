@@ -273,6 +273,20 @@ describe('Peer Class', () => {
       expect(callback).toHaveBeenCalledWith(true);
     });
 
+    test('a setup change is handled once, however many status/synced events arrived', () => {
+      // Status repeats on every reconnect; each must not add another observer.
+      mockWebrtcEvents.status?.({ status: 'connected' });
+      mockWebrtcEvents.status?.({ status: 'connected' });
+      mockWebrtcEvents.synced?.({ synced: true });
+      const initSetup = vi.spyOn(peer, 'initSetup').mockImplementation(() => {});
+
+      peer['y'].doc.transact(() => {
+        peer['y'].setup.set('timestamp', setup.timestamp + 1000);
+      });
+
+      expect(initSetup).toHaveBeenCalledTimes(1);
+    });
+
     test('synced reports connected once and seeds an empty y.setup from local data', async () => {
       // A fresh room: nothing in y.setup yet.
       peer['y'].doc.transact(() => {

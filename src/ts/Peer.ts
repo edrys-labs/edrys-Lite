@@ -418,8 +418,7 @@ export default class Peer {
   private handleStatus(event: { status: string }) {
     LOG('status', event)
 
-    // Observe setup changes
-    this.y.setup.observe(this.handleSetupChange.bind(this))
+    this._observeSetup()
     // Delay setting connected to true to ensure synchronization
     setTimeout(() => {
       if (!this.connected) {
@@ -440,11 +439,7 @@ export default class Peer {
   private handleSynced(event: any) {
     LOG('Synced event received', event)
 
-    // Observe setup changes if not already observing
-    if (!this._hasSetupObserver) {
-      this.y.setup.observe(this.handleSetupChange.bind(this))
-      this._hasSetupObserver = true
-    }
+    this._observeSetup()
 
     if (!this.connected) {
       this.connected = true
@@ -464,6 +459,16 @@ export default class Peer {
         console.error('owner auto-heal failed:', e)
       )
     }
+  }
+
+  /**
+   * Observes y.setup once. Status events repeat on every reconnect, and each
+   * extra observer would re-verify (and re-sign) every setup change.
+   */
+  private _observeSetup() {
+    if (this._hasSetupObserver) return
+    this.y.setup.observe(this.handleSetupChange.bind(this))
+    this._hasSetupObserver = true
   }
 
   /**
