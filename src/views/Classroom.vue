@@ -133,6 +133,11 @@ export default {
       }
     },
   },
+  // The router remounts the app on popstate (back/forward, hash-only
+  // navigation); without this the old Peer stays live in the room.
+  beforeUnmount() {
+    this.communication?.stop();
+  },
 
   methods: {
     copyPeerID() {
