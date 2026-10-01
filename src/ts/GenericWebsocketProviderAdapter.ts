@@ -93,6 +93,9 @@ export class GenericWebsocketProviderAdapter {
         room,
         serverUrl: options.serverUrl || 'wss://demos.yjs.dev',
       })
+      // Announce identity right away: peers only start our leave timer once
+      // they've seen a heartbeat, so one that leaves early would never be reaped.
+      .then(() => this._sendHeartbeat())
       .catch((e) => console.error('GenericProvider (ws) connect failed:', e))
 
     this._cleanupInterval = setInterval(
