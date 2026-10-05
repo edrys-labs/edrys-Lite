@@ -1046,6 +1046,40 @@ describe('Peer Class', () => {
       expect(json.users[id]).toMatchObject({ room: 'Room 1' });
     });
 
+    test('a member excluded after being cached is purged, not restored from cache', async () => {
+      addOtherUser();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(peer['_lastGoodUser'].has(OTHER)).toBe(true);
+
+      // Owner closes the allowlist without OTHER.
+      peer['lab'].data.members.student = ['someone-else'];
+
+      // OTHER writes a fresh, validly signed entry.
+      peer['y'].doc.transact(() => {
+        const m = new Y.Map();
+        m.set('displayName', 'Other');
+        m.set('room', 'Room 1');
+        peer['y'].users.set(OTHER, m);
+        peer['y'].userSigs.set(OTHER, { signer: 'other-pub', nonce: 2, signature: 'sig' });
+      }, 'remote');
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(peer['y'].users.has(OTHER)).toBe(false);
+      expect(peer['_lastGoodUser'].has(OTHER)).toBe(false);
+    });
+
+    test('a peer that may not participate does not re-add itself', async () => {
+      const id = peer['peerID'];
+      peer['lab'].data = { ...peer['lab'].data, createdBy: 'other-owner', members: { teacher: [], student: ['someone-else'] } };
+      expect(peer.allowedToParticipate()).toBe(false);
+
+      deleteUser(id);
+      await peer.toJSON();
+      await vi.advanceTimersByTimeAsync(10000);
+
+      expect(peer['y'].users.has(id)).toBe(false);
+    });
+
     test('a stopped peer does not re-add itself', async () => {
       const id = peer['peerID'];
       peer.stop();

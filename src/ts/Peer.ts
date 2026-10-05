@@ -839,7 +839,8 @@ export default class Peer {
    */
   private _healOwnEntry(): Promise<void> {
     if (this._healingOwnEntry) return this._healingOwnEntry
-    if (this._stopped || !this._ownPayload || this.y.users.has(this.peerID)) {
+    if (this._stopped || !this._ownPayload || this.y.users.has(this.peerID) ||
+        !this.allowedToParticipate()) {
       return Promise.resolve()
     }
     LOG('own user entry missing, re-adding', this.peerID)
@@ -875,7 +876,13 @@ export default class Peer {
 
   /** Restore the cached good state for key, or delete if no cache exists. */
   private _restoreOrDelete(key: string): void {
-    const cached = this._lastGoodUser.get(key)
+    let cached = this._lastGoodUser.get(key)
+    // A signer removed from the members since caching is no longer last-good:
+    // restoring it would re-trigger this check forever.
+    if (cached && !this._isAuthorizedUserSigner(key, cached.envelope.signer)) {
+      this._lastGoodUser.delete(key)
+      cached = undefined
+    }
     if (cached) {
       // Restore last-good signed state. Propagates like any update: a
       // never-sent transaction would leave a gap in our Yjs clock.
