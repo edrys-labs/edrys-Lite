@@ -336,7 +336,7 @@ describe('Signed y.rooms', () => {
     participant.stop()
   })
 
-  test('a station tombstone signed by a non-owner/teacher is healed', async () => {
+  test('a station tombstone signed by a non-owner/teacher is healed by the station', async () => {
     const { station, participant } = await stationWithParticipant()
 
     vi.resetModules()
@@ -361,8 +361,18 @@ describe('Signed y.rooms', () => {
     await flushPromises()
     await flushPromises()
 
+    // The room is healed from cache; the presence delete is accepted.
     expect(participant['y'].rooms.has('Station stn1')).toBe(true)
+    expect(participant['y'].users.has('Station stn1')).toBe(false)
+
+    // Once the forgery reaches the station, it re-adds its own entry.
+    Y.applyUpdate(station['y'].doc, Y.encodeStateAsUpdate(attackerDoc))
+    await flushPromises()
+    await station.toJSON()
+    await flushPromises()
+
     expect(participant['y'].users.has('Station stn1')).toBe(true)
+    expect(participant['y'].users.get('Station stn1').get('room')).toBe('Station stn1')
 
     station.stop()
     participant.stop()

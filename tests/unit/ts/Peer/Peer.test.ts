@@ -930,6 +930,103 @@ describe('Peer Class', () => {
     });
   });
 
+  // Presence is liveness: anyone may delete a y.users entry, its owner re-adds itself.
+  describe('Presence self-heal', () => {
+    const OTHER = 'other-pub_s1';
+
+    function addOtherUser() {
+      peer['y'].doc.transact(() => {
+        const m = new Y.Map();
+        m.set('displayName', 'Other');
+        m.set('room', 'Lobby');
+        peer['y'].users.set(OTHER, m);
+        peer['y'].userSigs.set(OTHER, { signer: 'other-pub', nonce: 1, signature: 'sig' });
+      }, 'remote');
+    }
+
+    function deleteUser(id: string) {
+      peer['y'].doc.transact(() => {
+        peer['y'].users.delete(id);
+        peer['y'].userSigs.delete(id);
+      }, 'remote');
+    }
+
+    beforeEach(async () => {
+      await peer.join('student');
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    test("another user's deleted entry is accepted, not restored", async () => {
+      addOtherUser();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(peer['_lastGoodUser'].has(OTHER)).toBe(true);
+
+      // Unsigned delete, as onLeave → removePeers does it.
+      peer.removePeers([OTHER]);
+      await vi.advanceTimersByTimeAsync(10000);
+
+      expect(peer['y'].users.has(OTHER)).toBe(false);
+      expect(peer['_lastGoodUser'].has(OTHER)).toBe(false);
+    });
+
+    test('our own deleted entry is re-written by the heartbeat, keeping room and handRaised', async () => {
+      const id = peer['peerID'];
+      peer.gotoRoom('Room 1');
+      await vi.advanceTimersByTimeAsync(0);
+      await peer['_writeAndSignUser'](id, peer['_nextUserPayload'](id, { handRaised: true }), 'raiseHand');
+      const joined = peer.user().get('dateJoined');
+
+      deleteUser(id);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(peer['y'].users.has(id)).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(5000);
+
+      expect(peer.user().toJSON()).toMatchObject({ room: 'Room 1', handRaised: true, dateJoined: joined });
+      expect(peer['y'].userSigs.has(id)).toBe(true);
+    });
+
+    test('toJSON re-adds our own deleted entry before serializing', async () => {
+      const id = peer['peerID'];
+      peer.gotoRoom('Room 1');
+      await vi.advanceTimersByTimeAsync(0);
+
+      deleteUser(id);
+      const json = await peer.toJSON();
+
+      expect(json.users[id]).toMatchObject({ room: 'Room 1' });
+    });
+
+    test('a stopped peer does not re-add itself', async () => {
+      const id = peer['peerID'];
+      peer.stop();
+      expect(peer['y'].users.has(id)).toBe(false);
+
+      await peer['_healOwnEntry']();
+      await vi.advanceTimersByTimeAsync(10000);
+
+      expect(peer['y'].users.has(id)).toBe(false);
+    });
+
+    test('a shut-down station does not re-add itself', async () => {
+      const station = new Peer(setup, 'stn1', i18n.global.t);
+      await vi.advanceTimersByTimeAsync(0);
+      await station.join('station');
+      await vi.advanceTimersByTimeAsync(0);
+      const id = station['peerID'];
+      expect(station['y'].users.has(id)).toBe(true);
+
+      station.stop();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(station['y'].users.has(id)).toBe(false);
+
+      await station['_healOwnEntry']();
+      await vi.advanceTimersByTimeAsync(10000);
+
+      expect(station['y'].users.has(id)).toBe(false);
+    });
+  });
+
   test('a transport change tells the user, moves the URL to the new transport and reloads', async () => {
     const realLocation = window.location;
     const reload = vi.fn();

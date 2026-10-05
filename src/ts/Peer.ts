@@ -812,8 +812,10 @@ export default class Peer {
    * exact payload that was signed.
    */
   private async _writeAndSignUser(peerID: string, payload: any, origin: string): Promise<void> {
+    if (peerID === this.peerID) this._ownPayload = payload
     try {
       const envelope = await signEntry('users', peerID, payload)
+      if (this._stopped) return
       this.y.doc.transact(() => {
         const m = new Y.Map()
         for (const k of Object.keys(payload)) m.set(k, payload[k])
@@ -823,6 +825,27 @@ export default class Peer {
     } catch (e) {
       LOG('writeAndSignUser failed', peerID, e)
     }
+  }
+
+  /** Our own last-written y.users payload; the source for self-heal. */
+  private _ownPayload: any | null = null
+  private _healingOwnEntry: Promise<void> | null = null
+  private _stopped: boolean = false
+
+  /**
+   * Presence is liveness: any peer may delete a y.users entry (a crashed peer
+   * can't sign its leave), and the entry's owner puts itself back. Re-signs
+   * and re-writes our last payload, keeping room/handRaised/etc.
+   */
+  private _healOwnEntry(): Promise<void> {
+    if (this._healingOwnEntry) return this._healingOwnEntry
+    if (this._stopped || !this._ownPayload || this.y.users.has(this.peerID)) {
+      return Promise.resolve()
+    }
+    LOG('own user entry missing, re-adding', this.peerID)
+    this._healingOwnEntry = this._writeAndSignUser(this.peerID, this._ownPayload, 'selfHeal')
+      .finally(() => { this._healingOwnEntry = null })
+    return this._healingOwnEntry
   }
 
   /**
@@ -887,15 +910,16 @@ export default class Peer {
       try {
         const value = this.y.users.get(key)
         if (!value) {
-          // Entry was deleted. If the sidecar holds a valid tombstone signed
-          // by an authorized signer, accept the delete; otherwise heal.
+          // Entry was deleted. Presence deletes are accepted from anyone: a
+          // live peer re-adds its own entry (_healOwnEntry), so restoring here
+          // would only keep departed peers around as ghosts.
           const sigEnv = this.y.userSigs.get(key) as Envelope | undefined
           if (await this._isValidTombstone('users', key, sigEnv)) {
-            this._lastGoodUser.delete(key)
             LOG('y.users entry tombstoned', key)
           } else {
-            this._restoreOrDelete(key)
+            LOG('y.users entry deleted', key)
           }
+          this._lastGoodUser.delete(key)
           continue
         }
         const envelope = this.y.userSigs.get(key) as Envelope | undefined
@@ -1113,6 +1137,7 @@ export default class Peer {
         this.checkForDeadStations()
       } else {
         LOG('user not found', this.peerID)
+        this._healOwnEntry()
       }
     }, 5000)
 
@@ -1524,6 +1549,7 @@ export default class Peer {
    */
   stop = (): void => {
     LOG('stopping peer')
+    this._stopped = true
     if (heartbeatID) {
       clearInterval(heartbeatID)
       heartbeatID = null
@@ -1715,11 +1741,7 @@ export default class Peer {
       this.addRoom(this.peerID)
     }
 
-    if (!this.y.users.has(this.peerID)) {
-      await this.awaitTransact(() => {
-        this.initUser(this.role, false)
-      })
-    }
+    await this._healOwnEntry()
 
     return {
       rooms: this.y.rooms.toJSON(),
