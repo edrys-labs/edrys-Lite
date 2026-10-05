@@ -1305,19 +1305,39 @@ export default class Peer {
     }, 'initChat')
   }
 
+  /** Consecutive heartbeat checks each station's user has been missing for. */
+  private _missingStationChecks: Map<string, number> = new Map()
+
+  /**
+   * Removes station rooms whose user entry is gone. A station gets one extra
+   * check to re-add itself, so a single forged delete of its user can't send
+   * its students to the Lobby.
+   */
   checkForDeadStations() {
     const rooms = this.y.rooms.toJSON()
     const stations = Object.keys(rooms).filter((id) =>
       id.toLocaleLowerCase().startsWith('station')
     )
 
+    for (const station of this._missingStationChecks.keys()) {
+      if (!stations.includes(station)) this._missingStationChecks.delete(station)
+    }
+
     if (stations.length > 0) {
       const deadStation: string[] = []
       const users = this.y.users.toJSON()
 
       for (const station of stations) {
-        if (!users[station]) {
+        if (users[station]) {
+          this._missingStationChecks.delete(station)
+          continue
+        }
+        const missing = (this._missingStationChecks.get(station) || 0) + 1
+        if (missing >= 2) {
+          this._missingStationChecks.delete(station)
           deadStation.push(station)
+        } else {
+          this._missingStationChecks.set(station, missing)
         }
       }
 

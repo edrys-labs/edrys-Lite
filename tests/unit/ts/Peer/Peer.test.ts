@@ -381,6 +381,55 @@ describe('Peer Class', () => {
       expect(userMap.get(peer['peerID']).get('room')).toBe(stationID);
     });
 
+    test('a station room survives one missing heartbeat check and is removed after two', async () => {
+      const roomMap = peer['y'].rooms as Y.Map<any>;
+      const userMap = peer['y'].users as Y.Map<any>;
+      const stationID = 'Station stn1';
+
+      peer.addRoom(stationID);
+      await vi.advanceTimersByTimeAsync(0);
+      peer['y'].doc.transact(() => {
+        const stationUser = new Y.Map();
+        stationUser.set('room', stationID);
+        userMap.set(stationID, stationUser);
+      });
+
+      // A forged delete of the station's user: it has one tick to heal itself.
+      peer['y'].doc.transact(() => userMap.delete(stationID));
+      peer['checkForDeadStations']();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(roomMap.has(stationID)).toBe(true);
+
+      peer['checkForDeadStations']();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(roomMap.has(stationID)).toBe(false);
+    });
+
+    test('a station that reappears resets its missing-check count', async () => {
+      const roomMap = peer['y'].rooms as Y.Map<any>;
+      const userMap = peer['y'].users as Y.Map<any>;
+      const stationID = 'Station stn1';
+      const setStationUser = () => peer['y'].doc.transact(() => {
+        const stationUser = new Y.Map();
+        stationUser.set('room', stationID);
+        userMap.set(stationID, stationUser);
+      });
+
+      peer.addRoom(stationID);
+      await vi.advanceTimersByTimeAsync(0);
+      setStationUser();
+
+      peer['y'].doc.transact(() => userMap.delete(stationID));
+      peer['checkForDeadStations'](); // missing 1
+      setStationUser();
+      peer['checkForDeadStations'](); // present → reset
+      peer['y'].doc.transact(() => userMap.delete(stationID));
+      peer['checkForDeadStations'](); // missing 1 again
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(roomMap.has(stationID)).toBe(true);
+    });
+
     test('non-owner student cannot create rooms via addRoom', async () => {
       // Create a peer whose peerID does NOT match createdBy — a genuine student.
       const studentPeer = new Peer({
