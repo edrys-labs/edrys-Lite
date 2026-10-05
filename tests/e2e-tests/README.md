@@ -3,9 +3,13 @@
 Browser tests that run several real peers against a running dev server, over
 the real signaling server or WebSocket relay. Each test opens isolated browser
 contexts: an **owner** creates a fresh classroom (it is the signed
-`setup.createdBy`), and participants join it. Tests drive and inspect each
-page's live `Peer` (`inPeer` in [helpers.ts](helpers.ts)) or, where the app's
-own surfaces are under test, the UI and module iframes.
+`setup.createdBy`), and participants join it. Tests drive each page's live
+`Peer` (`inPeer` in [helpers.ts](helpers.ts)) or, where the app's own surfaces
+are under test, the UI and module iframes.
+
+Assertions read what the classroom renders, not the Y.Doc: inside an `inPeer`
+body, `v.users`, `v.rooms`, `v.chat` and `v.setup` are the users and rooms
+the Peer last handed to the UI, the chat it shows and the setup it applied.
 
 | Suite            | What it checks                                                                 |
 | ---------------- | ------------------------------------------------------------------------------ |
@@ -73,6 +77,7 @@ check a suite for flakiness.
 | `comm.sync.spec.ts`      | verified identity both ways, rooms + room moves, chat, late joiner       |
 | `comm.messaging.spec.ts` | module messages (3 peers): room-wide from owner/guest, targeted-only, 20-msg burst |
 | `comm.awareness.spec.ts` | app awareness (module cursors): both directions, update, removal         |
+| `comm.presence.spec.ts`  | 3 peers: everyone shown with their role on every peer, each guest's room move, one leaving is dropped by both others |
 | `comm.lifecycle.spec.ts` | abrupt leave detected; reload x`ROUNDS` reconverges, old sessions reaped, no false "has left" on WS |
 | `comm.station.spec.ts`   | station room/presence reaches peers, sees a participant, shutdown propagates |
 | `comm.revert.spec.ts`    | peers that reverted a forged change keep propagating their own writes (3 peers) |

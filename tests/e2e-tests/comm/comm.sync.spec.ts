@@ -32,12 +32,12 @@ test.describe('Comm — shared state', () => {
 
   test('room created by the owner reaches the guest; guest moving is seen by the owner', async () => {
     await inPeer(owner!.page, `p.addRoom('Room 1'); return true`)
-    await eventually(guest!, `return p.y.rooms.has('Room 1')`, 'guest sees Room 1')
+    await eventually(guest!, `return 'Room 1' in v.rooms`, 'guest sees Room 1')
 
     await inPeer(guest!.page, `p.gotoRoom('Room 1'); return true`)
     await eventually(
       owner!,
-      `return p.y.users.toJSON()[${JSON.stringify(guest!.peerId)}]?.room === 'Room 1'`,
+      `return v.users[${JSON.stringify(guest!.peerId)}]?.room === 'Room 1'`,
       'owner sees guest in Room 1'
     )
   })
@@ -49,9 +49,7 @@ test.describe('Comm — shared state', () => {
     await inPeer(guest!.page, `p.sendMessage(${JSON.stringify(fromGuest)}); return true`)
 
     const bothVisible = `
-      const visible = p.y.chat.toArray()
-        .filter((_, i) => !p._invalidChatIndices.has(i))
-        .map((m) => m.msg);
+      const visible = v.chat.map((m) => m.msg);
       return visible.includes(${JSON.stringify(fromOwner)}) && visible.includes(${JSON.stringify(fromGuest)});
     `
     await eventually(owner!, bothVisible, 'owner shows both chat messages')
@@ -62,23 +60,23 @@ test.describe('Comm — shared state', () => {
     const chat = marker('before-late')
     await inPeer(owner!.page, `p.addRoom('Room 1'); return true`)
     await inPeer(owner!.page, `p.sendMessage(${JSON.stringify(chat)}); return true`)
-    await eventually(guest!, `return p.y.rooms.has('Room 1')`, 'guest sees Room 1')
+    await eventually(guest!, `return 'Room 1' in v.rooms`, 'guest sees Room 1')
 
     late = await joinClassroom(browser, joinUrl)
     const ids = JSON.stringify([owner!.peerId, guest!.peerId])
     await eventually(
       late,
       `
-      const users = Object.keys(p.y.users.toJSON());
-      const chat = p.y.chat.toArray().filter((_, i) => !p._invalidChatIndices.has(i)).map((m) => m.msg);
-      return p.y.rooms.has('Room 1') && chat.includes(${JSON.stringify(chat)}) &&
+      const users = Object.keys(v.users);
+      const chat = v.chat.map((m) => m.msg);
+      return 'Room 1' in v.rooms && chat.includes(${JSON.stringify(chat)}) &&
         ${ids}.every((id) => users.includes(id));
     `,
       'late joiner has room, chat and both peers'
     )
     // And the existing peers see the newcomer.
     const lateId = JSON.stringify(late.peerId)
-    await eventually(owner!, `return p.y.users.has(${lateId})`, 'owner sees late joiner')
-    await eventually(guest!, `return p.y.users.has(${lateId})`, 'guest sees late joiner')
+    await eventually(owner!, `return ${lateId} in v.users`, 'owner sees late joiner')
+    await eventually(guest!, `return ${lateId} in v.users`, 'guest sees late joiner')
   })
 })

@@ -30,10 +30,17 @@ export const SYNC_MS = TRANSPORT === 'ws' ? 6000 : 3000
  * Fully null-safe: returns undefined (never throws) before the app has mounted,
  * so it is safe to call from inside a polling `waitForFunction`.
  *
+ * `findView()` returns what the classroom UI renders: the users and rooms the
+ * Peer last handed to `on('room')`, the chat messages it shows, and the class
+ * setup it applied (the classroom's `data`; on the owner this is its own local
+ * setup, not one it received). Assert on
+ * this rather than on `p.y.*`, so tests keep holding when the Y.Doc layout
+ * behind the view changes.
+ *
  * Defined as a string so it can be prepended to page-side function bodies.
  */
 const FIND_PEER_SRC = `
-  function findPeer() {
+  function findClassroom() {
     var app = document.body && document.body.__vue_app__;
     var root = app && app._container && app._container._vnode;
     if (!root) return undefined;
@@ -41,7 +48,7 @@ const FIND_PEER_SRC = `
       if (!vn) return hits;
       var cmp = vn.component;
       if (cmp && cmp.proxy && cmp.proxy.communication && cmp.proxy.communication.peerID)
-        hits.push(cmp.proxy.communication);
+        hits.push(cmp.proxy);
       if (cmp && cmp.subTree) walk(cmp.subTree, hits);
       var kids = Array.isArray(vn.children) ? vn.children : [];
       for (var i = 0; i < kids.length; i++) walk(kids[i], hits);
@@ -49,16 +56,31 @@ const FIND_PEER_SRC = `
     }
     return walk(root, [])[0];
   }
+  function findPeer() {
+    var c = findClassroom();
+    return c && c.communication;
+  }
+  function findView() {
+    var c = findClassroom();
+    var live = c && c.liveClassProxy;
+    return {
+      users: (live && live.users) || {},
+      rooms: (live && live.rooms) || {},
+      chat: (c && c.chat && c.chat.messages) || [],
+      setup: (c && c.data) || null,
+    };
+  }
 `
 
 /**
- * Run `body` (a statement block that operates on `p` = the Peer and `return`s a
- * value) in the page. Throws if the Peer isn't present yet.
+ * Run `body` in the page. It is a statement block that `return`s a value, with
+ * `p` = the Peer and `v` = the rendered view (`findView()`: `v.users`,
+ * `v.rooms`, `v.chat`, `v.setup`). Throws if the Peer isn't present yet.
  */
 export function inPeer<T = any>(page: Page, body: string): Promise<T> {
   // eslint-disable-next-line no-new-func
   const fn = new Function(
-    `${FIND_PEER_SRC}\nvar p = findPeer();\nif (!p) throw new Error('Peer instance not found in Vue tree');\n${body}`
+    `${FIND_PEER_SRC}\nvar p = findPeer();\nif (!p) throw new Error('Peer instance not found in Vue tree');\nvar v = findView();\n${body}`
   ) as () => T
   return page.evaluate(fn)
 }
@@ -150,9 +172,9 @@ export async function joinClassroom(
 }
 
 /**
- * Wait until BOTH peers see each other in y.users (meshed). This is the real
- * convergence gate — WebRTC meshes in a few seconds; the WS relay's identity
- * handshake rides awareness heartbeats (~5s cadence) so it needs longer.
+ * Wait until BOTH peers show each other in their rendered users (meshed). This
+ * is the real convergence gate — WebRTC meshes in a few seconds; the WS relay's
+ * identity handshake rides awareness heartbeats (~5s cadence) so it needs longer.
  */
 export async function waitForMesh(
   a: Session,
@@ -160,14 +182,8 @@ export async function waitForMesh(
   timeout = TRANSPORT === 'ws' ? 45000 : 20000
 ) {
   const bothSee = async () => {
-    const aSees = await inPeer<string[]>(
-      a.page,
-      'return Object.keys(p.y.users.toJSON())'
-    )
-    const bSees = await inPeer<string[]>(
-      b.page,
-      'return Object.keys(p.y.users.toJSON())'
-    )
+    const aSees = await inPeer<string[]>(a.page, 'return Object.keys(v.users)')
+    const bSees = await inPeer<string[]>(b.page, 'return Object.keys(v.users)')
     return aSees.includes(b.peerId) && bSees.includes(a.peerId)
   }
   const deadline = Date.now() + timeout

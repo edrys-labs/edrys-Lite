@@ -35,18 +35,18 @@ test.describe('Comm — after a revert', () => {
     const ownerId = JSON.stringify(owner!.peerId)
     await inPeer(attacker!.page, `p.y.doc.transact(() => p.y.users.get(${ownerId}).set('room', 'Forged')); return true`)
     await syncWait()
-    const intact = `return p.y.users.get(${ownerId})?.get('room') === 'Lobby'`
+    const intact = `return v.users[${ownerId}]?.room === 'Lobby'`
     await eventually(owner!, intact, 'owner reverted the forged room')
     await eventually(guest!, intact, 'guest reverted the forged room')
 
     const room = marker('After')
     await inPeer(owner!.page, `p.addRoom(${JSON.stringify(room)}); return true`)
-    await eventually(guest!, `return p.y.rooms.has(${JSON.stringify(room)})`, "guest sees the owner's later room")
+    await eventually(guest!, `return ${JSON.stringify(room)} in v.rooms`, "guest sees the owner's later room")
 
     await inPeer(guest!.page, `p.gotoRoom(${JSON.stringify(room)}); return true`)
     await eventually(
       owner!,
-      `return p.y.users.get(${JSON.stringify(guest!.peerId)})?.get('room') === ${JSON.stringify(room)}`,
+      `return v.users[${JSON.stringify(guest!.peerId)}]?.room === ${JSON.stringify(room)}`,
       "owner sees the guest's later move"
     )
   })

@@ -296,7 +296,7 @@ export async function waitForAllInRoom(
   let lastUsers: Record<string, { room: string }> = {}
   let lastRetryAt = Date.now()
   while (Date.now() < deadline) {
-    lastUsers = await inPeer(observer.page, 'return p.y.users.toJSON()')
+    lastUsers = await inPeer(observer.page, 'return v.users')
     const inRoom = Object.entries(lastUsers)
       .filter(([, u]) => u.room === roomName)
       .map(([id]) => id)

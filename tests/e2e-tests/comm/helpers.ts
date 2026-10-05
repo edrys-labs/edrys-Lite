@@ -49,7 +49,7 @@ export function transportState(s: Session) {
   return inPeer(
     s.page,
     TRANSPORT === 'ws'
-      ? `const a = p.provider; return { verified: [...a._verifiedUsers].map((u) => u.slice(-6)), hb: [...a._lastHeartbeats.keys()].map((u) => u.slice(-6)), users: Object.keys(p.y.users.toJSON()).map((u) => u.slice(-6)) }`
+      ? `const a = p.provider; return { verified: [...a._verifiedUsers].map((u) => u.slice(-6)), hb: [...a._lastHeartbeats.keys()].map((u) => u.slice(-6)), users: Object.keys(v.users).map((u) => u.slice(-6)) }`
       : `const t = p.provider.transport; return {
           self: t.peerId,
           peers: [...t.peers.values()].map((x) => [x.peerId, x.connected, x.peer.destroyed, x.peer._pc && x.peer._pc.connectionState].join('/')),
@@ -57,7 +57,7 @@ export function transportState(s: Session) {
           verified: [...t._userIdToPeer.entries()].map(([u, id]) => u.slice(-6) + '=' + id),
           pending: t._pending ? [...t._pending.keys()] : null,
           signaling: t.signalingHealth,
-          users: Object.keys(p.y.users.toJSON()).map((u) => u.slice(-6)),
+          users: Object.keys(v.users).map((u) => u.slice(-6)),
         }`
   )
 }

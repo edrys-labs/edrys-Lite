@@ -42,19 +42,19 @@ test.describe('Comm — station', () => {
 
   test('station appears, sees participants, and its shutdown propagates', async () => {
     const sid = JSON.stringify(station!.peerId)
-    const present = `return p.y.rooms.has(${sid}) && p.y.users.has(${sid})`
+    const present = `return ${sid} in v.rooms && ${sid} in v.users`
     await eventually(owner!, present, 'owner sees station room + user')
     await eventually(guest!, present, 'guest sees station room + user')
 
     await inPeer(guest!.page, `p.gotoRoom(${sid}); return true`)
     await eventually(
       station!,
-      `return p.y.users.toJSON()[${JSON.stringify(guest!.peerId)}]?.room === ${sid}`,
+      `return v.users[${JSON.stringify(guest!.peerId)}]?.room === ${sid}`,
       'station sees guest in its room'
     )
 
     await inPeer(station!.page, `p.stop(); return true`)
-    const gone = `return !p.y.rooms.has(${sid}) && !p.y.users.has(${sid})`
+    const gone = `return !(${sid} in v.rooms) && !(${sid} in v.users)`
     await eventually(owner!, gone, 'owner dropped the station')
     await eventually(guest!, gone, 'guest dropped the station')
   })

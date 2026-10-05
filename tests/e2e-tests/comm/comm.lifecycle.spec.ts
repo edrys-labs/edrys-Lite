@@ -46,7 +46,7 @@ test.describe('Comm — leave and reload', () => {
     // Leave detection keys off the identity handshake (WS: first heartbeat).
     await waitForVerified(owner!, guest!)
     await guest!.context.close()
-    await eventually(owner!, `return !p.y.users.has(${JSON.stringify(id)})`, 'owner dropped the closed peer', 45000)
+    await eventually(owner!, `return !(${JSON.stringify(id)} in v.users)`, 'owner dropped the closed peer', 45000)
     expect(ownerLog.some((l) => l.includes(LEFT) && l.includes(id)), 'owner logged the leave').toBe(true)
     guest = undefined
   })
@@ -56,14 +56,14 @@ test.describe('Comm — leave and reload', () => {
     // peer's first identity heartbeat arrived, so it must go out on connect.
     const id = guest!.peerId
     await guest!.context.close()
-    await eventually(owner!, `return !p.y.users.has(${JSON.stringify(id)})`, 'owner dropped the closed peer', 45000)
+    await eventually(owner!, `return !(${JSON.stringify(id)} in v.users)`, 'owner dropped the closed peer', 45000)
     guest = undefined
   })
 
   test(`a reloading peer reconverges at the owner (x${ROUNDS})`, async () => {
     test.setTimeout((30000 + ROUNDS * 45000) * SCALE)
     const base = guest!.peerId.split('_')[0]
-    const sessionsOfGuest = `return Object.keys(p.y.users.toJSON()).filter((id) => id.split('_')[0] === ${JSON.stringify(base)})`
+    const sessionsOfGuest = `return Object.keys(v.users).filter((id) => id.split('_')[0] === ${JSON.stringify(base)})`
 
     for (let round = 1; round <= ROUNDS; round++) {
       const oldId = guest!.peerId
@@ -76,8 +76,8 @@ test.describe('Comm — leave and reload', () => {
       expect(newId, `round ${round}: guest got a new session id`).not.toBe(oldId)
       guest!.peerId = newId
 
-      await eventually(owner!, `return p.y.users.has(${JSON.stringify(newId)})`, `round ${round}: owner sees reloaded guest`)
-      await eventually(guest!, `return p.y.users.has(${JSON.stringify(owner!.peerId)})`, `round ${round}: reloaded guest sees owner`)
+      await eventually(owner!, `return ${JSON.stringify(newId)} in v.users`, `round ${round}: owner sees reloaded guest`)
+      await eventually(guest!, `return ${JSON.stringify(owner!.peerId)} in v.users`, `round ${round}: reloaded guest sees owner`)
     }
 
     // Old sessions are reaped: exactly one entry for the guest's pubkey remains.

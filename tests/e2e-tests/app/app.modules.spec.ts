@@ -102,7 +102,7 @@ test.describe('App — modules in iframes', () => {
       .poll(() => inPeer<string>(guest!.page, 'return p.peerID').catch(() => oldId), { timeout: 30000 * SCALE })
       .not.toBe(oldId)
     guest!.peerId = await inPeer<string>(guest!.page, 'return p.peerID')
-    await eventually(owner!, `return p.y.users.has(${JSON.stringify(guest!.peerId)})`, 'owner sees reloaded guest')
+    await eventually(owner!, `return ${JSON.stringify(guest!.peerId)} in v.users`, 'owner sees reloaded guest')
 
     await expect.poll(() => text(guest!), { timeout: 30000 * SCALE }).toBe('ABC')
 
