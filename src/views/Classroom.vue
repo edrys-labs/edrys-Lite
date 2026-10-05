@@ -23,7 +23,7 @@ import {
   encodeCommConfig,
   decodeCommConfig
 } from "../ts/Utils";
-import { onMounted } from "vue";
+import { markRaw, onMounted } from "vue";
 import Peer from "../ts/Peer";
 
 import { copyToClipboard, deepEqual, roomColor } from "../ts/Utils";
@@ -224,14 +224,18 @@ export default {
         cleanUrlAfterCommConfigExtraction(true);
       }
 
-      if (!this.communication) {                
-        this.communication = new Peer(
+      if (!this.communication) {
+        // markRaw: a reactive Proxy around the Peer would also wrap its Yjs doc.
+        // Yjs compares items by identity while merging, so writes made through
+        // the proxy can be merged wrongly and lose concurrent updates (e.g. the
+        // class configuration vanishing when a station joins).
+        this.communication = markRaw(new Peer(
           configurationCopy,
           this.stationName,
           this.t,
           null, // password
           this.owner || undefined
-        );
+        ));
         
         this.communication.on("setup", async (configuration: DatabaseItem) => {
           const previousModules = self.data?.modules;
