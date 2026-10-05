@@ -814,7 +814,10 @@ export default class Peer {
   private async _writeAndSignUser(peerID: string, payload: any, origin: string): Promise<void> {
     if (peerID === this.peerID) this._ownPayload = payload
     try {
-      const envelope = await signEntry('users', peerID, payload)
+      // Keep our nonces increasing even if the clock steps back, or our own
+      // writes would be rejected as replays.
+      const floor = this._userNonceFloor.get(peerID) ?? -Infinity
+      const envelope = await signEntry('users', peerID, payload, Math.max(Date.now(), floor + 1))
       if (this._stopped) return
       this.y.doc.transact(() => {
         const m = new Y.Map()
@@ -873,6 +876,9 @@ export default class Peer {
 
   /** Last verified (payload, envelope) per user key — used to restore on invalid mutation. */
   private _lastGoodUser: Map<string, { payload: any; envelope: Envelope }> = new Map()
+
+  /** Newest accepted signature nonce per user key; outlives deletes so a replay after a delete is still caught. */
+  private _userNonceFloor: Map<string, number> = new Map()
 
   /** Restore the cached good state for key, or delete if no cache exists. */
   private _restoreOrDelete(key: string): void {
@@ -941,12 +947,28 @@ export default class Peer {
           this._restoreOrDelete(key)
           continue
         }
+        // Signatures never expire, so an older signed entry could be written
+        // back after its owner moved on. Reject anything older than the newest
+        // one already accepted for this key.
+        if ((envelope as Envelope).nonce < (this._userNonceFloor.get(key) ?? -Infinity)) {
+          LOG('y.users entry rejected (replayed)', key)
+          if (key === this.peerID && this._ownPayload) {
+            this._writeAndSignUser(this.peerID, this._ownPayload, 'selfHeal')
+          } else {
+            this._restoreOrDelete(key)
+          }
+          continue
+        }
         // Station authz needs owner/teacher; member-allowlist authz needs the
         // student list. Defer the authz call entirely until setup has synced.
         if (!authzKnown) continue
         const authorized = this._isAuthorizedUserSigner(key, (envelope as Envelope).signer)
         if (authorized) {
           this._lastGoodUser.set(key, { payload, envelope: envelope as Envelope })
+          this._userNonceFloor.set(
+            key,
+            Math.max(this._userNonceFloor.get(key) ?? -Infinity, (envelope as Envelope).nonce)
+          )
         } else if (key === this.peerID) {
           LOG('y.users own entry not authorized — keeping local-only', key)
         } else {
