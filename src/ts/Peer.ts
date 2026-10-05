@@ -1373,6 +1373,7 @@ export default class Peer {
 
           self.initSetup(true)
           self.update('setup')
+          self._reverifyAfterSetup()
         } else {
           LOG('updating failed, hash mismatch')
         }
@@ -1386,6 +1387,7 @@ export default class Peer {
 
         this.initSetup(true)
         this.update('setup')
+        this._reverifyAfterSetup()
       }
     }
   }
