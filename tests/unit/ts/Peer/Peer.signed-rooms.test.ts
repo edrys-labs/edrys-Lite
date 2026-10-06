@@ -348,6 +348,41 @@ describe('Signed y.rooms', () => {
     participant.stop()
   })
 
+  test("another peer in a stopped station's room is shown in the Lobby", async () => {
+    const { station, participant } = await stationWithParticipant()
+
+    // A second participant (same owner, another session) inside the station.
+    const otherId = Utils.getPeerID(false) + '_other1'
+    const payload = { room: 'Station stn1', dateJoined: 1, handRaised: false }
+    const envelope = await Utils.signEntry('users', otherId, payload, Date.now())
+    const other = new Awareness(new Y.Doc())
+    other.setLocalStateField('presence', { id: otherId, payload, envelope })
+    applyAwarenessUpdate(
+      participant['presence']['awareness'],
+      encodeAwarenessUpdate(other, [other.clientID]),
+      'relay'
+    )
+    for (let i = 0; i < 3; i++) await flushPromises()
+    expect((await participant.toJSON()).users[otherId].room).toBe('Station stn1')
+
+    participant.gotoRoom('Station stn1')
+    station.stop()
+    for (let i = 0; i < 3; i++) await flushPromises()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + ABSENT_GRACE + 1)
+    participant['presence'].reauthorize()
+    vi.useRealTimers()
+
+    const view = await participant.toJSON()
+    expect('Station stn1' in view.rooms).toBe(false)
+    expect(view.users[otherId].room).toBe('Lobby')
+    // Our own room is left for _leaveMissingRoom to change.
+    expect(view.users[participant.peerID].room).toBe('Station stn1')
+
+    other.destroy()
+    participant.stop()
+  })
+
   test("deleting a present station's room from the doc does not remove it from the view", async () => {
     const { station, participant } = await stationWithParticipant()
 

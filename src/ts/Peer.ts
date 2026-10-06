@@ -1460,16 +1460,23 @@ export default class Peer {
   /**
    * Present peers as the UI and modules see them. Name and role are derived
    * here (from the id and the signed setup), not taken from the peer.
+   * Another peer whose room is gone (a stopped station) is shown in the
+   * Lobby until it moves there itself, so it never drops out of the room
+   * list. Our own room is left as is: modules are keyed on it, and
+   * _leaveMissingRoom moves us.
    */
   private _viewUsers(): Record<string, any> {
     const owner = stripPubKey(this.lab.data?.createdBy || '')
     const teachers: string[] = (this.lab.data?.members?.teacher || []).map(stripPubKey)
+    const rooms = this._viewRooms()
     const users: Record<string, any> = {}
     for (const [id, payload] of Object.entries(this.presence?.visible || {})) {
       const station = id.startsWith(STATION + ' ')
       const base = stripPubKey(getBasePeerID(id))
+      const room = id === this.peerID || payload?.room in rooms ? payload?.room : LOBBY
       users[id] = {
         ...payload,
+        room,
         displayName: station ? id : getShortPeerID(id),
         role: station ? 'station' : base === owner || teachers.includes(base) ? 'teacher' : 'student',
       }
