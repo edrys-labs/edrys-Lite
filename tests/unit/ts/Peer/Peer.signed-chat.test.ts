@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import * as Y from 'yjs'
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import { i18n } from '../../../setup'
 
 // y.chat signing integration tests.
@@ -32,6 +33,7 @@ vi.mock('../../../../src/ts/GenericProviderAdapter', () => ({
     sendMessage: vi.fn(),
     disconnect: vi.fn(),
     destroy: vi.fn(),
+    getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
   })),
 }))
 vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
@@ -42,6 +44,7 @@ vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
     sendMessage: vi.fn(),
     disconnect: vi.fn(),
     destroy: vi.fn(),
+    getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
   })),
 }))
 
@@ -175,7 +178,7 @@ describe('Signed y.chat', () => {
     peer.stop()
   })
 
-  test('entry from unknown signer (not in y.users) is filtered', async () => {
+  test('entry from unknown signer (not present) is filtered', async () => {
     const { peer } = await bootPeer()
 
     // Manually craft a signed entry using a different identity
@@ -203,6 +206,81 @@ describe('Signed y.chat', () => {
 
     expect(chatMessages!.filter((m: any) => m.msg === 'infiltrate').length).toBe(0)
 
+    peer.stop()
+  })
+
+  test('a held-back entry shows once its signer becomes present', async () => {
+    const { peer } = await bootPeer()
+
+    vi.resetModules()
+    const Writer = await import('../../../../src/ts/Utils')
+    await Writer.initCryptoIdentity()
+    const ts = Date.now()
+    const payload = { msg: 'before you arrived', timestamp: ts, user: 'writer' }
+    const env = await Writer.signEntry('chat', String(ts), payload, ts)
+
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    // The chat arrives with the doc, before the writer's presence.
+    peer['y'].doc.transact(() => {
+      peer['y'].chat.push([{ ...payload, signer: env.signer, signature: env.signature }])
+    }, 'sync')
+    await flushPromises()
+    await flushPromises()
+    expect(chatMessages.map((m) => m.msg)).toEqual([])
+
+    const id = `${env.signer}_s1`
+    const presence = { id, payload: { room: 'Lobby' }, envelope: await Writer.signEntry('users', id, { room: 'Lobby' }) }
+    const clientID = 777
+    applyAwarenessUpdate(
+      peer['presence']['awareness'],
+      encodeAwarenessUpdate(
+        { states: new Map([[clientID, { presence }]]), meta: new Map([[clientID, { clock: 1, lastUpdated: Date.now() }]]) } as any,
+        [clientID]
+      ),
+      'remote'
+    )
+    await flushPromises()
+    await flushPromises()
+
+    expect(chatMessages.map((m) => m.msg)).toEqual(['before you arrived'])
+
+    peer.stop()
+  })
+
+  test('a message older than the replay window still shows', async () => {
+    const { peer } = await bootPeer()
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    const ts = Date.now() - 10 * 60 * 1000
+    const payload = { msg: 'from ten minutes ago', timestamp: ts, user: 'me' }
+    const env = await Utils.signEntry('chat', String(ts), payload, ts)
+    peer['y'].doc.transact(() => {
+      peer['y'].chat.push([{ ...payload, signer: env.signer, signature: env.signature }])
+    }, 'sync')
+    await flushPromises()
+    await flushPromises()
+
+    expect(chatMessages.map((m) => m.msg)).toEqual(['from ten minutes ago'])
+    peer.stop()
+  })
+
+  test('a replayed copy of a signed message is hidden', async () => {
+    const { peer } = await bootPeer()
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    await peer.sendMessage('once')
+    await flushPromises()
+    const original = { ...peer['y'].chat.get(0) }
+    peer['y'].doc.transact(() => peer['y'].chat.push([original]), 'replay')
+    await flushPromises()
+    await flushPromises()
+
+    expect(peer['y'].chat.length).toBe(2)
+    expect(chatMessages.map((m) => m.msg)).toEqual(['once'])
     peer.stop()
   })
 })

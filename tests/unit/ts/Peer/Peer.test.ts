@@ -3,6 +3,7 @@ import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest';
 const flushPromises = () => new Promise<void>((r) => setTimeout(r, 0));
 import Peer from '../../../../src/ts/Peer';
 import * as Y from 'yjs';
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
 import { GenericWebrtcProviderAdapter } from '../../../../src/ts/GenericProviderAdapter';
 import { GenericWebsocketProviderAdapter } from '../../../../src/ts/GenericWebsocketProviderAdapter';
 import { getPeerID, getShortPeerID, decodeCommConfig, updateUrlWithCommConfig, verifySetup } from '../../../../src/ts/Utils';
@@ -41,6 +42,7 @@ vi.mock('../../../../src/ts/GenericProviderAdapter', () => ({
     sendMessage: vi.fn(),
     disconnect: vi.fn(),
     destroy: vi.fn(),
+    getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
   })),
 }));
 
@@ -55,6 +57,7 @@ vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
     sendMessage: vi.fn(),
     disconnect: vi.fn(),
     destroy: vi.fn(),
+    getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
   })),
 }));
 
@@ -73,6 +76,7 @@ vi.mock('../../../../src/ts/Utils', () => ({
   signEntry: vi.fn(() => Promise.resolve({ signer: 'test-peer-id', nonce: Date.now(), signature: 'mock-sig' })),
   verifyEntry: vi.fn(() => Promise.resolve(true)),
   REVERT_INVALID_ORIGIN: 'revert-invalid',
+  canonicalize: vi.fn((v) => JSON.stringify(v)),
   deepEqual: vi.fn((obj1, obj2) => {
     return JSON.stringify(obj1) === JSON.stringify(obj2);
   }),
@@ -104,6 +108,25 @@ vi.mock('../../../../src/ts/Utils', () => ({
 describe('Peer Class', () => {
   let peer: Peer;
   let setup: any;
+  let nextClientID = 9000;
+
+  /** A remote peer's signed presence arriving over awareness; returns its client id. */
+  async function addRemote(id: string, payload: any, signer = id.split('_')[0], target: any = peer) {
+    const clientID = nextClientID++;
+    const state = { presence: { id, payload, envelope: { signer, nonce: Date.now(), signature: 'sig' } } };
+    const update = encodeAwarenessUpdate(
+      { states: new Map([[clientID, state]]), meta: new Map([[clientID, { clock: 1, lastUpdated: Date.now() }]]) } as any,
+      [clientID]
+    );
+    applyAwarenessUpdate(target['presence']['awareness'], update, 'remote');
+    await vi.advanceTimersByTimeAsync(0);
+    return clientID;
+  }
+
+  async function removeRemote(clientID: number) {
+    removeAwarenessStates(peer['presence']['awareness'], [clientID], 'remote');
+    await vi.advanceTimersByTimeAsync(0);
+  }
 
   beforeEach(async () => {
     // Tests below reassign getPeerID; clearAllMocks doesn't undo that.
@@ -140,18 +163,18 @@ describe('Peer Class', () => {
       expect(peer['lab'].id).toBe(setup.id);
       expect(setupMap.get('config')).toMatchObject(setup.data);
       expect(setupMap.get('timestamp')).toBe(setup.timestamp);
-      expect(peer.user().get('logicalClock')).toBe(0);
     });
 
-    test('should initialize user with correct default values', () => {
-      const user = peer.user();
-      expect(user.get('displayName')).toBe('test-user');
-      expect(user.get('room')).toBe('Lobby');
-      expect(user.get('role')).toBe('student');
-      expect(user.get('dateJoined')).toBeDefined();
-      expect(user.get('logicalClock')).toBe(0);
-      expect(user.get('handRaised')).toBe(false);
-      expect(user.get('connections')).toEqual([{ id: '', target: {} }]);
+    test('should initialize user with correct default values', async () => {
+      expect(peer.user()).toEqual({
+        room: 'Lobby',
+        dateJoined: expect.any(Number),
+        handRaised: false,
+        connections: [{ id: '', target: {} }],
+      });
+      // Name and role are derived for the view, not published.
+      const { users } = await peer.toJSON();
+      expect(users[peer['peerID']]).toMatchObject({ displayName: 'test-user', role: 'teacher', room: 'Lobby' });
     });
 
     test('should initialize as station when stationID is provided', () => {
@@ -223,6 +246,7 @@ describe('Peer Class', () => {
       peer['provider'] = {
         disconnect: mockDisconnect,
         destroy: vi.fn(),
+        getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
       } as any;
       
       await peer.switchProvider({
@@ -244,6 +268,7 @@ describe('Peer Class', () => {
       peer['provider'] = {
         disconnect: mockDisconnect,
         destroy: vi.fn(),
+        getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
       } as any;
       
       await peer.switchProvider({
@@ -323,111 +348,63 @@ describe('Peer Class', () => {
       expect(roomMap.size).toEqual(2);
     });
 
-    test('should handle room deletions and move users to lobby', async () => {
-      const roomMap = peer['y'].rooms as Y.Map<any>;
-      const userMap = peer['y'].users as Y.Map<any>;
+    test('moves to the Lobby once its room has been gone for two heartbeat checks', async () => {
+      const stationID = 'Station stn1';
+      peer['connected'] = true;
+      const station = await addRemote(stationID, { room: stationID }, 'test-peer-id');
+      expect(stationID in (await peer.toJSON()).rooms).toBe(true);
+      peer.gotoRoom(stationID);
 
-      peer.addRoom('Room1');
-      await vi.advanceTimersByTimeAsync(0);
-      peer['y'].doc.transact(() => {
-        userMap.get(peer['peerID']).set('room', 'Room1');
-      });
-
-      expect(userMap.get(peer['peerID']).get('room')).toBe('Room1');
-
-      // Local-origin delete: the room observer recognises it as legitimate
-      // and moves the affected user back to Lobby.
-      peer['_deleteAndUnsignRoom']('Room1', 'checkForDeadStations');
-      await vi.advanceTimersByTimeAsync(0);
-
-      expect(roomMap.has('Room1')).toBe(false);
-      expect(userMap.get(peer['peerID']).get('room')).toBe('Lobby');
+      await removeRemote(station);
+      expect(stationID in (await peer.toJSON()).rooms).toBe(false);
+      peer['_leaveMissingRoom']();
+      expect(peer.user().room).toBe(stationID);
+      peer['_leaveMissingRoom']();
+      expect(peer.user().room).toBe('Lobby');
     });
 
-    test('provider.onLeave(station) must NOT evict the student or delete the room (regression)', async () => {
-      const roomMap = peer['y'].rooms as Y.Map<any>;
-      const userMap = peer['y'].users as Y.Map<any>;
+    test('a station that reappears between checks keeps its visitors', async () => {
       const stationID = 'Station stn1';
+      peer['connected'] = true;
+      let station = await addRemote(stationID, { room: stationID }, 'test-peer-id');
+      peer.gotoRoom(stationID);
 
-      // Add a station user, move the student into the station room.
-      peer.addRoom(stationID);
-      await vi.advanceTimersByTimeAsync(0);
-      peer['y'].doc.transact(() => {
-        const stationUser = new Y.Map();
-        stationUser.set('displayName', stationID);
-        stationUser.set('room', stationID);
-        stationUser.set('role', 'station');
-        stationUser.set('dateJoined', Date.now());
-        stationUser.set('logicalClock', 1);
-        stationUser.set('handRaised', false);
-        stationUser.set('connections', [{ id: '', target: {} }]);
-        userMap.set(stationID, stationUser);
-        userMap.get(peer['peerID']).set('room', stationID);
-      });
+      await removeRemote(station);
+      peer['_leaveMissingRoom'](); // missing 1
+      station = await addRemote(stationID, { room: stationID }, 'test-peer-id');
+      peer['_leaveMissingRoom'](); // present -> reset
+      await removeRemote(station);
+      peer['_leaveMissingRoom'](); // missing 1 again
 
-      expect(userMap.get(peer['peerID']).get('room')).toBe(stationID);
-      expect(roomMap.has(stationID)).toBe(true);
+      expect(peer.user().room).toBe(stationID);
+    });
+
+    test('provider.onLeave(station) must NOT hide the station or move its visitors (regression)', async () => {
+      const stationID = 'Station stn1';
+      peer['connected'] = true;
+      await addRemote(stationID, { room: stationID }, 'test-peer-id');
+      peer.gotoRoom(stationID);
 
       const onLeaveCallback = (peer['provider'] as any).onLeave.mock.calls[0][0];
       onLeaveCallback(stationID);
-      // The next heartbeat tick would call checkForDeadStations.
-      peer['checkForDeadStations']();
-      await vi.advanceTimersByTimeAsync(0);
-      await vi.advanceTimersByTimeAsync(0);
+      peer['_leaveMissingRoom']();
+      peer['_leaveMissingRoom']();
 
-      // A single peer-connection drop must NOT propagate a global eviction.
-      expect(userMap.has(stationID)).toBe(true);
-      expect(roomMap.has(stationID)).toBe(true);
-      expect(userMap.get(peer['peerID']).get('room')).toBe(stationID);
+      const view = await peer.toJSON();
+      expect(view.users[stationID]).toBeDefined();
+      expect(stationID in view.rooms).toBe(true);
+      expect(peer.user().room).toBe(stationID);
     });
 
-    test('a station room survives one missing heartbeat check and is removed after two', async () => {
-      const roomMap = peer['y'].rooms as Y.Map<any>;
-      const userMap = peer['y'].users as Y.Map<any>;
-      const stationID = 'Station stn1';
-
-      peer.addRoom(stationID);
-      await vi.advanceTimersByTimeAsync(0);
-      peer['y'].doc.transact(() => {
-        const stationUser = new Y.Map();
-        stationUser.set('room', stationID);
-        userMap.set(stationID, stationUser);
-      });
-
-      // A forged delete of the station's user: it has one tick to heal itself.
-      peer['y'].doc.transact(() => userMap.delete(stationID));
-      peer['checkForDeadStations']();
-      await vi.advanceTimersByTimeAsync(0);
-      expect(roomMap.has(stationID)).toBe(true);
-
-      peer['checkForDeadStations']();
-      await vi.advanceTimersByTimeAsync(0);
-      expect(roomMap.has(stationID)).toBe(false);
-    });
-
-    test('a station that reappears resets its missing-check count', async () => {
-      const roomMap = peer['y'].rooms as Y.Map<any>;
-      const userMap = peer['y'].users as Y.Map<any>;
-      const stationID = 'Station stn1';
-      const setStationUser = () => peer['y'].doc.transact(() => {
-        const stationUser = new Y.Map();
-        stationUser.set('room', stationID);
-        userMap.set(stationID, stationUser);
-      });
-
-      peer.addRoom(stationID);
-      await vi.advanceTimersByTimeAsync(0);
-      setStationUser();
-
-      peer['y'].doc.transact(() => userMap.delete(stationID));
-      peer['checkForDeadStations'](); // missing 1
-      setStationUser();
-      peer['checkForDeadStations'](); // present → reset
-      peer['y'].doc.transact(() => userMap.delete(stationID));
-      peer['checkForDeadStations'](); // missing 1 again
+    test('a station room shows only while a station signed by the owner or a teacher is present', async () => {
+      await addRemote('Station fake', { room: 'Station fake' }, 'some-student');
+      // A leftover station Y.Map in the doc does not make a room on its own.
+      peer.addRoom('Station gone');
       await vi.advanceTimersByTimeAsync(0);
 
-      expect(roomMap.has(stationID)).toBe(true);
+      const { rooms, users } = await peer.toJSON();
+      expect(Object.keys(rooms).filter((r) => r.startsWith('Station'))).toEqual([]);
+      expect(users['Station fake']).toBeUndefined();
     });
 
     test('non-owner student cannot create rooms via addRoom', async () => {
@@ -450,44 +427,29 @@ describe('Peer Class', () => {
 
   // Peer Management Tests
   describe('Peer Management', () => {
-    test('should remove a departed peer via removePeers', () => {
-      const userMap = peer['y'].users as Y.Map<any>;
-      const stalePeerID = 'stalePeer';
+    test('should hide a departed peer via removePeers', async () => {
+      await addRemote('stalePeer_s1', { room: 'Lobby' });
+      expect(peer['presence'].has('stalePeer_s1')).toBe(true);
 
-      peer['y'].doc.transact(() => {
-        const staleUser = new Y.Map();
-        staleUser.set('displayName', 'Stale User');
-        staleUser.set('room', 'Lobby');
-        staleUser.set('role', 'student');
-        staleUser.set('dateJoined', Date.now());
-        staleUser.set('logicalClock', 1);
-        userMap.set(stalePeerID, staleUser);
-      });
-
-      expect(userMap.has(stalePeerID)).toBe(true);
-      peer['removePeers']([stalePeerID]);
-      expect(userMap.has(stalePeerID)).toBe(false);
-      expect(userMap.has(peer['peerID'])).toBe(true);
+      peer['removePeers'](['stalePeer_s1']);
+      expect(peer['presence'].has('stalePeer_s1')).toBe(false);
+      expect(peer['presence'].has(peer['peerID'])).toBe(true);
     });
 
-    test('provider onLeave removes the departed peer and its signature', () => {
-      const userMap = peer['y'].users as Y.Map<any>;
-      const sigMap = peer['y'].userSigs as Y.Map<any>;
-      const leaverID = 'leaverPubKey_s1';
-
-      peer['y'].doc.transact(() => {
-        const leaver = new Y.Map();
-        leaver.set('room', 'Lobby');
-        userMap.set(leaverID, leaver);
-        sigMap.set(leaverID, { signer: 'leaverPubKey', nonce: 1, signature: 'sig' });
-      });
-
+    test('provider onLeave hides the departed peer until it publishes again', async () => {
+      await addRemote('leaverPubKey_s1', { room: 'Lobby' });
       const onLeaveCallback = (peer['provider'] as any).onLeave.mock.calls[0][0];
-      onLeaveCallback(leaverID);
+      onLeaveCallback('leaverPubKey_s1');
+      expect(peer['presence'].has('leaverPubKey_s1')).toBe(false);
 
-      expect(userMap.has(leaverID)).toBe(false);
-      expect(sigMap.has(leaverID)).toBe(false);
-      expect(userMap.has(peer['peerID'])).toBe(true);
+      vi.advanceTimersByTime(1);
+      await addRemote('leaverPubKey_s1', { room: 'Lobby' });
+      expect(peer['presence'].has('leaverPubKey_s1')).toBe(true);
+    });
+
+    test('an entry signed by someone else than its id is not shown', async () => {
+      await addRemote('victimPub_s1', { room: 'Lobby' }, 'attackerPub');
+      expect((await peer.toJSON()).users['victimPub_s1']).toBeUndefined();
     });
   });
 
@@ -517,11 +479,7 @@ describe('Peer Class', () => {
       peer['connected'] = true;
       const localEcho = vi.fn();
       peer.on('message' as any, localEcho);
-      peer['y'].doc.transact(() => {
-        const other = new Y.Map();
-        other.set('room', 'Lobby');
-        peer['y'].users.set('other_s1', other);
-      });
+      await addRemote('other_s1', { room: 'Lobby' });
 
       peer.broadcast('Lobby', { data: 'test' });
       peer.broadcast('Lobby', { data: 'test', user: 'other_s1' });
@@ -859,17 +817,12 @@ describe('Peer Class', () => {
       });
     });
 
-    test('room broadcast reaches everyone else in the room, plus a local echo', () => {
+    test('room broadcast reaches everyone else in the room, plus a local echo', async () => {
       peer['connected'] = true;
       const localEcho = vi.fn();
       peer.on('message' as any, localEcho);
-      peer['y'].doc.transact(() => {
-        for (const [id, room] of [['inLobby_s1', 'Lobby'], ['elsewhere_s1', 'Room 1']]) {
-          const u = new Y.Map();
-          u.set('room', room);
-          peer['y'].users.set(id, u);
-        }
-      });
+      await addRemote('inLobby_s1', { room: 'Lobby' });
+      await addRemote('elsewhere_s1', { room: 'Room 1' });
       const msg = { subject: 'hi', body: 'x' };
 
       peer.broadcast('Lobby', msg);
@@ -948,12 +901,11 @@ describe('Peer Class', () => {
   // Transaction Tests
   describe('Transactions', () => {
     test('should handle async transactions correctly', async () => {
-      const testValue = 'test';
       await peer['awaitTransact'](() => {
-        peer.user().set('displayName', testValue);
+        peer['y'].rooms.set('Async', new Y.Map());
       });
-      
-      expect(peer.user().get('displayName')).toBe(testValue);
+
+      expect(peer['y'].rooms.has('Async')).toBe(true);
     });
 
     test('should handle transaction errors gracefully', async () => {
@@ -979,134 +931,39 @@ describe('Peer Class', () => {
     });
   });
 
-  // Presence is liveness: anyone may delete a y.users entry, its owner re-adds itself.
-  describe('Presence self-heal', () => {
-    const OTHER = 'other-pub_s1';
+  describe('Presence view', () => {
+    test('roles come from the setup, not from the peer', async () => {
+      await addRemote('teacherPub_s1', { room: 'Lobby', role: 'student' });
+      await addRemote('studentPub_s1', { room: 'Lobby', role: 'teacher', displayName: 'Admin' });
+      peer['lab'].data.members.teacher = ['teacherPub'];
 
-    function addOtherUser() {
-      peer['y'].doc.transact(() => {
-        const m = new Y.Map();
-        m.set('displayName', 'Other');
-        m.set('room', 'Lobby');
-        peer['y'].users.set(OTHER, m);
-        peer['y'].userSigs.set(OTHER, { signer: 'other-pub', nonce: 1, signature: 'sig' });
-      }, 'remote');
-    }
-
-    function deleteUser(id: string) {
-      peer['y'].doc.transact(() => {
-        peer['y'].users.delete(id);
-        peer['y'].userSigs.delete(id);
-      }, 'remote');
-    }
-
-    beforeEach(async () => {
-      await peer.join('student');
-      await vi.advanceTimersByTimeAsync(0);
+      const { users } = await peer.toJSON();
+      expect(users['teacherPub_s1'].role).toBe('teacher');
+      expect(users['studentPub_s1'].role).toBe('student');
+      expect(users['studentPub_s1'].displayName).toBe('test-user');
     });
 
-    test("another user's deleted entry is accepted, not restored", async () => {
-      addOtherUser();
-      await vi.advanceTimersByTimeAsync(0);
-      expect(peer['_lastGoodUser'].has(OTHER)).toBe(true);
+    test('a member excluded from the allowlist is hidden', async () => {
+      await addRemote('other-pub_s1', { room: 'Lobby' });
+      expect(peer['presence'].has('other-pub_s1')).toBe(true);
 
-      // Unsigned delete, as onLeave → removePeers does it.
-      peer.removePeers([OTHER]);
-      await vi.advanceTimersByTimeAsync(10000);
-
-      expect(peer['y'].users.has(OTHER)).toBe(false);
-      expect(peer['_lastGoodUser'].has(OTHER)).toBe(false);
-    });
-
-    test('our own deleted entry is re-written by the heartbeat, keeping room and handRaised', async () => {
-      const id = peer['peerID'];
-      peer.gotoRoom('Room 1');
-      await vi.advanceTimersByTimeAsync(0);
-      await peer['_writeAndSignUser'](id, peer['_nextUserPayload'](id, { handRaised: true }), 'raiseHand');
-      const joined = peer.user().get('dateJoined');
-
-      deleteUser(id);
-      await vi.advanceTimersByTimeAsync(0);
-      expect(peer['y'].users.has(id)).toBe(false);
-
-      await vi.advanceTimersByTimeAsync(5000);
-
-      expect(peer.user().toJSON()).toMatchObject({ room: 'Room 1', handRaised: true, dateJoined: joined });
-      expect(peer['y'].userSigs.has(id)).toBe(true);
-    });
-
-    test('toJSON re-adds our own deleted entry before serializing', async () => {
-      const id = peer['peerID'];
-      peer.gotoRoom('Room 1');
-      await vi.advanceTimersByTimeAsync(0);
-
-      deleteUser(id);
-      const json = await peer.toJSON();
-
-      expect(json.users[id]).toMatchObject({ room: 'Room 1' });
-    });
-
-    test('a member excluded after being cached is purged, not restored from cache', async () => {
-      addOtherUser();
-      await vi.advanceTimersByTimeAsync(0);
-      expect(peer['_lastGoodUser'].has(OTHER)).toBe(true);
-
-      // Owner closes the allowlist without OTHER.
       peer['lab'].data.members.student = ['someone-else'];
+      peer['_reverifyAfterSetup']();
 
-      // OTHER writes a fresh, validly signed entry.
-      peer['y'].doc.transact(() => {
-        const m = new Y.Map();
-        m.set('displayName', 'Other');
-        m.set('room', 'Room 1');
-        peer['y'].users.set(OTHER, m);
-        peer['y'].userSigs.set(OTHER, { signer: 'other-pub', nonce: 2, signature: 'sig' });
-      }, 'remote');
-      await vi.advanceTimersByTimeAsync(0);
-
-      expect(peer['y'].users.has(OTHER)).toBe(false);
-      expect(peer['_lastGoodUser'].has(OTHER)).toBe(false);
+      expect(peer['presence'].has('other-pub_s1')).toBe(false);
     });
 
-    test('a peer that may not participate does not re-add itself', async () => {
-      const id = peer['peerID'];
-      peer['lab'].data = { ...peer['lab'].data, createdBy: 'other-owner', members: { teacher: [], student: ['someone-else'] } };
-      expect(peer.allowedToParticipate()).toBe(false);
-
-      deleteUser(id);
-      await peer.toJSON();
-      await vi.advanceTimersByTimeAsync(10000);
-
-      expect(peer['y'].users.has(id)).toBe(false);
-    });
-
-    test('a stopped peer does not re-add itself', async () => {
-      const id = peer['peerID'];
+    test('a stopped peer clears its presence', () => {
+      const aw = peer['presence']['awareness'];
+      expect(aw.getLocalState().presence).toBeTruthy();
       peer.stop();
-      expect(peer['y'].users.has(id)).toBe(false);
-
-      await peer['_healOwnEntry']();
-      await vi.advanceTimersByTimeAsync(10000);
-
-      expect(peer['y'].users.has(id)).toBe(false);
+      expect(aw.getLocalState()?.presence ?? null).toBeNull();
     });
 
-    test('a shut-down station does not re-add itself', async () => {
-      const station = new Peer(setup, 'stn1', i18n.global.t);
-      await vi.advanceTimersByTimeAsync(0);
-      await station.join('station');
-      await vi.advanceTimersByTimeAsync(0);
-      const id = station['peerID'];
-      expect(station['y'].users.has(id)).toBe(true);
-
-      station.stop();
-      await vi.advanceTimersByTimeAsync(0);
-      expect(station['y'].users.has(id)).toBe(false);
-
-      await station['_healOwnEntry']();
-      await vi.advanceTimersByTimeAsync(10000);
-
-      expect(station['y'].users.has(id)).toBe(false);
+    test('a role change keeps the room', async () => {
+      peer.gotoRoom('Room 1');
+      await peer.join('teacher');
+      expect(peer.user().room).toBe('Room 1');
     });
   });
 
@@ -1135,16 +992,15 @@ describe('Peer Class', () => {
   describe('membership changes', () => {
     const ME = 'test-peer-id';
     test.each([
-      ['removed as teacher', { teacher: [ME], student: [] }, { teacher: [], student: [] }, 'removedTeacher', 'student'],
-      ['added as teacher', { teacher: [], student: [] }, { teacher: [ME], student: [] }, 'addedTeacher', 'teacher'],
-      ['added to the student allowlist', { teacher: [], student: ['other'] }, { teacher: [], student: [ME] }, 'addedStudent', null],
-      ['allowlist opened to everyone', { teacher: [], student: ['other'] }, { teacher: [], student: ['*'] }, 'addedStudent', null],
-      ['removed from the student allowlist', { teacher: [], student: [ME] }, { teacher: [], student: ['other'] }, 'removedStudent', null],
-      ['allowlist closed without me', { teacher: [], student: [] }, { teacher: [], student: ['other'] }, 'removedStudent', null],
-    ])('%s: tells the user and updates their own role', async (_case, oldMembers, newMembers, popup, role) => {
+      ['removed as teacher', { teacher: [ME], student: [] }, { teacher: [], student: [] }, 'removedTeacher'],
+      ['added as teacher', { teacher: [], student: [] }, { teacher: [ME], student: [] }, 'addedTeacher'],
+      ['added to the student allowlist', { teacher: [], student: ['other'] }, { teacher: [], student: [ME] }, 'addedStudent'],
+      ['allowlist opened to everyone', { teacher: [], student: ['other'] }, { teacher: [], student: ['*'] }, 'addedStudent'],
+      ['removed from the student allowlist', { teacher: [], student: [ME] }, { teacher: [], student: ['other'] }, 'removedStudent'],
+      ['allowlist closed without me', { teacher: [], student: [] }, { teacher: [], student: ['other'] }, 'removedStudent'],
+    ])('%s: tells the user', async (_case, oldMembers, newMembers, popup) => {
       i18n.global.locale.value = 'en';
       peer['t'] = i18n.global.t;
-      if (role) peer.user().set('role', role === 'student' ? 'teacher' : 'student');
       const updateSpy = vi.spyOn(peer as any, 'update');
 
       peer.logSetupChanges({ members: oldMembers }, { members: newMembers });
@@ -1152,7 +1008,6 @@ describe('Peer Class', () => {
 
       const popups = updateSpy.mock.calls.filter(([event]) => event === 'popup');
       expect(popups).toEqual([['popup', messages.en.peer.feedback[popup]]]);
-      if (role) expect(peer.user().get('role')).toBe(role);
     });
   });
 });

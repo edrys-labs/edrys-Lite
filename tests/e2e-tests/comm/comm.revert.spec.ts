@@ -8,8 +8,8 @@ import { eventually, marker } from './helpers'
  * The revert consumes the reverting client's Yjs clock; if it is never sent,
  * every later update from that client lacks its predecessor on the other
  * peers and is parked as pending forever — the peer silently stops
- * propagating. Here a third peer forges an unsigned edit of the owner's
- * entry, so owner and guest both revert it, then must still see each other.
+ * propagating. Here a third peer forges an unsigned room, so owner and
+ * guest both revert it, then must still see each other's writes.
  */
 test.describe('Comm — after a revert', () => {
   let owner: Session | undefined
@@ -32,10 +32,14 @@ test.describe('Comm — after a revert', () => {
   })
 
   test('peers that reverted a forged change keep propagating their own writes', async () => {
-    const ownerId = JSON.stringify(owner!.peerId)
-    await inPeer(attacker!.page, `p.y.doc.transact(() => p.y.users.get(${ownerId}).set('room', 'Forged')); return true`)
+    await inPeer(
+      attacker!.page,
+      `const Ctor = p.y.rooms.get('Lobby').constructor;
+       p.y.doc.transact(() => p.y.rooms.set('Forged', new Ctor()));
+       return true`
+    )
     await syncWait()
-    const intact = `return v.users[${ownerId}]?.room === 'Lobby'`
+    const intact = `return !p.y.rooms.has('Forged') && !('Forged' in v.rooms)`
     await eventually(owner!, intact, 'owner reverted the forged room')
     await eventually(guest!, intact, 'guest reverted the forged room')
 

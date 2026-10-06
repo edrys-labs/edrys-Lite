@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import * as Y from 'yjs'
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import { i18n } from '../../../setup'
 
 // y.rooms sidecar signing integration test.
@@ -32,6 +33,7 @@ vi.mock('../../../../src/ts/GenericProviderAdapter', () => ({
     sendMessage: vi.fn(),
     disconnect: vi.fn(),
     destroy: vi.fn(),
+    getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
   })),
 }))
 vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
@@ -42,6 +44,7 @@ vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
     sendMessage: vi.fn(),
     disconnect: vi.fn(),
     destroy: vi.fn(),
+    getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
   })),
 }))
 
@@ -262,7 +265,7 @@ describe('Signed y.rooms', () => {
     await flushPromises()
     peer.gotoRoom('Discussion')
     await flushPromises()
-    expect(peer.user().get('room')).toBe('Discussion')
+    expect(peer.user().room).toBe('Discussion')
 
     // Seed the cache via a remote sync round-trip.
     const ackDoc = new Y.Doc()
@@ -287,7 +290,7 @@ describe('Signed y.rooms', () => {
     // The room is healed back from cache, and the user stays in Discussion
     // (move-to-Lobby is gated on local-origin deletes only).
     expect(peer['y'].rooms.has('Discussion')).toBe(true)
-    expect(peer.user().get('room')).toBe('Discussion')
+    expect(peer.user().room).toBe('Discussion')
 
     peer.stop()
     attackerDoc.destroy()
@@ -295,7 +298,7 @@ describe('Signed y.rooms', () => {
   })
 
   // A station and a participant, both run by the owner, with the station's
-  // doc updates relayed into the participant's doc.
+  // doc updates and presence relayed to the participant.
   async function stationWithParticipant() {
     await Utils.initCryptoIdentity()
     const owner = Utils.getPeerID(false)
@@ -304,105 +307,60 @@ describe('Signed y.rooms', () => {
     const participant: any = new Peer(makeSetup(owner), undefined, i18n.global.t)
     await flushPromises()
     await flushPromises()
-    await station.join('station')
-    await participant.join('student')
-    await flushPromises()
 
+    const from = station['presence']['awareness']
+    const to = participant['presence']['awareness']
+    from.on('update', ({ added, updated, removed }: any) => {
+      const changed = added.concat(updated, removed)
+      applyAwarenessUpdate(to, encodeAwarenessUpdate(from, changed), 'relay')
+    })
     station['y'].doc.on('update', (u: Uint8Array) => Y.applyUpdate(participant['y'].doc, u, 'relay'))
     Y.applyUpdate(participant['y'].doc, Y.encodeStateAsUpdate(station['y'].doc), 'relay')
-    await flushPromises()
-    await flushPromises()
 
-    expect(participant['y'].rooms.has('Station stn1')).toBe(true)
-    expect(participant['y'].users.has('Station stn1')).toBe(true)
+    await station.join('station')
+    await participant.join('student')
+    participant['connected'] = true
+    for (let i = 0; i < 4; i++) await flushPromises()
+
+    const view = await participant.toJSON()
+    expect('Station stn1' in view.rooms).toBe(true)
+    expect(view.users['Station stn1']).toMatchObject({ role: 'station', room: 'Station stn1' })
     return { station, participant }
   }
 
-  test('station shutdown removes the station everywhere and moves its visitors to Lobby', async () => {
+  test('a stopped station disappears everywhere and its visitors move to Lobby', async () => {
     const { station, participant } = await stationWithParticipant()
     participant.gotoRoom('Station stn1')
-    await flushPromises()
 
     station.stop()
-    await flushPromises()
-    await flushPromises()
-    await flushPromises()
+    for (let i = 0; i < 3; i++) await flushPromises()
 
-    // The signed tombstones are accepted, not healed back from cache.
-    expect(participant['y'].rooms.has('Station stn1')).toBe(false)
-    expect(participant['y'].users.has('Station stn1')).toBe(false)
-    expect(participant.user().get('room')).toBe('Lobby')
+    const view = await participant.toJSON()
+    expect('Station stn1' in view.rooms).toBe(false)
+    expect(view.users['Station stn1']).toBeUndefined()
+    participant['_leaveMissingRoom']()
+    participant['_leaveMissingRoom']()
+    expect(participant.user().room).toBe('Lobby')
 
     participant.stop()
   })
 
-  test('a station tombstone signed by a non-owner/teacher is healed by the station', async () => {
+  test("deleting a present station's room from the doc does not remove it from the view", async () => {
     const { station, participant } = await stationWithParticipant()
-
-    vi.resetModules()
-    mockDb.getPublicKeyRaw.mockResolvedValue(null)
-    mockDb.getPrivateKey.mockResolvedValue(null)
-    const AttackerUtils: any = await import('../../../../src/ts/Utils')
-    await AttackerUtils.initCryptoIdentity()
-    const tombstone = { tombstone: true }
-    const userTomb = await AttackerUtils.signEntry('users', 'Station stn1', tombstone)
-    const roomTomb = await AttackerUtils.signEntry('rooms', 'Station stn1', tombstone)
 
     const attackerDoc = new Y.Doc()
     Y.applyUpdate(attackerDoc, Y.encodeStateAsUpdate(participant['y'].doc))
     attackerDoc.transact(() => {
-      attackerDoc.getMap('users').delete('Station stn1')
-      attackerDoc.getMap('userSigs').set('Station stn1', userTomb)
       attackerDoc.getMap('rooms').delete('Station stn1')
-      attackerDoc.getMap('roomSigs').set('Station stn1', roomTomb)
+      attackerDoc.getMap('roomSigs').delete('Station stn1')
     })
     Y.applyUpdate(participant['y'].doc, Y.encodeStateAsUpdate(attackerDoc))
-    await flushPromises()
-    await flushPromises()
-    await flushPromises()
+    for (let i = 0; i < 3; i++) await flushPromises()
 
-    // The room is healed from cache; the presence delete is accepted.
-    expect(participant['y'].rooms.has('Station stn1')).toBe(true)
-    expect(participant['y'].users.has('Station stn1')).toBe(false)
-
-    // Once the forgery reaches the station, it re-adds its own entry.
-    Y.applyUpdate(station['y'].doc, Y.encodeStateAsUpdate(attackerDoc))
-    await flushPromises()
-    await station.toJSON()
-    await flushPromises()
-
-    expect(participant['y'].users.has('Station stn1')).toBe(true)
-    expect(participant['y'].users.get('Station stn1').get('room')).toBe('Station stn1')
+    expect('Station stn1' in (await participant.toJSON()).rooms).toBe(true)
 
     station.stop()
     participant.stop()
     attackerDoc.destroy()
-  })
-
-  test('local delete (checkForDeadStations) still moves user to Lobby and removes sig', async () => {
-    await Utils.initCryptoIdentity()
-    const myPubKey = Utils.getPeerID(false)
-
-    const peer: any = new Peer(makeSetup(myPubKey), undefined, i18n.global.t)
-    await flushPromises()
-    await flushPromises()
-    await peer.join('student')
-    await flushPromises()
-
-    peer.addRoom('TmpRoom')
-    await flushPromises()
-    peer.gotoRoom('TmpRoom')
-    await flushPromises()
-    expect(peer.user().get('room')).toBe('TmpRoom')
-
-    // Local delete via the internal helper.
-    peer['_deleteAndUnsignRoom']('TmpRoom', 'checkForDeadStations')
-    await flushPromises()
-
-    expect(peer['y'].rooms.has('TmpRoom')).toBe(false)
-    expect(peer['y'].roomSigs.has('TmpRoom')).toBe(false)
-    expect(peer.user().get('room')).toBe('Lobby')
-
-    peer.stop()
   })
 })

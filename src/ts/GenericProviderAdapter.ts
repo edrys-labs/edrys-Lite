@@ -77,6 +77,11 @@ export class GenericWebrtcProviderAdapter {
     return this.provider.appAwareness
   }
 
+  /** Main awareness channel; carries signed presence. */
+  getPresenceAwareness(): any {
+    return this.provider.awareness
+  }
+
   onLeave(callback: (userid: string) => void) {
     this.transport.onLeave(callback)
   }

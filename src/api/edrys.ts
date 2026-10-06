@@ -411,9 +411,12 @@ const edrysProxyValidator = (path) => ({
   },
 })
 
+// Present users, as last handed over by the parent (not part of the doc).
+var liveUsers: Record<string, any> = {}
+
 function update() {
   const liveClass = {
-    users: doc.getMap('users').toJSON(),
+    users: JSON.parse(JSON.stringify(liveUsers)),
     rooms: doc.getMap('rooms').toJSON(),
   }
 
@@ -427,7 +430,9 @@ function update() {
 
   window['Edrys'].liveClass = new Proxy(liveClass, edrysProxyValidator(''))
   window['Edrys'].liveUser = liveClass.users[window['Edrys'].username]
-  window['Edrys'].liveRoom = liveClass.rooms[window['Edrys'].liveUser.room]
+  window['Edrys'].liveRoom = window['Edrys'].liveUser
+    ? liveClass.rooms[window['Edrys'].liveUser.room]
+    : undefined
   //window['Edrys'].liveRoom.name = window['Edrys'].liveUser.room
 }
 
@@ -462,7 +467,6 @@ window.addEventListener(
           awareness = new YP.Awareness(doc)
           awarenessManager = new RoomAwarenessManager(awareness)
 
-          doc.getMap('users')
           doc.getMap('rooms')
 
           doc.on('update', (state, origin) => {
@@ -499,10 +503,6 @@ window.addEventListener(
                     // debug.api.general('ROOM UPDATE')
                     dispatchUpdate()
                   })
-
-                doc.getMap('users').observeDeep((_event, _transact) => {
-                  dispatchUpdate()
-                })
 
                 // needs to be called initially
                 setTimeout(function () {
@@ -556,6 +556,13 @@ window.addEventListener(
         } catch (e) {}
 
         window['Edrys'].class_id = e.data.class_id
+
+        if (e.data.users) {
+          const changed = JSON.stringify(e.data.users) !== JSON.stringify(liveUsers)
+          liveUsers = e.data.users
+          if (changed && window['Edrys'].ready) dispatchUpdate()
+          else if (changed && liveClass) update()
+        }
 
         if (e.data.liveClass) {
           liveClass = true

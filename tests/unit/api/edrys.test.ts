@@ -34,8 +34,8 @@ function sendFromParent(data: any, origin = ORIGIN) {
 
 function sendInitialUpdate(overrides: any = {}) {
   const liveClass = buildLiveClassUpdate((doc) => {
-    const users = doc.getMap('users');
-    users.set('alice', { room: 'Room A' });
+    // Users in the doc are ignored; present users come with the message.
+    doc.getMap('users').set('mallory', { room: 'Room A' });
     const rooms = doc.getMap('rooms');
     rooms.set('Room A', new Y.Map());
   });
@@ -54,6 +54,7 @@ function sendInitialUpdate(overrides: any = {}) {
     },
     class_id: 'class-1',
     liveClass,
+    users: { alice: { room: 'Room A' } },
     ...overrides,
   });
 }
@@ -114,6 +115,14 @@ describe('edrys.ts (module API bridge)', () => {
     // dispatch is scheduled behind a 1s timeout, but liveClass/liveUser are set immediately.
     expect(window['Edrys'].liveUser).toEqual({ room: 'Room A', name: 'alice' });
     expect(window['Edrys'].liveRoom).toEqual({});
+    expect(Object.keys(window['Edrys'].liveClass.users)).toEqual(['alice']);
+  });
+
+  test('a users-only update from the parent refreshes liveClass', () => {
+    sendInitialUpdate();
+    sendInitialUpdate({ liveClass: undefined, users: { alice: { room: 'Room A' }, bob: { room: 'Lobby' } } });
+
+    expect(Object.keys(window['Edrys'].liveClass.users)).toEqual(['alice', 'bob']);
   });
 
   test('sendMessage encodes the body and posts to the trusted parent origin', () => {

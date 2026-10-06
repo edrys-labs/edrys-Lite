@@ -84,6 +84,8 @@ export default {
             role: this.role,
             username: this.username,
             liveClass: this.liveClassProxy.doc,
+            // Present users are not in the doc; the parent hands over the verified view.
+            users: JSON.parse(JSON.stringify(this.liveClassProxy.users)),
             module: JSON.parse(JSON.stringify(this.scrapedModule)),
             class_id: this.class_id,
           },

@@ -116,6 +116,11 @@ export class GenericWebsocketProviderAdapter {
     return this.provider.appAwareness
   }
 
+  /** Main awareness channel; carries signed presence beside the identity heartbeat. */
+  getPresenceAwareness(): any {
+    return this.awareness
+  }
+
   onLeave(callback: (userid: string) => void) {
     this._leaveListener = callback
   }
