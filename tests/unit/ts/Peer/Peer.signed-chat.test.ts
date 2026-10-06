@@ -115,6 +115,19 @@ describe('Signed y.chat', () => {
     peer.stop()
   })
 
+  test('each inserted entry is verified once, however often initChat/join run', async () => {
+    const { peer } = await bootPeer()
+    peer.initChat()
+    await peer.join('student')
+    const verify = vi.spyOn(peer, '_verifyChatEntry')
+
+    await peer.sendMessage('once')
+    await flushPromises()
+
+    expect(verify).toHaveBeenCalledTimes(1)
+    peer.stop()
+  })
+
   test('valid signed message appears in update("chat") output', async () => {
     const { peer } = await bootPeer()
 

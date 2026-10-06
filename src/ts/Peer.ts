@@ -1059,24 +1059,27 @@ export default class Peer {
     }
   }
 
+  private _hasChatObserver: boolean = false
+
+  /** Verifies inserted chat entries; installs its observer once, across reconnects. */
   initChat() {
-    this.y.doc.transact(() => {
-      this.y.chat.observe(async (event) => {
-        let base = 0
-        for (const delta of event.changes.delta) {
-          if (delta.retain !== undefined) {
-            base += delta.retain
-          } else if (delta.insert !== undefined) {
-            const inserted = delta.insert as any[]
-            for (let i = 0; i < inserted.length; i++) {
-              await this._verifyChatEntry(base + i)
-            }
-            base += inserted.length
+    if (this._hasChatObserver) return
+    this._hasChatObserver = true
+    this.y.chat.observe(async (event) => {
+      let base = 0
+      for (const delta of event.changes.delta) {
+        if (delta.retain !== undefined) {
+          base += delta.retain
+        } else if (delta.insert !== undefined) {
+          const inserted = delta.insert as any[]
+          for (let i = 0; i < inserted.length; i++) {
+            await this._verifyChatEntry(base + i)
           }
+          base += inserted.length
         }
-        this.update('chat')
-      })
-    }, 'initChat')
+      }
+      this.update('chat')
+    })
   }
 
   /**
@@ -1440,7 +1443,6 @@ export default class Peer {
   async join(role: 'student' | 'teacher' | 'station') {
     this.initUser(role)
     this.initRooms()
-    this.initChat()
 
     this.throttledUpdate()
   }
