@@ -47,7 +47,11 @@ test.describe('Comm — leave and reload', () => {
     await waitForVerified(owner!, guest!)
     await guest!.context.close()
     await eventually(owner!, `return !(${JSON.stringify(id)} in v.users)`, 'owner dropped the closed peer', 45000)
-    expect(ownerLog.some((l) => l.includes(LEFT) && l.includes(id)), 'owner logged the leave').toBe(true)
+    // Over WS the relay's awareness removal hides the peer before the
+    // heartbeat timeout reports the leave, so the log can come later.
+    await expect
+      .poll(() => ownerLog.some((l) => l.includes(LEFT) && l.includes(id)), { message: 'owner logged the leave', timeout: 30000 })
+      .toBe(true)
     guest = undefined
   })
 

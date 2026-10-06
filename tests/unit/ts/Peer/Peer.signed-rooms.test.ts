@@ -3,8 +3,8 @@ import * as Y from 'yjs'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import { i18n } from '../../../setup'
 
-// y.rooms sidecar signing integration test.
-// Mirrors Peer.signed-users.test.ts: real Utils (real WebCrypto), mocked
+// Signed room records (y.roomSigs), verified on read.
+// Real Utils (real WebCrypto), mocked
 // Database (fresh crypto identity per test) and mocked providers (no network).
 
 const flushPromises = () => new Promise<void>((r) => setTimeout(r, 10))
@@ -98,7 +98,7 @@ describe('Signed y.rooms', () => {
     peer.stop()
   })
 
-  test('default rooms (Lobby) are signed when joining', async () => {
+  test('joining seeds Lobby state without a record and signs default rooms', async () => {
     await Utils.initCryptoIdentity()
     const myPubKey = Utils.getPeerID(false)
 
@@ -113,188 +113,184 @@ describe('Signed y.rooms', () => {
     await flushPromises()
 
     expect(peer['y'].rooms.has('Lobby')).toBe(true)
+    expect(peer['y'].roomSigs.has('Lobby')).toBe(false)
     expect(peer['y'].rooms.has('Room 1')).toBe(true)
-
-    const lobbyEnv = peer['y'].roomSigs.get('Lobby')
-    expect(lobbyEnv).toBeDefined()
-    const lobbyValid = await Utils.verifyEntry('rooms', 'Lobby', {}, lobbyEnv)
-    expect(lobbyValid).toBe(true)
-
     const roomEnv = peer['y'].roomSigs.get('Room 1')
-    expect(roomEnv).toBeDefined()
-    const roomValid = await Utils.verifyEntry('rooms', 'Room 1', {}, roomEnv)
-    expect(roomValid).toBe(true)
+    expect(await Utils.verifyEntry('rooms', 'Room 1', {}, roomEnv)).toBe(true)
+
+    expect(Object.keys((await peer.toJSON()).rooms)).toEqual(['Lobby', 'Room 1'])
 
     peer.stop()
   })
 
-  test('unsigned remote room is reverted by the local observer', async () => {
-    await Utils.initCryptoIdentity()
-    const myPubKey = Utils.getPeerID(false)
-
-    const peer: any = new Peer(makeSetup(myPubKey), undefined, i18n.global.t)
-    await flushPromises()
-    await flushPromises()
-    // join() seeds the rooms and wires the observer.
-    await peer.join('student')
-    await flushPromises()
-
-    // Attacker doc creates an unsigned room and syncs into ours.
-    const attackerDoc = new Y.Doc()
-    attackerDoc.clientID = 1
-    const attackerRooms = attackerDoc.getMap('rooms')
-    attackerDoc.transact(() => {
-      attackerRooms.set('Station fakeStn', new Y.Map())
-    })
-
-    Y.applyUpdate(peer['y'].doc, Y.encodeStateAsUpdate(attackerDoc))
-    await flushPromises()
-    await flushPromises()
-
-    expect(peer['y'].rooms.has('Station fakeStn')).toBe(false)
-
-    peer.stop()
-    attackerDoc.destroy()
-  })
-
-  test('remote station room created by a non-owner/teacher signer is reverted', async () => {
-    // Owner identity
-    await Utils.initCryptoIdentity()
-    const myPubKey = Utils.getPeerID(false)
-
-    const peer: any = new Peer(makeSetup(myPubKey), undefined, i18n.global.t)
-    await flushPromises()
-    await flushPromises()
-    await peer.join('student')
-    await flushPromises()
-
-    // Attacker identity with its own keypair
+  // Another identity, for attackers and second teachers.
+  async function otherIdentity() {
     vi.resetModules()
     mockDb.getPublicKeyRaw.mockResolvedValue(null)
     mockDb.getPrivateKey.mockResolvedValue(null)
-    const AttackerUtils: any = await import('../../../../src/ts/Utils')
-    await AttackerUtils.initCryptoIdentity()
-    const attackerPubKey = AttackerUtils.getPeerID(false)
-    expect(attackerPubKey).not.toBe(myPubKey)
+    const OtherUtils: any = await import('../../../../src/ts/Utils')
+    await OtherUtils.initCryptoIdentity()
+    return OtherUtils
+  }
 
-    // Attacker signs a station room with their own (unauthorized) key.
-    const envelope = await AttackerUtils.signEntry('rooms', 'Station evil', {})
-
-    const attackerDoc = new Y.Doc()
-    attackerDoc.clientID = 2
-    const attackerRooms = attackerDoc.getMap('rooms')
-    const attackerSigs = attackerDoc.getMap('roomSigs')
-    attackerDoc.transact(() => {
-      attackerRooms.set('Station evil', new Y.Map())
-      attackerSigs.set('Station evil', envelope)
-    })
-
-    Y.applyUpdate(peer['y'].doc, Y.encodeStateAsUpdate(attackerDoc))
+  async function joinedOwner(teachers: string[] = []) {
+    await Utils.initCryptoIdentity()
+    const owner = Utils.getPeerID(false)
+    const peer: any = new Peer(makeSetup(owner, 0, teachers), undefined, i18n.global.t)
     await flushPromises()
     await flushPromises()
+    await peer.join('teacher')
+    await flushPromises()
+    return peer
+  }
 
-    // Signature is valid but signer is neither owner nor teacher → reverted.
-    expect(peer['y'].rooms.has('Station evil')).toBe(false)
+  // Applies `change` to a copy of the peer's doc and syncs it back.
+  async function remoteChange(peer: any, change: (doc: Y.Doc) => void) {
+    const other = new Y.Doc()
+    Y.applyUpdate(other, Y.encodeStateAsUpdate(peer['y'].doc))
+    other.transact(() => change(other))
+    Y.applyUpdate(peer['y'].doc, Y.encodeStateAsUpdate(other))
+    for (let i = 0; i < 3; i++) await flushPromises()
+    other.destroy()
+  }
+
+  test('an unsigned remote room stays out of the view and is not deleted', async () => {
+    const peer = await joinedOwner()
+
+    await remoteChange(peer, (doc) => doc.getMap('rooms').set('Forged', new Y.Map()))
+
+    expect(peer['y'].rooms.has('Forged')).toBe(true)
+    expect('Forged' in (await peer.toJSON()).rooms).toBe(false)
 
     peer.stop()
-    attackerDoc.destroy()
   })
 
-  test('remote delete of a legitimate room is healed from cache', async () => {
-    await Utils.initCryptoIdentity()
-    const myPubKey = Utils.getPeerID(false)
+  test('records signed by someone other than the owner or a teacher are ignored', async () => {
+    const peer = await joinedOwner()
+    const Attacker = await otherIdentity()
 
-    const peer: any = new Peer(makeSetup(myPubKey), undefined, i18n.global.t)
-    await flushPromises()
-    await flushPromises()
-    await peer.join('student')
-    await flushPromises()
-
-    // Owner adds a legitimate station room.
-    peer.addRoom('Station stn1')
-    await flushPromises()
-    expect(peer['y'].rooms.has('Station stn1')).toBe(true)
-    // Ensure last-good cache is populated by walking through one observer cycle
-    // — explicitly trigger by syncing the same room back from a peer doc.
-    // (addRoom origin is 'addRoom' which is local-skip; we need a remote-origin
-    // visit to seed the cache. Simulate by having another peer ack the room.)
-    const ackDoc = new Y.Doc()
-    ackDoc.clientID = 3
-    Y.applyUpdate(ackDoc, Y.encodeStateAsUpdate(peer['y'].doc))
-    Y.applyUpdate(peer['y'].doc, Y.encodeStateAsUpdate(ackDoc))
-    await flushPromises()
-    await flushPromises()
-
-    // Attacker doc starts from our state, then deletes the station room.
-    const attackerDoc = new Y.Doc()
-    attackerDoc.clientID = 4
-    Y.applyUpdate(attackerDoc, Y.encodeStateAsUpdate(peer['y'].doc))
-    attackerDoc.transact(() => {
-      attackerDoc.getMap('rooms').delete('Station stn1')
-      attackerDoc.getMap('roomSigs').delete('Station stn1')
+    const evil = await Attacker.signEntry('rooms', 'Evil', {})
+    const station = await Attacker.signEntry('rooms', 'Station evil', {})
+    await remoteChange(peer, (doc) => {
+      doc.getMap('rooms').set('Evil', new Y.Map())
+      doc.getMap('roomSigs').set('Evil', evil)
+      doc.getMap('roomSigs').set('Station evil', station)
     })
 
-    Y.applyUpdate(peer['y'].doc, Y.encodeStateAsUpdate(attackerDoc))
-    await flushPromises()
-    await flushPromises()
-
-    // Local observer must restore the deleted room from cached envelope.
-    expect(peer['y'].rooms.has('Station stn1')).toBe(true)
-    const env = peer['y'].roomSigs.get('Station stn1')
-    expect(env).toBeDefined()
-    const valid = await Utils.verifyEntry('rooms', 'Station stn1', {}, env)
-    expect(valid).toBe(true)
+    const { rooms } = await peer.toJSON()
+    expect('Evil' in rooms).toBe(false)
+    expect('Station evil' in rooms).toBe(false)
+    // Nobody wrote a correction.
+    expect(peer['y'].roomSigs.get('Evil')).toEqual(evil)
 
     peer.stop()
-    attackerDoc.destroy()
-    ackDoc.destroy()
   })
 
-  test('user is NOT moved to Lobby when a remote attacker deletes their current room', async () => {
-    await Utils.initCryptoIdentity()
-    const myPubKey = Utils.getPeerID(false)
-
-    const peer: any = new Peer(makeSetup(myPubKey), undefined, i18n.global.t)
-    await flushPromises()
-    await flushPromises()
-    await peer.join('student')
-    await flushPromises()
-
-    // Owner creates a room and moves there.
+  test('the owner republishes a deleted room; it stays in the view throughout', async () => {
+    const peer = await joinedOwner()
     peer.addRoom('Discussion')
     await flushPromises()
-    peer.gotoRoom('Discussion')
-    await flushPromises()
-    expect(peer.user().room).toBe('Discussion')
+    const record = peer['y'].roomSigs.get('Discussion')
 
-    // Seed the cache via a remote sync round-trip.
-    const ackDoc = new Y.Doc()
-    ackDoc.clientID = 5
-    Y.applyUpdate(ackDoc, Y.encodeStateAsUpdate(peer['y'].doc))
-    Y.applyUpdate(peer['y'].doc, Y.encodeStateAsUpdate(ackDoc))
-    await flushPromises()
-    await flushPromises()
-
-    // Attacker deletes the room remotely.
-    const attackerDoc = new Y.Doc()
-    attackerDoc.clientID = 6
-    Y.applyUpdate(attackerDoc, Y.encodeStateAsUpdate(peer['y'].doc))
-    attackerDoc.transact(() => {
-      attackerDoc.getMap('rooms').delete('Discussion')
-      attackerDoc.getMap('roomSigs').delete('Discussion')
+    await remoteChange(peer, (doc) => {
+      doc.getMap('rooms').delete('Discussion')
+      doc.getMap('roomSigs').delete('Discussion')
     })
-    Y.applyUpdate(peer['y'].doc, Y.encodeStateAsUpdate(attackerDoc))
-    await flushPromises()
-    await flushPromises()
 
-    // The room is healed back from cache, and the user stays in Discussion
-    // (move-to-Lobby is gated on local-origin deletes only).
-    expect(peer['y'].rooms.has('Discussion')).toBe(true)
-    expect(peer.user().room).toBe('Discussion')
+    expect('Discussion' in (await peer.toJSON()).rooms).toBe(true)
+    expect(peer['y'].rooms.get('Discussion')).toBeInstanceOf(Y.Map)
+    expect(peer['y'].roomSigs.get('Discussion')).toEqual(record)
 
     peer.stop()
-    attackerDoc.destroy()
-    ackDoc.destroy()
+  })
+
+  test('the owner republishes a record overwritten with garbage', async () => {
+    const peer = await joinedOwner()
+    peer.addRoom('Discussion')
+    await flushPromises()
+    const record = peer['y'].roomSigs.get('Discussion')
+
+    await remoteChange(peer, (doc) =>
+      doc.getMap('roomSigs').set('Discussion', { ...record, signature: 'AAAA' }))
+
+    expect('Discussion' in (await peer.toJSON()).rooms).toBe(true)
+    expect(peer['y'].roomSigs.get('Discussion')).toEqual(record)
+
+    peer.stop()
+  })
+
+  test('a student keeps a deleted room in its view without writing it back', async () => {
+    const owner = await joinedOwner()
+    owner.addRoom('Discussion')
+    await flushPromises()
+
+    const student: any = new Peer(makeSetup(Utils.getPeerID(false)), undefined, i18n.global.t)
+    await flushPromises()
+    await flushPromises()
+    student.role = 'student'
+    student['lab'].data.createdBy = 'someone-else'
+    student['lab'].data.members.teacher = [Utils.getPeerID(false)]
+    Y.applyUpdate(student['y'].doc, Y.encodeStateAsUpdate(owner['y'].doc))
+    for (let i = 0; i < 3; i++) await flushPromises()
+    student.gotoRoom('Discussion')
+
+    const writes: any[] = []
+    student['y'].doc.on('update', (_u: Uint8Array, origin: any) => writes.push(origin))
+    await remoteChange(student, (doc) => {
+      doc.getMap('rooms').delete('Discussion')
+      doc.getMap('roomSigs').delete('Discussion')
+    })
+
+    expect('Discussion' in (await student.toJSON()).rooms).toBe(true)
+    expect(student['y'].roomSigs.has('Discussion')).toBe(false)
+    expect(writes.filter((o) => o === 'republishRoom')).toEqual([])
+    student['connected'] = true
+    student['_leaveMissingRoom']()
+    student['_leaveMissingRoom']()
+    expect(student.user().room).toBe('Discussion')
+
+    owner.stop()
+    student.stop()
+  })
+
+  test('two teachers with different valid records for a room do not fight', async () => {
+    const Teacher = await otherIdentity()
+    const peer = await joinedOwner([Teacher.getPeerID(false)])
+    peer.addRoom('Shared')
+    await flushPromises()
+
+    const theirs = await Teacher.signEntry('rooms', 'Shared', {})
+    const writes: any[] = []
+    peer['y'].doc.on('update', (_u: Uint8Array, origin: any) => writes.push(origin))
+    await remoteChange(peer, (doc) => doc.getMap('roomSigs').set('Shared', theirs))
+
+    expect(peer['y'].roomSigs.get('Shared')).toEqual(theirs)
+    expect(writes.filter((o) => o === 'republishRoom')).toEqual([])
+    expect('Shared' in (await peer.toJSON()).rooms).toBe(true)
+
+    peer.stop()
+  })
+
+  test('a record that arrives before the setup shows once the owner is known', async () => {
+    await Utils.initCryptoIdentity()
+    const owner = Utils.getPeerID(false)
+    const record = await Utils.signEntry('rooms', 'Early', {})
+
+    const peer: any = new Peer(makeSetup(''), undefined, i18n.global.t)
+    await flushPromises()
+    await flushPromises()
+    await remoteChange(peer, (doc) => {
+      doc.getMap('rooms').set('Early', new Y.Map())
+      doc.getMap('roomSigs').set('Early', record)
+    })
+    expect('Early' in (await peer.toJSON()).rooms).toBe(false)
+
+    peer['lab'].data.createdBy = owner
+    peer['_reverifyAfterSetup']()
+    await flushPromises()
+    expect('Early' in (await peer.toJSON()).rooms).toBe(true)
+
+    peer.stop()
   })
 
   // A station and a participant, both run by the owner, with the station's

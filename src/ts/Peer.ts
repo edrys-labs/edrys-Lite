@@ -15,7 +15,6 @@ import {
   stripPubKey,
   signEntry,
   verifyEntry,
-  REVERT_INVALID_ORIGIN,
   Envelope,
 } from './Utils'
 import * as Y from 'yjs'
@@ -90,9 +89,8 @@ export function isAuthorizedUserSigner(
   return stripPubKey(pubkeyPart) === stripPubKey(signer)
 }
 
-// Lobby is the bootstrap room and is always open to any signer (its existence
-// is a global invariant; sub-state writes are gated separately). All other
-// rooms require owner or teacher.
+// Lobby always exists, so any signer may (re)make its state. All other rooms,
+// station rooms included, require owner or teacher.
 export function isAuthorizedRoomSigner(
   name: string,
   signer: string,
@@ -286,6 +284,7 @@ export default class Peer {
         this.initChat()
         this.initSetup()
       }, 'initialization')
+      this._observeRooms()
 
       this._connectProviderWithIdentity(room, password)
       this.initUser(this.role)
@@ -698,17 +697,11 @@ export default class Peer {
 
   // Re-run authz on entries we deferred while lab.data.createdBy was empty.
   private _reverifyAfterSetup(): void {
-    const roomKeys = new Set(Object.keys(this.y.rooms.toJSON()))
-    if (roomKeys.size > 0) {
-      this._verifyAndRevertRoomChange(roomKeys, false).catch((e) => LOG('reverify rooms failed', e))
-    }
-    // Roles are derived from the setup, so the view changes with it.
+    // Roles and room authorization are derived from the setup, so the view
+    // changes with it; who may republish a room may change too.
     this.presence?.reauthorize()
-    this.throttledUpdate()
-    if (this.isStation() && !this.y.rooms.has(this.peerID) &&
-        this._isAuthorizedRoomSigner(this.peerID, getPeerID(false))) {
-      this.addRoom(this.peerID)
-    }
+    this._checkRooms(new Set([...this.y.roomSigs.keys(), ...this.y.rooms.keys()]))
+    this._ensureStationRoom()
   }
 
   private async _verifyAndAccept(data: any, timestamp: number): Promise<boolean> {
@@ -821,96 +814,95 @@ export default class Peer {
     )
   }
 
-  // Local-origin tags; anything else is treated as remote and verified.
-  private static ROOM_LOCAL_ORIGINS = new Set<string>([
-    'addRoom',
-    'initRooms',
-    'initialization',
-    REVERT_INVALID_ORIGIN,
-  ])
+  /**
+   * Verified room records (y.roomSigs) by name. Rooms are never deleted, so
+   * a record stays here even if the doc copy is later deleted or overwritten.
+   */
+  private _roomRecords: Map<string, Envelope> = new Map()
 
-  /** Last verified envelope per room — used to revert invalid writes and heal unauthorized deletes. */
-  private _lastGoodRoom: Map<string, Envelope> = new Map()
+  /**
+   * Lobby always exists and station rooms come from presence, so only other
+   * names need a record, signed by the owner or a teacher.
+   */
+  private _isValidRoomRecord(name: string, envelope: Envelope): boolean {
+    return name !== LOBBY && !name.startsWith(STATION + ' ') &&
+      this._isAuthorizedRoomSigner(name, envelope.signer)
+  }
 
-  /** Atomic sign-and-write. Preserves existing Y.Map to avoid stomping per-room module sub-state. */
+  /** Signs a room record; keeps an existing Y.Map so module state survives. */
   private async _writeAndSignRoom(name: string, origin: string): Promise<void> {
     try {
       const envelope = await signEntry('rooms', name, {})
       this.y.doc.transact(() => {
-        if (!this.y.rooms.has(name)) {
+        if (!(this.y.rooms.get(name) instanceof Y.Map)) {
           this.y.rooms.set(name, new Y.Map())
         }
         this.y.roomSigs.set(name, envelope)
       }, origin)
-      // Local writes skip observer-verify, so seed the heal cache directly.
-      this._lastGoodRoom.set(name, envelope)
     } catch (e) {
       LOG('writeAndSignRoom failed', name, e)
     }
   }
 
-  /** Restore a room (and its cached envelope) after an unauthorized delete. */
-  private _restoreRoom(name: string, envelope: Envelope): void {
-    this.y.doc.transact(() => {
-      if (!this.y.rooms.has(name)) this.y.rooms.set(name, new Y.Map())
-      this.y.roomSigs.set(name, envelope)
-    }, REVERT_INVALID_ORIGIN)
+  /**
+   * Verifies the doc's record for each name and remembers valid ones. Nothing
+   * invalid is deleted, the view just ignores it. Only a peer allowed to
+   * create a room puts back its record or Y.Map when they go missing.
+   */
+  private async _checkRooms(names: Iterable<string>): Promise<void> {
+    for (const name of names) {
+      try {
+        const stored = this.y.roomSigs.get(name) as Envelope | undefined
+        const envelope = stored && typeof stored === 'object'
+          ? { signer: stored.signer, nonce: stored.nonce, signature: stored.signature }
+          : undefined
+        // Records are never re-signed, so they have no freshness window.
+        const valid = !!envelope &&
+          await verifyEntry('rooms', name, {}, envelope, Number.POSITIVE_INFINITY)
+        if ((this.y.roomSigs.get(name) as any)?.signature !== envelope?.signature) {
+          continue // changed while verifying; that change is checked on its own
+        }
+        if (valid) {
+          const known = this._roomRecords.get(name)
+          if (!known || !this._isValidRoomRecord(name, known)) {
+            this._roomRecords.set(name, envelope as Envelope)
+          }
+        }
+        this._republishRoom(name, valid && this._isValidRoomRecord(name, envelope as Envelope))
+      } catch (e) {
+        LOG('checkRooms failed', name, e)
+      }
+    }
+    this.throttledUpdate()
   }
 
-  /**
-   * Verify-and-revert for remote y.rooms mutations.
-   *  - Add/update with bad/missing sig → revert (delete).
-   *  - Add/update with valid sig but unknown authz (setup not yet synced) → defer.
-   *  - Add/update with valid sig + authorized → cache as last-good.
-   *  - Delete of a cached room → restore.
-   */
-  private async _verifyAndRevertRoomChange(
-    keys: Set<string>,
-    fromLocalOrigin: boolean
-  ): Promise<void> {
-    if (fromLocalOrigin) return
-    const authzKnown = !!(this.lab.data?.createdBy)
-    for (const name of keys) {
-      try {
-        const present = this.y.rooms.has(name)
-        if (!present) {
-          const cached = this._lastGoodRoom.get(name)
-          if (cached) {
-            LOG('y.rooms entry deleted by untrusted origin, restoring', name)
-            this._restoreRoom(name, cached)
-          }
-          continue
-        }
-        const envelope = this.y.roomSigs.get(name) as Envelope | undefined
-        // Rooms are long-lived and never re-signed; bypass the freshness window. Replay is harmless (creation is idempotent, sig binds to name+container).
-        const sigValid = envelope
-          ? await verifyEntry('rooms', name, {}, envelope, Number.POSITIVE_INFINITY)
-          : false
-        if (!sigValid) {
-          LOG('y.rooms entry rejected (bad sig)', name, { hasEnvelope: !!envelope })
-          this.y.doc.transact(() => {
-            this.y.rooms.delete(name)
-            this.y.roomSigs.delete(name)
-          }, REVERT_INVALID_ORIGIN)
-          continue
-        }
-        if (!authzKnown) {
-          // Integrity is proven; defer authz until setup arrives.
-          continue
-        }
-        const authorized = this._isAuthorizedRoomSigner(name, (envelope as Envelope).signer)
-        if (authorized) {
-          this._lastGoodRoom.set(name, envelope as Envelope)
-        } else {
-          LOG('y.rooms entry rejected (unauthorized)', name, { signer: (envelope as Envelope).signer })
-          this.y.doc.transact(() => {
-            this.y.rooms.delete(name)
-            this.y.roomSigs.delete(name)
-          }, REVERT_INVALID_ORIGIN)
-        }
-      } catch (e) {
-        LOG('verifyAndRevertRoomChange failed', name, e)
+  private _republishRoom(name: string, docRecordValid: boolean): void {
+    if (name === this.peerID) return this._ensureStationRoom()
+    if (!this.canManageRooms()) return
+    if (name === LOBBY) {
+      if (!(this.y.rooms.get(LOBBY) instanceof Y.Map)) {
+        LOG('Lobby state is gone, recreating it')
+        this.y.doc.transact(() => this.y.rooms.set(LOBBY, new Y.Map()), 'republishRoom')
       }
+      return
+    }
+    const record = this._roomRecords.get(name)
+    if (!record || !this._isValidRoomRecord(name, record) ||
+        !this._isAuthorizedRoomSigner(name, getPeerID(false))) return
+    const missingState = !(this.y.rooms.get(name) instanceof Y.Map)
+    if (docRecordValid && !missingState) return
+    LOG('room record or state is gone, republishing', name)
+    this.y.doc.transact(() => {
+      if (missingState) this.y.rooms.set(name, new Y.Map())
+      if (!docRecordValid) this.y.roomSigs.set(name, record)
+    }, 'republishRoom')
+  }
+
+  /** A station's room comes from its presence; this only makes the Y.Map for module state. */
+  private _ensureStationRoom(): void {
+    if (this.isStation() && !(this.y.rooms.get(this.peerID) instanceof Y.Map) &&
+        this._isAuthorizedRoomSigner(this.peerID, getPeerID(false))) {
+      this.y.doc.transact(() => this.y.rooms.set(this.peerID, new Y.Map()), 'initRooms')
     }
   }
 
@@ -961,13 +953,22 @@ export default class Peer {
     return this.role !== 'student' || getPeerID(false) === this.lab.data?.createdBy
   }
 
-  /** Initializes rooms; observer install is idempotent via `_hasRoomsObserver`. */
+  /** Watches room records and room state once, across reconnects. */
+  private _observeRooms() {
+    if (this._hasRoomsObserver) return
+    this._hasRoomsObserver = true
+    this.y.roomSigs.observe((event) => this._checkRooms(event.keysChanged))
+    this.y.rooms.observe((event) => this._checkRooms(event.keysChanged))
+    this._checkRooms(new Set([...this.y.roomSigs.keys(), ...this.y.rooms.keys()]))
+  }
+
+  /** Seeds the Lobby state (and default rooms) of a fresh classroom. */
   initRooms() {
     if (this.y.rooms.size === 0) {
       LOG('initializing rooms')
 
-      // Lobby bootstrap is allowed for any role — students may join before the teacher.
-      this._writeAndSignRoom(LOBBY, 'initRooms')
+      // Any role may make the Lobby's Y.Map — students may join before the teacher.
+      this.y.doc.transact(() => this.y.rooms.set(LOBBY, new Y.Map()), 'initRooms')
 
       if (this.canManageRooms()) {
         let defaultRooms = 0
@@ -980,28 +981,7 @@ export default class Peer {
         }
       }
     }
-    if (this.isStation() && !this.y.rooms.has(this.peerID) &&
-        this._isAuthorizedRoomSigner(this.peerID, getPeerID(false))) {
-      this.addRoom(this.peerID)
-    }
-
-    if (!this._hasRoomsObserver) {
-      this._hasRoomsObserver = true
-      this.y.rooms.observe((event) => {
-        const keysChanged = Array.from(event.changes.keys.keys())
-        const originStr = typeof event.transaction.origin === 'string'
-          ? event.transaction.origin
-          : ''
-        const fromLocal = Peer.ROOM_LOCAL_ORIGINS.has(originStr)
-
-        // Verify-and-revert for non-local origins.
-        if (keysChanged.length > 0) {
-          this._verifyAndRevertRoomChange(new Set(keysChanged), fromLocal)
-        }
-
-        this.throttledUpdate()
-      })
-    }
+    this._ensureStationRoom()
   }
 
   /** Indices of chat entries that failed signature verification — filtered at render time. */
@@ -1352,10 +1332,10 @@ export default class Peer {
   addRoom(name?: string) {
     if (!this.canManageRooms()) return
     if (name) {
-      if (!this.y.rooms.has(name)) this._writeAndSignRoom(name, 'addRoom')
+      if (!(name in this._viewRooms())) this._writeAndSignRoom(name, 'addRoom')
       return
     }
-    const roomIDs: number[] = Object.keys(this.y.rooms.toJSON())
+    const roomIDs: number[] = Object.keys(this._viewRooms())
       .filter((e) => e.match(/Room/))
       .map((e) => e.split(' ')[1])
       .map((e) => parseInt(e))
@@ -1470,11 +1450,6 @@ export default class Peer {
    * @returns The serialized state.
    */
   async toJSON() {
-    if (this.isStation() && !this.y.rooms.has(this.peerID) &&
-        this._isAuthorizedRoomSigner(this.peerID, getPeerID(false))) {
-      this.addRoom(this.peerID)
-    }
-
     return {
       rooms: this._viewRooms(),
       users: this._viewUsers(),
@@ -1503,16 +1478,23 @@ export default class Peer {
   }
 
   /**
-   * Rooms as the UI and modules see them. A station room exists while its
-   * station is present; its Y.Map in the doc only holds module state.
+   * Rooms as the UI and modules see them: the Lobby, rooms with a valid
+   * record (oldest first), and the stations that are present. A room's Y.Map
+   * in the doc only holds module state.
    */
   private _viewRooms(): Record<string, any> {
-    const rooms: Record<string, any> = {}
-    for (const [name, data] of Object.entries(this.y.rooms.toJSON())) {
-      if (!name.startsWith(STATION + ' ')) rooms[name] = data
+    const state = (name: string) => {
+      const map = this.y.rooms.get(name)
+      return map instanceof Y.Map ? map.toJSON() : {}
     }
+    const rooms: Record<string, any> = { [LOBBY]: state(LOBBY) }
+    const records = [...this._roomRecords]
+      .filter(([name, envelope]) => this._isValidRoomRecord(name, envelope))
+      .sort(([a, x], [b, y]) =>
+        x.nonce - y.nonce || a.localeCompare(b, undefined, { numeric: true }))
+    for (const [name] of records) rooms[name] = state(name)
     for (const id of Object.keys(this.presence?.visible || {})) {
-      if (id.startsWith(STATION + ' ')) rooms[id] = this.y.rooms.get(id)?.toJSON() || {}
+      if (id.startsWith(STATION + ' ')) rooms[id] = state(id)
     }
     return rooms
   }

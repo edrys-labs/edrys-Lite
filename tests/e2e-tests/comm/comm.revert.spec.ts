@@ -3,15 +3,16 @@ import { createClassroom, joinClassroom, waitForMesh, inPeer, closeSessions, syn
 import { eventually, marker } from './helpers'
 
 /**
- * A peer that reverts an invalid change must keep syncing afterwards.
+ * A peer that writes a correction must keep syncing afterwards.
  *
- * The revert consumes the reverting client's Yjs clock; if it is never sent,
- * every later update from that client lacks its predecessor on the other
- * peers and is parked as pending forever — the peer silently stops
- * propagating. Here a third peer forges an unsigned room, so owner and
- * guest both revert it, then must still see each other's writes.
+ * The correction consumes the writing client's Yjs clock; if it is never
+ * sent, every later update from that client lacks its predecessor on the
+ * other peers and is parked as pending forever — the peer silently stops
+ * propagating. Here a third peer forges an unsigned room and deletes one of
+ * the owner's, so the owner republishes it, then both must still see each
+ * other's writes.
  */
-test.describe('Comm — after a revert', () => {
+test.describe('Comm — after a correction', () => {
   let owner: Session | undefined
   let guest: Session | undefined
   let attacker: Session | undefined
@@ -31,17 +32,26 @@ test.describe('Comm — after a revert', () => {
     owner = guest = attacker = undefined
   })
 
-  test('peers that reverted a forged change keep propagating their own writes', async () => {
+  test('peers keep propagating their own writes after a republish', async () => {
+    const kept = JSON.stringify(marker('Kept'))
+    await inPeer(owner!.page, `p.addRoom(${kept}); return true`)
+    await eventually(guest!, `return ${kept} in v.rooms`, 'guest sees the owner room')
+    await eventually(attacker!, `return p.y.roomSigs.has(${kept})`, 'attacker has the owner room')
+
     await inPeer(
       attacker!.page,
       `const Ctor = p.y.rooms.get('Lobby').constructor;
-       p.y.doc.transact(() => p.y.rooms.set('Forged', new Ctor()));
+       p.y.doc.transact(() => {
+         p.y.rooms.set('Forged', new Ctor());
+         p.y.rooms.delete(${kept});
+         p.y.roomSigs.delete(${kept});
+       });
        return true`
     )
     await syncWait()
-    const intact = `return !p.y.rooms.has('Forged') && !('Forged' in v.rooms)`
-    await eventually(owner!, intact, 'owner reverted the forged room')
-    await eventually(guest!, intact, 'guest reverted the forged room')
+    const intact = `return !('Forged' in v.rooms) && ${kept} in v.rooms && p.y.roomSigs.has(${kept})`
+    await eventually(owner!, intact, 'owner republished its room and ignores the forged one')
+    await eventually(guest!, intact, 'guest received the republished room')
 
     const room = marker('After')
     await inPeer(owner!.page, `p.addRoom(${JSON.stringify(room)}); return true`)
