@@ -262,7 +262,7 @@ describe('Signed y.chat', () => {
     peer.stop()
   })
 
-  test('a message older than the replay window still shows', async () => {
+  test('a ten-minute-old message still shows', async () => {
     const { peer } = await bootPeer()
     let chatMessages: any[] = []
     peer.on('chat', (data: any) => { chatMessages = data.messages })

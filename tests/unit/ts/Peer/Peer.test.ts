@@ -2,6 +2,7 @@ import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest';
 
 const flushPromises = () => new Promise<void>((r) => setTimeout(r, 0));
 import Peer from '../../../../src/ts/Peer';
+import { ABSENT_GRACE } from '../../../../src/ts/Presence';
 import * as Y from 'yjs';
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
 import { GenericWebrtcProviderAdapter } from '../../../../src/ts/GenericProviderAdapter';
@@ -75,7 +76,6 @@ vi.mock('../../../../src/ts/Utils', () => ({
   verifySetup: vi.fn(() => Promise.resolve(true)),
   signEntry: vi.fn(() => Promise.resolve({ signer: 'test-peer-id', nonce: Date.now(), signature: 'mock-sig' })),
   verifyEntry: vi.fn(() => Promise.resolve(true)),
-  REVERT_INVALID_ORIGIN: 'revert-invalid',
   canonicalize: vi.fn((v) => JSON.stringify(v)),
   deepEqual: vi.fn((obj1, obj2) => {
     return JSON.stringify(obj1) === JSON.stringify(obj2);
@@ -123,9 +123,10 @@ describe('Peer Class', () => {
     return clientID;
   }
 
+  // Gone for good: removed from awareness and past the absence grace.
   async function removeRemote(clientID: number) {
     removeAwarenessStates(peer['presence']['awareness'], [clientID], 'remote');
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(ABSENT_GRACE);
   }
 
   beforeEach(async () => {

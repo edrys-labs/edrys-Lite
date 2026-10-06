@@ -577,11 +577,7 @@ export async function verifySetup(
   }
 }
 
-// --- Signed live-state primitives (y.users / y.rooms) ---
-
-// Sentinel origin for local-only revert transactions; provider wrappers drop
-// outgoing updates tagged with this so reverts don't propagate.
-export const REVERT_INVALID_ORIGIN = 'revert-invalid'
+// --- Signed live-state primitives (presence, room records, chat) ---
 
 // Bound into signed bodies so a signature for `users[k]` can't be replayed as `rooms[k]`.
 export type SignedContainer = 'users' | 'rooms' | 'chat'
@@ -591,9 +587,6 @@ export interface Envelope {
   nonce: number
   signature: string
 }
-
-// Envelope replay window (must be long enough to tolerate network delays).
-export const ENVELOPE_REPLAY_WINDOW_MS = 60_000
 
 // Deterministic JSON: keys sorted recursively, arrays preserve order. Must be
 // byte-identical across peers so signatures verify.
@@ -631,18 +624,17 @@ export async function signEntry(
   return { signer, nonce, signature: _bytesToB64(sig) }
 }
 
-// Proves integrity + freshness only; authorization (is signer allowed to write this entry?) is the caller's job.
+// Proves integrity only. Freshness (newest nonce wins, stale presence) and
+// authorization (may this signer write this entry?) are the caller's job.
 export async function verifyEntry(
   container: SignedContainer,
   key: string,
   payload: any,
-  envelope: Envelope | null | undefined,
-  replayWindowMs: number = ENVELOPE_REPLAY_WINDOW_MS
+  envelope: Envelope | null | undefined
 ): Promise<boolean> {
   if (!envelope || typeof envelope !== 'object') return false
   if (typeof envelope.signer !== 'string' || typeof envelope.signature !== 'string') return false
   if (typeof envelope.nonce !== 'number' || !Number.isFinite(envelope.nonce)) return false
-  if (Math.abs(Date.now() - envelope.nonce) > replayWindowMs) return false
   try {
     const pubKey = await crypto.subtle.importKey(
       'raw',

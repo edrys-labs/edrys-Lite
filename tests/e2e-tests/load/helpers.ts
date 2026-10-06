@@ -274,14 +274,14 @@ export async function getStationRoomName(stationSession: Session): Promise<strin
 }
 
 /**
- * Poll a session's live `y.rooms` for a station room until it contains all
- * expected participant peerIds, or fail. On timeout, throws with a diagnostic
- * dump of the observer's full y.users snapshot (which peers are missing vs.
+ * Poll a session's rendered users until all expected participant peerIds are
+ * in `roomName`, or fail. On timeout, throws with a diagnostic dump of the
+ * observer's full users view (which peers are missing vs.
  * present-but-in-a-different-room vs. entirely absent/not meshed).
  *
  * If `stragglers` (peerId -> Session) is given, any peer still not in
  * `roomName` after `retryAfterMs` gets its `gotoRoom` re-issued — a slow/
- * throttled link can drop the first signed write in flight, and re-sending
+ * throttled link can drop the first presence update in flight, and re-sending
  * is cheaper and more realistic than just widening the timeout further.
  */
 export async function waitForAllInRoom(
@@ -322,8 +322,8 @@ export async function waitForAllInRoom(
     .map((id) => `${id}=${lastUsers[id].room}`)
   throw new Error(
     `not all peers reached room "${roomName}" within ${timeout}ms.\n` +
-      `  not meshed/absent from observer's y.users (${missing.length}): ${missing.join(', ')}\n` +
+      `  not meshed/absent from observer's users (${missing.length}): ${missing.join(', ')}\n` +
       `  meshed but in wrong room (${wrongRoom.length}): ${wrongRoom.join(', ')}\n` +
-      `  observer y.users snapshot: ${JSON.stringify(lastUsers)}`
+      `  observer users snapshot: ${JSON.stringify(lastUsers)}`
   )
 }

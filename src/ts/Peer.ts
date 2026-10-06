@@ -856,9 +856,8 @@ export default class Peer {
         const envelope = stored && typeof stored === 'object'
           ? { signer: stored.signer, nonce: stored.nonce, signature: stored.signature }
           : undefined
-        // Records are never re-signed, so they have no freshness window.
         const valid = !!envelope &&
-          await verifyEntry('rooms', name, {}, envelope, Number.POSITIVE_INFINITY)
+          await verifyEntry('rooms', name, {}, envelope)
         if ((this.y.roomSigs.get(name) as any)?.signature !== envelope?.signature) {
           continue // changed while verifying; that change is checked on its own
         }
@@ -1037,9 +1036,8 @@ export default class Peer {
     }
     const envelope: Envelope = { signer, nonce: timestamp, signature }
     const payload = { msg, timestamp, user }
-    // Messages stay valid however old they are, or anyone joining later than
-    // the replay window would never see them. Replays are caught below.
-    const sigValid = await verifyEntry('chat', String(timestamp), payload, envelope, Number.POSITIVE_INFINITY)
+    // Messages stay valid however old they are; replays are caught below.
+    const sigValid = await verifyEntry('chat', String(timestamp), payload, envelope)
     if (!sigValid) {
       LOG('y.chat entry rejected (bad sig)', index)
       this._invalidChatIndices.add(index)

@@ -19,7 +19,7 @@ const OWNER = 'owner-pk'
 const TEACHERS = ['teacher-pk']
 
 // [case, id, signer, teachers, students (allowlist; omitted = none), expected]
-describe('isAuthorizedUserSigner (y.users writes)', () => {
+describe('isAuthorizedUserSigner (presence entries)', () => {
   test.each([
     // Human peers: id is "<pubkey>_<session>" and only that pubkey may sign it.
     ['own entry', 'BGdxv12345abc_sess001', 'BGdxv12345abc', [], undefined, true],

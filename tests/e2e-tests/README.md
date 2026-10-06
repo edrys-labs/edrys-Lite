@@ -13,7 +13,7 @@ the Peer last handed to the UI, the chat it shows and the setup it applied.
 
 | Suite            | What it checks                                                                 |
 | ---------------- | ------------------------------------------------------------------------------ |
-| [`comm/`](comm)  | the transports: shared state, module messages, awareness, leave/reload, stations, reverts |
+| [`comm/`](comm)  | the transports: shared state, module messages, awareness, leave/reload, stations, republish |
 | [`app/`](app)    | app surfaces: modules in real iframes via `$Edrys`, the owner's Settings → share → join flow |
 | [`load/`](load)  | one station with 5 peers on mixed browsers and throttled networks              |
 
@@ -80,7 +80,7 @@ check a suite for flakiness.
 | `comm.presence.spec.ts`  | 3 peers: everyone shown with their role on every peer, each guest's room move, one leaving is dropped by both others |
 | `comm.lifecycle.spec.ts` | abrupt leave detected; reload x`ROUNDS` reconverges, old sessions reaped, no false "has left" on WS |
 | `comm.station.spec.ts`   | station room/presence reaches peers, sees a participant, shutdown propagates |
-| `comm.revert.spec.ts`    | peers that reverted a forged change keep propagating their own writes (3 peers) |
+| `comm.republish.spec.ts` | a peer that republished a deleted room record keeps propagating its own writes (3 peers) |
 
 Failing tests in `messaging`/`station` attach `transport-log.txt`
 (SimplePeerTransport + `ts:peer` debug lines from every page).

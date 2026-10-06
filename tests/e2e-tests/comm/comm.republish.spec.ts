@@ -3,16 +3,16 @@ import { createClassroom, joinClassroom, waitForMesh, inPeer, closeSessions, syn
 import { eventually, marker } from './helpers'
 
 /**
- * A peer that writes a correction must keep syncing afterwards.
+ * A peer that republishes a room record must keep syncing afterwards.
  *
- * The correction consumes the writing client's Yjs clock; if it is never
+ * The republish consumes the writing client's Yjs clock; if it is never
  * sent, every later update from that client lacks its predecessor on the
  * other peers and is parked as pending forever — the peer silently stops
  * propagating. Here a third peer forges an unsigned room and deletes one of
  * the owner's, so the owner republishes it, then both must still see each
  * other's writes.
  */
-test.describe('Comm — after a correction', () => {
+test.describe('Comm — after a republish', () => {
   let owner: Session | undefined
   let guest: Session | undefined
   let attacker: Session | undefined

@@ -538,23 +538,12 @@ describe('Crypto Identity', () => {
     expect(replay).toBe(false);
   });
 
-  test('verifyEntry rejects stale nonce outside replay window', async () => {
+  test('verifyEntry accepts an old nonce (freshness is the caller\'s job)', async () => {
     const { initCryptoIdentity, signEntry, verifyEntry } = await freshUtils();
     await initCryptoIdentity();
 
-    // Sign with a nonce far in the past.
-    const env = await signEntry('users', 'k', { x: 1 }, Date.now() - 5 * 60_000);
-    const valid = await verifyEntry('users', 'k', { x: 1 }, env);
-    expect(valid).toBe(false);
-  });
-
-  test('verifyEntry accepts nonce inside replay window', async () => {
-    const { initCryptoIdentity, signEntry, verifyEntry } = await freshUtils();
-    await initCryptoIdentity();
-
-    const env = await signEntry('users', 'k', { x: 1 }, Date.now() - 1_000);
-    const valid = await verifyEntry('users', 'k', { x: 1 }, env);
-    expect(valid).toBe(true);
+    const env = await signEntry('users', 'k', { x: 1 }, Date.now() - 24 * 3600_000);
+    expect(await verifyEntry('users', 'k', { x: 1 }, env)).toBe(true);
   });
 
   test('verifyEntry rejects malformed envelopes', async () => {

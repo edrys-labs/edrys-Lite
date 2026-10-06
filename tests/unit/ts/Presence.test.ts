@@ -58,6 +58,7 @@ describe('SignedPresence', () => {
   let SignedPresence: any
   let STALE_AFTER: number
   let RESIGN_INTERVAL: number
+  let ABSENT_GRACE: number
   let pub: string
   let awA: awarenessProtocol.Awareness
   let awB: awarenessProtocol.Awareness
@@ -68,7 +69,7 @@ describe('SignedPresence', () => {
   beforeEach(async () => {
     vi.resetModules()
     Utils = await import('../../../src/ts/Utils')
-    ;({ SignedPresence, STALE_AFTER, RESIGN_INTERVAL } = await import('../../../src/ts/Presence'))
+    ;({ SignedPresence, STALE_AFTER, RESIGN_INTERVAL, ABSENT_GRACE } = await import('../../../src/ts/Presence'))
     await Utils.initCryptoIdentity()
     pub = Utils.getPeerID(false)
     awA = new awarenessProtocol.Awareness(new Y.Doc())
@@ -187,7 +188,8 @@ describe('SignedPresence', () => {
     expect(b.p.has(`${pub}_a`)).toBe(false)
   })
 
-  test('a peer that clears its presence disappears right away', async () => {
+  test('a peer that clears its presence disappears after the absence grace', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
     const a = make(awA, `${pub}_a`)
     const b = make(awB, `${pub}_b`)
     await a.p.publish({ room: 'Lobby' })
@@ -195,7 +197,68 @@ describe('SignedPresence', () => {
     expect(b.p.has(`${pub}_a`)).toBe(true)
     a.p.stop()
     await settle()
+    expect(b.p.has(`${pub}_a`)).toBe(true)
+
+    vi.setSystemTime(Date.now() + ABSENT_GRACE + 1)
+    b.p.reauthorize()
     expect(b.p.has(`${pub}_a`)).toBe(false)
+  })
+
+  test('a replay after the absence grace does not bring a gone peer back', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const a = make(awA, `${pub}_a`)
+    const b = make(awB, `${pub}_b`)
+    await a.p.publish({ room: 'Lobby' })
+    await settle()
+    const last = awA.getLocalState()!.presence
+    a.p.stop()
+    await settle()
+
+    vi.setSystemTime(Date.now() + ABSENT_GRACE + 1)
+    b.p.reauthorize()
+    expect(b.p.has(`${pub}_a`)).toBe(false)
+
+    // Well inside STALE_AFTER of the entry's last nonce rise.
+    inject(awB, 4248, { presence: last })
+    await settle()
+    expect(b.p.has(`${pub}_a`)).toBe(false)
+  })
+
+  test('a peer that comes back after the grace shows again once it re-signs', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const a = make(awA, `${pub}_a`)
+    const b = make(awB, `${pub}_b`)
+    await a.p.publish({ room: 'Lobby' })
+    await settle()
+    const cid = awA.clientID
+    const clock = awB.meta.get(cid)!.clock
+    inject(awB, cid, null, clock + 1)
+    await settle()
+    vi.setSystemTime(Date.now() + ABSENT_GRACE + 1)
+    b.p.reauthorize()
+    expect(b.p.has(`${pub}_a`)).toBe(false)
+
+    // Two re-signs: the injected removal used up the clock of the first.
+    await a.p.publish({ room: 'Lobby' })
+    await a.p.publish({ room: 'Lobby' })
+    await settle()
+    expect(b.p.has(`${pub}_a`)).toBe(true)
+  })
+
+  test('another peer removing or overwriting an entry does not hide it', async () => {
+    const a = make(awA, `${pub}_a`)
+    const b = make(awB, `${pub}_b`)
+    await a.p.publish({ room: 'Lobby' })
+    await settle()
+    const clock = awB.meta.get(awA.clientID)!.clock
+
+    inject(awB, awA.clientID, null, clock + 1)
+    await settle()
+    expect(b.p.visible[`${pub}_a`]).toEqual({ room: 'Lobby' })
+
+    inject(awB, awA.clientID, { presence: { id: `${pub}_a`, payload: { room: 'Forged' } } }, clock + 2)
+    await settle()
+    expect(b.p.visible[`${pub}_a`]).toEqual({ room: 'Lobby' })
   })
 
   test('markLeft hides a peer until it publishes again', async () => {

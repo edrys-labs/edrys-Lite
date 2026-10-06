@@ -16,6 +16,13 @@ export const RESIGN_INTERVAL = 15000
 // drops out without peers having to agree on the time.
 export const STALE_AFTER = 40000
 const SWEEP_INTERVAL = 5000
+// How long an entry stays shown after it leaves awareness or stops verifying.
+// Awareness states are unsigned, so any peer can remove or overwrite another's;
+// the victim puts its state back within milliseconds, and this keeps that gap
+// from showing. A transport leave (markLeft) still hides at once. Past the
+// grace an absence counts as a leave: the id shows again only once its nonce
+// rises, so a replayed copy of its last entry can't bring it back.
+export const ABSENT_GRACE = 3000
 
 export interface PresenceEntry {
   id: string
@@ -48,6 +55,9 @@ export class SignedPresence {
   private _seen = new Map<string, Seen>()
   // Ids with a verified entry in awareness right now.
   private _present = new Set<string>()
+  // Local time an id dropped out of `_present`, for ABSENT_GRACE.
+  private _absentSince = new Map<string, number>()
+  private _graceTimers = new Set<ReturnType<typeof setTimeout>>()
   // Nonce at which an id was reported gone; hidden until it rises past it.
   private _leftAt = new Map<string, number>()
   // Verification results by signed content (a re-sign is a new entry).
@@ -121,6 +131,8 @@ export class SignedPresence {
     if (this._resignTimer) clearInterval(this._resignTimer)
     if (this._sweepTimer) clearInterval(this._sweepTimer)
     this._resignTimer = this._sweepTimer = null
+    for (const t of this._graceTimers) clearTimeout(t)
+    this._graceTimers.clear()
     try {
       this.awareness.setLocalStateField(FIELD, null)
     } catch {}
@@ -169,8 +181,31 @@ export class SignedPresence {
         this._seen.set(id, { payload, signer: envelope.signer, nonce: envelope.nonce, advancedAt: now })
       }
     }
+    for (const id of this._present) {
+      if (!present.has(id) && !this._absentSince.has(id)) {
+        this._absentSince.set(id, now)
+        const timer = setTimeout(() => {
+          this._graceTimers.delete(timer)
+          this._refreshVisible()
+        }, ABSENT_GRACE)
+        this._graceTimers.add(timer)
+      }
+    }
+    for (const id of present) this._absentSince.delete(id)
     this._present = present
     this._refreshVisible()
+  }
+
+  /** In awareness now, or dropped out of it less than ABSENT_GRACE ago. */
+  private _isPresent(id: string, now: number): boolean {
+    if (this._present.has(id)) return true
+    const since = this._absentSince.get(id)
+    if (since === undefined) return false
+    if (now - since < ABSENT_GRACE) return true
+    this._absentSince.delete(id)
+    const seen = this._seen.get(id)
+    if (seen) this._leftAt.set(id, Math.max(seen.nonce, this._leftAt.get(id) ?? 0))
+    return false
   }
 
   private async _accept(entry: any): Promise<boolean> {
@@ -180,7 +215,7 @@ export class SignedPresence {
     const key = canonicalize({ id: entry.id, payload: entry.payload, envelope })
     let ok = this._verified.get(key)
     if (ok === undefined) {
-      ok = await verifyEntry('users', entry.id, entry.payload, envelope, Number.POSITIVE_INFINITY)
+      ok = await verifyEntry('users', entry.id, entry.payload, envelope)
       this._verified.set(key, ok)
       // Bounded: every peer adds one signature per re-sign.
       if (this._verified.size > 2000) {
@@ -197,7 +232,7 @@ export class SignedPresence {
     const next: Record<string, any> = {}
     if (this._own) next[this.selfId] = this._own
     for (const [id, seen] of this._seen) {
-      if (!this._present.has(id) || now - seen.advancedAt > STALE_AFTER) continue
+      if (!this._isPresent(id, now) || now - seen.advancedAt > STALE_AFTER) continue
       if (!this.authorize(id, seen.signer)) continue
       const leftAt = this._leftAt.get(id)
       if (leftAt !== undefined) {

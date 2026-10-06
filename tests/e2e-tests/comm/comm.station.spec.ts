@@ -5,8 +5,8 @@ import { eventually, enableTransportDebug, transportLog } from './helpers'
 
 /**
  * Station lifecycle: its room and presence reach other peers, a participant
- * entering is visible to the station, and the signed shutdown tombstone
- * removes the station everywhere.
+ * entering is visible to the station, and shutting it down (clearing its
+ * presence) removes the station everywhere.
  *
  * Over WS the station joins with an empty doc (pull-only sync); this is where
  * seeding Lobby before sync used to trigger a revert that froze the guest.

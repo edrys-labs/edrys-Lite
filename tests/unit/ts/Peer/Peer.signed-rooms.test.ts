@@ -51,6 +51,7 @@ vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
 describe('Signed y.rooms', () => {
   let Peer: any
   let Utils: any
+  let ABSENT_GRACE: number
 
   beforeEach(async () => {
     vi.resetModules()
@@ -58,6 +59,7 @@ describe('Signed y.rooms', () => {
     mockDb.getPrivateKey.mockResolvedValue(null)
     Utils = await import('../../../../src/ts/Utils')
     Peer = (await import('../../../../src/ts/Peer')).default
+    ;({ ABSENT_GRACE } = await import('../../../../src/ts/Presence'))
   })
 
   function makeSetup(createdBy: string, defaultNumberOfRooms = 0, teachers: string[] = []) {
@@ -330,6 +332,11 @@ describe('Signed y.rooms', () => {
 
     station.stop()
     for (let i = 0; i < 3; i++) await flushPromises()
+    // Past the absence grace a removed entry must outlast.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + ABSENT_GRACE + 1)
+    participant['presence'].reauthorize()
+    vi.useRealTimers()
 
     const view = await participant.toJSON()
     expect('Station stn1' in view.rooms).toBe(false)

@@ -84,7 +84,6 @@ vi.mock('./../../../src/ts/Utils', () => ({
     Promise.resolve(verifiablePubkeys.has(publicKey))
   ),
   getPeerID: vi.fn(() => 'mypubkey'),
-  REVERT_INVALID_ORIGIN: 'revert-invalid',
 }))
 
 import { GenericWebsocketProviderAdapter } from '../../../src/ts/GenericWebsocketProviderAdapter'
