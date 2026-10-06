@@ -349,34 +349,50 @@ describe('Peer Class', () => {
       expect(roomMap.size).toEqual(2);
     });
 
-    test('moves to the Lobby once its room has been gone for two heartbeat checks', async () => {
+    test('moves to the Lobby as soon as its room drops out of the view', async () => {
       const stationID = 'Station stn1';
       peer['connected'] = true;
       const station = await addRemote(stationID, { room: stationID }, 'test-peer-id');
-      expect(stationID in (await peer.toJSON()).rooms).toBe(true);
       peer.gotoRoom(stationID);
+      await vi.advanceTimersByTimeAsync(0);
 
-      await removeRemote(station);
-      expect(stationID in (await peer.toJSON()).rooms).toBe(false);
-      peer['_leaveMissingRoom']();
+      removeAwarenessStates(peer['presence']['awareness'], [station], 'remote');
+      await vi.advanceTimersByTimeAsync(ABSENT_GRACE - 100);
       expect(peer.user().room).toBe(stationID);
-      peer['_leaveMissingRoom']();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(stationID in (await peer.toJSON()).rooms).toBe(false);
       expect(peer.user().room).toBe('Lobby');
     });
 
-    test('a station that reappears between checks keeps its visitors', async () => {
+    test('a room not seen since connecting takes two heartbeat checks', async () => {
       const stationID = 'Station stn1';
       peer['connected'] = true;
-      let station = await addRemote(stationID, { room: stationID }, 'test-peer-id');
       peer.gotoRoom(stationID);
+      await vi.advanceTimersByTimeAsync(0);
 
+      peer['_leaveMissingRoom']();
+      expect(peer.user().room).toBe(stationID);
+      // The station shows up in between: we stay.
+      const station = await addRemote(stationID, { room: stationID }, 'test-peer-id');
+      peer['_leaveMissingRoom']();
+      expect(peer.user().room).toBe(stationID);
       await removeRemote(station);
-      peer['_leaveMissingRoom'](); // missing 1
-      station = await addRemote(stationID, { room: stationID }, 'test-peer-id');
-      peer['_leaveMissingRoom'](); // present -> reset
-      await removeRemote(station);
-      peer['_leaveMissingRoom'](); // missing 1 again
+      expect(peer.user().room).toBe('Lobby');
+    });
 
+    test('a new connection forgets that our room was seen', async () => {
+      const stationID = 'Station stn1';
+      peer['connected'] = true;
+      await addRemote(stationID, { room: stationID }, 'test-peer-id');
+      peer.gotoRoom(stationID);
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Reconnect and re-enter the station before its presence is back.
+      peer['_connectProviderWithIdentity']('lab1');
+      peer.initUser('student');
+      peer.gotoRoom(stationID);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(stationID in (await peer.toJSON()).rooms).toBe(false);
       expect(peer.user().room).toBe(stationID);
     });
 

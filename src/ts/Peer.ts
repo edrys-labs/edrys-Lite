@@ -106,8 +106,10 @@ export function isAuthorizedRoomSigner(
 
 let heartbeatID: ReturnType<typeof setInterval> | null
 
-// Heartbeat checks our room may be missing from the view before we move to
-// the Lobby: a station's presence can blink out briefly.
+// Heartbeat checks a room we haven't seen in the view since connecting may be
+// missing before we move to the Lobby (e.g. reloading into a stopped
+// station). A room we did see moves us as soon as it drops out: presence
+// already holds a vanished station for ABSENT_GRACE.
 const MISSING_ROOM_CHECKS = 2
 
 const backupConfig = {
@@ -336,12 +338,16 @@ export default class Peer {
       }
 
       this.presence?.stop()
+      // Peers show up again one by one on the new connection; until our
+      // room does, it may not be gone.
+      this._seenOwnRoom = null
       this.presence = new SignedPresence(
         this.provider.getPresenceAwareness(),
         this.peerID,
         (id, signer) => this._isAuthorizedUserSigner(id, signer),
         () => {
           this._recheckChatSigners()
+          this._leaveMissingRoom(false)
           this.throttledUpdate()
         }
       )
@@ -930,16 +936,27 @@ export default class Peer {
 
   /** Consecutive heartbeat checks our room has been missing from the view. */
   private _missingRoomChecks = 0
+  /** Our room, once it has shown in the view on the current connection. */
+  private _seenOwnRoom: string | null = null
 
-  /** Move to the Lobby once our room has been gone for a few checks. */
-  private _leaveMissingRoom() {
+  /**
+   * Move to the Lobby when our room is gone: at once if we saw it in the
+   * view (checked on every presence change), otherwise after a few
+   * heartbeat checks.
+   */
+  private _leaveMissingRoom(heartbeat = true) {
     const room = this.user()?.room
-    if (!this.connected || !room || room === LOBBY || this.isStation() ||
-        room in this._viewRooms()) {
+    if (!this.connected || !room || room === LOBBY || this.isStation()) {
       this._missingRoomChecks = 0
       return
     }
-    if (++this._missingRoomChecks < MISSING_ROOM_CHECKS) return
+    if (room in this._viewRooms()) {
+      this._seenOwnRoom = room
+      this._missingRoomChecks = 0
+      return
+    }
+    if (this._seenOwnRoom !== room &&
+        (!heartbeat || ++this._missingRoomChecks < MISSING_ROOM_CHECKS)) return
     LOG('current room is gone, moving to lobby', room)
     this._missingRoomChecks = 0
     this.gotoRoom(LOBBY)

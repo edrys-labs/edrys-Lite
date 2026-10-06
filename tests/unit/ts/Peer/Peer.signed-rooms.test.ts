@@ -341,8 +341,6 @@ describe('Signed y.rooms', () => {
     const view = await participant.toJSON()
     expect('Station stn1' in view.rooms).toBe(false)
     expect(view.users['Station stn1']).toBeUndefined()
-    participant['_leaveMissingRoom']()
-    participant['_leaveMissingRoom']()
     expect(participant.user().room).toBe('Lobby')
 
     participant.stop()
