@@ -1114,33 +1114,21 @@ export default class Peer {
    * @param config The new configuration.
    */
   newSetup(config: { id: string; data: any; timestamp: number }) {
+    // A protected classroom's config is pinned by the hash in its URL (which
+    // also names its network room); local edits are not published there.
     if (this.lab.hash) {
-      const self = this
-      hashPubKey(config.data.createdBy).then((hash) => {
-        if (hash === self.lab.hash && self.lab.timestamp < config.timestamp) {
-          self.logSetupChanges(self.lab.data, config.data)
-          self.lab.id = config.id
-          self.lab.data = config.data
-          self.lab.timestamp = config.timestamp
+      LOG('protected classroom, ignoring local setup change')
+      return
+    }
+    if (this.lab.timestamp < config.timestamp) {
+      this.logSetupChanges(this.lab.data, config.data)
+      this.lab.id = config.id
+      this.lab.data = config.data
+      this.lab.timestamp = config.timestamp
 
-          self.initSetup(true)
-          self.update('setup')
-          self._reverifyAfterSetup()
-        } else {
-          LOG('updating failed, hash mismatch')
-        }
-      })
-    } else {
-      if (this.lab.timestamp < config.timestamp) {
-        this.logSetupChanges(this.lab.data, config.data)
-        this.lab.id = config.id
-        this.lab.data = config.data
-        this.lab.timestamp = config.timestamp
-
-        this.initSetup(true)
-        this.update('setup')
-        this._reverifyAfterSetup()
-      }
+      this.initSetup(true)
+      this.update('setup')
+      this._reverifyAfterSetup()
     }
   }
 
