@@ -19,10 +19,16 @@ const SWEEP_INTERVAL = 5000
 // How long an entry stays shown after it leaves awareness or stops verifying.
 // Awareness states are unsigned, so any peer can remove or overwrite another's;
 // the victim puts its state back within milliseconds, and this keeps that gap
-// from showing. A transport leave (markLeft) still hides at once. Past the
-// grace an absence counts as a leave: the id shows again only once its nonce
-// rises, so a replayed copy of its last entry can't bring it back.
+// from showing. A signed leave (a clean stop) or a transport leave (markLeft)
+// still hides at once, so the grace only delays crashes and lost connections.
+// Past the grace an absence counts as a leave: the id shows again only once
+// its nonce rises, so a replayed copy of its last entry can't bring it back.
 export const ABSENT_GRACE = 3000
+
+// Payload of a signed leave. Every publish also signs one at the next nonce;
+// stop() puts it in place of the entry, so readers hide the peer at once and
+// a replay of its last entry (an older nonce) can't bring it back.
+const LEFT = { left: true }
 
 export interface PresenceEntry {
   id: string
@@ -49,6 +55,8 @@ interface Seen {
 export class SignedPresence {
   private _own: any | null = null
   private _ownEntry: PresenceEntry | null = null
+  // Signed leave for _ownEntry, at its nonce + 1; published only by stop().
+  private _ownLeave: PresenceEntry | null = null
   private _ownNonce = 0
   // Newest verified entry per id. Kept after the entry leaves awareness, so
   // a copy of it re-appearing later doesn't count as fresh.
@@ -98,13 +106,18 @@ export class SignedPresence {
   async publish(payload: any): Promise<void> {
     if (this._stopped) return
     this._own = payload
-    this._ownNonce = Math.max(Date.now(), this._ownNonce + 1)
-    const nonce = this._ownNonce
+    const nonce = Math.max(Date.now(), this._ownNonce + 1)
+    // The leave takes nonce + 1, so the next publish starts above it.
+    this._ownNonce = nonce + 1
     try {
-      const envelope = await signEntry('users', this.selfId, payload, nonce)
+      const [envelope, leaveEnvelope] = await Promise.all([
+        signEntry('users', this.selfId, payload, nonce),
+        signEntry('users', this.selfId, LEFT, nonce + 1),
+      ])
       // A later publish already went out; don't overwrite it with this one.
-      if (this._stopped || nonce !== this._ownNonce) return
+      if (this._stopped || nonce + 1 !== this._ownNonce) return
       this._ownEntry = { id: this.selfId, payload, envelope }
+      this._ownLeave = { id: this.selfId, payload: LEFT, envelope: leaveEnvelope }
       this.awareness.setLocalStateField(FIELD, this._ownEntry)
     } catch (e) {
       LOG('publish failed', e)
@@ -133,8 +146,10 @@ export class SignedPresence {
     this._resignTimer = this._sweepTimer = null
     for (const t of this._graceTimers) clearTimeout(t)
     this._graceTimers.clear()
+    // Replace, don't clear: the provider throttles awareness and flushes only
+    // the latest state on disconnect, so a clear after it would swallow it.
     try {
-      this.awareness.setLocalStateField(FIELD, null)
+      this.awareness.setLocalStateField(FIELD, this._ownLeave)
     } catch {}
   }
 
@@ -175,6 +190,14 @@ export class SignedPresence {
       }
       if (!(await this._accept(entry))) continue
       const { id, payload, envelope } = entry as PresenceEntry
+      if (payload?.left === true) {
+        // Hidden until it publishes above the leave. An old leave replayed
+        // after the peer came back is below its current nonce: no effect.
+        if (this.authorize(id, envelope.signer)) {
+          this._leftAt.set(id, Math.max(envelope.nonce, this._leftAt.get(id) ?? 0))
+        }
+        continue
+      }
       present.add(id)
       const seen = this._seen.get(id)
       if (!seen || envelope.nonce > seen.nonce) {

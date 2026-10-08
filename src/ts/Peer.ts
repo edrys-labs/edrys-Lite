@@ -1338,7 +1338,8 @@ export default class Peer {
 
     window.removeEventListener('beforeunload', this.stop)
 
-    // Clearing our presence tells peers we left; a station's room goes with it.
+    // Our signed leave replaces our presence and goes out with the disconnect
+    // flush, so peers hide us at once; a station's room goes with it.
     this.presence?.stop()
     this._finishStop()
   }

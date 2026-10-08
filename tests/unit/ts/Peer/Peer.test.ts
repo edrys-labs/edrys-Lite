@@ -1007,11 +1007,11 @@ describe('Peer Class', () => {
       expect(peer['presence'].has('other-pub_s1')).toBe(false);
     });
 
-    test('a stopped peer clears its presence', () => {
+    test('a stopped peer replaces its presence with its signed leave', () => {
       const aw = peer['presence']['awareness'];
-      expect(aw.getLocalState().presence).toBeTruthy();
+      expect(aw.getLocalState().presence.payload.left).toBeUndefined();
       peer.stop();
-      expect(aw.getLocalState()?.presence ?? null).toBeNull();
+      expect(aw.getLocalState().presence.payload).toEqual({ left: true });
     });
 
     test('a role change keeps the room', async () => {

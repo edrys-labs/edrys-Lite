@@ -188,20 +188,71 @@ describe('SignedPresence', () => {
     expect(b.p.has(`${pub}_a`)).toBe(false)
   })
 
-  test('a peer that clears its presence disappears after the absence grace', async () => {
+  test('a peer whose entry drops out of awareness disappears after the absence grace', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     const a = make(awA, `${pub}_a`)
     const b = make(awB, `${pub}_b`)
     await a.p.publish({ room: 'Lobby' })
     await settle()
     expect(b.p.has(`${pub}_a`)).toBe(true)
-    a.p.stop()
+    // A crash or a lost connection: the state is removed, no leave is sent.
+    awarenessProtocol.removeAwarenessStates(awB, [awA.clientID], 'remote')
     await settle()
     expect(b.p.has(`${pub}_a`)).toBe(true)
 
     vi.setSystemTime(Date.now() + ABSENT_GRACE + 1)
     b.p.reauthorize()
     expect(b.p.has(`${pub}_a`)).toBe(false)
+  })
+
+  test('a peer that stops is hidden at once by its signed leave', async () => {
+    const a = make(awA, `${pub}_a`)
+    const b = make(awB, `${pub}_b`)
+    await a.p.publish({ room: 'Lobby' })
+    await settle()
+    expect(b.p.has(`${pub}_a`)).toBe(true)
+
+    const entry = awA.getLocalState()!.presence
+    a.p.stop()
+    await settle()
+    const leave = awA.getLocalState()!.presence
+    expect(leave.payload).toEqual({ left: true })
+    expect(leave.envelope.nonce).toBe(entry.envelope.nonce + 1)
+    expect(b.p.has(`${pub}_a`)).toBe(false)
+  })
+
+  test('a replay right after a signed leave does not bring the peer back', async () => {
+    const a = make(awA, `${pub}_a`)
+    const b = make(awB, `${pub}_b`)
+    await a.p.publish({ room: 'Lobby' })
+    await settle()
+    const last = awA.getLocalState()!.presence
+    a.p.stop()
+    await settle()
+
+    // Well within the absence grace.
+    inject(awB, 4249, { presence: last })
+    await settle()
+    expect(b.p.has(`${pub}_a`)).toBe(false)
+  })
+
+  test('an old leave replayed after the peer came back does not hide it', async () => {
+    const a = make(awA, `${pub}_a`)
+    const b = make(awB, `${pub}_b`)
+    await a.p.publish({ room: 'Lobby' })
+    await settle()
+    a.p.stop()
+    await settle()
+    const leave = awA.getLocalState()!.presence
+
+    const a2 = make(awA, `${pub}_a`)
+    await a2.p.publish({ room: 'Lobby' })
+    await settle()
+    expect(b.p.has(`${pub}_a`)).toBe(true)
+
+    inject(awB, 4250, { presence: leave })
+    await settle()
+    expect(b.p.has(`${pub}_a`)).toBe(true)
   })
 
   test('a replay after the absence grace does not bring a gone peer back', async () => {

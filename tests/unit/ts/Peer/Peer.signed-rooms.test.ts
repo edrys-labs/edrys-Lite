@@ -364,12 +364,10 @@ describe('Signed y.rooms', () => {
     expect((await participant.toJSON()).users[otherId].room).toBe('Station stn1')
 
     participant.gotoRoom('Station stn1')
+    // Only the view rule here; leaving the missing room is tested elsewhere.
+    participant['_leaveMissingRoom'] = () => {}
     station.stop()
     for (let i = 0; i < 3; i++) await flushPromises()
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(Date.now() + ABSENT_GRACE + 1)
-    participant['presence'].reauthorize()
-    vi.useRealTimers()
 
     const view = await participant.toJSON()
     expect('Station stn1' in view.rooms).toBe(false)
