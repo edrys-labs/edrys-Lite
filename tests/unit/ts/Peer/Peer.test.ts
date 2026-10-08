@@ -616,44 +616,81 @@ describe('Peer Class', () => {
       expect(configWrites, 'demoted teacher must not write to y.setup.config').toHaveLength(0);
     });
 
-    test('owner auto-heals y.setup when CRDT setup is signed by an unauthorized signer', async () => {
-      vi.mocked(getPeerID).mockReturnValue('test-peer-id');
-      const staleTeacherID = 'stale-teacher-id';
-
-      // Local lab.data reflects the post-demotion state: stale teacher is gone.
-      peer['lab'].data = {
-        ...peer['lab'].data,
-        createdBy: 'test-peer-id', // matches getPeerID mock = owner
-        members: { teacher: [], student: ['*'] },
-        modules: [],
-      };
-
-      // Plant a "poison" setup in y.setup, signed by the demoted teacher.
-      const poisonTimestamp = Date.now() + 5000;
-      peer['y'].doc.transact(() => {
-        peer['y'].setup.set('config', {
-          name: 'lab',
-          meta: {},
-          modules: [],
-          members: { teacher: [], student: ['*'] }, // members already show the demotion
-          createdBy: 'test-peer-id',
-          setupSigner: staleTeacherID, // <-- signed by someone no longer authorized
-          setupSignature: 'stale-signature',
+    describe('y.setup is verified on read', () => {
+      const plain = (v: any) => JSON.parse(JSON.stringify(v));
+      const docSetup = () => ({
+        config: plain(peer['y'].setup.get('config')),
+        timestamp: peer['y'].setup.get('timestamp'),
+      });
+      const forge = (config: any, timestamp: number) =>
+        peer['y'].doc.transact(() => {
+          peer['y'].setup.set('config', config);
+          peer['y'].setup.set('timestamp', timestamp);
         });
-        peer['y'].setup.set('timestamp', poisonTimestamp);
+      // The constructor published the owner's setup; that is the good record.
+      let published: { config: any; timestamp: number };
+      beforeEach(async () => {
+        // y.setup is observed from the first status/synced event on.
+        mockWebrtcEvents.synced?.({ synced: true });
+        await vi.advanceTimersByTimeAsync(0);
+        published = docSetup();
+        expect(published.config.setupSigner).toBe('test-peer-id');
       });
 
-      const ySetupSetSpy = vi.spyOn(peer['y'].setup, 'set');
-      ySetupSetSpy.mockClear();
+      test('the owner republishes its record verbatim over a forgery with the same timestamp', async () => {
+        vi.mocked(verifySetup).mockResolvedValueOnce(false);
+        forge({ ...published.config, name: 'PWNED' }, published.timestamp);
+        await vi.advanceTimersByTimeAsync(0);
 
-      await (peer as any)._ownerAutoHealStaleSigner();
+        expect(docSetup()).toEqual(published);
+        expect(peer['lab'].data.name).toBeUndefined();
+      });
 
-      // After heal, the latest y.setup.config must be signed by the owner.
-      const newConfig: any = peer['y'].setup.get('config');
-      expect(newConfig).toBeDefined();
-      expect(newConfig.setupSigner).toBe('test-peer-id');
-      // And the createdBy must remain the owner.
-      expect(newConfig.createdBy).toBe('test-peer-id');
+      test('the owner republishes over a newer setup signed by someone no longer a teacher', async () => {
+        forge({ ...published.config, name: 'stale', setupSigner: 'demoted-teacher-id' }, published.timestamp + 5000);
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(docSetup()).toEqual(published);
+        expect(peer['lab'].timestamp).toBe(published.timestamp);
+      });
+
+      test('the owner republishes over a replayed older setup', async () => {
+        forge({ ...published.config, name: 'old' }, published.timestamp - 5000);
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(docSetup()).toEqual(published);
+      });
+
+      test('a newer valid setup is adopted and left in place', async () => {
+        const newer = { ...published.config, name: 'renamed', setupSignature: 'other-sig' };
+        forge(newer, published.timestamp + 1000);
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(peer['lab'].data.name).toBe('renamed');
+        expect(peer['lab'].timestamp).toBe(published.timestamp + 1000);
+        expect(docSetup()).toEqual({ config: newer, timestamp: published.timestamp + 1000 });
+      });
+
+      test('a student never writes y.setup, whatever it holds', async () => {
+        vi.mocked(getPeerID).mockReturnValue('student-peer-id');
+        peer['lab'].data.members = { teacher: [], student: ['student-peer-id'] };
+        const set = vi.spyOn(peer['y'].setup, 'set');
+
+        vi.mocked(verifySetup).mockResolvedValueOnce(false);
+        forge({ ...published.config, name: 'PWNED' }, published.timestamp + 1000);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(verifySetup).toHaveBeenCalled();
+        forge({ ...published.config, name: 'old' }, published.timestamp - 1000);
+        await vi.advanceTimersByTimeAsync(0);
+        peer['y'].doc.transact(() => peer['y'].setup.delete('config'));
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(peer['lab'].data.name).toBeUndefined();
+        expect(peer['lab'].timestamp).toBe(published.timestamp);
+        // Only the test's two forgeries (config + timestamp each) wrote.
+        expect(set).toHaveBeenCalledTimes(4);
+        expect(peer['y'].setup.get('config')).toBeUndefined();
+      });
     });
 
     describe('_verifyAndAccept (incoming setup)', () => {

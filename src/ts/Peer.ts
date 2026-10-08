@@ -154,6 +154,12 @@ export default class Peer {
   private webrtcConfig: any = RTCConfiguration
   private signalingServer: string[] = SignallingServer
   private _hasSetupObserver: boolean = false
+  // The newest setup record (config + timestamp) we verified or signed, as
+  // plain JSON. Owners/teachers republish it verbatim when the doc copy is
+  // missing, invalid or older.
+  private _lastGoodSetup: { config: any; timestamp: number } | null = null
+  // Setup checks verify asynchronously; chained so they never interleave.
+  private _setupCheck: Promise<void> = Promise.resolve()
   private throttledUpdate: any
 
   private t: (key: string) => string
@@ -462,16 +468,8 @@ export default class Peer {
       if (!this.allowedToParticipate()) {
         this.update('popup', this.t('peer.feedback.noAccess'))
       }
-      // If the setup is empty or doesn't match our lab data, initialize it
-      const timestamp = this.y.setup.get('timestamp') as number
-      if (!timestamp && this.lab.timestamp > 0 && this.lab.data) {
-        LOG('Initializing setup from local data during sync')
-        this.initSetup(true)
-      }
-
-      this._ownerAutoHealStaleSigner().catch((e) =>
-        console.error('owner auto-heal failed:', e)
-      )
+      // A room with no (valid) setup yet gets ours, if we may publish it.
+      this.initSetup()
     }
   }
 
@@ -489,15 +487,7 @@ export default class Peer {
    * Observes setup changes and initializes setup if necessary.
    */
   private handleSetupChange(_event: Y.YMapEvent<any>) {
-    const timestamp = this.y.setup.get('timestamp')
-
-    // Skip partial merge states where Y.js delivers config and timestamp in
-    // separate observer calls — wait for the event that includes timestamp.
-    if (timestamp === undefined) return
-
-    if (this.lab.timestamp !== timestamp) {
-      this.initSetup()
-    }
+    this.initSetup()
   }
 
   /** Our own presence payload, or null before it was first published. */
@@ -614,29 +604,63 @@ export default class Peer {
   }
 
   /**
-   * Initializes the setup map with proper conflict resolution.
+   * Publishes our setup (force: a local edit, signed anew) or checks y.setup.
+   *
+   * y.setup is verified on read: a peer adopts a doc record only if it
+   * verifies and is newer than its own, and never writes a reader's
+   * correction. Only owners/teachers republish, and only when the doc copy
+   * is missing, invalid or older than ours, so late joiners still find a
+   * valid one.
    */
   initSetup(force: boolean = false) {
-    const timestamp: number = (this.y.setup.get('timestamp') as number) || 0
-    const data = this.y.setup.get('config')
-
     if (force) {
       LOG('Force update new configuration')
-      this._signAndWrite(data).catch((e) => console.error('initSetup sign failed:', e))
-    } else if (this.lab.timestamp < timestamp) {
-      this._verifyAndAccept(data, timestamp).then((accepted) => {
-        // If the incoming config was rejected and we have our own valid config, overwrite
-        if (!accepted && this.lab.timestamp > 0 && this.lab.data) {
-          LOG('Incoming config rejected, reasserting our own signed config')
-          this._signAndWrite(data).catch((e) => console.error('initSetup reassert failed:', e))
-        }
-      }).catch((e) => console.error('initSetup verify failed:', e))
-    } else if (
-      (this.lab.timestamp !== timestamp && this.lab.timestamp > 0) ||
-      (timestamp === 0 && this.lab.timestamp > 0 && this.lab.data)
-    ) {
-      LOG('received outdated or empty lab configuration, writing changes back')
-      this._signAndWrite(data).catch((e) => console.error('initSetup writeback failed:', e))
+      this._signAndWrite(this._lastGoodSetup?.config ?? this.y.setup.get('config'))
+        .catch((e) => console.error('initSetup sign failed:', e))
+      return
+    }
+    this._setupCheck = this._setupCheck
+      .then(() => this._checkSetup())
+      .catch((e) => console.error('setup check failed:', e))
+  }
+
+  private async _checkSetup(): Promise<void> {
+    const timestamp: number = (this.y.setup.get('timestamp') as number) || 0
+    const raw = this.y.setup.get('config')
+    const data = raw ? JSON.parse(JSON.stringify(raw)) : null
+    const good = this._lastGoodSetup
+    if (data && good && timestamp === good.timestamp && deepEqual(data, good.config)) return
+
+    if (data && timestamp > this.lab.timestamp) {
+      if (await this._verifyAndAccept(data, timestamp)) return
+    } else if (data && timestamp > 0 && timestamp === this.lab.timestamp) {
+      // Our own setup, e.g. published in an earlier session: remember it.
+      if (await this._verifySetupRecord(data, timestamp)) {
+        this._lastGoodSetup = { config: data, timestamp }
+        return
+      }
+    }
+
+    // The doc copy is missing, invalid or older than ours.
+    if (this.lab.timestamp > 0 && this.lab.data) await this._republishSetup()
+  }
+
+  private async _republishSetup(): Promise<void> {
+    const me = stripPubKey(getPeerID(false))
+    const teachers: string[] = this.lab.data?.members?.teacher || []
+    if (me !== stripPubKey(this.lab.data?.createdBy || '') &&
+        !teachers.some((t) => stripPubKey(t) === me)) return
+
+    const good = this._lastGoodSetup
+    if (good && good.timestamp === this.lab.timestamp) {
+      LOG('y.setup is missing, invalid or outdated, republishing the last good one')
+      this.y.doc.transact(() => {
+        this.y.setup.set('config', good.config)
+        this.y.setup.set('timestamp', good.timestamp)
+      }, 'republishSetup')
+    } else {
+      LOG('y.setup is missing, invalid or outdated, signing ours')
+      await this._signAndWrite(good?.config ?? null)
     }
   }
 
@@ -668,6 +692,8 @@ export default class Peer {
       setupSignature: await signSetup({ ...this.lab.data, createdBy: ownerPubKey, timestamp: this.lab.timestamp }),
     }
     this.logSetupChanges(this.lab.data, dataToWrite)
+    // Set before the write so our own observer sees it as already good.
+    this._lastGoodSetup = { config: JSON.parse(JSON.stringify(dataToWrite)), timestamp: this.lab.timestamp }
     this.y.doc.transact(() => {
       this.y.setup.set('config', dataToWrite)
       this.y.setup.set('timestamp', this.lab.timestamp)
@@ -675,30 +701,6 @@ export default class Peer {
         this.update('popup', this.t('peer.feedback.noAccess'))
       }
     }, 'initSetup')
-  }
-
-  /**
-   * When the owner is online and the CRDT setup is signed by someone no longer
-   * authorized, overwrite it with a fresh owner-signed setup.
-   */
-  private async _ownerAutoHealStaleSigner(): Promise<void> {
-    const myPubKey = getPeerID(false)
-    const ownerPubKey: string = this.lab.data?.createdBy || ''
-    if (myPubKey !== ownerPubKey) return
-
-    const currentConfig: any = this.y.setup.get('config')
-    if (!currentConfig || !currentConfig.setupSigner) return
-
-    const signer: string = currentConfig.setupSigner
-    const signerIsOwner = stripPubKey(signer) === stripPubKey(ownerPubKey)
-    if (signerIsOwner) return
-
-    const currentTeachers: string[] = this.lab.data?.members?.teacher || []
-    const signerIsTeacher = currentTeachers.some((t: string) => stripPubKey(t) === stripPubKey(signer))
-    if (signerIsTeacher) return
-
-    LOG('y.setup signed by unauthorized signer, owner re-signing to heal')
-    await this._signAndWrite(currentConfig)
   }
 
   // Re-run authz on entries we deferred while lab.data.createdBy was empty.
@@ -711,6 +713,41 @@ export default class Peer {
   }
 
   private async _verifyAndAccept(data: any, timestamp: number): Promise<boolean> {
+    if (!(await this._verifySetupRecord(data, timestamp))) return false
+
+    const localCreatedBy: string | undefined = this.lab.data?.createdBy
+    const isLegacyCreatedBy = !!localCreatedBy && localCreatedBy.length < 40
+
+    LOG(`receiving lab configuration`)
+    this._lastGoodSetup = { config: JSON.parse(JSON.stringify(data)), timestamp }
+    this.logSetupChanges(this.lab.data, data)
+    this.lab.data = {
+      ...this.lab.data,
+      name: data.name,
+      meta: data.meta,
+      modules: data.modules,
+      members: data.members,
+      createdBy: isLegacyCreatedBy ? data.createdBy : (localCreatedBy || data.createdBy),
+      communicationConfig: data.communicationConfig,
+      keepUrlConfig: data.keepUrlConfig,
+    }
+    this.lab.timestamp = timestamp
+    this.update('setup')
+
+    if (!this.allowedToParticipate()) {
+      this.update('popup', this.t('peer.feedback.noAccess'))
+    }
+
+    // Rooms/station-users that we received before knowing the owner pubkey
+    // were left in place with integrity verified but authz deferred. Run
+    // authz now that lab.data.createdBy is known.
+    this._reverifyAfterSetup()
+
+    return true
+  }
+
+  /** Whether a setup record is signed by someone allowed to make it, against our current setup. */
+  private async _verifySetupRecord(data: any, timestamp: number): Promise<boolean> {
     if (!data || !data.setupSignature || !data.setupSigner || !data.createdBy) {
       LOG('Setup rejected: missing signature fields')
       return false
@@ -767,31 +804,6 @@ export default class Peer {
       LOG('Setup rejected: invalid signature')
       return false
     }
-
-    LOG(`receiving lab configuration`)
-    this.logSetupChanges(this.lab.data, data)
-    this.lab.data = {
-      ...this.lab.data,
-      name: data.name,
-      meta: data.meta,
-      modules: data.modules,
-      members: data.members,
-      createdBy: isLegacyCreatedBy ? data.createdBy : (localCreatedBy || data.createdBy),
-      communicationConfig: data.communicationConfig,
-      keepUrlConfig: data.keepUrlConfig,
-    }
-    this.lab.timestamp = timestamp
-    this.update('setup')
-
-    if (!this.allowedToParticipate()) {
-      this.update('popup', this.t('peer.feedback.noAccess'))
-    }
-
-    // Rooms/station-users that we received before knowing the owner pubkey
-    // were left in place with integrity verified but authz deferred. Run
-    // authz now that lab.data.createdBy is known.
-    this._reverifyAfterSetup()
-
     return true
   }
 
