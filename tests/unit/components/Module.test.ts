@@ -108,6 +108,16 @@ describe('Module Component', () => {
     expect(wrapper.vm.loaded).toBe(true);
   });
 
+  test('emits loaded on every iframe load, not only the first', async () => {
+    // A module page that reloads itself gets a new window; it needs a current
+    // doc, which the parent asks for on "loaded".
+    wrapper = createWrapper();
+    await wrapper.find('iframe').trigger('load');
+    await wrapper.find('iframe').trigger('load');
+
+    expect(wrapper.emitted('loaded')).toHaveLength(2);
+  });
+
   test('reacts to room changes', async () => {
     wrapper = createWrapper();
     await wrapper.find('iframe').trigger('load');

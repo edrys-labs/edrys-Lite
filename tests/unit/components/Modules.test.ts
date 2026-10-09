@@ -230,6 +230,16 @@ describe('Modules Component', () => {
     expect(mockCommunication.update).not.toHaveBeenCalled();
   });
 
+  test('asks for a current room whenever a module (re)loads', () => {
+    // A module's "reload" is posted from its unloading page, so it arrives with
+    // no source and is dropped above. The new page's load must still get a doc.
+    wrapper = createWrapper();
+
+    wrapper.findComponent({ name: 'Module' }).vm.$emit('loaded');
+
+    expect(mockCommunication.update).toHaveBeenCalledWith('room');
+  });
+
   test('answers a WebRTC config request only from a module at its own origin', async () => {
     // Student in lobby: Module 1 at https://example.com.
     const moduleWindow = mountWithModuleFrame();

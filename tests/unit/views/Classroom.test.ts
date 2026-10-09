@@ -282,6 +282,61 @@ describe('Classroom View', () => {
     });
   });
 
+  describe('scrapeModules', () => {
+    // scrapeModule() calls that resolve only when the test says so.
+    function deferScrapes() {
+      const pending: { module: any; resolve: () => void }[] = [];
+      vi.mocked(scrapeModule).mockImplementation(
+        (module: any) =>
+          new Promise((resolve) =>
+            pending.push({ module, resolve: () => resolve({ ...module, scraped: true }) })
+          )
+      );
+      return pending;
+    }
+
+    async function startTwoScrapes() {
+      const wrapper = createWrapper();
+      await wrapper.vm.init();
+      await flushPromises();
+      const pending = deferScrapes();
+
+      const oldModule = { url: 'https://module.example/old' };
+      const newModule = { url: 'https://module.example/new' };
+      wrapper.vm.data.modules = [oldModule];
+      const first = wrapper.vm.scrapeModules();
+      wrapper.vm.data.modules = [newModule];
+      const second = wrapper.vm.scrapeModules();
+
+      return { wrapper, pending, first, second, oldModule, newModule };
+    }
+
+    test('a slow older load does not overwrite the modules of a newer one', async () => {
+      const { wrapper, pending, first, second, newModule } = await startTwoScrapes();
+
+      pending[1].resolve();
+      await second;
+      pending[0].resolve();
+      await first;
+
+      expect(wrapper.vm.scrapedModules).toEqual([{ ...newModule, scraped: true }]);
+    });
+
+    test('stays loading until the newest load finishes', async () => {
+      const { wrapper, pending, first, second, newModule } = await startTwoScrapes();
+
+      pending[0].resolve();
+      await first;
+      expect(wrapper.vm.isLoadingModules).toBe(true);
+      expect(wrapper.vm.scrapedModules).not.toEqual([{ url: 'https://module.example/old', scraped: true }]);
+
+      pending[1].resolve();
+      await second;
+      expect(wrapper.vm.isLoadingModules).toBe(false);
+      expect(wrapper.vm.scrapedModules).toEqual([{ ...newModule, scraped: true }]);
+    });
+  });
+
   test('handles station mode', () => {
     const wrapper = createWrapper({ station: true });
 
