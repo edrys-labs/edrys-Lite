@@ -430,6 +430,7 @@ export default {
           :scrapedModule="m"
           :role="role"
           :class_id="class_id"
+          @loaded="communication.update('room')"
         >
         </Module>
       </div>

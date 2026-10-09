@@ -56,6 +56,7 @@ export default {
       required: true,
     },
   },
+  emits: ["loaded"],
   data() {
     return { loaded: false };
   },
@@ -74,6 +75,9 @@ export default {
     loadFrame() {
       debug.components.module("Module loaded", this.scrapedModule.url);
       this.updateIframe();
+      // liveClassProxy.doc is the doc as of the last room update; changes
+      // relayed since then went to the old page. Ask for a current one.
+      this.$emit("loaded");
     },
     updateIframe() {
       try {
