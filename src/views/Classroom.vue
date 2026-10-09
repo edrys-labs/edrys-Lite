@@ -326,6 +326,11 @@ export default {
     async scrapeModules() {
       if (!this.data) return;
 
+      // Calls can overlap (e.g. saving Settings while the class's first modules
+      // are still loading); only the newest may set the list, or a slow older
+      // scrape overwrites it with the previous modules.
+      const run = (this._scrapeRun = (this._scrapeRun || 0) + 1);
+
       // Each scrapeModule() is a network round-trip; run them together so the
       // loading window is one RTT rather than one per module.
       this.isLoadingModules = true;
@@ -335,8 +340,9 @@ export default {
           this.data.modules.map((module: any) => scrapeModule(module))
         );
       } finally {
-        this.isLoadingModules = false;
+        if (run === this._scrapeRun) this.isLoadingModules = false;
       }
+      if (run !== this._scrapeRun) return;
 
       this.componentKey++;
       this.scrapedModules = scrapedModules;
