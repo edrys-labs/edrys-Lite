@@ -3,6 +3,12 @@ import Index from './views/Index.vue'
 import Classroom from './views/Classroom.vue'
 import Deploy from './views/Deploy.vue'
 import { initCryptoIdentity, runMigrationIfNeeded } from './ts/Utils'
+import { installWorkerTimers } from './ts/WorkerTimers'
+
+// Keep presence and heartbeats on time while the tab is in the background.
+// Runs after all imports have loaded: fine as long as none starts a timer at
+// load time, since those would stay on the native (throttled) timers.
+installWorkerTimers()
 
 // Vuetify
 import { createVuetify } from 'vuetify'
