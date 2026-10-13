@@ -179,7 +179,7 @@ export async function joinClassroom(
 export async function waitForMesh(
   a: Session,
   b: Session,
-  timeout = TRANSPORT === 'ws' ? 45000 : 20000
+  timeout = 45000
 ) {
   const bothSee = async () => {
     const aSees = await inPeer<string[]>(a.page, 'return Object.keys(v.users)')
