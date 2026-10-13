@@ -102,6 +102,11 @@ export class SignedPresence {
     return id in this._visible
   }
 
+  /** Newest verified nonce of `id` (its own clock), or undefined if never seen. */
+  nonceOf(id: string): number | undefined {
+    return this._seen.get(id)?.nonce
+  }
+
   /** Sign and publish `payload` as our presence. */
   async publish(payload: any): Promise<void> {
     if (this._stopped) return

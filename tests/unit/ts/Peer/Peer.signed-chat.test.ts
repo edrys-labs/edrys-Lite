@@ -296,4 +296,23 @@ describe('Signed y.chat', () => {
     expect(chatMessages.map((m) => m.msg)).toEqual(['once'])
     peer.stop()
   })
+
+  test('a replayed copy with a re-encoded signature is hidden too', async () => {
+    const { peer } = await bootPeer()
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    await peer.sendMessage('once')
+    await flushPromises()
+    const original = peer['y'].chat.get(0)
+    // atob ignores whitespace: same signature bytes, different string
+    const copy = { ...original, signature: ' ' + original.signature }
+    peer['y'].doc.transact(() => peer['y'].chat.push([copy]), 'replay')
+    await flushPromises()
+    await flushPromises()
+
+    expect(peer['y'].chat.length).toBe(2)
+    expect(chatMessages.map((m) => m.msg)).toEqual(['once'])
+    peer.stop()
+  })
 })

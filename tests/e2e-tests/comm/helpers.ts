@@ -86,10 +86,13 @@ export function received(s: Session, subject: string): Promise<any[]> {
   )
 }
 
-/** Module message, the same shape Modules.vue sends via `broadcast`. */
+/**
+ * Module message, the same shape Modules.vue sends via `broadcast`. `from` is
+ * the sender's peer id: receivers drop messages not signed for their `from`.
+ */
 export function sendModuleMessage(s: Session, subject: string, body: any, user?: string) {
-  const msg = { from: 'e2e', subject, body, user, module: 'e2e' }
-  return inPeer(s.page, `p.broadcast(p.user().room, ${JSON.stringify(msg)}); return true`)
+  const msg = { subject, body, user, module: 'e2e' }
+  return inPeer(s.page, `p.broadcast(p.user().room, { ...${JSON.stringify(msg)}, from: p.peerID }); return true`)
 }
 
 /**

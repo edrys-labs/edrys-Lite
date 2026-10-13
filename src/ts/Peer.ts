@@ -15,6 +15,7 @@ import {
   stripPubKey,
   signEntry,
   verifyEntry,
+  canonicalize,
   Envelope,
 } from './Utils'
 import * as Y from 'yjs'
@@ -44,6 +45,18 @@ function teacherMembersChangeAllowed(newMembers: any, ownerPubKey: string): bool
 
 const LOBBY = 'Lobby'
 const STATION = 'Station'
+
+// A message signed this long before the newest nonce known of its sender is
+// dropped, newer ones only if their nonce was seen.
+const REPLAY_WINDOW = 60000
+
+// What a module message signature covers: everything except the transport's
+// id/sender, the receiver's date and the envelope itself. JSON round-trip, so
+// sender and receiver canonicalize the same value.
+function signedPart(msg: any): any {
+  const { id, sender, date, envelope, ...rest } = msg
+  return JSON.parse(JSON.stringify(rest))
+}
 
 // An empty list or one containing '*' means "everyone allowed" — no allowlist.
 function isExplicitAllowlist(students: string[] | undefined): boolean {
@@ -373,9 +386,7 @@ export default class Peer {
       })
 
       // Listen for messages
-      this.provider.onMessage((msg) => {
-        this.update('message', msg)
-      })
+      this.provider.onMessage((msg) => this._receive(msg))
     } catch (error) {
       console.error('Error connecting provider:', error)
       // Implement retry logic or other recovery mechanisms if necessary
@@ -1022,8 +1033,13 @@ export default class Peer {
    */
   private _unknownSignerChat: Map<number, string> = new Map()
 
-  /** Index where each chat signature first appeared; a copy elsewhere is a replay. */
-  private _chatSignatures: Map<string, number> = new Map()
+  /**
+   * Index where each signed chat entry first appeared; a copy elsewhere is a
+   * replay. Keyed by what is signed, not by the signature: a signature has
+   * several encodings that verify (base64 whitespace and padding, ECDSA's
+   * (r, n-s)).
+   */
+  private _chatEntries: Map<string, number> = new Map()
 
   /** Show held-back chat entries whose signer has since become present. */
   private _recheckChatSigners(): void {
@@ -1072,13 +1088,14 @@ export default class Peer {
       this._invalidChatIndices.add(index)
       return
     }
-    const firstIndex = this._chatSignatures.get(signature)
+    const signed = canonicalize({ signer, payload })
+    const firstIndex = this._chatEntries.get(signed)
     if (firstIndex !== undefined && firstIndex !== index) {
       LOG('y.chat entry rejected (replayed)', index)
       this._invalidChatIndices.add(index)
       return
     }
-    this._chatSignatures.set(signature, index)
+    this._chatEntries.set(signed, index)
     if (!this._isKnownChatSigner(signer)) {
       LOG('y.chat entry rejected (unknown signer)', index, signer)
       this._invalidChatIndices.add(index)
@@ -1296,21 +1313,119 @@ export default class Peer {
       if (msg.user === this.peerID) {
         this.update('message', msg)
       } else {
-        this.provider.sendMessage(msg, msg.user)
+        this._sendSigned(msg, room, [msg.user])
       }
       return
     }
 
-    for (const id in users) {
-      if (users[id].room === room && id !== this.peerID) {
-        try {
-          this.provider.sendMessage(msg, id)
-        } catch (e: any) {
-          LOG('warning', e.message)
+    // Recipients as of now; signing is async.
+    this._sendSigned(
+      msg,
+      room,
+      Object.keys(users).filter((id) => users[id].room === room && id !== this.peerID)
+    )
+    this.update('message', msg)
+  }
+
+  // Signed module messages. `from` is written by the sender, and modules take
+  // the sender's role from it, so a receiver delivers a message only if it is
+  // signed by a key that may speak for `from` (the rule of signed presence).
+  // The signature also binds the room and the addressee, so a copy can't be
+  // passed on to another room or user.
+  private _sendQueue: Promise<void> = Promise.resolve()
+  private _receiveQueue: Promise<void> = Promise.resolve()
+  // Our last message nonce; every message takes a higher one.
+  private _messageNonce = 0
+  // Per sender: the newest nonce, and the nonces seen within REPLAY_WINDOW of
+  // it. Relative to the sender's own clock, so clock skew does not matter.
+  // Keyed by nonce, not signature: a signature has several encodings that
+  // verify (base64 whitespace and padding, ECDSA's (r, n-s)).
+  private _messageNonces: Map<string, { newest: number; seen: Set<number> }> = new Map()
+
+  /** Sign `msg` for `room` and send it to `targets`, in call order. */
+  private _sendSigned(msg: any, room: string, targets: string[]) {
+    if (targets.length === 0) return
+    // as of now: the local echo adds `date` to msg before this is signed
+    const copy = { ...msg, room }
+    this._sendQueue = this._sendQueue
+      .then(async () => {
+        this._messageNonce = Math.max(Date.now(), this._messageNonce + 1)
+        const envelope = await signEntry('messages', String(copy.from), signedPart(copy), this._messageNonce)
+        const signed = { ...copy, envelope }
+        for (const id of targets) {
+          try {
+            this.provider.sendMessage(signed, id)
+          } catch (e: any) {
+            LOG('warning', e.message)
+          }
         }
+      })
+      .catch((e) => LOG('message not sent', e))
+  }
+
+  /** Deliver a received message to the modules if it is signed for its `from`; in arrival order. */
+  private _receive(msg: any) {
+    this._receiveQueue = this._receiveQueue
+      .then(async () => {
+        if (await this._isValidMessage(msg)) this.update('message', msg)
+      })
+      .catch((e) => LOG('message dropped', e))
+  }
+
+  private async _isValidMessage(msg: any): Promise<boolean> {
+    const envelope: Envelope | undefined = msg?.envelope
+    if (typeof msg?.from !== 'string' || !envelope || typeof envelope.signature !== 'string') {
+      LOG('message rejected (unsigned)', msg?.subject)
+      return false
+    }
+    if (!this._isAuthorizedUserSigner(msg.from, envelope.signer)) {
+      LOG('message rejected (signer may not send as)', msg.from)
+      return false
+    }
+    if (msg.user ? msg.user !== this.peerID : msg.room !== this.user()?.room) {
+      LOG('message rejected (not for us)', msg.subject)
+      return false
+    }
+    const nonces = this._messageNonces.get(msg.from)
+    if (envelope.nonce < this._messageFloor(msg.from) || nonces?.seen.has(envelope.nonce)) {
+      LOG('message rejected (replayed)', msg.subject)
+      return false
+    }
+    if (!(await verifyEntry('messages', msg.from, signedPart(msg), envelope))) {
+      LOG('message rejected (bad signature)', msg.subject)
+      return false
+    }
+    this._rememberMessage(msg.from, envelope.nonce)
+    return true
+  }
+
+  /**
+   * Oldest nonce still accepted from `from`: REPLAY_WINDOW before the newest
+   * we know of it, from its messages or its signed presence (both its own
+   * clock). A receiver that has neither yet, e.g. right after joining, falls
+   * back to its own clock, so an old message can't be replayed to it.
+   */
+  private _messageFloor(from: string): number {
+    const newest = Math.max(
+      this._messageNonces.get(from)?.newest ?? -Infinity,
+      this.presence?.nonceOf(from) ?? -Infinity
+    )
+    return (Number.isFinite(newest) ? newest : Date.now()) - REPLAY_WINDOW
+  }
+
+  private _rememberMessage(from: string, nonce: number) {
+    let nonces = this._messageNonces.get(from)
+    if (!nonces) {
+      nonces = { newest: nonce, seen: new Set() }
+      this._messageNonces.set(from, nonces)
+    }
+    nonces.seen.add(nonce)
+    if (nonce > nonces.newest) {
+      nonces.newest = nonce
+      for (const seen of nonces.seen) {
+        if (seen < nonce - REPLAY_WINDOW) nonces.seen.delete(seen)
       }
     }
-    this.update('message', msg)
   }
 
   /**

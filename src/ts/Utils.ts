@@ -595,7 +595,7 @@ export async function verifySetup(
 // --- Signed live-state primitives (presence, room records, chat) ---
 
 // Bound into signed bodies so a signature for `users[k]` can't be replayed as `rooms[k]`.
-export type SignedContainer = 'users' | 'rooms' | 'chat'
+export type SignedContainer = 'users' | 'rooms' | 'chat' | 'messages'
 
 export interface Envelope {
   signer: string

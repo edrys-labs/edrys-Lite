@@ -880,20 +880,25 @@ describe('Peer Class', () => {
       const msg = { subject: 'hi', body: 'x' };
 
       peer.broadcast('Lobby', msg);
-
-      const sendMessage = vi.mocked(peer['provider'].sendMessage);
-      expect(sendMessage.mock.calls).toEqual([[msg, 'inLobby_s1']]);
       expect(localEcho).toHaveBeenCalledWith(msg);
+      await peer['_sendQueue'];
+
+      // signed for its room, after the local echo; the echo's date is not sent
+      const sendMessage = vi.mocked(peer['provider'].sendMessage);
+      expect(sendMessage.mock.calls).toEqual([
+        [{ subject: 'hi', body: 'x', room: 'Lobby', envelope: expect.objectContaining({ signature: 'mock-sig' }) }, 'inLobby_s1'],
+      ]);
     });
 
-    test('should handle message broadcasting', () => {
+    test('should handle message broadcasting', async () => {
       peer['connected'] = true;
       const message = { user: 'peer2', data: 'message' };
-      
+
       peer.broadcast('Lobby', message);
-      
+      await peer['_sendQueue'];
+
       expect(peer['provider'].sendMessage).toHaveBeenCalledWith(
-        message,
+        { ...message, room: 'Lobby', envelope: expect.objectContaining({ signature: 'mock-sig' }) },
         message.user,
       );
     });
