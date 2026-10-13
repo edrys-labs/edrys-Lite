@@ -481,6 +481,28 @@ describe('Crypto Identity', () => {
     expect(hash1).not.toBe(hash2);
   });
 
+  test('isPubKey accepts a public key in base64, stripped and base64url form', async () => {
+    const { initCryptoIdentity, getPeerID, isPubKey, stripPubKey } = await freshUtils();
+    await initCryptoIdentity();
+    const pubKey = getPeerID(false);
+
+    expect(isPubKey(pubKey)).toBe(true);
+    expect(isPubKey(stripPubKey(pubKey))).toBe(true);
+    expect(isPubKey(pubKey.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''))).toBe(true);
+  });
+
+  test('isPubKey rejects legacy peer IDs without throwing', async () => {
+    const { initCryptoIdentity, getPeerID, isPubKey } = await freshUtils();
+    await initCryptoIdentity();
+
+    // 13 chars: length % 4 == 1 makes atob throw (fingerprint-era IDs)
+    expect(isPubKey('2a124n9Mps2qN')).toBe(false);
+    // 12 chars: decodes, but is not a key
+    expect(isPubKey('o3ff8o6DhNXC')).toBe(false);
+    expect(isPubKey(getPeerID(true))).toBe(false);
+    expect(isPubKey('')).toBe(false);
+  });
+
   // Signed live-state primitives
 
   test('canonicalize sorts keys deterministically', async () => {

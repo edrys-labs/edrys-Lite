@@ -1,5 +1,5 @@
 import { describe, test, expect, vi } from 'vitest';
-import { copyToClipboard } from '../../../src/ts/Utils';
+import { copyToClipboard, hashPubKey } from '../../../src/ts/Utils';
 import { mount } from '@vue/test-utils';
 import Index from '../../../src/views/Index.vue';
 
@@ -21,6 +21,7 @@ vi.mock('../../../src/ts/Utils', () => ({
   infoHash: vi.fn(() => 'test-hash'),
   getPeerID: vi.fn(() => 'test-user'),
   hashPubKey: vi.fn(() => Promise.resolve('testhash1234')),
+  isPubKey: vi.fn((key: string) => key !== 'legacy-id'),
   initCryptoIdentity: vi.fn(() => Promise.resolve()),
   clone: vi.fn(obj => JSON.parse(JSON.stringify(obj))),
   removeKeysStartingWithSecret: vi.fn(),
@@ -235,6 +236,32 @@ describe('Index View', () => {
     const subtitles = wrapper.findAll('.v-card-subtitle');
     expect(subtitles[0].text()).toContain('You own this class');
     expect(subtitles[1].text()).toContain('You\'re a student here');
+  });
+
+  test('lists every classroom when some have a legacy or unhashable createdBy', async () => {
+    const wrapper = createWrapper();
+    vi.mocked(hashPubKey).mockImplementation(async (key: string) => {
+      if (key === 'broken-key') throw new Error('atob failed');
+      return 'testhash1234';
+    });
+
+    const rooms = [
+      { id: 'legacy', data: { name: 'Legacy', createdBy: 'legacy-id', members: { teacher: [], student: [] } }, hash: null },
+      { id: 'broken', data: { name: 'Broken', createdBy: 'broken-key', members: { teacher: [], student: [] } }, hash: null },
+      { id: 'owned', data: { name: 'Owned', createdBy: 'test-user', members: { teacher: [], student: [] } }, hash: null },
+    ];
+    const onRooms = setObservableSpy.mock.calls.at(-1)![1];
+    await onRooms(rooms);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.classrooms.map((c: any) => c.id)).toEqual(['legacy', 'broken', 'owned']);
+    expect(hashPubKey).not.toHaveBeenCalledWith('legacy-id');
+    expect(wrapper.vm.classrooms.map((c: any) => c.ownerHash)).toEqual([undefined, undefined, 'testhash1234']);
+
+    const links = wrapper.findAll('a[data-link="true"]').map(a => a.attributes('href'));
+    expect(links).toContain('./?/classroom/legacy');
+    expect(links).toContain('./?/classroom/owned/testhash1234');
+    expect(links.some(l => l?.includes('undefined'))).toBe(false);
   });
 
   test('copies user ID to clipboard', async () => {

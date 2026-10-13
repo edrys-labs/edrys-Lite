@@ -4,6 +4,7 @@ import {
   infoHash,
   getPeerID,
   hashPubKey,
+  isPubKey,
   clone,
   removeKeysStartingWithSecret,
   copyToClipboard,
@@ -28,8 +29,14 @@ export default {
     const classrooms: DatabaseItem[] = [];
 
     database.setObservable("*", async (rooms: any) => {
+      // Classrooms from before the crypto migration keep a legacy createdBy,
+      // which has no owner hash. One of them must not hide the whole list.
       await Promise.all(rooms.map(async (c: any) => {
-        if (c?.data?.createdBy) c.ownerHash = await hashPubKey(c.data.createdBy);
+        const createdBy = c?.data?.createdBy;
+        if (!createdBy || !isPubKey(createdBy)) return;
+        try {
+          c.ownerHash = await hashPubKey(createdBy);
+        } catch {}
       }));
       this.classrooms = rooms;
     });
@@ -234,7 +241,9 @@ export default {
                 <v-spacer></v-spacer>
                 <a
                   data-link="true"
-                  :href="`./?/classroom/${classroom.id}/${classroom.ownerHash}${
+                  :href="`./?/classroom/${classroom.id}${
+                    classroom.ownerHash ? `/${classroom.ownerHash}` : ''
+                  }${
                     !!classroom.hash ? `/${classroom.hash}` : ''
                   }`"
                   style="color: white"

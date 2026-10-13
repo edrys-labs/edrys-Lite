@@ -521,9 +521,24 @@ export function stripPubKey(key: string): string {
   return key.replace(/=/g, '')
 }
 
+/** Decode base64 or base64url, with or without padding. Throws on invalid input. */
+function _pubKeyBytes(pubKeyBase64: string): Uint8Array {
+  return Uint8Array.from(atob(pubKeyBase64.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(pubKeyBase64.length / 4) * 4, '=')), c => c.charCodeAt(0))
+}
+
+/** True for a raw P-256 public key (65 bytes, 0x04 prefix); false for legacy peer IDs. */
+export function isPubKey(value: string): boolean {
+  try {
+    const bytes = _pubKeyBytes(value)
+    return bytes.length === 65 && bytes[0] === 0x04
+  } catch {
+    return false
+  }
+}
+
 /** SHA-256 hash of a public key (base64), returns first 16 base64url chars (~96 bits). */
 export async function hashPubKey(pubKeyBase64: string): Promise<string> {
-  const bytes = Uint8Array.from(atob(pubKeyBase64.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(pubKeyBase64.length / 4) * 4, '=')), c => c.charCodeAt(0))
+  const bytes = _pubKeyBytes(pubKeyBase64)
   const digest = await crypto.subtle.digest('SHA-256', bytes)
   return b64ToB64Url(btoa(String.fromCharCode(...new Uint8Array(digest)))).slice(0, 16)
 }
