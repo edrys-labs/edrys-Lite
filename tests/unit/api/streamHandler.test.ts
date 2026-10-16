@@ -101,5 +101,24 @@ describe('generated stream peer IDs', () => {
 
     expect(connectedId).toMatch(/^stream_[a-zA-Z0-9_-]+$/);
     expect(connectedId.length).toBeLessThanOrEqual(50);
+    // server and client derive the same ID
+    new StreamServer(context, {} as MediaStream, {}, 'my stream #1');
+    expect(instances.at(-1)!.id).toBe(connectedId);
+  });
+
+  test('streams whose names differ only late get different IDs', () => {
+    // with truncation to 50 chars these collided
+    const context = makeContext({
+      class_id: 'SfqYE9JhJnYpaB5p',
+      liveUser: { room: 'Station wxkWGd with a long name' },
+    });
+
+    new StreamServer(context, {} as MediaStream, {}, 'Microscope left');
+    new StreamServer(context, {} as MediaStream, {}, 'Microscope right');
+    new StreamServer(makeContext({ liveUser: { room: 'Room B' } }), {} as MediaStream, {}, 'Microscope left');
+
+    const ids = instances.map((p) => p.id);
+    expect(new Set(ids).size).toBe(3);
+    for (const id of ids) expect(id).toMatch(/^stream_[0-9a-f]{16}$/);
   });
 });

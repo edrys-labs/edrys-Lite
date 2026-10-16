@@ -10,10 +10,19 @@
 import { debug } from './debugHandler'
 import { Peer } from 'peerjs'
 
+// 64-bit FNV-1a as 16 hex chars: synchronous, and unique enough for peer IDs.
+function fnv1a64(text: string): string {
+  let hash = 0xcbf29ce484222325n
+  for (const byte of new TextEncoder().encode(text)) {
+    hash ^= BigInt(byte)
+    hash = (hash * 0x100000001b3n) & 0xffffffffffffffffn
+  }
+  return hash.toString(16).padStart(16, '0')
+}
+
+// Hashed, not truncated: two streams of one station whose names differ only late.
 function generateStreamPeerID(context: any, streamName: string): string {
-  const baseId = `${context.class_id}_${context.liveUser.room}_${streamName}`
-  const cleanId = baseId.replace(/[^a-zA-Z0-9_-]/g, '_')
-  return `stream_${cleanId}`.substring(0, 50)
+  return `stream_${fnv1a64(`${context.class_id}/${context.liveUser.room}/${streamName}`)}`
 }
 
 // Namespaced handshake subjects (won't collide with module messages).
