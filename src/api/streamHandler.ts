@@ -718,7 +718,9 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
   private handOff() {
     if (this.handedOff) return
     this.handedOff = true
-    this.stream = (this.video as any).captureStream()
+    // Firefox only offers the prefixed mozCaptureStream.
+    const video = this.video as any
+    this.stream = (video.captureStream ?? video.mozCaptureStream).call(video)
     this.handler(this.stream!, this.context.module.stationConfig || {}, {
       streamName: this.streamName,
       room: this.context.liveUser?.room,
