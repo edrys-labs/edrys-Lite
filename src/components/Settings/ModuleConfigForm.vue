@@ -444,6 +444,16 @@ export default {
               for (const key in parsedConfig[configType]) {
                 const fieldConfig = parsedConfig[configType][key];
 
+                // The module's own default wins, so the form never saves a
+                // value the module would not use by itself (e.g. a boolean
+                // that is on unless set to false)
+                if (fieldConfig.default !== undefined) {
+                  initialValues[key] = JSON.parse(
+                    JSON.stringify(fieldConfig.default)
+                  );
+                  continue;
+                }
+
                 // Set default values based on type
                 switch (fieldConfig.type) {
                   case "boolean":

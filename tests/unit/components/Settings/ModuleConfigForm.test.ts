@@ -271,6 +271,38 @@ describe('ModuleConfigForm Component', () => {
     expect(saveButton.attributes('disabled')).toBeDefined();
   });
   
+  test('starts fields at the schema default, the saved config still wins', async () => {
+    const moduleConfig = JSON.stringify({
+      stationConfig: {
+        video: { type: 'boolean', default: true },
+        audio: { type: 'boolean', default: true },
+        quality: { type: 'radio-button', options: ['low', 'medium'], default: 'medium' },
+        rotate: { type: 'number', default: 90 },
+        plain: { type: 'boolean' },
+      },
+    });
+
+    wrapper = createWrapper({ moduleConfig });
+    const vm = wrapper.vm as ModuleConfigFormData;
+    expect(vm.formValues.stationConfig).toEqual({
+      video: true,
+      audio: true,
+      quality: 'medium',
+      rotate: 90,
+      plain: false,
+    });
+    wrapper.unmount();
+
+    wrapper = createWrapper({
+      moduleConfig,
+      currentStationConfig: JSON.stringify({ audio: false, quality: 'low' }),
+    });
+    const saved = wrapper.vm as ModuleConfigFormData;
+    expect(saved.formValues.stationConfig.video).toBe(true);
+    expect(saved.formValues.stationConfig.audio).toBe(false);
+    expect(saved.formValues.stationConfig.quality).toBe('low');
+  });
+
   describe('calls parseModuleConfig on mount', () => {
     test('correctly processes different field types', async () => {
       const parseModuleConfigSpy = vi.spyOn(ModuleConfigForm.methods!, 'parseModuleConfig');
