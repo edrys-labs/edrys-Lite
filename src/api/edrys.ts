@@ -82,6 +82,14 @@ function decode(value: string): any {
   }
 }
 
+// Only the edrys-Lite page that embeds the module talks to it. Any other window
+// holding a reference to this one (a child frame of the module, an opener) can
+// post here too and must neither be trusted nor pin the origin. Inlined
+// (data:/srcdoc) modules have the same parent, so this holds for them as well.
+function isFromParent(e: MessageEvent): boolean {
+  return e.source !== null && e.source === window.parent
+}
+
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -100,7 +108,7 @@ async function getWebRTCConfig(origin: string): Promise<RTCConfiguration> {
     // Wait for config response
     rtcConfig = await new Promise<RTCConfiguration>((resolve) => {
       const handler = (e: MessageEvent) => {
-        if (e.data.event === 'webrtcConfig') {
+        if (isFromParent(e) && e.data?.event === 'webrtcConfig') {
           window.removeEventListener('message', handler)
           resolve(e.data.config)
         }
@@ -448,6 +456,11 @@ function dispatchUpdate() {
 window.addEventListener(
   'message',
   function (e) {
+    if (!isFromParent(e)) {
+      debug.api.general('[Edrys Security] Rejected message from a non-parent window:', e.origin);
+      return;
+    }
+
     if (!window['Edrys'].origin) {
       window['Edrys'].origin = e.origin;
       debug.api.general('[Edrys Security] Trusted origin set to:', e.origin);

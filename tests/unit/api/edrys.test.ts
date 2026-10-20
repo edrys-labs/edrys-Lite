@@ -28,8 +28,15 @@ function buildLiveClassUpdate(build: (doc: Y.Doc) => void): Uint8Array {
   return Y.encodeStateAsUpdate(doc);
 }
 
-function sendFromParent(data: any, origin = ORIGIN) {
-  window.dispatchEvent(new MessageEvent('message', { data, origin }));
+function sendFromParent(data: any, origin = ORIGIN, source: Window = window.parent) {
+  window.dispatchEvent(new MessageEvent('message', { data, origin, source }));
+}
+
+// A frame nested inside the module (sandboxed preview, widget, ...).
+function childFrameWindow(): Window {
+  const iframe = document.createElement('iframe');
+  document.body.appendChild(iframe);
+  return iframe.contentWindow!;
 }
 
 function sendInitialUpdate(overrides: any = {}) {
@@ -106,6 +113,39 @@ describe('edrys.ts (module API bridge)', () => {
     );
 
     expect(window['Edrys'].username).toBe('alice');
+  });
+
+  test('a child frame posting first neither pins the origin nor blocks the parent', () => {
+    sendFromParent({ event: 'ready' }, 'null', childFrameWindow());
+    expect(window['Edrys'].origin).toBeNull();
+
+    sendInitialUpdate();
+
+    expect(window['Edrys'].origin).toBe(ORIGIN);
+    expect(window['Edrys'].username).toBe('alice');
+  });
+
+  test('ignores messages from a non-parent window even with the trusted origin', () => {
+    sendInitialUpdate();
+    const seen = vi.fn();
+    window.addEventListener('$Edrys.message', seen);
+
+    sendFromParent(
+      {
+        event: 'update',
+        role: 'teacher',
+        username: 'mallory',
+        module: { url: 'x', config: '{}', studentConfig: '{}', teacherConfig: '{}', stationConfig: '{}' },
+        class_id: 'class-1',
+      },
+      ORIGIN,
+      childFrameWindow()
+    );
+    sendFromParent({ event: 'message', subject: 's', body: 'b' }, ORIGIN, childFrameWindow());
+
+    expect(window['Edrys'].username).toBe('alice');
+    expect(window['Edrys'].role).toBe('student');
+    expect(seen).not.toHaveBeenCalled();
   });
 
   test('applies the initial liveClass Yjs update and populates liveUser/liveRoom', async () => {
