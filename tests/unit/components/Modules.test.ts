@@ -203,11 +203,11 @@ describe('Modules Component', () => {
 
     const update = [1, 2, 3];
     postFrom(moduleWindow, { event: 'state', data: update });
-    expect(mockCommunication.updateState).toHaveBeenCalledWith(update);
+    expect(mockCommunication.updateState).toHaveBeenCalledWith(update, moduleWindow);
 
     // Inlined (data:) modules post with an opaque "null" origin.
     postFrom(moduleWindow, { event: 'awareness', data: update }, 'null');
-    expect(mockCommunication.updateAwareness).toHaveBeenCalledWith(update);
+    expect(mockCommunication.updateAwareness).toHaveBeenCalledWith(update, moduleWindow);
   });
 
   test('ignores messages from any window that is not one of its modules', () => {
@@ -256,40 +256,56 @@ describe('Modules Component', () => {
   });
 
   describe('forwarding live updates into module iframes', () => {
-    let iframe: HTMLIFrameElement;
-    let post: ReturnType<typeof vi.spyOn>;
+    // Module is stubbed, so stand in for its iframes (paired by index with the
+    // modules shown in the lobby).
+    const lobbyModules = [
+      { ...mockScrapedModules[0] },
+      { ...mockScrapedModules[0], name: 'Module 1b', url: 'https://other.example/module' },
+    ];
+    let iframes: HTMLIFrameElement[];
+    let posts: ReturnType<typeof vi.spyOn>[];
 
     beforeEach(() => {
-      // Module is stubbed, so stand in for its iframe (pairs with Module 1).
-      iframe = document.createElement('iframe');
-      document.body.appendChild(iframe);
-      post = vi.spyOn(iframe.contentWindow as Window, 'postMessage').mockImplementation(() => {});
+      iframes = [document.createElement('iframe'), document.createElement('iframe')];
+      iframes.forEach((f) => document.body.appendChild(f));
+      posts = iframes.map((f) =>
+        vi.spyOn(f.contentWindow as Window, 'postMessage').mockImplementation(() => {})
+      );
     });
 
-    afterEach(() => iframe.remove());
+    afterEach(() => iframes.forEach((f) => f.remove()));
 
-    test('forwards doc updates to the module origin, except echoes of its own', () => {
-      wrapper = createWrapper();
+    test('forwards doc updates to every module origin', () => {
+      wrapper = createWrapper({ scrapedModules_: lobbyModules });
       const onState = mockCommunication.onState.mock.calls[0][0];
       const update = new Uint8Array([1, 2, 3]);
 
-      onState(update, { transactionId: 'extern' }); // applied from a module
-      expect(post).not.toHaveBeenCalled();
-
       onState(update, null); // a remote peer's edit
-      expect(post).toHaveBeenCalledWith({ event: 'state', data: update }, 'https://example.com');
+      expect(posts[0]).toHaveBeenCalledWith({ event: 'state', data: update }, 'https://example.com');
+      expect(posts[1]).toHaveBeenCalledWith({ event: 'state', data: update }, 'https://other.example');
     });
 
-    test('forwards awareness updates to the module origin, except echoes of its own', () => {
-      wrapper = createWrapper();
+    test("forwards a module's own doc update to its siblings, not back to it", () => {
+      wrapper = createWrapper({ scrapedModules_: lobbyModules });
+      const onState = mockCommunication.onState.mock.calls[0][0];
+      const update = new Uint8Array([1, 2, 3]);
+
+      onState(update, { transactionId: 'extern', source: iframes[0].contentWindow });
+      expect(posts[0]).not.toHaveBeenCalled();
+      expect(posts[1]).toHaveBeenCalledWith({ event: 'state', data: update }, 'https://other.example');
+    });
+
+    test("forwards a module's own awareness update to its siblings, not back to it", () => {
+      wrapper = createWrapper({ scrapedModules_: lobbyModules });
       const onAwareness = mockCommunication.onAwareness.mock.calls[0][0];
       const update = new Uint8Array([4, 5]);
 
-      onAwareness(update, 'extern');
-      expect(post).not.toHaveBeenCalled();
+      onAwareness(update, { transactionId: 'extern', source: iframes[1].contentWindow });
+      expect(posts[0]).toHaveBeenCalledWith({ event: 'awareness', data: update }, 'https://example.com');
+      expect(posts[1]).not.toHaveBeenCalled();
 
-      onAwareness(update, null);
-      expect(post).toHaveBeenCalledWith({ event: 'awareness', data: update }, 'https://example.com');
+      onAwareness(update, null); // a remote peer's cursor
+      expect(posts[1]).toHaveBeenCalledWith({ event: 'awareness', data: update }, 'https://other.example');
     });
   });
 

@@ -22,7 +22,10 @@ export class RoomAwarenessManager {
         if (prop === 'setLocalStateField') {
           return (field: string, value: any) => {
             const current = target.getLocalState() || {}
-            target.setLocalState({ ...current, _room: room, [field]: value })
+            // _peer lets the parent drop these states when we leave; only our
+            // own states carry it, so faking it can't touch anyone else's.
+            const _peer = (globalThis as any).Edrys?.username
+            target.setLocalState({ ...current, _room: room, _peer, [field]: value })
           }
         }
 

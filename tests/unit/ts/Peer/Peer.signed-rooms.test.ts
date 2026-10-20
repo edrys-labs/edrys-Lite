@@ -34,6 +34,7 @@ vi.mock('../../../../src/ts/GenericProviderAdapter', () => ({
     disconnect: vi.fn(),
     destroy: vi.fn(),
     getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
+    getAwareness: vi.fn(function (this: any) { return (this._app ??= new Awareness(new Y.Doc())) }),
   })),
 }))
 vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
@@ -45,6 +46,7 @@ vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
     disconnect: vi.fn(),
     destroy: vi.fn(),
     getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
+    getAwareness: vi.fn(function (this: any) { return (this._app ??= new Awareness(new Y.Doc())) }),
   })),
 }))
 

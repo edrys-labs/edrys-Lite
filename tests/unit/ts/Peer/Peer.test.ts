@@ -44,6 +44,7 @@ vi.mock('../../../../src/ts/GenericProviderAdapter', () => ({
     disconnect: vi.fn(),
     destroy: vi.fn(),
     getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
+    getAwareness: vi.fn(function (this: any) { return (this._app ??= new Awareness(new Y.Doc())) }),
   })),
 }));
 
@@ -59,6 +60,7 @@ vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
     disconnect: vi.fn(),
     destroy: vi.fn(),
     getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
+    getAwareness: vi.fn(function (this: any) { return (this._app ??= new Awareness(new Y.Doc())) }),
   })),
 }));
 
@@ -464,6 +466,62 @@ describe('Peer Class', () => {
       expect(peer['presence'].has('leaverPubKey_s1')).toBe(true);
     });
 
+    // A module awareness state (cursor) published by `peerId`'s module.
+    function addModuleCursor(peerId: string) {
+      const clientID = nextClientID++;
+      const update = encodeAwarenessUpdate(
+        {
+          states: new Map([[clientID, { _room: 'Lobby.doc', _peer: peerId, cursor: 1 }]]),
+          meta: new Map([[clientID, { clock: 1, lastUpdated: Date.now() }]]),
+        } as any,
+        [clientID]
+      );
+      applyAwarenessUpdate(peer.getAwareness(), update, 'remote');
+      return clientID;
+    }
+
+    test("provider onLeave removes the departed peer's module cursors, not its other tabs'", async () => {
+      await addRemote('leaverPubKey_s1', { room: 'Lobby' });
+      const gone = addModuleCursor('leaverPubKey_s1');
+      const otherTab = addModuleCursor('leaverPubKey_s2');
+      const removed = vi.fn();
+      peer.getAwareness().on('update', ({ removed: r }: any, origin: any) => removed(r, origin));
+
+      (peer['provider'] as any).onLeave.mock.calls[0][0]('leaverPubKey_s1');
+
+      expect(peer.getAwareness().getStates().has(gone)).toBe(false);
+      expect(peer.getAwareness().getStates().has(otherTab)).toBe(true);
+      expect(removed).toHaveBeenCalledWith([gone], 'leave');
+    });
+
+    test("a station's onLeave also removes its module cursors", () => {
+      const cursor = addModuleCursor('Station stn1');
+      (peer['provider'] as any).onLeave.mock.calls[0][0]('Station stn1');
+      expect(peer.getAwareness().getStates().has(cursor)).toBe(false);
+    });
+
+    test("a signed leave removes the peer's module cursors before the transport notices", async () => {
+      const remote = await addRemote('leaverPubKey_s1', { room: 'Lobby' });
+      const cursor = addModuleCursor('leaverPubKey_s1');
+      const stays = addModuleCursor('stayerPubKey_s1');
+      await addRemote('stayerPubKey_s1', { room: 'Lobby' });
+
+      // Same client replaces its entry with a signed leave at a higher nonce.
+      const update = encodeAwarenessUpdate(
+        {
+          states: new Map([[remote, { presence: { id: 'leaverPubKey_s1', payload: { left: true }, envelope: { signer: 'leaverPubKey', nonce: Date.now() + 1, signature: 'sig' } } }]]),
+          meta: new Map([[remote, { clock: 2, lastUpdated: Date.now() }]]),
+        } as any,
+        [remote]
+      );
+      applyAwarenessUpdate(peer['presence']['awareness'], update, 'remote');
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(peer['presence'].has('leaverPubKey_s1')).toBe(false);
+      expect(peer.getAwareness().getStates().has(cursor)).toBe(false);
+      expect(peer.getAwareness().getStates().has(stays)).toBe(true);
+    });
+
     test('an entry signed by someone else than its id is not shown', async () => {
       await addRemote('victimPub_s1', { room: 'Lobby' }, 'attackerPub');
       expect((await peer.toJSON()).users['victimPub_s1']).toBeUndefined();
@@ -521,6 +579,28 @@ describe('Peer Class', () => {
       expect(peer['y'].rooms.has('Injected')).toBe(false);
 
       peer['allowedToParticipate'] = originalAllowedToParticipate;
+    });
+
+    test("module updates carry their sender window and report whether they applied", () => {
+      const source = {};
+      const origins: any[] = [];
+      peer['y'].doc.on('update', (_u: Uint8Array, origin: any) => origins.push(origin));
+      const moduleDoc = new Y.Doc();
+      moduleDoc.getText('t').insert(0, 'hi');
+
+      expect(peer.updateState(Y.encodeStateAsUpdate(moduleDoc), source)).toBe(true);
+      expect(origins).toEqual([{ transactionId: 'extern', source }]);
+
+      const moduleAw = new Awareness(new Y.Doc());
+      moduleAw.setLocalState({ cursor: 1 });
+      const awOrigin = vi.fn();
+      peer.getAwareness().on('update', (_c: any, origin: any) => awOrigin(origin));
+      expect(peer.updateAwareness(encodeAwarenessUpdate(moduleAw, [moduleAw.clientID]), source)).toBe(true);
+      expect(awOrigin).toHaveBeenCalledWith({ transactionId: 'extern', source });
+
+      peer['allowedToParticipate'] = () => false;
+      expect(peer.updateState(Y.encodeStateAsUpdate(moduleDoc), source)).toBe(false);
+      expect(peer.updateAwareness(encodeAwarenessUpdate(moduleAw, [moduleAw.clientID]), source)).toBe(false);
     });
 
     test('student cannot modify members', async () => {

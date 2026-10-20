@@ -78,6 +78,17 @@ describe('RoomAwarenessManager', () => {
     });
   });
 
+  test("setLocalStateField tags the state with the module's peer, for removal when it leaves", () => {
+    (globalThis as any).Edrys = { username: 'pk_session' };
+    try {
+      const base = new FakeAwareness();
+      new RoomAwarenessManager(base).getAwareness('roomA').setLocalStateField('cursor', 1);
+      expect(base.getLocalState()._peer).toBe('pk_session');
+    } finally {
+      delete (globalThis as any).Edrys;
+    }
+  });
+
   test('on() filters added/updated to clients in room, leaves removed unfiltered', () => {
     const base = new FakeAwareness();
     base.setState(1, { _room: 'roomA' });

@@ -121,11 +121,12 @@ export default {
     window.addEventListener("message", this.messageHandler);
     const iframes = document.getElementsByTagName("iframe");
 
-    // Post to every module iframe, each at its own origin.
-    const broadcast = (payload: any) => {
+    // Post to every module iframe, each at its own origin, except `except`.
+    const broadcast = (payload: any, except?: unknown) => {
       for (let i = 0; i < iframes.length; i++) {
         const module = this.scrapedModulesFilter[i];
         if (!module) continue;
+        if (except && iframes[i].contentWindow === except) continue;
         iframes[i].contentWindow?.postMessage(
           payload,
           module.origin || new URL(module.url).origin
@@ -141,16 +142,17 @@ export default {
     );
 
     // Forward doc updates: remote edits reach the local Y.Doc but not the
-    // module, so content would only appear on reload. Skip 'extern' echoes.
+    // module, so content would only appear on reload. A module's own update
+    // ('extern') goes to its sibling modules, not back to its sender.
+    const exceptSender = (origin: any) =>
+      origin?.transactionId === "extern" ? origin.source : undefined;
     this._stateUnsub = this.communication.onState((data: Uint8Array, origin: any) => {
-      if (origin?.transactionId === "extern") return;
-      broadcast({ event: "state", data });
+      broadcast({ event: "state", data }, exceptSender(origin));
     });
 
-    // Forward app-awareness (module cursors/presence), same echo skip.
+    // Forward app-awareness (module cursors/presence), same sender skip.
     this._awarenessUnsub = this.communication.onAwareness((data: Uint8Array, origin: any) => {
-      if (origin === "extern") return;
-      broadcast({ event: "awareness", data });
+      broadcast({ event: "awareness", data }, exceptSender(origin));
     });
 
     this.$nextTick(() => {
@@ -329,10 +331,10 @@ export default {
           this.setToValue(this.liveClassProxy, e.data.path, e.data.value);
           break;
         case "state":
-          this.communication.updateState(e.data.data);
+          this.communication.updateState(e.data.data, e.source);
           break;
         case "awareness":
-          this.communication.updateAwareness(e.data.data);
+          this.communication.updateAwareness(e.data.data, e.source);
           break;
         case "echo":
           debug.components.modules("ECHO:", e.data);

@@ -365,14 +365,17 @@ export default class Peer {
         this.peerID,
         (id, signer) => this._isAuthorizedUserSigner(id, signer),
         () => {
+          this._dropDepartedModuleAwareness()
           this._recheckChatSigners()
           this._leaveMissingRoom(false)
           this.throttledUpdate()
         }
       )
+      this._visiblePeers = new Set()
 
       // Register the onLeave callback
       this.provider.onLeave((userid) => {
+        this._dropModuleAwareness(userid)
         if (userid && userid.startsWith(STATION + ' ')) return
 
         const base = getBasePeerID(userid)
@@ -1520,21 +1523,26 @@ export default class Peer {
   }
 
   /**
-   * Applies an update to the Y.Doc.
+   * Applies a module's update to the Y.Doc.
    * @param data The update data.
+   * @param source The sending module's window; carried in the origin so the
+   *   relay can skip only that window, not its siblings on the page.
+   * @returns Whether the update was applied.
    */
-  updateState(data: Uint8Array) {
+  updateState(data: Uint8Array, source?: unknown): boolean {
     if (!this.allowedToParticipate()) {
       debug.ts.peer(this.t('peer.feedback.notPropagated'))
-      return
+      return false
     }
 
-    Y.applyUpdate(this.y.doc, data, { transactionId: 'extern' })
+    Y.applyUpdate(this.y.doc, data, { transactionId: 'extern', source })
+    return true
   }
 
   /**
    * Y.Doc changes as encoded updates, for forwarding to module iframes.
-   * `origin` lets the caller drop echoes it just applied ('extern').
+   * `origin` is `{ transactionId: 'extern', source }` for a module's own
+   * update, so the caller can skip echoing it back to its sender.
    */
   onState(callback: (data: Uint8Array, origin: any) => void): () => void {
     this.y.doc.on('update', callback)
@@ -1546,15 +1554,54 @@ export default class Peer {
     return this.provider.getAwareness()
   }
 
-  /** Applies a module's encoded awareness update into the shared channel. */
-  updateAwareness(data: Uint8Array) {
-    if (!this.allowedToParticipate()) return
-    awarenessProtocol.applyAwarenessUpdate(this.getAwareness(), data, 'extern')
+  /**
+   * Applies a module's encoded awareness update into the shared channel.
+   * @returns Whether the update was applied.
+   */
+  updateAwareness(data: Uint8Array, source?: unknown): boolean {
+    if (!this.allowedToParticipate()) return false
+    awarenessProtocol.applyAwarenessUpdate(this.getAwareness(), data, { transactionId: 'extern', source })
+    return true
+  }
+
+  /**
+   * Removes the module awareness states (cursors) a departed peer's modules
+   * published. edrys.js tags each with `_peer` (the module's Edrys.username,
+   * i.e. our peerID format, so exact match: the same user's other tabs keep
+   * theirs). `_peer` is set inside the module's window, so a peer can only
+   * mislabel its own states; worst case they vanish when someone else leaves
+   * and come back with the module's next awareness renewal. Harmless.
+   */
+  private _dropModuleAwareness(userid: string) {
+    if (!userid || userid === this.peerID) return
+    const awareness = this.getAwareness()
+    const ids: number[] = []
+    awareness.getStates().forEach((state: any, clientID: number) => {
+      if (state?._peer === userid) ids.push(clientID)
+    })
+    if (ids.length) awarenessProtocol.removeAwarenessStates(awareness, ids, 'leave')
+  }
+
+  // Ids last visible in signed presence, to spot the ones that just left.
+  private _visiblePeers = new Set<string>()
+
+  /**
+   * Presence hides a peer at once on its signed leave (a closed tab), well
+   * before the transport's onLeave on WebSocket (heartbeat timeout); drop its
+   * module awareness then too.
+   */
+  private _dropDepartedModuleAwareness() {
+    const visible = new Set(Object.keys(this.presence?.visible ?? {}))
+    for (const id of this._visiblePeers) {
+      if (!visible.has(id)) this._dropModuleAwareness(id)
+    }
+    this._visiblePeers = visible
   }
 
   /**
    * App-awareness changes as encoded updates for the changed clients.
-   * `origin` lets the caller drop echoes it just applied ('extern').
+   * `origin` is `{ transactionId: 'extern', source }` for a module's own
+   * update, so the caller can skip echoing it back to its sender.
    */
   onAwareness(callback: (data: Uint8Array, origin: any) => void): () => void {
     const awareness = this.getAwareness()
