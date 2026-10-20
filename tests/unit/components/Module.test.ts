@@ -118,6 +118,17 @@ describe('Module Component', () => {
     expect(wrapper.emitted('loaded')).toHaveLength(2);
   });
 
+  test('hands its frame and origin to the parent on load, after the first update', async () => {
+    wrapper = createWrapper();
+    await wrapper.find('iframe').trigger('load');
+
+    const [frame, origin] = wrapper.emitted('loaded')[0];
+    expect(frame.postMessage).toBe(mockPostMessage);
+    expect(origin).toBe('https://example.com');
+    // the frame got its update (which creates its awareness) before the parent may seed it
+    expect(mockPostMessage).toHaveBeenCalledWith(expect.objectContaining({ event: 'update' }), 'https://example.com');
+  });
+
   test('reacts to room changes', async () => {
     wrapper = createWrapper();
     await wrapper.find('iframe').trigger('load');

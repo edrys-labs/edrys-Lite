@@ -35,6 +35,9 @@ describe('Modules Component', () => {
     onState: vi.fn((_cb: (data: Uint8Array, origin: any) => void) => vi.fn()),
     onAwareness: vi.fn((_cb: (data: Uint8Array, origin: any) => void) => vi.fn()),
     getWebRTCConfig: vi.fn(() => Promise.resolve({})),
+    getAwarenessState: vi.fn(() => new Uint8Array([7, 8])),
+    awarenessClients: vi.fn((): number[] => []),
+    removeAwareness: vi.fn(),
   };
 
   const mockScrapedModules = [
@@ -210,6 +213,65 @@ describe('Modules Component', () => {
     expect(mockCommunication.updateAwareness).toHaveBeenCalledWith(update, moduleWindow);
   });
 
+  describe("removing a gone frame's awareness", () => {
+    // Two module frames that each published awareness: ids 1, 2 and 3.
+    const publish = () => {
+      const first = mountWithModuleFrame();
+      const second = document.createElement('iframe');
+      wrapper.element.appendChild(second);
+      frames.push(second);
+      mockCommunication.updateAwareness.mockReturnValue(true);
+      mockCommunication.awarenessClients.mockReturnValueOnce([1, 2]).mockReturnValueOnce([3]);
+      postFrom(first, { event: 'awareness', data: [0] });
+      postFrom(second.contentWindow, { event: 'awareness', data: [0] });
+      return { first, second };
+    };
+    const loaded = (frame: Window) =>
+      wrapper.findComponent({ name: 'Module' }).vm.$emit('loaded', frame, 'https://example.com');
+
+    afterEach(() => mockCommunication.updateAwareness.mockReset());
+
+    test('a frame that reloads loses what its previous page published, before it is seeded', () => {
+      const { first } = publish();
+      loaded(first);
+
+      expect(mockCommunication.removeAwareness).toHaveBeenCalledTimes(1);
+      expect(mockCommunication.removeAwareness).toHaveBeenCalledWith([1, 2]);
+      expect(mockCommunication.removeAwareness.mock.invocationCallOrder[0]).toBeLessThan(
+        mockCommunication.getAwarenessState.mock.invocationCallOrder[0]
+      );
+    });
+
+    test('a frame that was removed (room switch) loses its awareness when another one loads', () => {
+      const { first, second } = publish();
+      second.remove();
+      loaded(first);
+
+      expect(mockCommunication.removeAwareness).toHaveBeenCalledWith([3]);
+      // only once: what is gone is forgotten
+      loaded(first);
+      expect(mockCommunication.removeAwareness.mock.calls.filter(([c]) => c.includes(3))).toHaveLength(1);
+    });
+
+    test('nothing is removed for frames that are still there, or for updates that were not applied', () => {
+      const moduleWindow = mountWithModuleFrame();
+      mockCommunication.updateAwareness.mockReturnValue(false);
+      mockCommunication.awarenessClients.mockReturnValue([9]);
+      postFrom(moduleWindow, { event: 'awareness', data: [0] });
+      loaded(moduleWindow);
+      expect(mockCommunication.removeAwareness).not.toHaveBeenCalled();
+      mockCommunication.awarenessClients.mockReset();
+    });
+
+    test('unmounting removes the awareness of all its frames', () => {
+      publish();
+      wrapper.unmount();
+      wrapper = undefined;
+      expect(mockCommunication.removeAwareness).toHaveBeenCalledWith([1, 2]);
+      expect(mockCommunication.removeAwareness).toHaveBeenCalledWith([3]);
+    });
+  });
+
   test('ignores messages from any window that is not one of its modules', () => {
     mountWithModuleFrame();
     const outsider = document.createElement('iframe'); // e.g. another frame on the page
@@ -238,6 +300,19 @@ describe('Modules Component', () => {
     wrapper.findComponent({ name: 'Module' }).vm.$emit('loaded');
 
     expect(mockCommunication.update).toHaveBeenCalledWith('room');
+  });
+
+  test('seeds a module that (re)loads with every current awareness state', () => {
+    wrapper = createWrapper();
+    const frame = { postMessage: vi.fn() };
+    const module = wrapper.findComponent({ name: 'Module' });
+
+    module.vm.$emit('loaded', frame, 'https://example.com');
+    expect(mockCommunication.update).toHaveBeenCalledWith('room');
+    expect(frame.postMessage).toHaveBeenCalledWith(
+      { event: 'awareness', data: new Uint8Array([7, 8]) },
+      'https://example.com'
+    );
   });
 
   test('answers a WebRTC config request only from a module at its own origin', async () => {

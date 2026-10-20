@@ -72,12 +72,16 @@ export default {
   },
 
   methods: {
+    targetOrigin() {
+      return this.scrapedModule.origin || this.iframeOrigin;
+    },
     loadFrame() {
       debug.components.module("Module loaded", this.scrapedModule.url);
       this.updateIframe();
       // liveClassProxy.doc is the doc as of the last room update; changes
-      // relayed since then went to the old page. Ask for a current one.
-      this.$emit("loaded");
+      // relayed since then went to the old page. Ask for a current one. The
+      // frame and its origin let the parent seed it with current awareness.
+      this.$emit("loaded", this.$refs.iframe?.contentWindow, this.targetOrigin());
     },
     updateIframe() {
       try {
@@ -93,7 +97,7 @@ export default {
             module: JSON.parse(JSON.stringify(this.scrapedModule)),
             class_id: this.class_id,
           },
-          this.scrapedModule.origin || this.iframeOrigin
+          this.targetOrigin()
         );
       } catch (e) {
         console.error("Module update", e);

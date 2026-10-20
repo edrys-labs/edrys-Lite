@@ -480,6 +480,29 @@ describe('Peer Class', () => {
       return clientID;
     }
 
+    test('awarenessClients reads the client ids of an update; removeAwareness removes them', () => {
+      const frame = new Awareness(new Y.Doc());
+      frame.setLocalState({ cursor: 1 });
+      const other = addModuleCursor('aPub_s1');
+      const update = encodeAwarenessUpdate(frame, [frame.clientID]);
+
+      expect(peer.awarenessClients(update)).toEqual([frame.clientID]);
+      peer.updateAwareness(update, {});
+      peer.removeAwareness(peer.awarenessClients(update));
+      expect(peer.getAwareness().getStates().has(frame.clientID)).toBe(false);
+      expect(peer.getAwareness().getStates().has(other)).toBe(true);
+    });
+
+    test('getAwarenessState encodes every module awareness state', () => {
+      const a = addModuleCursor('aPub_s1');
+      const b = addModuleCursor('bPub_s1');
+
+      const frameAwareness = new Awareness(new Y.Doc());
+      applyAwarenessUpdate(frameAwareness, peer.getAwarenessState()!, 'parent');
+      expect(frameAwareness.getStates().get(a)).toMatchObject({ _peer: 'aPub_s1' });
+      expect(frameAwareness.getStates().get(b)).toMatchObject({ _peer: 'bPub_s1' });
+    });
+
     test("provider onLeave removes the departed peer's module cursors, not its other tabs'", async () => {
       await addRemote('leaverPubKey_s1', { room: 'Lobby' });
       const gone = addModuleCursor('leaverPubKey_s1');

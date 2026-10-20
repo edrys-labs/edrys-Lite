@@ -118,6 +118,9 @@ export default {
     },
   },
   created() {
+    // Module window -> awareness client ids it published, so they can be
+    // removed once that frame is gone (else they linger for 30 s everywhere).
+    this._frameAwareness = new Map<Window, Set<number>>();
     window.addEventListener("message", this.messageHandler);
     const iframes = document.getElementsByTagName("iframe");
 
@@ -200,6 +203,11 @@ export default {
     this.communication.on("message", undefined);
     this._stateUnsub?.();
     this._awarenessUnsub?.();
+    // Our frames go with us.
+    for (const clients of this._frameAwareness.values()) {
+      this.communication.removeAwareness([...clients]);
+    }
+    this._frameAwareness.clear();
     this.grid.destroy();
   },
 
@@ -334,7 +342,9 @@ export default {
           this.communication.updateState(e.data.data, e.source);
           break;
         case "awareness":
-          this.communication.updateAwareness(e.data.data, e.source);
+          if (this.communication.updateAwareness(e.data.data, e.source)) {
+            this.rememberAwareness(e.source, e.data.data);
+          }
           break;
         case "echo":
           debug.components.modules("ECHO:", e.data);
@@ -368,6 +378,40 @@ export default {
         default:
           debug.components.modules("Unknown event", e.data);
           break;
+      }
+    },
+
+    // A frame that just (re)loaded only sees awareness changes from now on, so
+    // idle peers' cursors would show up only with their next renewal (~15 s).
+    // Hand it every current state, right after its first update.
+    moduleLoaded(frame?: Window, origin?: string) {
+      this.dropGoneAwareness(frame);
+      this.communication.update("room");
+      if (frame && origin) {
+        frame.postMessage({ event: "awareness", data: this.communication.getAwarenessState() }, origin);
+      }
+    },
+
+    rememberAwareness(frame: Window, data: Uint8Array) {
+      let clients = this._frameAwareness.get(frame);
+      if (!clients) this._frameAwareness.set(frame, (clients = new Set()));
+      try {
+        for (const id of this.communication.awarenessClients(data)) clients.add(id);
+      } catch (e) {
+        debug.components.modules("Unreadable awareness update", e);
+      }
+    },
+
+    // Remove the awareness of frames that are gone: `reloaded` (its previous
+    // document; the new one hasn't published yet) and any that is no longer one
+    // of our iframes (remounted on a room switch, or removed). A module can only
+    // have removed what it published itself.
+    dropGoneAwareness(reloaded?: Window) {
+      for (const [frame, clients] of this._frameAwareness) {
+        if (frame === reloaded || !this.isModuleWindow(frame)) {
+          this.communication.removeAwareness([...clients]);
+          this._frameAwareness.delete(frame);
+        }
       }
     },
 
@@ -432,7 +476,7 @@ export default {
           :scrapedModule="m"
           :role="role"
           :class_id="class_id"
-          @loaded="communication.update('room')"
+          @loaded="moduleLoaded"
         >
         </Module>
       </div>

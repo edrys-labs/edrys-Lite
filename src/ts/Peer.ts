@@ -20,6 +20,7 @@ import {
 } from './Utils'
 import * as Y from 'yjs'
 import * as awarenessProtocol from 'y-protocols/awareness'
+import { decoding } from 'lib0'
 // @ts-ignore
 import { GenericWebrtcProviderAdapter } from './GenericProviderAdapter'
 import { GenericWebsocketProviderAdapter } from './GenericWebsocketProviderAdapter'
@@ -1552,6 +1553,29 @@ export default class Peer {
   /** The app-awareness channel (module cursors/presence), isolated from identity. */
   getAwareness(): any {
     return this.provider.getAwareness()
+  }
+
+  /** Every app-awareness state, encoded, to seed a module frame that just loaded. */
+  getAwarenessState(): Uint8Array {
+    const awareness = this.getAwareness()
+    return awarenessProtocol.encodeAwarenessUpdate(awareness, Array.from(awareness.getStates().keys()))
+  }
+
+  /** Client ids in an encoded awareness update, to know which a module frame published. */
+  awarenessClients(data: Uint8Array): number[] {
+    const decoder = decoding.createDecoder(data)
+    const clients: number[] = []
+    for (let n = decoding.readVarUint(decoder); n > 0; n--) {
+      clients.push(decoding.readVarUint(decoder))
+      decoding.readVarUint(decoder) // clock
+      decoding.readVarString(decoder) // state
+    }
+    return clients
+  }
+
+  /** Removes module awareness states, e.g. those of a frame that is gone. */
+  removeAwareness(clients: number[]) {
+    if (clients.length) awarenessProtocol.removeAwarenessStates(this.getAwareness(), clients, 'unload')
   }
 
   /**
