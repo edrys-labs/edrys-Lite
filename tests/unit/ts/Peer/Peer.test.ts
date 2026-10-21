@@ -351,6 +351,23 @@ describe('Peer Class', () => {
       expect(roomMap.size).toEqual(2);
     });
 
+    // e.g. a room added right after creating the class, before join() seeded the rooms
+    test('creates the Lobby state when a room was added before join()', async () => {
+      const early = new Peer(setup, undefined, i18n.global.t);
+      await vi.advanceTimersByTimeAsync(0);
+      early.addRoom('Group A');
+      await vi.advanceTimersByTimeAsync(0);
+      const roomMap = early['y'].rooms as Y.Map<any>;
+      expect([...roomMap.keys()]).toEqual(['Group A']);
+
+      early.initRooms();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(roomMap.get('Lobby')).toBeInstanceOf(Y.Map);
+      // not a fresh classroom: no default rooms
+      expect([...roomMap.keys()].sort()).toEqual(['Group A', 'Lobby']);
+    });
+
     test('moves to the Lobby as soon as its room drops out of the view', async () => {
       const stationID = 'Station stn1';
       peer['connected'] = true;

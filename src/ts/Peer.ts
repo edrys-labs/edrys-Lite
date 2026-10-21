@@ -1007,11 +1007,17 @@ export default class Peer {
 
   /** Seeds the Lobby state (and default rooms) of a fresh classroom. */
   initRooms() {
-    if (this.y.rooms.size === 0) {
-      LOG('initializing rooms')
+    const fresh = this.y.rooms.size === 0
 
-      // Any role may make the Lobby's Y.Map — students may join before the teacher.
+    // Any role may make the Lobby's Y.Map — students may join before the teacher.
+    // Not only in a fresh classroom: a room added before this ran (e.g. right after
+    // creating the class) would otherwise leave the Lobby without state for good.
+    if (!(this.y.rooms.get(LOBBY) instanceof Y.Map)) {
       this.y.doc.transact(() => this.y.rooms.set(LOBBY, new Y.Map()), 'initRooms')
+    }
+
+    if (fresh) {
+      LOG('initializing rooms')
 
       if (this.canManageRooms()) {
         let defaultRooms = 0
