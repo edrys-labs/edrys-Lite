@@ -330,6 +330,17 @@ describe('Modules Component', () => {
     expect(reply).toHaveBeenCalledWith({ event: 'webrtcConfig', config: {} }, 'https://example.com');
   });
 
+  test('answers a WebRTC config request from an inlined (data:) module', async () => {
+    const inlined = mockScrapedModules.map((m, i) => (i === 0 ? { ...m, origin: '*' } : m));
+    const moduleWindow = mountWithModuleFrame({ scrapedModules_: inlined });
+    const reply = vi.spyOn(moduleWindow, 'postMessage').mockImplementation(() => {});
+
+    postFrom(moduleWindow, { event: 'requestWebRTCConfig' }, 'null');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(reply).toHaveBeenCalledWith({ event: 'webrtcConfig', config: {} }, '*');
+  });
+
   describe('forwarding live updates into module iframes', () => {
     // Module is stubbed, so stand in for its iframes (paired by index with the
     // modules shown in the lobby).

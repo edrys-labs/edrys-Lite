@@ -240,6 +240,16 @@ describe('Peer Class', () => {
       expect(peer['signalingServer']).toContain('wss://test.com');
     });
 
+    test("hands modules the classroom's WebRTC config, e.g. its TURN servers", async () => {
+      const webrtcConfig = { iceServers: [{ urls: 'turn:turn.example:3478', username: 'u', credential: 'c' }] };
+      const peer = new Peer({
+        ...setup,
+        data: { ...setup.data, communicationConfig: { communicationMethod: 'WebRTC', webrtcConfig } },
+      });
+
+      expect(await peer.getWebRTCConfig()).toEqual(webrtcConfig);
+    });
+
     test('switches provider at runtime', async () => {
       const peer = new Peer(setup);
       expect(peer['providerType']).toBe('WebRTC');

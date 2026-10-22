@@ -355,26 +355,26 @@ export default {
             this.communication.update("room");
           }, 100);
           break;
-        case "requestWebRTCConfig":
-          // Get config from Peer and send back to iframe
-          // Validate the requesting origin against allowed module origins
+        case "requestWebRTCConfig": {
+          // Only to a module still at its own origin. Inlined modules run on data: URLs: their origin
+          // is "null", and they are addressed with "*".
           const requestOrigin = e.origin;
-          const isAllowedOrigin = this.scrapedModulesFilter.some(m => {
-            const moduleOrigin = m.origin || new URL(m.url).origin;
-            return moduleOrigin === requestOrigin;
-          });
-          
-          if (isAllowedOrigin) {
+          const targetOrigin = this.scrapedModulesFilter
+            .map((m) => m.origin || new URL(m.url).origin)
+            .find((o) => o === requestOrigin || (o === "*" && requestOrigin === "null"));
+
+          if (targetOrigin) {
             this.communication.getWebRTCConfig().then(config => {
               e.source.postMessage({
                 event: "webrtcConfig",
                 config: config
-              }, requestOrigin);
+              }, targetOrigin);
             });
           } else {
             debug.components.modules("[Security] Rejected WebRTC config request from untrusted origin:", requestOrigin);
           }
           break;
+        }
         default:
           debug.components.modules("Unknown event", e.data);
           break;

@@ -1730,9 +1730,10 @@ export default class Peer {
   }
 
   /**
-   * Gets the WebRTC configuration.
+   * The classroom's WebRTC configuration (e.g. its TURN servers), for module
+   * streams; the build default unless the classroom sets one.
    */
   async getWebRTCConfig(): Promise<RTCConfiguration> {
-    return RTCConfiguration
+    return this.webrtcConfig
   }
 }
