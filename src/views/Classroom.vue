@@ -111,6 +111,7 @@ export default {
         messages: [],
         truncated: false,
         new: false,
+        since: Date.now(),
       },
 
       stationNameInput: stationName,
@@ -354,10 +355,17 @@ export default {
       });
 
       this.communication.on("chat", (chat: { messages: any; truncated: boolean }) => {
+        // Only messages new to us and written since we opened the class: the
+        // history arrives in parts (the doc, then its writers' presence).
+        const known = new Set(self.chat.messages.map((m: any) => m.signature));
+        const fresh = chat.messages.some(
+          (m: any) => !known.has(m.signature) && m.timestamp >= self.chat.since
+        );
+
         self.chat.messages = chat.messages;
         self.chat.truncated = chat.truncated;
 
-        if (!self.chat.open) {
+        if (fresh && !self.chat.open) {
           self.chat.new = true;
         }
       });

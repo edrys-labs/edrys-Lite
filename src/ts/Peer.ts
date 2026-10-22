@@ -1079,8 +1079,10 @@ export default class Peer {
       if (!this._isKnownChatSigner(signer)) continue
       shown.push({ ...entry, user: getShortPeerID(signer) })
     }
+    const changed = shown.length !== this._chatView.length ||
+      shown.some((m, i) => m.signature !== this._chatView[i].signature)
     this._chatView = shown
-    this.update('chat')
+    if (changed) this.update('chat')
   }
 
   /** Whether a chat entry's signature verifies; checked once per entry. */

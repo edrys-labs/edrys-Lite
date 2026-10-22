@@ -243,6 +243,25 @@ describe('Classroom View', () => {
     expect(mockCommunication.sendMessage).toHaveBeenCalledWith('test message');
   });
 
+  test('marks the chat as new only for messages written since the class was opened', async () => {
+    const wrapper = createWrapper();
+    await wrapper.vm.init();
+    mockCommunication.on.mockClear();
+    await wrapper.vm.scrapeModules();
+    const onChat = mockCommunication.on.mock.calls.find(([event]) => event === 'chat')![1];
+    const since = wrapper.vm.chat.since;
+    const msg = (signature: string, timestamp: number) => ({ signature, timestamp, msg: signature, user: 'u' });
+
+    // History: written before we came, shown as its writers' presence arrives
+    onChat({ messages: [], truncated: false });
+    onChat({ messages: [msg('old-1', since - 60000)], truncated: false });
+    onChat({ messages: [msg('old-1', since - 60000), msg('old-2', since - 1000)], truncated: false });
+    expect(wrapper.vm.chat.new).toBe(false);
+
+    onChat({ messages: [msg('old-1', since - 60000), msg('old-2', since - 1000), msg('new', since + 1)], truncated: false });
+    expect(wrapper.vm.chat.new).toBe(true);
+  });
+
   describe('saveClass', () => {
     const savedModule = { url: 'https://module.example/new' };
 

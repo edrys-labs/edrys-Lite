@@ -132,6 +132,22 @@ describe('Signed y.chat', () => {
     peer.stop()
   })
 
+  test('a presence change that leaves the shown chat as is sends no update', async () => {
+    const { peer } = await bootPeer()
+    const updates: any[] = []
+    peer.on('chat', (data: any) => updates.push(data.messages))
+    await peer.sendMessage('hello')
+    await flushPromises()
+    await flushPromises()
+    expect(updates.length).toBe(1)
+
+    peer['_refreshChat']()
+    await flushPromises()
+
+    expect(updates.length).toBe(1)
+    peer.stop()
+  })
+
   test("the name shown is the signer's, not the one in the entry", async () => {
     const { peer, pubKey } = await bootPeer()
     let chatMessages: any[] = []
@@ -206,8 +222,9 @@ describe('Signed y.chat', () => {
     await flushPromises()
     await flushPromises()
 
-    expect(chatMessages).not.toBeNull()
-    expect(chatMessages!.length).toBe(0)
+    // Nothing to show, so nothing changed and no update went out
+    expect(chatMessages).toBeNull()
+    expect(peer['_chatView']).toEqual([])
 
     peer.stop()
   })
@@ -250,7 +267,7 @@ describe('Signed y.chat', () => {
     const payload = { msg: 'infiltrate', timestamp: ts, user: 'stranger' }
     const env = await Utils3.signEntry('chat', String(ts), payload, ts)
 
-    let chatMessages: any[] | null = null
+    let chatMessages: any[] = []
     peer.on('chat', (data: any) => { chatMessages = data.messages })
 
     peer['y'].doc.transact(() => {
@@ -265,7 +282,7 @@ describe('Signed y.chat', () => {
     await flushPromises()
     await flushPromises()
 
-    expect(chatMessages!.filter((m: any) => m.msg === 'infiltrate').length).toBe(0)
+    expect(chatMessages.filter((m: any) => m.msg === 'infiltrate').length).toBe(0)
 
     peer.stop()
   })
