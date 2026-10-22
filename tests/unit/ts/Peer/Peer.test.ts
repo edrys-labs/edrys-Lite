@@ -347,16 +347,23 @@ describe('Peer Class', () => {
 
       removeAwarenessStates(peer['presence']['awareness'], [station], 'remote');
       await vi.advanceTimersByTimeAsync(ABSENT_GRACE);
-      expect(stationID in (await peer.toJSON()).rooms).toBe(false);
-      expect(peer.user().room).toBe(stationID);
-
       peer['_leaveMissingRoom']();
       expect(peer.user().room).toBe(stationID);
+      // Meanwhile we still see ourselves in it, though the station is gone
+      let view = await peer.toJSON();
+      expect(view.users[stationID]).toBeUndefined();
+      expect(stationID in view.rooms).toBe(true);
+      expect(view.users[peer['peerID']].room).toBe(stationID);
 
-      // the heartbeat moves us once the grace has passed
-      await vi.advanceTimersByTimeAsync(STATION_RETURN_GRACE);
-      peer['_leaveMissingRoom']();
+      // moved right when the grace ends, not at some later heartbeat
+      await vi.advanceTimersByTimeAsync(STATION_RETURN_GRACE - 500);
+      expect(peer.user().room).toBe(stationID);
+      await vi.advanceTimersByTimeAsync(600);
       expect(peer.user().room).toBe('Lobby');
+      await vi.advanceTimersByTimeAsync(0); // our new presence is signed
+      view = await peer.toJSON();
+      expect(stationID in view.rooms).toBe(false);
+      expect(view.users[peer['peerID']].room).toBe('Lobby');
     });
 
     test('stays in a station that comes back within the grace (a reload)', async () => {
@@ -1124,6 +1131,14 @@ describe('Peer Class', () => {
 
       expect(states).toEqual([true, false, true])
     })
+
+    test('leaves on beforeunload, while its signed leave can still go out, and only once', () => {
+      const presenceStop = vi.spyOn(peer['presence'], 'stop');
+      window.dispatchEvent(new Event('beforeunload'));
+      window.dispatchEvent(new Event('pagehide'));
+      expect(peer['_stopped']).toBe(true);
+      expect(presenceStop).toHaveBeenCalledTimes(1);
+    });
 
     test('stops when the page is hidden for good (pagehide)', () => {
       window.dispatchEvent(new Event('pagehide'));

@@ -128,10 +128,11 @@ let heartbeatID: ReturnType<typeof setInterval> | null
 // already holds a vanished station for ABSENT_GRACE.
 const MISSING_ROOM_CHECKS = 2
 
-// A station that reloads drops out of the view until it is back, a few
-// seconds later; its visitors wait this long for it before moving to the
-// Lobby. (A station's signed leave looks the same whether it reloads or closes.)
-export const STATION_RETURN_GRACE = 20000
+// A station that reloads drops out of the view until it is back (well under
+// a second in tests); its visitors wait this long for it before moving to the
+// Lobby. A station's signed leave looks the same whether it reloads or closes,
+// so this is also how long a closed station keeps its visitors.
+export const STATION_RETURN_GRACE = 8000
 
 const backupConfig = {
   iceServers: [
@@ -291,7 +292,10 @@ export default class Peer {
 
     this.connectProvider(room, password)
 
-    // Ensure cleanup on page unload
+    // Leave on page unload. beforeunload, while the connections still carry
+    // our signed leave (by pagehide they no longer do); pagehide where
+    // beforeunload doesn't fire (mobile).
+    window.addEventListener('beforeunload', this.stop)
     window.addEventListener('pagehide', this.stop)
   }
 
@@ -944,6 +948,7 @@ export default class Peer {
   private _seenOwnRoom: string | null = null
   /** When our station room, seen before, dropped out of the view. */
   private _ownRoomGoneAt: number | null = null
+  private _graceTimer: ReturnType<typeof setTimeout> | undefined
 
   /**
    * Move to the Lobby when our room is gone: at once if we saw it in the
@@ -956,7 +961,7 @@ export default class Peer {
       this._missingRoomChecks = 0
       return
     }
-    if (room in this._viewRooms()) {
+    if (room in this._viewRooms(false)) {
       this._seenOwnRoom = room
       this._missingRoomChecks = 0
       this._ownRoomGoneAt = null
@@ -965,7 +970,12 @@ export default class Peer {
     if (this._seenOwnRoom !== room &&
         (!heartbeat || ++this._missingRoomChecks < MISSING_ROOM_CHECKS)) return
     if (this._seenOwnRoom === room && room.startsWith(STATION + ' ')) {
-      this._ownRoomGoneAt ??= Date.now()
+      if (this._ownRoomGoneAt === null) {
+        this._ownRoomGoneAt = Date.now()
+        // check again right when the grace ends, not at the next heartbeat
+        clearTimeout(this._graceTimer)
+        this._graceTimer = setTimeout(() => this._leaveMissingRoom(), STATION_RETURN_GRACE + 50)
+      }
       if (Date.now() - this._ownRoomGoneAt < STATION_RETURN_GRACE) return
     }
     LOG('current room is gone, moving to lobby', room)
@@ -1411,13 +1421,16 @@ export default class Peer {
    * Stops the peer, cleans up resources.
    */
   stop = (): void => {
+    if (this._stopped) return
     LOG('stopping peer')
     this._stopped = true
     if (heartbeatID) {
       clearInterval(heartbeatID)
       heartbeatID = null
     }
+    clearTimeout(this._graceTimer)
 
+    window.removeEventListener('beforeunload', this.stop)
     window.removeEventListener('pagehide', this.stop)
 
     // Our signed leave replaces our presence and goes out with the disconnect
@@ -1667,8 +1680,12 @@ export default class Peer {
    * Rooms as the UI and modules see them: the Lobby, rooms with a valid
    * record (oldest first), and the stations that are present. A room's Y.Map
    * in the doc only holds module state.
+   *
+   * While we wait for our station to come back (STATION_RETURN_GRACE), its
+   * room stays in our view so we still see ourselves in it; `waiting: false`
+   * leaves it out, to tell whether it is really there.
    */
-  private _viewRooms(): Record<string, any> {
+  private _viewRooms(waiting = true): Record<string, any> {
     const state = (name: string) => {
       const map = this.y.rooms.get(name)
       return map instanceof Y.Map ? map.toJSON() : {}
@@ -1681,6 +1698,10 @@ export default class Peer {
     for (const [name] of records) rooms[name] = state(name)
     for (const id of Object.keys(this.presence?.visible || {})) {
       if (id.startsWith(STATION + ' ')) rooms[id] = state(id)
+    }
+    const own = this.user()?.room
+    if (waiting && this._ownRoomGoneAt !== null && own && !(own in rooms)) {
+      rooms[own] = state(own)
     }
     return rooms
   }
