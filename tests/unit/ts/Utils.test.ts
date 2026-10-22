@@ -341,6 +341,15 @@ describe('Crypto Identity', () => {
     expect(getDisplayPeerID().length).toBeGreaterThan(0);
   });
 
+  test("the short ID skips the key's constant 0x04 byte", async () => {
+    const { getShortPeerID } = await freshUtils();
+    const key = new Uint8Array(65);
+    key.set([0x04, 0xab, 0xcd, 0xef, 0x01, 0x23]);
+    const pub = btoa(String.fromCharCode(...key));
+
+    expect(getShortPeerID(pub + '_session')).toBe('abcdef01');
+  });
+
   test('signChallenge and verifyChallenge round-trip', async () => {
     const { initCryptoIdentity, signChallenge, verifyChallenge, getPeerID } = await freshUtils();
     await initCryptoIdentity();

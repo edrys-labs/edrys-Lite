@@ -402,7 +402,8 @@ function getCryptoDB(): Database {
 function _computeShortID(pubBase64: string): string {
   try {
     const bytes = Uint8Array.from(atob(pubBase64), (c) => c.charCodeAt(0))
-    return Array.from(bytes.slice(0, 4)).map((b) => b.toString(16).padStart(2, '0')).join('')
+    // Byte 0 of a raw P-256 key is always 0x04; skip it so all 8 hex digits vary.
+    return Array.from(bytes.slice(1, 5)).map((b) => b.toString(16).padStart(2, '0')).join('')
   } catch {
     // Not a base64 public key (e.g. station IDs) — fall back to first 8 alphanumeric chars
     return pubBase64.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || pubBase64.slice(0, 8)
