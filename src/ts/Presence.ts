@@ -153,8 +153,11 @@ export class SignedPresence {
     this._graceTimers.clear()
     // Replace, don't clear: the provider throttles awareness and flushes only
     // the latest state on disconnect, so a clear after it would swallow it.
+    // Not setLocalStateField: the provider's own beforeunload handler may
+    // have cleared our state already, and that is a no-op on a cleared state.
     try {
-      this.awareness.setLocalStateField(FIELD, this._ownLeave)
+      const local = this.awareness.getLocalState() ?? {}
+      this.awareness.setLocalState({ ...local, [FIELD]: this._ownLeave })
     } catch {}
   }
 

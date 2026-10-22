@@ -221,6 +221,21 @@ describe('SignedPresence', () => {
     expect(b.p.has(`${pub}_a`)).toBe(false)
   })
 
+  test('the signed leave goes out even after our state was cleared on unload', async () => {
+    const a = make(awA, `${pub}_a`)
+    const b = make(awB, `${pub}_b`)
+    await a.p.publish({ room: 'Lobby' })
+    await settle()
+    expect(b.p.has(`${pub}_a`)).toBe(true)
+
+    // The provider's beforeunload handler ran first.
+    awarenessProtocol.removeAwarenessStates(awA, [awA.clientID], 'window unload')
+    a.p.stop()
+    expect(awA.getLocalState()!.presence.payload).toEqual({ left: true })
+    await settle()
+    expect(b.p.has(`${pub}_a`)).toBe(false)
+  })
+
   test('a replay right after a signed leave does not bring the peer back', async () => {
     const a = make(awA, `${pub}_a`)
     const b = make(awB, `${pub}_b`)
