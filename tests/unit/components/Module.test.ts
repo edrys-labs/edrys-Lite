@@ -52,16 +52,17 @@ describe('Module Component', () => {
     expect(iframe.attributes('frameborder')).toBe('0');
   });
 
-  test('handles srcdoc and URL correctly', () => {
+  test('loads an inlined module as src, never as srcdoc', () => {
+    // srcdoc would give the module this page's origin
     const dataUrlModule = {
       ...defaultProps.scrapedModule,
       url: 'data:text/html,<html><body>Test</body></html>',
-      srcdoc: '<html><body>Test</body></html>'
+      srcdoc: 'data:text/html,%3Chtml%3E%3Cbody%3ETest%3C/body%3E%3C/html%3E'
     };
     wrapper = createWrapper({ scrapedModule: dataUrlModule });
-    
+
     expect(wrapper.find('iframe').attributes('src')).toBe(dataUrlModule.srcdoc);
-    expect(wrapper.find('iframe').attributes('srcdoc')).toBe(dataUrlModule.url);
+    expect(wrapper.find('iframe').attributes('srcdoc')).toBeUndefined();
   });
 
   test('sends correct postMessage on load', async () => {

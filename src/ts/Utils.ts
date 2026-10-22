@@ -185,8 +185,7 @@ export async function scrapeModule(module) {
         throw new Error('Could not load the YAML-declaration: ' + error.message)
       }
     } else {
-      const moduleEl = document.createElement('html')
-      moduleEl.innerHTML = content
+      const moduleEl = new DOMParser().parseFromString(content, 'text/html')
       const meta = Object.fromEntries(
         Object.values(moduleEl.getElementsByTagName('meta')).map((m) => [
           m.name,

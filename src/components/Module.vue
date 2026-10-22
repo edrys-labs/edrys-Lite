@@ -10,13 +10,6 @@
           ? null
           : scrapedModule.url
       "
-      :srcdoc="
-        !scrapedModule.srcdoc
-          ? null
-          : scrapedModule.url.startsWith('data:')
-          ? scrapedModule.url
-          : null
-      "
       allow="camera; microphone; fullscreen *; display-capture; accelerometer; autoplay; encrypted-media; geolocation; gyroscope; magnetometer; midi; serial; vr; clipboard-read; clipboard-write"
       @load="loadFrame"
       ref="iframe"
