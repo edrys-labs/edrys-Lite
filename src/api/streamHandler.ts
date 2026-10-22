@@ -53,6 +53,12 @@ export class StreamServer {
   private streamName: string
   private calls: Map<string, any> = new Map()
   private unsubscribeMessage: (() => void) | null = null
+  // Anyone can work out this stream's peer ID, so a viewer is only called
+  // back once it asked for the stream with its PeerJS id in a STREAM_REQUEST:
+  // edrys delivers that message only if it is signed by a member in this
+  // room. A connection that comes first waits for its request.
+  private viewers: Set<string> = new Set()
+  private waiting: Map<string, any> = new Map()
 
   constructor(
     context: any,
@@ -80,20 +86,32 @@ export class StreamServer {
     // Re-announce when a client asks for this stream (handles late joiners).
     this.unsubscribeMessage = this.context.onMessage(({ subject, body }: any) => {
       if (subject === STREAM_REQUEST && body?.streamName === this.streamName) {
+        if (typeof body.peerId === 'string') {
+          this.viewers.add(body.peerId)
+          if (this.waiting.delete(body.peerId)) this.callClient(body.peerId)
+        }
         this.announceReady()
       }
     })
 
     this.peer.on('connection', (conn) => {
-      this.callClient(conn.peer)
+      if (this.viewers.has(conn.peer)) {
+        this.callClient(conn.peer)
+      } else {
+        this.waiting.set(conn.peer, conn)
+      }
 
-      conn.on('close', () => {
+      const forget = () => {
+        this.viewers.delete(conn.peer)
+        this.waiting.delete(conn.peer)
         this.closeCall(conn.peer)
-      })
+      }
+
+      conn.on('close', forget)
 
       conn.on('error', (err: any) => {
         debug.api.general('StreamServer connection error:', err?.type || err)
-        this.closeCall(conn.peer)
+        forget()
       })
     })
 
@@ -179,6 +197,8 @@ export class StreamServer {
     // Close every outstanding media call, then the peer itself.
     this.calls.forEach((_call, clientPeerId) => this.closeCall(clientPeerId))
     this.calls.clear()
+    this.viewers.clear()
+    this.waiting.clear()
     if (this.peer && !this.peer.destroyed) {
       this.peer.destroy()
     }
@@ -199,6 +219,9 @@ export class StreamClient {
   private connectionTimeout: any = null
   private requestInterval: any = null
   private unsubscribeMessage: (() => void) | null = null
+  // Media is coming in: only then stop asking, since the server holds a
+  // connection until a request from us reaches it.
+  private receiving: boolean = false
 
   constructor(
     context: any,
@@ -233,7 +256,7 @@ export class StreamClient {
         // Retry until connected: the comm layer can drop messages right after joining.
         this.requestStream()
         this.requestInterval = setInterval(() => {
-          if (!this.currentConnection) {
+          if (!this.receiving) {
             this.requestStream()
           }
         }, 3000)
@@ -243,7 +266,12 @@ export class StreamClient {
     this.peer.on('call', (call) => {
       call.answer()
 
+      call.on('close', () => {
+        this.receiving = false
+      })
+
       call.on('stream', (remoteStream) => {
+        this.receiving = true
         const metadata = {
           streamName: this.currentStreamName || 'unknown',
           room: this.context.liveUser?.room
@@ -278,9 +306,11 @@ export class StreamClient {
 
   private currentStreamName?: string
 
+  // Our PeerJS id tells the server whom to call back.
   private requestStream() {
     this.context.sendMessage(STREAM_REQUEST, {
       streamName: this.defaultStreamName,
+      peerId: this.peer.id,
     })
   }
 
@@ -326,6 +356,7 @@ export class StreamClient {
 
       this.currentConnection.on('close', () => {
         this.currentConnection = null
+        this.receiving = false
       })
 
       this.currentConnection.on('error', (err: any) => {
