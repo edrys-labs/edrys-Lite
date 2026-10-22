@@ -122,6 +122,8 @@ export default {
         (v: string) => !this.isNameTaken(v) || this.t("classroom.station.rules.2"),
       ],
 
+      // Hidden for now: the Logger is moving into a separate edrys module.
+      isLoggerEnabled: false,
       isLoggerVisible: false,
       isLoggerMinimized: false,
       isLoggerRunning: false,
@@ -564,7 +566,7 @@ export default {
               icon="mdi-console"
               :style="{ animation: isLoggerRunning ? 'blink 1.5s linear infinite' : '' }"
               v-bind="props"
-              v-if="isStation"
+              v-if="isLoggerEnabled && isStation"
               @click="
                 isLoggerVisible = true;
                 isLoggerMinimized = false;
@@ -780,6 +782,7 @@ export default {
     </v-dialog>
 
     <v-dialog
+      v-if="isLoggerEnabled"
       v-model="isLoggerVisible"
       max-width="1200px"
       width="90%"
