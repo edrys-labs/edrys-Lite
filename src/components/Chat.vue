@@ -128,7 +128,7 @@ export default {
         </v-col>
         <v-col
           v-for="msg in history"
-          :key="msg.timestamp"
+          :key="msg.signature"
           cols="12"
           style="padding: 5px 0.5rem 5px 0.5rem"
         >

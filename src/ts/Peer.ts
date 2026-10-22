@@ -367,7 +367,7 @@ export default class Peer {
         (id, signer) => this._isAuthorizedUserSigner(id, signer),
         () => {
           this._dropDepartedModuleAwareness()
-          this._recheckChatSigners()
+          this._refreshChat()
           this._leaveMissingRoom(false)
           this.throttledUpdate()
         }
@@ -723,6 +723,7 @@ export default class Peer {
     // Roles and room authorization are derived from the setup, so the view
     // changes with it; who may republish a room may change too.
     this.presence?.reauthorize()
+    this._refreshChat()
     this._checkRooms(new Set([...this.y.roomSigs.keys(), ...this.y.rooms.keys()]))
     this._ensureStationRoom()
   }
@@ -1033,34 +1034,68 @@ export default class Peer {
     this._ensureStationRoom()
   }
 
-  /** Indices of chat entries that failed signature verification — filtered at render time. */
-  private _invalidChatIndices: Set<number> = new Set()
+  /** Signature check result per chat entry, by its content. */
+  private _chatVerified: Map<string, boolean> = new Map()
+  /** The chat as shown, as last derived from y.chat. */
+  private _chatView: any[] = []
+  private _chatRefreshing: Promise<void> | null = null
+  private _chatRefreshAgain = false
 
-  /**
-   * Invalid only because their signer wasn't present when they arrived.
-   * Presence comes over awareness, separately from the doc, so a late joiner
-   * often gets the chat before the people who wrote it.
-   */
-  private _unknownSignerChat: Map<number, string> = new Map()
-
-  /**
-   * Index where each signed chat entry first appeared; a copy elsewhere is a
-   * replay. Keyed by what is signed, not by the signature: a signature has
-   * several encodings that verify (base64 whitespace and padding, ECDSA's
-   * (r, n-s)).
-   */
-  private _chatEntries: Map<string, number> = new Map()
-
-  /** Show held-back chat entries whose signer has since become present. */
-  private _recheckChatSigners(): void {
-    let changed = false
-    for (const [index, signer] of this._unknownSignerChat) {
-      if (!this._isKnownChatSigner(signer)) continue
-      this._unknownSignerChat.delete(index)
-      this._invalidChatIndices.delete(index)
-      changed = true
+  /** Re-derive the shown chat; at most one run in flight plus one queued. */
+  private _refreshChat(): void {
+    if (this._chatRefreshing) {
+      this._chatRefreshAgain = true
+      return
     }
-    if (changed) this.update('chat')
+    this._chatRefreshing = this._collectChat()
+      .catch((e) => LOG('chat refresh failed', e))
+      .finally(() => {
+        this._chatRefreshing = null
+        if (this._chatRefreshAgain) {
+          this._chatRefreshAgain = false
+          this._refreshChat()
+        }
+      })
+  }
+
+  /**
+   * Derives the shown chat from y.chat as it is now: entries whose signature
+   * verifies, each signed message once (a copy elsewhere is a replay), from a
+   * signer who may chat. Derived anew on every change, so an entry another
+   * peer deletes or moves can't shift what is hidden, and one still being
+   * verified isn't shown. The name shown is the signer's, never the entry's.
+   */
+  private async _collectChat(): Promise<void> {
+    const shown: any[] = []
+    // Keyed by what is signed, not by the signature: a signature has several
+    // encodings that verify (base64 whitespace and padding, ECDSA's (r, n-s)).
+    const seen = new Set<string>()
+    for (const entry of this.y.chat.toArray() as any[]) {
+      if (!(await this._isSignedChatEntry(entry))) continue
+      const { timestamp, user, msg, signer } = entry
+      const signed = canonicalize({ signer, payload: { msg, timestamp, user } })
+      if (seen.has(signed)) continue
+      seen.add(signed)
+      if (!this._isKnownChatSigner(signer)) continue
+      shown.push({ ...entry, user: getShortPeerID(signer) })
+    }
+    this._chatView = shown
+    this.update('chat')
+  }
+
+  /** Whether a chat entry's signature verifies; checked once per entry. */
+  private async _isSignedChatEntry(entry: any): Promise<boolean> {
+    const { timestamp, user, msg, signer, signature } = entry ?? {}
+    if (typeof signer !== 'string' || typeof signature !== 'string') return false
+    const key = canonicalize({ timestamp, user, msg, signer, signature })
+    let ok = this._chatVerified.get(key)
+    if (ok === undefined) {
+      // Messages stay valid however old they are; replays are caught by the caller.
+      ok = await verifyEntry('chat', String(timestamp), { msg, timestamp, user },
+        { signer, nonce: timestamp, signature })
+      this._chatVerified.set(key, ok)
+    }
+    return ok
   }
 
   /** Returns true if signer pubkey matches a peer currently present. */
@@ -1079,61 +1114,13 @@ export default class Peer {
     return false
   }
 
-  /** Verify a chat entry by absolute array index; marks invalid if sig or authz fails. */
-  private async _verifyChatEntry(index: number): Promise<void> {
-    const entry = this.y.chat.get(index) as any
-    if (!entry) return
-    const { timestamp, user, msg, signer, signature } = entry
-    if (!signer || !signature) {
-      LOG('y.chat entry rejected (unsigned)', index)
-      this._invalidChatIndices.add(index)
-      return
-    }
-    const envelope: Envelope = { signer, nonce: timestamp, signature }
-    const payload = { msg, timestamp, user }
-    // Messages stay valid however old they are; replays are caught below.
-    const sigValid = await verifyEntry('chat', String(timestamp), payload, envelope)
-    if (!sigValid) {
-      LOG('y.chat entry rejected (bad sig)', index)
-      this._invalidChatIndices.add(index)
-      return
-    }
-    const signed = canonicalize({ signer, payload })
-    const firstIndex = this._chatEntries.get(signed)
-    if (firstIndex !== undefined && firstIndex !== index) {
-      LOG('y.chat entry rejected (replayed)', index)
-      this._invalidChatIndices.add(index)
-      return
-    }
-    this._chatEntries.set(signed, index)
-    if (!this._isKnownChatSigner(signer)) {
-      LOG('y.chat entry rejected (unknown signer)', index, signer)
-      this._invalidChatIndices.add(index)
-      this._unknownSignerChat.set(index, signer)
-    }
-  }
-
   private _hasChatObserver: boolean = false
 
-  /** Verifies inserted chat entries; installs its observer once, across reconnects. */
+  /** Re-derives the shown chat on every change; installs its observer once, across reconnects. */
   initChat() {
     if (this._hasChatObserver) return
     this._hasChatObserver = true
-    this.y.chat.observe(async (event) => {
-      let base = 0
-      for (const delta of event.changes.delta) {
-        if (delta.retain !== undefined) {
-          base += delta.retain
-        } else if (delta.insert !== undefined) {
-          const inserted = delta.insert as any[]
-          for (let i = 0; i < inserted.length; i++) {
-            await this._verifyChatEntry(base + i)
-          }
-          base += inserted.length
-        }
-      }
-      this.update('chat')
-    })
+    this.y.chat.observe(() => this._refreshChat())
   }
 
   /**
@@ -1210,11 +1197,7 @@ export default class Peer {
 
       case 'chat': {
         if (callback) {
-          const all = this.y.chat.toArray()
-          callback({
-            messages: all.filter((_, i) => !this._invalidChatIndices.has(i)),
-            truncated: false,
-          })
+          callback({ messages: this._chatView, truncated: false })
           this.callbackUpdate[event] = false
         } else {
           this.callbackUpdate[event] = true

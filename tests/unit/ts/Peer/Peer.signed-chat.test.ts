@@ -121,12 +121,58 @@ describe('Signed y.chat', () => {
     const { peer } = await bootPeer()
     peer.initChat()
     await peer.join('student')
-    const verify = vi.spyOn(peer, '_verifyChatEntry')
+    const verified = vi.spyOn(peer['_chatVerified'], 'set')
 
     await peer.sendMessage('once')
     await flushPromises()
+    await peer.sendMessage('twice')
+    await flushPromises()
 
-    expect(verify).toHaveBeenCalledTimes(1)
+    expect(verified).toHaveBeenCalledTimes(2)
+    peer.stop()
+  })
+
+  test("the name shown is the signer's, not the one in the entry", async () => {
+    const { peer, pubKey } = await bootPeer()
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    // Validly signed by us, but naming someone else
+    const ts = Date.now()
+    const payload = { msg: 'submit now', timestamp: ts, user: 'the-teacher' }
+    const env = await Utils.signEntry('chat', String(ts), payload, ts)
+    peer['y'].doc.transact(() => {
+      peer['y'].chat.push([{ ...payload, signer: env.signer, signature: env.signature }])
+    }, 'sync')
+    await flushPromises()
+    await flushPromises()
+
+    expect(chatMessages.map((m) => [m.msg, m.user])).toEqual([['submit now', Utils.getShortPeerID(pubKey)]])
+    peer.stop()
+  })
+
+  test('deleting an earlier entry does not reveal a rejected one', async () => {
+    const { peer } = await bootPeer()
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    await peer.sendMessage('first')
+    await flushPromises()
+    peer['y'].doc.transact(() => {
+      peer['y'].chat.push([{ timestamp: Date.now(), user: 'attacker', msg: 'unsigned' }])
+    }, 'test-raw')
+    await flushPromises()
+    await peer.sendMessage('last')
+    await flushPromises()
+    await flushPromises()
+    expect(chatMessages.map((m) => m.msg)).toEqual(['first', 'last'])
+
+    // Any peer can edit the doc: shift everything down by one
+    peer['y'].doc.transact(() => peer['y'].chat.delete(0, 1), 'test-delete')
+    await flushPromises()
+    await flushPromises()
+
+    expect(chatMessages.map((m) => m.msg)).toEqual(['last'])
     peer.stop()
   })
 
