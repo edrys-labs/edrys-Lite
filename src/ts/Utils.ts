@@ -95,26 +95,46 @@ export function copyToClipboard(str: string) {
   navigator.clipboard.writeText(str)
 }
 
+/** A classroom from a YAML/JSON text (deploy link, restored file or URL), normalized; undefined if it isn't one. */
 export function parseClassroom(config: string) {
-  let classroom
-
-  console.warn('parse Classroom', config)
-
   try {
-    classroom = parse(config)
-
-    if (classroom) {
-      // guarantees that older modules without a custom show can be loaded
-      for (let i = 0; i < classroom.modules; i++) {
-        classroom.modules[i].showInCustom =
-          classroom.modules[i].showInCustom || classroom.modules[i].showIn || ''
-      }
-    }
+    return normalizeClassroom(parse(config))
   } catch (e) {
     console.warn('could not parse classroom', e.message)
   }
+}
 
-  return classroom
+/**
+ * Fills in what an imported classroom may lack, so the rest of the app can
+ * rely on `meta`, `members` and `modules`. Undefined if `data` isn't an object.
+ */
+export function normalizeClassroom(data: any) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return undefined
+
+  const strings = (list: any) =>
+    Array.isArray(list) ? list.filter((s) => typeof s === 'string') : []
+
+  data.meta = {
+    logo: '',
+    description: '',
+    selfAssign: false,
+    defaultNumberOfRooms: 0,
+    ...(data.meta && typeof data.meta === 'object' ? data.meta : {}),
+  }
+  data.members = {
+    teacher: strings(data.members?.teacher),
+    student: strings(data.members?.student),
+  }
+  data.modules = (Array.isArray(data.modules) ? data.modules : [])
+    .filter((m: any) => m && typeof m === 'object')
+    .map((m: any) => ({
+      ...m,
+      // older modules only have showIn (a list, or a comma separated string)
+      showInCustom:
+        m.showInCustom || (Array.isArray(m.showIn) ? m.showIn.join(', ') : m.showIn) || '',
+    }))
+
+  return data
 }
 
 export function parse(config: string): any {
@@ -160,7 +180,7 @@ export async function scrapeModule(module) {
                             })
                             .join('\n')}
 
-                          <style type="module">${yaml.style || ''}</style>
+                          <style>${yaml.style || ''}</style>
                           <script>${yaml.main}</script>
                           </head>
                           <body>

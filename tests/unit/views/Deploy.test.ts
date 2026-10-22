@@ -17,7 +17,7 @@ vi.mock('../../../src/ts/Database', () => ({
 vi.mock('../../../src/ts/Utils', () => ({
   infoHash: vi.fn(() => 'test-hash'),
   getPeerID: vi.fn(() => 'test-user'),
-  parse: vi.fn((data) => JSON.parse(data)),
+  parseClassroom: vi.fn((data) => JSON.parse(data)),
   copyToClipboard: vi.fn()
 }));
 

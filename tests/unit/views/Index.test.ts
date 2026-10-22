@@ -24,6 +24,7 @@ vi.mock('../../../src/ts/Utils', () => ({
   isPubKey: vi.fn((key: string) => key !== 'legacy-id'),
   initCryptoIdentity: vi.fn(() => Promise.resolve()),
   clone: vi.fn(obj => JSON.parse(JSON.stringify(obj))),
+  normalizeClassroom: vi.fn((data) => data),
   removeKeysStartingWithSecret: vi.fn(),
   copyToClipboard: vi.fn()
 }));
@@ -169,6 +170,16 @@ describe('Index View', () => {
     
     const cards = wrapper.findAll('[data-test="classroom-card"]');
     expect(cards).toHaveLength(mockClassrooms.length + 1); // +1 for create card
+  });
+
+  test('a stored classroom without members does not hide the list', async () => {
+    const wrapper = createWrapper();
+    const bare = { id: 'bare', data: { name: 'Imported', createdBy: 'other-user', meta: {} }, hash: null };
+
+    await wrapper.setData({ classrooms: [bare, ...mockClassrooms] });
+
+    expect(wrapper.text()).toContain('Imported');
+    expect(wrapper.text()).toContain('Test Class 1');
   });
 
   test('shows a classroom description as text, not HTML', async () => {

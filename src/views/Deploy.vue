@@ -1,6 +1,6 @@
 <script lang="ts">
 import { Database } from "../ts/Database";
-import { infoHash, getPeerID, parse, copyToClipboard } from "../ts/Utils";
+import { infoHash, getPeerID, parseClassroom, copyToClipboard } from "../ts/Utils";
 
 import Footer from "../components/Footer.vue";
 import UserMenu from '../components/UserMenu.vue';
@@ -45,7 +45,8 @@ export default {
         this.state.push(this.t('deploy.state.fetched'));
 
         try {
-          const classroom = parse(data);
+          const classroom = parseClassroom(data);
+          if (!classroom) throw new Error("not a classroom: " + this.url);
           this.state.push(this.t('deploy.state.parsed'));
           this.createClass(classroom);
         } catch (error) {

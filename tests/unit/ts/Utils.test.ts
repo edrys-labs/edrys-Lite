@@ -1,5 +1,9 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
+import * as YAML from 'js-yaml';
 import {
+  scrapeModule,
+  parseClassroom,
+  normalizeClassroom,
   validateUrl,
   infoHash,
   deepEqual,
@@ -65,6 +69,51 @@ describe('Utils', () => {
   });
 
   // Forking someone else's classroom runs this, so their secrets don't leak.
+  describe('importing a classroom', () => {
+    test('fills in missing meta, members and modules', () => {
+      const classroom = parseClassroom(JSON.stringify({ name: 'Bare' }));
+
+      expect(classroom.members).toEqual({ teacher: [], student: [] });
+      expect(classroom.modules).toEqual([]);
+      expect(classroom.meta).toMatchObject({ description: '', defaultNumberOfRooms: 0 });
+    });
+
+    test('keeps what is there, and gives older modules a showInCustom', () => {
+      const classroom = parseClassroom(JSON.stringify({
+        meta: { description: 'kept', defaultNumberOfRooms: 2 },
+        members: { teacher: ['t1', 42], student: ['*'] },
+        modules: [
+          { url: 'a', showIn: ['lobby', 'station'] },
+          { url: 'b', showIn: 'Room 1' },
+          { url: 'c', showInCustom: 'teacher-only', showIn: ['*'] },
+        ],
+      }));
+
+      expect(classroom.meta).toMatchObject({ description: 'kept', defaultNumberOfRooms: 2 });
+      expect(classroom.members).toEqual({ teacher: ['t1'], student: ['*'] });
+      expect(classroom.modules.map((m: any) => m.showInCustom)).toEqual(['lobby, station', 'Room 1', 'teacher-only']);
+    });
+
+    test('is undefined for text that is not a classroom', () => {
+      expect(parseClassroom('"just a string"')).toBeUndefined();
+      expect(parseClassroom('[1, 2]')).toBeUndefined();
+      expect(normalizeClassroom(null)).toBeUndefined();
+    });
+  });
+
+  describe('scrapeModule', () => {
+    test("applies a YAML module's style (a typed <style> would be ignored)", async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ text: () => Promise.resolve('yaml') }));
+      (YAML.load as any).mockReturnValue({ name: 'Y', style: 'body { color: red }', main: '', body: '' });
+
+      const module = await scrapeModule({ url: 'https://example.com/module.yml' });
+      const html = unescape(module.srcdoc.replace('data:text/html,', ''));
+
+      expect(html).toContain('<style>body { color: red }</style>');
+      vi.unstubAllGlobals();
+    });
+  });
+
   describe('removeKeysStartingWithSecret', () => {
     test('removes secret keys at any depth, ignoring case', () => {
       const classroom = {

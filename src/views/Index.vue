@@ -6,6 +6,7 @@ import {
   hashPubKey,
   isPubKey,
   clone,
+  normalizeClassroom,
   removeKeysStartingWithSecret,
   copyToClipboard,
 } from "../ts/Utils";
@@ -69,6 +70,7 @@ export default {
 
     async forkClass(classroom: any) {
       classroom = clone(classroom);
+      normalizeClassroom(classroom.data);
 
       const id = infoHash();
       const peerID = getPeerID(false);
@@ -177,8 +179,8 @@ export default {
                   background-color: white;
                 "
                 :disabled="
-                  classroom?.data.createdBy !== peerID &&
-                  !classroom?.data.members.teacher.includes(peerID)
+                  classroom?.data?.createdBy !== peerID &&
+                  !classroom?.data?.members?.teacher?.includes(peerID)
                 "
               >
               {{ t('index.classroom.writeProtection') }} 
@@ -200,8 +202,8 @@ export default {
               ></v-img>
               <v-card-title>{{ classroom.data?.name }}</v-card-title>
               <v-card-subtitle>
-                <span v-if="classroom?.data.createdBy === peerID">{{ t('index.classroom.ownership.owner') }}</span>
-                <span v-else-if="classroom?.data?.members?.teacher.includes(peerID)">{{ t('index.classroom.ownership.teacher') }}</span>
+                <span v-if="classroom?.data?.createdBy === peerID">{{ t('index.classroom.ownership.owner') }}</span>
+                <span v-else-if="classroom?.data?.members?.teacher?.includes(peerID)">{{ t('index.classroom.ownership.teacher') }}</span>
                 <span v-else>{{ t('index.classroom.ownership.student') }}</span>
               </v-card-subtitle>
 

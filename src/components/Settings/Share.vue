@@ -102,15 +102,8 @@ export default {
   },
 
   methods: {
+    // newConfig comes from parseClassroom, so meta/members/modules exist.
     updateConfig(newConfig: any) {
-      if (!newConfig.meta) {
-        newConfig.meta = {
-          logo: "",
-          description: "",
-          selfAssign: false,
-          defaultNumberOfRooms: 0,
-        };
-      }
       this.config.name = newConfig.name;
 
       this.config.meta = newConfig.meta;
