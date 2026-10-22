@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, vi } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 
 vi.mock('./debugHandler', () => ({
   debug: { api: { general: vi.fn() } },
@@ -49,7 +49,12 @@ vi.mock('peerjs', () => ({
   Peer: vi.fn().mockImplementation((...args: any[]) => new (FakePeerInstance as any)(...args)),
 }));
 
-import { StreamServer, StreamClient } from '../../../src/api/streamHandler';
+import {
+  StreamServer,
+  StreamClient,
+  WebSocketStreamServer,
+  WebSocketStreamClient,
+} from '../../../src/api/streamHandler';
 
 function makeContext(overrides: any = {}) {
   return {
@@ -149,6 +154,115 @@ describe('a viewer asking for a stream', () => {
 
     client.stop();
     vi.useRealTimers();
+  });
+});
+
+describe('websocket streams: the relay room is handed out through edrys', () => {
+  const WS_READY = '__edrys_ws_stream_ready';
+  const WS_REQUEST = '__edrys_ws_stream_request';
+
+  // Relay sockets: what each one sent, and a way to open it.
+  class FakeSocket {
+    static OPEN = 1;
+    static all: FakeSocket[] = [];
+    readyState = 0;
+    sent: any[] = [];
+    onopen: any; onmessage: any; onerror: any; onclose: any;
+    constructor(public url: string) { FakeSocket.all.push(this); }
+    send(data: any) { this.sent.push(JSON.parse(data)); }
+    close() {}
+    open() { this.readyState = 1; this.onopen?.(); }
+  }
+
+  class FakeMediaSource { addEventListener() {} static isTypeSupported() { return true; } }
+
+  // Edrys messages between one station and its viewers, as the host delivers them.
+  function room() {
+    const listeners: Function[] = [];
+    const context = (overrides: any = {}) =>
+      makeContext({
+        sendMessage: (subject: string, body: any) => listeners.forEach((l) => l({ subject, body })),
+        onMessage: (h: Function) => { listeners.push(h); return () => listeners.splice(listeners.indexOf(h), 1); },
+        ...overrides,
+      });
+    return { context };
+  }
+
+  const camera = { getVideoTracks: () => [{}], getAudioTracks: () => [] } as unknown as MediaStream;
+
+  beforeEach(() => {
+    FakeSocket.all = [];
+    vi.stubGlobal('WebSocket', FakeSocket);
+    vi.stubGlobal('MediaSource', FakeMediaSource);
+    URL.createObjectURL = vi.fn(() => 'blob:fake');
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const options = { websocketUrl: 'wss://relay.example/stream', streamName: 'Camera 1' };
+
+  test('a station registers under a random room, not one derived from the class', () => {
+    const { context } = room();
+    new WebSocketStreamServer(context(), camera, options);
+    new WebSocketStreamServer(context(), camera, options);
+    FakeSocket.all.forEach((s) => s.open());
+
+    const rooms = FakeSocket.all.map((s) => s.sent.find((m) => m.type === 'register-source').roomId);
+    for (const id of rooms) expect(id).toMatch(/^[0-9a-f]{32}$/);
+    expect(rooms[0]).not.toBe(rooms[1]);
+  });
+
+  test('a viewer joins only the room the station names, also when it asks late', () => {
+    const { context } = room();
+    const station = new WebSocketStreamServer(context(), camera, options);
+    FakeSocket.all[0].open(); // announced before any viewer listens
+    const roomId = FakeSocket.all[0].sent.find((m) => m.type === 'register-source').roomId;
+
+    const viewer = new WebSocketStreamClient(context(), () => {}, options);
+    const socket = FakeSocket.all[1];
+    socket.open();
+
+    expect(socket.sent).toEqual([{ type: 'join-room', roomId }]);
+    viewer.stop();
+    station.stop();
+  });
+
+  test('a viewer joins nothing until a station names a room', () => {
+    vi.useFakeTimers();
+    const sent: any[] = [];
+    const viewer = new WebSocketStreamClient(
+      makeContext({ sendMessage: (s: string, b: any) => sent.push([s, b]), onMessage: () => () => {} }),
+      () => {},
+      options
+    );
+    FakeSocket.all[0].open();
+    vi.advanceTimersByTime(3000);
+
+    expect(FakeSocket.all[0].sent).toEqual([]);
+    expect(sent).toEqual([
+      [WS_REQUEST, { streamName: 'Camera 1' }],
+      [WS_REQUEST, { streamName: 'Camera 1' }],
+    ]);
+    viewer.stop();
+    vi.useRealTimers();
+  });
+
+  test('a viewer ignores rooms named for another stream', () => {
+    const listeners: Function[] = [];
+    const viewer = new WebSocketStreamClient(
+      makeContext({ onMessage: (h: Function) => { listeners.push(h); return () => {}; } }),
+      () => {},
+      options
+    );
+    FakeSocket.all[0].open();
+    listeners.forEach((l) => l({ subject: WS_READY, body: { streamName: 'Camera 2', roomId: 'abc' } }));
+
+    expect(FakeSocket.all[0].sent).toEqual([]);
+    viewer.stop();
   });
 });
 
