@@ -438,13 +438,17 @@ export default {
       return translatedNames[room.toLowerCase()] || room;
     },
 
-    // Check if the room name matches the showIn field
+    // Whether the room is one of the showIn entries: whole names, `*` as a
+    // wildcard ("Room 1" is not "Room 10"; other characters are literal).
     checkRoomMatch(normalizedShowIn: string[], currentRoom: string) {
-      return normalizedShowIn
-        .map(e => e.toLowerCase().replace(/\*/g, ".*"))
-        .map(e => new RegExp(e))
-        .map(e => currentRoom.match(e) !== null)
-        .includes(true);
+      return normalizedShowIn.some((entry) => {
+        const pattern = entry
+          .toLowerCase()
+          .split("*")
+          .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+          .join(".*");
+        return new RegExp(`^${pattern}$`).test(currentRoom);
+      });
     },
   },
 };

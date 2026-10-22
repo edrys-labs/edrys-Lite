@@ -438,6 +438,26 @@ describe('Modules Component', () => {
     expect(mockCommunication.on).toHaveBeenCalledWith('message', undefined);
   });
 
+  describe('showIn room names', () => {
+    const shownIn = (room: string, showInCustom: string) =>
+      createWrapper({
+        scrapedModules_: [{ name: 'M', url: 'https://example.com/m', showInCustom }],
+        liveClassProxy: { users: { 'test-user': { room } } },
+      }).findAllComponents({ name: 'Module' }).length === 1;
+
+    test('match whole names: a module for Room 1 is not in Room 10', () => {
+      expect(shownIn('Room 1', 'Room 1')).toBe(true);
+      expect(shownIn('Room 10', 'Room 1')).toBe(false);
+      expect(shownIn('Room 10', 'Room 1*')).toBe(true);
+    });
+
+    test('treat characters other than * literally', () => {
+      expect(shownIn('Lab (A)', 'Lab (A)')).toBe(true);
+      expect(shownIn('Lab [x', 'Lab [x')).toBe(true);
+      expect(shownIn('Lab 1', 'Lab.1')).toBe(false);
+    });
+  });
+
   describe('scrapedModulesFilter', () => {
     test('handles translated room names correctly', async () => {
       const modulesWithTranslatedRooms = [
