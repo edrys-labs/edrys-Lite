@@ -206,9 +206,9 @@ export default {
               </v-card-subtitle>
 
               <v-card-text>
-                <span
-                  v-html="classroom?.data?.meta?.description || 'No description'"
-                ></span>
+                <span style="white-space: pre-line">{{
+                  classroom?.data?.meta?.description || 'No description'
+                }}</span>
               </v-card-text>
 
               <v-card-actions>

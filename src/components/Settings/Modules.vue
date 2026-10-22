@@ -38,10 +38,8 @@
             {{ localScrapedModules[index].name }}
           </v-list-item-title>
 
-          <v-list-item-subtitle
-            v-html="localScrapedModules[index]?.description || t('settings.modules.noDescription')"
-            style="white-space: break-spaces"
-          >
+          <v-list-item-subtitle style="white-space: break-spaces">
+            {{ localScrapedModules[index]?.description || t('settings.modules.noDescription') }}
           </v-list-item-subtitle>
 
           <template v-slot:append>

@@ -171,6 +171,19 @@ describe('Index View', () => {
     expect(cards).toHaveLength(mockClassrooms.length + 1); // +1 for create card
   });
 
+  test('shows a classroom description as text, not HTML', async () => {
+    const wrapper = createWrapper();
+    const payload = '<img src=x onerror=alert(1)>';
+    const classroom = JSON.parse(JSON.stringify(mockClassrooms[0]));
+    classroom.data.meta.description = payload;
+
+    await wrapper.setData({ classrooms: [classroom] });
+
+    const text = wrapper.find('.v-card-text');
+    expect(text.find('img').exists()).toBe(false);
+    expect(text.text()).toContain(payload);
+  });
+
   test('creates new classroom', async () => {
     const wrapper = createWrapper();
     

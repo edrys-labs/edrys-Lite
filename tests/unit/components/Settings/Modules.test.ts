@@ -102,6 +102,16 @@ describe('Modules Settings Component', () => {
     expect(moduleItems).toHaveLength(mockConfig.modules.length);
   });
 
+  test("shows a module's description as text, not HTML", () => {
+    const payload = '<img src=x onerror=alert(1)>';
+    mockScrapedModules[0].description = payload;
+    const wrapper = createWrapper();
+
+    const subtitle = wrapper.find('.v-list-item-subtitle');
+    expect(subtitle.find('img').exists()).toBe(false);
+    expect(subtitle.text()).toContain(payload);
+  });
+
   test('handles module deletion', async () => {
     const wrapper = createWrapper();
     wrapper.vm.deleteModule(0);
