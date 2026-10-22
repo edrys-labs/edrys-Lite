@@ -526,14 +526,14 @@ export default {
     <v-layout>
       <v-app-bar color="surface-variant">
         <template v-slot:prepend>
-          <v-app-bar-nav-icon @click="showSideMenu = !showSideMenu"></v-app-bar-nav-icon>
+          <v-app-bar-nav-icon
+            :aria-label="t('classroom.sideMenu.rooms')"
+            :aria-expanded="showSideMenu"
+            @click="showSideMenu = !showSideMenu"
+          ></v-app-bar-nav-icon>
 
-          <v-app-bar-title
-            tag="a"
-            style="color: white; text-decoration: none"
-            title="Back to index-page"
-          >
-            <a href="./" style="color: white; text-decoration: none">edrys-lite</a>
+          <v-app-bar-title style="color: white; text-decoration: none">
+            <a href="./" title="Back to index-page" style="color: white; text-decoration: none">edrys-lite</a>
           </v-app-bar-title>
         </template>
 
@@ -574,6 +574,8 @@ export default {
 
         <v-btn
           icon
+          :aria-label="t('classroom.chat')"
+          :aria-expanded="chat.open"
           @click="
             chat.open = !chat.open;
             chat.new = false;
@@ -690,6 +692,7 @@ export default {
                     : 'mdi-arrow-right-circle'
                 "
                 variant="text"
+                :aria-label="t('classroom.sideMenu.gotoRoom', { room: translateRoomName(name) })"
                 @click="gotoRoom(name)"
               ></v-btn>
             </template>

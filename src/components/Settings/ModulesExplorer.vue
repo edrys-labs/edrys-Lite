@@ -126,6 +126,7 @@ export default {
                       icon="mdi-plus-circle"
                       variant="text"
                       v-bind="props"
+                      :aria-label="t('settings.modules.modulesExplorer.tooltip.add')"
                       @click="addModule(module.name)"
                     ></v-btn>
                   </template>
@@ -138,6 +139,7 @@ export default {
                       icon="mdi-information"
                       variant="text"
                       v-bind="props"
+                      :aria-label="t('settings.modules.modulesExplorer.tooltip.info')"
                       @click="openModuleUrl(module.html_url)"
                     ></v-btn>
                   </template>

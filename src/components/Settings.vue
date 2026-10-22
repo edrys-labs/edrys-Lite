@@ -110,7 +110,7 @@ export default {
 
       <v-spacer></v-spacer>
 
-      <v-btn icon @click="$emit('close')">
+      <v-btn icon :aria-label="t('classroom.popup.close')" @click="$emit('close')">
         <v-icon>mdi-close</v-icon>
       </v-btn>
 

@@ -4,6 +4,8 @@ general:
   copied: "Скопійовано!"
   userRole: "Роль користувача"
   language: "Мова"
+  menu: "Меню користувача"
+  copyLink: "Копіювати посилання"
   roles:
     teacher: "Вчитель"
     student: "Студент"
@@ -30,6 +32,7 @@ index:
 
 classroom:
   reconnecting: "Повторне з’єднання…"
+  chat: "Чат"
   station:
     mode: "Активний режим станції"
     label: "Назва станції"
@@ -45,6 +48,8 @@ classroom:
     onlineUsers: "Користувачів онлайн"
     settings: "Налаштування"
     newRoom: "Нова кімната"
+    rooms: "Кімнати"
+    gotoRoom: "Перейти до {room}"
   popup:
     close: "Закрити"
 
@@ -194,6 +199,7 @@ footer:
   github: "edrys-Lite на GitHub"
   docs: "Переглянути документацію"
   explore: "Досліджуйте на Github"
+  blog: "Блог"
 
 modules:
   loading: "Завантаження модулів…"

@@ -216,17 +216,16 @@ export default {
                 </v-menu>
 
                 <v-spacer></v-spacer>
-                <a
+                <v-btn
+                  icon
                   data-link="true"
                   :href="`./?/classroom/${classroom.id}${
                     classroom.ownerHash ? `/${classroom.ownerHash}` : ''
                   }`"
-                  style="color: white"
+                  :title="t('index.classroom.actions.open')"
                 >
-                  <v-btn icon title="open">
-                    <v-icon>{{ ['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left-bold' : 'mdi-arrow-right-bold' }}</v-icon>
-                  </v-btn>
-                </a>
+                  <v-icon>{{ ['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left-bold' : 'mdi-arrow-right-bold' }}</v-icon>
+                </v-btn>
               </v-card-actions>
             </v-card>
           </v-col>
@@ -243,7 +242,7 @@ export default {
               <v-card-subtitle>{{ t('index.classroom.startTeaching') }}</v-card-subtitle>
               <v-card-actions>
                 <v-spacer></v-spacer>
-                <v-btn icon>
+                <v-btn icon :aria-label="t('index.classroom.create')">
                   <v-icon icon="mdi-plus"></v-icon>
                 </v-btn>
               </v-card-actions>

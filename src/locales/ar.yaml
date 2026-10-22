@@ -4,6 +4,8 @@ general:
   copied: "تم النسخ!"
   userRole: "دور المستخدم"
   language: "لغة"
+  menu: "قائمة المستخدم"
+  copyLink: "نسخ الرابط"
   roles:
     teacher: "معلم"
     student: "طالب"
@@ -30,6 +32,7 @@ index:
 
 classroom:
   reconnecting: "جارٍ إعادة الاتصال…"
+  chat: "الدردشة"
   station:
     mode: "وضع المحطة نشط"
     label: "اسم المحطة"
@@ -45,6 +48,8 @@ classroom:
     onlineUsers: "المستخدمون المتصلون"
     settings: "الإعدادات"
     newRoom: "غرفة جديدة"
+    rooms: "الغرف"
+    gotoRoom: "الانتقال إلى {room}"
   popup:
     close: "إغلاق"
 
@@ -194,6 +199,7 @@ footer:
   github: "edrys-Lite على GitHub"
   docs: "عرض الوثائق"
   explore: "استكشاف على Github"
+  blog: "المدونة"
 
 modules:
   loading: "جارٍ تحميل الوحدات…"

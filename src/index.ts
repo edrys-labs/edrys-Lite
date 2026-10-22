@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+import { createApp, watch } from 'vue'
 import Index from './views/Index.vue'
 import Classroom from './views/Classroom.vue'
 import Deploy from './views/Deploy.vue'
@@ -137,6 +137,15 @@ const i18n = createI18n({
     es: { $vuetify: { ...es }, ...esTranslations },
   },
 })
+
+// Screen readers pick their voice from <html lang>
+watch(
+  i18n.global.locale,
+  (lang) => {
+    document.documentElement.lang = lang
+  },
+  { immediate: true }
+)
 
 const vuetify = createVuetify({
   components: {

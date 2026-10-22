@@ -61,7 +61,7 @@ describe('Footer Component', () => {
   test('all buttons open in new tab', () => {
     const buttons = wrapper.findAll('.v-btn');
     buttons.forEach(btn => {
-      expect(btn.attributes('target')).toBe('_');
+      expect(btn.attributes('target')).toBe('_blank');
     });
   });
 });

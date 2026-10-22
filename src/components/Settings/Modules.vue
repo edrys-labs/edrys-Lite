@@ -48,6 +48,7 @@
                   icon="mdi-cog"
                   variant="text"
                   v-bind="props"
+                  :aria-label="t('settings.modules.tooltip.config')"
                   :style="validate_config(index) ? '' : 'color: red'"
                   @click="openModuleDialog(index)"
                 ></v-btn>
@@ -63,6 +64,7 @@
                       v-bind="{ ...tooltipProps, ...menuProps }"
                       icon="mdi-delete"
                       variant="text"
+                      :aria-label="t('settings.modules.tooltip.delete')"
                     ></v-btn>
                   </template>
 
@@ -126,7 +128,7 @@
         <v-toolbar-title class="text-h6 font-weight-medium">
           {{ localScrapedModules[moduleDialogIndex]?.name }}
         </v-toolbar-title>
-        <v-btn icon @click="closeModuleDialog">
+        <v-btn icon :aria-label="t('classroom.popup.close')" @click="closeModuleDialog">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-toolbar>

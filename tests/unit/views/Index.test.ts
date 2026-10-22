@@ -122,6 +122,8 @@ describe('Index View', () => {
                 :class="['v-btn', $attrs.color]"
                 :title="$attrs.title"
                 :icon="$attrs.icon"
+                :href="$attrs.href"
+                :data-link="$attrs['data-link']"
                 @click="$emit('click')"
               >
                 <i v-if="$attrs.icon" :class="$attrs.icon"></i>
@@ -277,7 +279,7 @@ describe('Index View', () => {
     expect(hashPubKey).not.toHaveBeenCalledWith('legacy-id');
     expect(wrapper.vm.classrooms.map((c: any) => c.ownerHash)).toEqual([undefined, undefined, 'testhash1234']);
 
-    const links = wrapper.findAll('a[data-link="true"]').map(a => a.attributes('href'));
+    const links = wrapper.findAll('[data-link="true"]').map(a => a.attributes('href'));
     expect(links).toContain('./?/classroom/legacy');
     expect(links).toContain('./?/classroom/owned/testhash1234');
     expect(links.some(l => l?.includes('undefined'))).toBe(false);

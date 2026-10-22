@@ -4,6 +4,8 @@ general:
   copied: "Copied!"
   userRole: "User Role"
   language: "Language"
+  menu: "User menu"
+  copyLink: "Copy link"
   roles:
     teacher: "Teacher"
     student: "Student"
@@ -30,6 +32,7 @@ index:
 
 classroom:
   reconnecting: "Reconnecting…"
+  chat: "Chat"
   station:
     mode: "Station Mode Active"
     label: "Station Name"
@@ -45,6 +48,8 @@ classroom:
     onlineUsers: "online users"
     settings: "Settings"
     newRoom: "New room"
+    rooms: "Rooms"
+    gotoRoom: "Go to {room}"
   popup:
     close: "Close"
 
@@ -194,6 +199,7 @@ footer:
   github: "edrys-Lite on GitHub"
   docs: "View the Documentation" 
   explore: "Explore Classrooms"
+  blog: "Blog"
 
 modules:
   loading: "Loading modules…"

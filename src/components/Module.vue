@@ -2,6 +2,7 @@
   <div style="height: 100%; width: 100%" :key="scrapedModule.url">
     <iframe
       style="height: 100%; width: 100%"
+      :title="scrapedModule.name"
       :key="liveClassProxy.users[username].room"
       :src="
         scrapedModule.srcdoc

@@ -1,7 +1,7 @@
 <template>
   <v-menu :close-on-content-click="false">
     <template v-slot:activator="{ props }">
-      <v-btn v-bind="props" icon="mdi-dots-vertical"> </v-btn>
+      <v-btn v-bind="props" icon="mdi-dots-vertical" :aria-label="t('general.menu')"> </v-btn>
     </template>
 
     <v-list>
@@ -17,6 +17,7 @@
                 :color="copied ? 'success' : undefined"
                 size="small"
                 variant="flat"
+                :aria-label="t('general.copyFullId')"
                 @click.stop="copyPeerID()"
               >
               </v-btn>

@@ -11,7 +11,7 @@
     </v-container>
 
     <template v-slot:append>
-      <v-btn icon="mdi-content-copy" @click="copyUrl" variant="text"></v-btn>
+      <v-btn icon="mdi-content-copy" :aria-label="t('general.copyLink')" @click="copyUrl" variant="text"></v-btn>
     </template>
   </v-alert>
 </template>
