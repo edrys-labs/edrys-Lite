@@ -101,14 +101,20 @@ describe('Modules Settings Component', () => {
     expect(moduleItems).toHaveLength(mockConfig.modules.length);
   });
 
-  test("shows a module's description as text, not HTML", () => {
-    const payload = '<img src=x onerror=alert(1)>';
-    mockScrapedModules[0].description = payload;
+  test("renders only text and web links from a module's description", () => {
+    mockScrapedModules[0].description =
+      'See <img src=x onerror=alert(1)><br/><a href="https://example.com/m" onclick="alert(1)">docs</a>';
     const wrapper = createWrapper();
 
     const subtitle = wrapper.find('.v-list-item-subtitle');
     expect(subtitle.find('img').exists()).toBe(false);
-    expect(subtitle.text()).toContain(payload);
+    const link = subtitle.find('a');
+    expect(link.attributes()).toEqual({
+      href: 'https://example.com/m',
+      target: '_blank',
+      rel: 'noopener noreferrer',
+    });
+    expect(subtitle.text()).toBe('See \ndocs');
   });
 
   test('handles module deletion', async () => {

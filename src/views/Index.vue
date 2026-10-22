@@ -15,12 +15,13 @@ import {
 
 import Footer from "../components/Footer.vue";
 import UserMenu from '../components/UserMenu.vue';
+import LinkedText from '../components/LinkedText.vue';
 import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Index",
 
-  components: { Footer, UserMenu },
+  components: { Footer, UserMenu, LinkedText },
 
   setup() {
     const { t, locale } = useI18n();
@@ -183,9 +184,9 @@ export default {
               </v-card-subtitle>
 
               <v-card-text>
-                <span style="white-space: pre-line">{{
-                  classroom?.data?.meta?.description || 'No description'
-                }}</span>
+                <span style="white-space: pre-line"><LinkedText
+                  :text="classroom?.data?.meta?.description || 'No description'"
+                /></span>
               </v-card-text>
 
               <v-card-actions>

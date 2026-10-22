@@ -38,7 +38,7 @@
           </v-list-item-title>
 
           <v-list-item-subtitle style="white-space: break-spaces">
-            {{ localScrapedModules[index]?.description || t('settings.modules.noDescription') }}
+            <LinkedText :text="localScrapedModules[index]?.description || t('settings.modules.noDescription')" />
           </v-list-item-subtitle>
 
           <template v-slot:append>
@@ -224,6 +224,7 @@ import Module from "./Module.vue";
 import { useI18n } from 'vue-i18n';
 import ModulesExplorer from "./ModulesExplorer.vue";
 import ModuleConfigForm from "./ModuleConfigForm.vue";
+import LinkedText from "../LinkedText.vue";
 
 // A module's room key. Missing modules (list edges) get a unique sentinel so
 // group-boundary checks treat them as "no neighbour".
@@ -510,7 +511,8 @@ export default {
     Module, 
     draggable,
     ModulesExplorer,
-    ModuleConfigForm
+    ModuleConfigForm,
+    LinkedText
   },
 };
 </script>
