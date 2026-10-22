@@ -6,10 +6,12 @@ general:
   language: "لغة"
   menu: "قائمة المستخدم"
   copyLink: "نسخ الرابط"
+  you: "أنت"
   roles:
     teacher: "معلم"
     student: "طالب"
     station: "محطة"
+    visitor: "زائر"
 
 index:
   migration:
@@ -33,6 +35,7 @@ index:
 classroom:
   reconnecting: "جارٍ إعادة الاتصال…"
   chat: "الدردشة"
+  chatUnread: "الدردشة، رسائل جديدة"
   station:
     mode: "وضع المحطة نشط"
     label: "اسم المحطة"
@@ -104,6 +107,7 @@ settings:
       config: "تكوين الوحدة"
       manualConfig: "متقدم (تكوين خام)"
       delete: "حذف الوحدة"
+      invalidConfig: "إعدادات الوحدة تحتوي على أخطاء"
     moduleConfig:
       title: "تكوين الوحدة"
       save: "حفظ التكوين"
@@ -189,6 +193,11 @@ checks:
   webRTCSupport: "دعم WebRTC"
   configLoaded: "تم تحميل التكوين"
   usingWebsocket: "استخدام اتصال WebSocket"
+  connecting: "جارٍ الاتصال…"
+  status:
+    ok: "تم"
+    failed: "فشل"
+    pending: "قيد التنفيذ"
   connected: 
     1: "متصل بشبكة الند للند ("
     2: "ثانية.)"

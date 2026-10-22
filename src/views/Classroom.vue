@@ -417,8 +417,8 @@ export default {
       }
     },
 
-    usersInRoom(name: string): [string, string, string][] {
-      const users: [string, "black" | "grey", string][] = [];
+    usersInRoom(name: string): [string, string, string, string][] {
+      const users: [string, "black" | "dimgray", string, string][] = [];
 
       const icon = {
         teacher: "mdi-account-star-outline",
@@ -438,10 +438,16 @@ export default {
             }
           }
 
+          // Role and "you" are only shown by icon and color; spell them out
+          // for screen readers.
+          let label = this.t(`general.roles.${userRole}`);
+          if (this.peerID === id) label += ", " + this.t("general.you");
+
           users.push([
             displayName,
-            this.peerID === id ? "black" : "grey",
+            this.peerID === id ? "black" : "dimgray",
             icon[userRole],
+            label,
           ]);
         }
       }
@@ -539,15 +545,18 @@ export default {
 
         <v-spacer></v-spacer>
 
-        <v-chip
-          v-if="!online"
-          color="warning"
-          prepend-icon="mdi-wifi-off"
-          class="mr-2"
-          data-test="offline-chip"
-        >
-          {{ t("classroom.reconnecting") }}
-        </v-chip>
+        <!-- The live region must exist before the chip appears to be announced -->
+        <div role="status">
+          <v-chip
+            v-if="!online"
+            color="warning"
+            prepend-icon="mdi-wifi-off"
+            class="mr-2"
+            data-test="offline-chip"
+          >
+            {{ t("classroom.reconnecting") }}
+          </v-chip>
+        </div>
 
         <v-tooltip text="Open Logger" location="bottom">
           <template v-slot:activator="{ props }">
@@ -574,7 +583,7 @@ export default {
 
         <v-btn
           icon
-          :aria-label="t('classroom.chat')"
+          :aria-label="chat.new ? t('classroom.chatUnread') : t('classroom.chat')"
           :aria-expanded="chat.open"
           @click="
             chat.open = !chat.open;
@@ -699,7 +708,7 @@ export default {
           </v-list-item>
 
           <v-list-item
-            v-for="([user, color, icon], j) in usersInRoom(name)"
+            v-for="([user, color, icon, label], j) in usersInRoom(name)"
             :key="j"
             :style="'min-height: 1.25rem; color: ' + color"
           >
@@ -711,7 +720,7 @@ export default {
               user && user.includes("Station")
                 ? user.replace("Station", t("classroom.sideMenu.station"))
                 : user
-            }}</v-list-item-title>
+            }}<span class="d-sr-only">, {{ label }}</span></v-list-item-title>
           </v-list-item>
         </v-list>
 

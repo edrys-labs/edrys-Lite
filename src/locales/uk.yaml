@@ -6,10 +6,12 @@ general:
   language: "Мова"
   menu: "Меню користувача"
   copyLink: "Копіювати посилання"
+  you: "ви"
   roles:
     teacher: "Вчитель"
     student: "Студент"
     station: "Станція"
+    visitor: "Відвідувач"
 
 index:
   migration:
@@ -33,6 +35,7 @@ index:
 classroom:
   reconnecting: "Повторне з’єднання…"
   chat: "Чат"
+  chatUnread: "Чат, нові повідомлення"
   station:
     mode: "Активний режим станції"
     label: "Назва станції"
@@ -104,6 +107,7 @@ settings:
       config: "Конфігурація модуля"
       manualConfig: "Розширена (необроблена конфігурація)"
       delete: "Видалити модуль"
+      invalidConfig: "Конфігурація модуля містить помилки"
     moduleConfig:
       title: "Конфігурація модуля"
       save: "Зберегти конфігурацію"
@@ -189,6 +193,11 @@ checks:
   webRTCSupport: "Підтримка WebRTC"
   configLoaded: "Конфігурація завантажена"
   usingWebsocket: "Використовується WebSocket-з'єднання"
+  connecting: "Підключення…"
+  status:
+    ok: "Готово"
+    failed: "Помилка"
+    pending: "Триває"
   connected: 
     1: "Підключено до пірингової мережі ("
     2: "сек.)"

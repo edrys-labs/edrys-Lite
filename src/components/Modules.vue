@@ -488,7 +488,7 @@ export default {
 
     <v-card v-if="isLoading">
       <v-card-text class="d-flex align-center">
-        <v-progress-circular indeterminate size="20" width="2" class="mr-3" />
+        <v-progress-circular indeterminate size="20" width="2" class="mr-3" :aria-label="t('modules.loading')" />
         {{ t('modules.loading') }}
       </v-card-text>
     </v-card>

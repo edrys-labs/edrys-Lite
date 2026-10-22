@@ -6,10 +6,12 @@ general:
   language: "Idioma"
   menu: "Menú de usuario"
   copyLink: "Copiar enlace"
+  you: "tú"
   roles:
     teacher: "Profesor"
     student: "Estudiante"
     station: "Estación"
+    visitor: "Visitante"
 
 index:
   migration:
@@ -33,6 +35,7 @@ index:
 classroom:
   reconnecting: "Reconectando…"
   chat: "Chat"
+  chatUnread: "Chat, mensajes nuevos"
   station:
     mode: "Modo Estación Activo"
     label: "Nombre de la Estación"
@@ -104,6 +107,7 @@ settings:
       config: "Configuración del Módulo"
       manualConfig: "Avanzado (configuración sin procesar)"
       delete: "Eliminar Módulo"
+      invalidConfig: "La configuración del módulo tiene errores"
     moduleConfig:
       title: "Configuración del Módulo"
       save: "Guardar Configuración"
@@ -189,6 +193,11 @@ checks:
   webRTCSupport: "Soporte WebRTC"
   configLoaded: "Configuración cargada"
   usingWebsocket: "Usando conexión WebSocket"
+  connecting: "Conectando…"
+  status:
+    ok: "Correcto"
+    failed: "Error"
+    pending: "En curso"
   connected: 
     1: "Conectado a la red peer 2 peer ("
     2: "seg.)"

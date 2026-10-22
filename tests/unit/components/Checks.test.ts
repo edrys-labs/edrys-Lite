@@ -47,7 +47,7 @@ describe('Checks Component', () => {
             template: '<div class="v-progress-circular"><slot /></div>'
           },
           'v-icon': {
-            template: '<i :class="$attrs.icon"><slot /></i>'
+            template: '<i :class="$attrs.icon" :color="$attrs.color"><slot /></i>'
           },
           'v-chip': {
             template: '<div class="v-chip"><slot /></div>'
@@ -363,7 +363,8 @@ describe('Checks Component', () => {
 
     await nextTick();
 
-    expect(wrapper.findAll('button[color="success"]').length).toBeGreaterThan(0);
-    expect(wrapper.findAll('button[color="error"]')).toHaveLength(0);
+    expect(wrapper.findAll('i[color="success"]').length).toBeGreaterThan(0);
+    expect(wrapper.findAll('i[color="error"]')).toHaveLength(0);
+    expect(wrapper.findAll('.d-sr-only').map(s => s.text())).not.toContain('checks.status.pending');
   });
 });

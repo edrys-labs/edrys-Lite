@@ -45,15 +45,15 @@
             <v-tooltip location="top">
               <template v-slot:activator="{ props }">
                 <v-btn
-                  icon="mdi-cog"
+                  :icon="validate_config(index) ? 'mdi-cog' : 'mdi-alert-circle'"
                   variant="text"
                   v-bind="props"
-                  :aria-label="t('settings.modules.tooltip.config')"
+                  :aria-label="configLabel(index)"
                   :style="validate_config(index) ? '' : 'color: red'"
                   @click="openModuleDialog(index)"
                 ></v-btn>
               </template>
-              <span>{{ t('settings.modules.tooltip.config') }}</span>
+              <span>{{ configLabel(index) }}</span>
             </v-tooltip>
 
             <v-tooltip location="top">
@@ -388,6 +388,12 @@ export default {
         this.errors[i].teacherConfig === "" &&
         this.errors[i].stationConfig === ""
       );
+    },
+
+    configLabel(i: number) {
+      return this.validate_config(i)
+        ? this.t("settings.modules.tooltip.config")
+        : this.t("settings.modules.tooltip.invalidConfig");
     },
 
     validate_url(url: string) {
