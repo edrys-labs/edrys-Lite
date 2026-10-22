@@ -152,6 +152,19 @@ describe('Chat Component', () => {
     expect(markdownit).toHaveBeenCalled();
   });
 
+  test('renders raw HTML in a message as text, not markup', async () => {
+    const { default: realMarkdownit } = await vi.importActual<any>('markdown-it');
+    (markdownit as any).mockImplementationOnce((options: any) => realMarkdownit(options));
+
+    wrapper = createWrapper({
+      messages: [{ timestamp: 1, msg: 'hi <img src=x onerror=alert(1)>', user: 'u' }],
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.markdown img').exists()).toBe(false);
+    expect(wrapper.find('.markdown').text()).toContain('<img src=x onerror=alert(1)>');
+  });
+
   test('formats timestamps correctly', () => {
     wrapper = createWrapper();
     
