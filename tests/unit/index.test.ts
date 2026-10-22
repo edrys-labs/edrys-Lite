@@ -169,6 +169,18 @@ describe("Router", () => {
     );
   });
 
+  test("reloads a page restored from the back/forward cache, not a fresh one", () => {
+    const reload = vi.fn();
+    (window.location as any).reload = reload;
+    const pageshow = (persisted: boolean) =>
+      window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted }));
+
+    pageshow(false);
+    expect(reload).not.toHaveBeenCalled();
+    pageshow(true);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
   test("handles invalid routes", async () => {
     window.location.search = "?/invalid/route";
     window.dispatchEvent(new Event("popstate"));

@@ -25,6 +25,8 @@ vi.mock('../../../src/ts/Utils', () => ({
   initCryptoIdentity: vi.fn(() => Promise.resolve()),
   clone: vi.fn(obj => JSON.parse(JSON.stringify(obj))),
   normalizeClassroom: vi.fn((data) => data),
+  sameKey: vi.fn((a: any, b: any) => !!a && !!b && a.replace(/=/g, '') === b.replace(/=/g, '')),
+  isMember: vi.fn((list: any, key: string) => (list || []).some((m: string) => m.replace(/=/g, '') === key.replace(/=/g, ''))),
   removeKeysStartingWithSecret: vi.fn(),
   copyToClipboard: vi.fn()
 }));

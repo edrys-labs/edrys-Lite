@@ -13,6 +13,8 @@ import {
   verifySetup,
   hashPubKey,
   stripPubKey,
+  sameKey,
+  isMember,
   signEntry,
   verifyEntry,
   canonicalize,
@@ -125,6 +127,11 @@ let heartbeatID: ReturnType<typeof setInterval> | null
 // station). A room we did see moves us as soon as it drops out: presence
 // already holds a vanished station for ABSENT_GRACE.
 const MISSING_ROOM_CHECKS = 2
+
+// A station that reloads drops out of the view until it is back, a few
+// seconds later; its visitors wait this long for it before moving to the
+// Lobby. (A station's signed leave looks the same whether it reloads or closes.)
+export const STATION_RETURN_GRACE = 20000
 
 const backupConfig = {
   iceServers: [
@@ -285,7 +292,7 @@ export default class Peer {
     this.connectProvider(room, password)
 
     // Ensure cleanup on page unload
-    window.addEventListener('beforeunload', this.stop)
+    window.addEventListener('pagehide', this.stop)
   }
 
   /**
@@ -361,6 +368,7 @@ export default class Peer {
       // Peers show up again one by one on the new connection; until our
       // room does, it may not be gone.
       this._seenOwnRoom = null
+      this._ownRoomGoneAt = null
       this.presence = new SignedPresence(
         this.provider.getPresenceAwareness(),
         this.peerID,
@@ -395,56 +403,6 @@ export default class Peer {
       console.error('Error connecting provider:', error)
       // Implement retry logic or other recovery mechanisms if necessary
     }
-  }
-
-  /**
-   * Switches the communication provider at runtime.
-   * @param config The new communication configuration.
-   */
-  switchProvider(config: {
-    communicationMethod: 'WebRTC' | 'Websocket'
-    websocketUrl?: string
-    webrtcConfig?: string | object
-  }) {
-    if (
-      config.communicationMethod === this.providerType &&
-      (config.communicationMethod !== 'Websocket' ||
-        config.websocketUrl === this.websocketUrl) &&
-      (config.communicationMethod !== 'WebRTC' ||
-        deepEqual(
-          typeof config.webrtcConfig === 'string'
-            ? JSON.parse(config.webrtcConfig as string)
-            : config.webrtcConfig,
-          this.webrtcConfig
-        ))
-    ) {
-      LOG('Provider configuration unchanged')
-      return
-    }
-
-    this.providerType = config.communicationMethod
-
-    if (config.websocketUrl) {
-      this.websocketUrl = config.websocketUrl
-    }
-
-    if (config.webrtcConfig) {
-      if (typeof config.webrtcConfig === 'string') {
-        try {
-          this.webrtcConfig = JSON.parse(config.webrtcConfig)
-        } catch (e) {
-          console.error('Invalid WebRTC config JSON:', e)
-        }
-      } else {
-        this.webrtcConfig = config.webrtcConfig
-      }
-    }
-
-    // Reconnect with new provider
-    this.connected = false
-    this.update('connected')
-    const room = this.lab.id + (this.lab.hash || '')
-    this.connectProvider(room)
   }
 
   /**
@@ -560,38 +518,38 @@ export default class Peer {
     if (!deepEqual(oldSetup.members, newSetup.members)) {
       const id = getPeerID(false)
 
-      if (newSetup.createdBy === id || this.isStation()) {
+      if (sameKey(newSetup.createdBy, id) || this.isStation()) {
         return
       }
 
       if (
-        oldSetup.members.teacher.includes(id) &&
-        !newSetup.members.teacher.includes(id)
+        isMember(oldSetup.members.teacher, id) &&
+        !isMember(newSetup.members.teacher, id)
       ) {
         this.update('popup', this.t('peer.feedback.removedTeacher'))
       }
 
       if (
-        !oldSetup.members.teacher.includes(id) &&
-        newSetup.members.teacher.includes(id)
+        !isMember(oldSetup.members.teacher, id) &&
+        isMember(newSetup.members.teacher, id)
       ) {
         this.update('popup', this.t('peer.feedback.addedTeacher'))
         return
       }
 
       if (
-        oldSetup.members.teacher.includes(id) &&
-        newSetup.members.teacher.includes(id)
+        isMember(oldSetup.members.teacher, id) &&
+        isMember(newSetup.members.teacher, id)
       ) {
         return
       }
 
-      const isInOldSetup = oldSetup.members.student.includes(id)
+      const isInOldSetup = isMember(oldSetup.members.student, id)
       const oldOpen =
         oldSetup.members.student.length === 0 ||
         oldSetup.members.student.includes('*')
 
-      const isInNewSetup = newSetup.members.student.includes(id)
+      const isInNewSetup = isMember(newSetup.members.student, id)
       const newOpen =
         newSetup.members.student.length === 0 ||
         newSetup.members.student.includes('*')
@@ -682,7 +640,7 @@ export default class Peer {
   private async _signAndWrite(existingCrdt: any): Promise<void> {
     const myPubKey = getPeerID(false)
     const ownerPubKey: string = this.lab.data?.createdBy || ''
-    const isOwner = myPubKey === ownerPubKey
+    const isOwner = sameKey(myPubKey, ownerPubKey)
 
     // Deserialize Yjs Proxy to plain object for reliable field access and comparison
     const existingMembers = existingCrdt != null ? JSON.parse(JSON.stringify(existingCrdt)).members ?? null : null
@@ -959,13 +917,33 @@ export default class Peer {
       connections: [{ id: '', target: {} }],
     })
 
-    heartbeatID = setInterval(() => this._leaveMissingRoom(), 5000)
+    heartbeatID = setInterval(() => {
+      this._leaveMissingRoom()
+      this._checkOnline()
+    }, 5000)
+  }
+
+  /** Whether the transport can reach the class right now; null until first checked. */
+  private _online: boolean | null = null
+
+  /**
+   * Reports connection losses and recoveries ('online'). `connected` only
+   * says the first connection was made; the transports reconnect on their
+   * own and emit nothing when a connection drops.
+   */
+  private _checkOnline() {
+    const online = !!this.provider?.isOnline()
+    if (online === this._online) return
+    this._online = online
+    this.update('online')
   }
 
   /** Consecutive heartbeat checks our room has been missing from the view. */
   private _missingRoomChecks = 0
   /** Our room, once it has shown in the view on the current connection. */
   private _seenOwnRoom: string | null = null
+  /** When our station room, seen before, dropped out of the view. */
+  private _ownRoomGoneAt: number | null = null
 
   /**
    * Move to the Lobby when our room is gone: at once if we saw it in the
@@ -981,12 +959,18 @@ export default class Peer {
     if (room in this._viewRooms()) {
       this._seenOwnRoom = room
       this._missingRoomChecks = 0
+      this._ownRoomGoneAt = null
       return
     }
     if (this._seenOwnRoom !== room &&
         (!heartbeat || ++this._missingRoomChecks < MISSING_ROOM_CHECKS)) return
+    if (this._seenOwnRoom === room && room.startsWith(STATION + ' ')) {
+      this._ownRoomGoneAt ??= Date.now()
+      if (Date.now() - this._ownRoomGoneAt < STATION_RETURN_GRACE) return
+    }
     LOG('current room is gone, moving to lobby', room)
     this._missingRoomChecks = 0
+    this._ownRoomGoneAt = null
     this.gotoRoom(LOBBY)
   }
 
@@ -994,7 +978,7 @@ export default class Peer {
 
   /** Owner (matched by createdBy) and teachers/stations may manage rooms; students may not. */
   private canManageRooms(): boolean {
-    return this.role !== 'student' || getPeerID(false) === this.lab.data?.createdBy
+    return this.role !== 'student' || sameKey(getPeerID(false), this.lab.data?.createdBy)
   }
 
   /** Watches room records and room state once, across reconnects. */
@@ -1161,7 +1145,7 @@ export default class Peer {
       | 'connected'
       | 'chat'
       | 'popup'
-      | 'commChanged',
+      | 'online',
     message?: any
   ) {
     const callback = this.callback[event]
@@ -1227,9 +1211,9 @@ export default class Peer {
         break
       }
 
-      case 'commChanged': {
+      case 'online': {
         if (callback) {
-          callback(message)
+          callback(this._online)
           this.callbackUpdate[event] = false
         } else {
           this.callbackUpdate[event] = true
@@ -1245,7 +1229,7 @@ export default class Peer {
    * @param callback The callback function.
    */
   on(
-    event: 'setup' | 'room' | 'connected' | 'popup' | 'commChanged',
+    event: 'setup' | 'room' | 'connected' | 'chat' | 'popup' | 'online',
     callback: any
   ) {
     if (callback) {
@@ -1270,13 +1254,13 @@ export default class Peer {
     }
 
     if (
-      this.lab.data.members.teacher.includes(id) ||
-      this.lab.data.members.student.includes(id)
+      isMember(this.lab.data.members.teacher, id) ||
+      isMember(this.lab.data.members.student, id)
     ) {
       return true
     }
 
-    if (this.lab.data.createdBy === id) {
+    if (sameKey(this.lab.data.createdBy, id)) {
       return true
     }
 
@@ -1434,7 +1418,7 @@ export default class Peer {
       heartbeatID = null
     }
 
-    window.removeEventListener('beforeunload', this.stop)
+    window.removeEventListener('pagehide', this.stop)
 
     // Our signed leave replaces our presence and goes out with the disconnect
     // flush, so peers hide us at once; a station's room goes with it.
@@ -1699,34 +1683,6 @@ export default class Peer {
       if (id.startsWith(STATION + ' ')) rooms[id] = state(id)
     }
     return rooms
-  }
-
-  /**
-   * Executes a function within a Yjs transaction and waits for it to complete.
-   * @param transactFn The function to execute within the transaction.
-   */
-  awaitTransact(transactFn: () => void): Promise<void> {
-    return new Promise((resolve) => {
-      let isTransactionDone = false
-
-      const observer = () => {
-        if (isTransactionDone) {
-          this.y.doc.off('afterTransaction', observer)
-          resolve()
-        }
-      }
-
-      this.y.doc.on('afterTransaction', observer)
-
-      this.y.doc.transact(() => {
-        try {
-          transactFn()
-        } catch (e) {
-          console.error('Error in transaction', e)
-        }
-        isTransactionDone = true
-      }, 'awaitTransact')
-    })
   }
 
   /**

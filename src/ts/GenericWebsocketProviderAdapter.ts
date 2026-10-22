@@ -125,6 +125,11 @@ export class GenericWebsocketProviderAdapter {
     this._leaveListener = callback
   }
 
+  /** Whether the socket to the server is open (the transport reconnects on its own). */
+  isOnline(): boolean {
+    return this.transport.isConnected
+  }
+
   onMessage(callback: (msg: any) => void) {
     this._messageUnsub?.()
     this._messageUnsub = this.provider.pubsub.subscribe(EDRYS_MSG_TOPIC, (msg: any) => {

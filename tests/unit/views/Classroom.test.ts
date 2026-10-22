@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Classroom from '../../../src/views/Classroom.vue';
-import { scrapeModule } from '../../../src/ts/Utils';
+import { scrapeModule, getPeerID } from '../../../src/ts/Utils';
 
 const flushPromises = () => new Promise((r) => setTimeout(r, 0));
 
@@ -30,6 +30,8 @@ vi.mock('../../../src/ts/Utils', () => ({
   clone: vi.fn(obj => JSON.parse(JSON.stringify(obj))),
   getPeerID: vi.fn(() => 'test-peer-id'),
   getShortPeerID: vi.fn(() => 'test-user'),
+  sameKey: vi.fn((a: any, b: any) => !!a && !!b && a.replace(/=/g, '') === b.replace(/=/g, '')),
+  isMember: vi.fn((list: any, key: string) => (list || []).some((m: string) => m.replace(/=/g, '') === key.replace(/=/g, ''))),
   getBasePeerID: vi.fn(id => id?.split('-')[0] || id),
   getDisplayPeerID: vi.fn(() => 'test-user'),
   deepEqual: vi.fn((a, b) => JSON.stringify(a) === JSON.stringify(b)),
@@ -220,17 +222,39 @@ describe('Classroom View', () => {
 
     await wrapper.vm.init();
     
-    // Test teacher role
-    wrapper.vm.peerID = 'test-user';
+    // The owner (createdBy) is a teacher, also with the key's padding stripped
+    vi.mocked(getPeerID).mockReturnValue('test-user');
+    expect(wrapper.vm.getRole()).toBe('teacher');
+    wrapper.vm.configuration.data.createdBy = 'test-user==';
     expect(wrapper.vm.getRole()).toBe('teacher');
 
-    // Test student role
-    wrapper.vm.peerID = 'test-student';
+    // Listed teachers too, compared the same way
+    vi.mocked(getPeerID).mockReturnValue('listed-teacher');
+    wrapper.vm.configuration.data.members = { teacher: ['listed-teacher='], student: [] };
+    expect(wrapper.vm.getRole()).toBe('teacher');
+
+    vi.mocked(getPeerID).mockReturnValue('test-student');
     expect(wrapper.vm.getRole()).toBe('student');
 
     // Test station role
     wrapper.vm.isStation = true;
     expect(wrapper.vm.getRole()).toBe('station');
+    vi.mocked(getPeerID).mockReturnValue('test-peer-id');
+  });
+
+  test('shows that the connection is lost until it is back', async () => {
+    const wrapper = createWrapper();
+    mockCommunication.on.mockClear();
+    await wrapper.vm.init();
+    const onOnline = mockCommunication.on.mock.calls.find(([event]) => event === 'online')![1];
+
+    expect(wrapper.find('[data-test="offline-chip"]').exists()).toBe(false);
+    onOnline(false);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="offline-chip"]').exists()).toBe(true);
+    onOnline(true);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="offline-chip"]').exists()).toBe(false);
   });
 
   test('handles chat messages', async () => {

@@ -4,6 +4,8 @@ import {
   scrapeModule,
   parseClassroom,
   normalizeClassroom,
+  sameKey,
+  isMember,
   validateUrl,
   infoHash,
   deepEqual,
@@ -69,6 +71,18 @@ describe('Utils', () => {
   });
 
   // Forking someone else's classroom runs this, so their secrets don't leak.
+  describe('comparing keys', () => {
+    test('ignores base64 padding, as signature checks do', () => {
+      expect(sameKey('abc=', 'abc')).toBe(true);
+      expect(sameKey('abc', 'abd')).toBe(false);
+      expect(sameKey('', '')).toBe(false);
+      expect(sameKey(undefined, 'abc')).toBe(false);
+      expect(isMember(['x', 'abc=='], 'abc')).toBe(true);
+      expect(isMember(['x'], 'abc')).toBe(false);
+      expect(isMember(undefined, 'abc')).toBe(false);
+    });
+  });
+
   describe('importing a classroom', () => {
     test('fills in missing meta, members and modules', () => {
       const classroom = parseClassroom(JSON.stringify({ name: 'Bare' }));

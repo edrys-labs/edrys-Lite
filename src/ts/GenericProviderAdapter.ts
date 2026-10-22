@@ -86,6 +86,16 @@ export class GenericWebrtcProviderAdapter {
     this.transport.onLeave(callback)
   }
 
+  /**
+   * Whether we can reach the class: a signaling server is up (we can find
+   * peers) or a peer is connected. With no signaling configured, peers only
+   * come via BroadcastChannel, which can't drop.
+   */
+  isOnline(): boolean {
+    const health = this.transport.signalingHealth
+    return health.configured === 0 || health.open > 0 || health.connectedPeers > 0
+  }
+
   onMessage(callback: (msg: any) => void) {
     this._messageUnsub?.()
     this._messageUnsub = this.provider.pubsub.subscribe(EDRYS_MSG_TOPIC, (msg) => {

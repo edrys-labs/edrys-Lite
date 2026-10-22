@@ -343,6 +343,14 @@ describe('Signed y.rooms', () => {
     const view = await participant.toJSON()
     expect('Station stn1' in view.rooms).toBe(false)
     expect(view.users['Station stn1']).toBeUndefined()
+    // It may be reloading: visitors wait for it a while.
+    expect(participant.user().room).toBe('Station stn1')
+
+    const { STATION_RETURN_GRACE } = await import('../../../../src/ts/Peer')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + STATION_RETURN_GRACE + 1)
+    participant['_leaveMissingRoom']()
+    vi.useRealTimers()
     expect(participant.user().room).toBe('Lobby')
 
     participant.stop()

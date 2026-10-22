@@ -62,6 +62,20 @@ describe('GenericWebrtcProviderAdapter messaging (E3)', () => {
     return new GenericWebrtcProviderAdapter('room1', {} as any, { userid: 'alice' })
   }
 
+  test('is online while a signaling server is up or a peer is connected', () => {
+    const adapter = makeAdapter()
+    const health = (open: number, connectedPeers: number, configured = 1) => {
+      ;(adapter as any).transport.signalingHealth = { open, connectedPeers, configured }
+      return adapter.isOnline()
+    }
+
+    expect(health(1, 0)).toBe(true)
+    expect(health(0, 2)).toBe(true)
+    expect(health(0, 0)).toBe(false)
+    // BroadcastChannel only: nothing to lose
+    expect(health(0, 0, 0)).toBe(true)
+  })
+
   test('sendMessage stamps id and sender, broadcasts when no target', () => {
     const adapter = makeAdapter()
     const msg: any = { text: 'hi' }

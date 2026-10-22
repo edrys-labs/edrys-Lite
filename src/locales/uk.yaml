@@ -32,6 +32,7 @@ index:
       off: "вимкнено"
 
 classroom:
+  reconnecting: "Повторне з’єднання…"
   station:
     mode: "Активний режим станції"
     label: "Назва станції"

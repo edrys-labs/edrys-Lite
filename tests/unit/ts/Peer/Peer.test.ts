@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest';
 
 const flushPromises = () => new Promise<void>((r) => setTimeout(r, 0));
-import Peer from '../../../../src/ts/Peer';
+import Peer, { STATION_RETURN_GRACE } from '../../../../src/ts/Peer';
 import { ABSENT_GRACE } from '../../../../src/ts/Presence';
 import * as Y from 'yjs';
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
@@ -93,6 +93,8 @@ vi.mock('../../../../src/ts/Utils', () => ({
     return JSON.stringify(oldConfig) === JSON.stringify(newConfig);
   }),
   stripPubKey: vi.fn((key: string) => key.replace(/=/g, '')),
+  sameKey: vi.fn((a: any, b: any) => !!a && !!b && a.replace(/=/g, '') === b.replace(/=/g, '')),
+  isMember: vi.fn((list: any, key: string) => (list || []).some((m: string) => m.replace(/=/g, '') === key.replace(/=/g, ''))),
   updateUrlWithCommConfig: vi.fn(),
   decodeCommConfig: vi.fn((encodedConfig) => {
     if (!encodedConfig) return null;
@@ -250,48 +252,6 @@ describe('Peer Class', () => {
       expect(await peer.getWebRTCConfig()).toEqual(webrtcConfig);
     });
 
-    test('switches provider at runtime', async () => {
-      const peer = new Peer(setup);
-      expect(peer['providerType']).toBe('WebRTC');
-      
-      // Mock providers
-      const mockDisconnect = vi.fn();
-      peer['provider'] = {
-        disconnect: mockDisconnect,
-        destroy: vi.fn(),
-        getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
-      } as any;
-      
-      await peer.switchProvider({
-        communicationMethod: 'Websocket',
-        websocketUrl: 'wss://new.websocket'
-      });
-      
-      expect(mockDisconnect).toHaveBeenCalled();
-      expect(peer['providerType']).toBe('Websocket');
-      expect(peer['websocketUrl']).toBe('wss://new.websocket');
-    });
-
-    test('handles WebRTC configuration changes', async () => {
-      const peer = new Peer(setup);
-      const newConfig = { iceServers: [{ urls: 'stun:new.stun' }] };
-      
-      // Mock provider methods
-      const mockDisconnect = vi.fn();
-      peer['provider'] = {
-        disconnect: mockDisconnect,
-        destroy: vi.fn(),
-        getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
-      } as any;
-      
-      await peer.switchProvider({
-        communicationMethod: 'WebRTC',
-        webrtcConfig: newConfig
-      });
-      
-      expect(mockDisconnect).toHaveBeenCalled();
-      expect(peer['webrtcConfig']).toEqual(newConfig);
-    });
   });
 
   // Provider Event Handling Tests
@@ -378,7 +338,7 @@ describe('Peer Class', () => {
       expect([...roomMap.keys()].sort()).toEqual(['Group A', 'Lobby']);
     });
 
-    test('moves to the Lobby as soon as its room drops out of the view', async () => {
+    test('waits for a station that drops out of the view, then moves to the Lobby', async () => {
       const stationID = 'Station stn1';
       peer['connected'] = true;
       const station = await addRemote(stationID, { room: stationID }, 'test-peer-id');
@@ -386,11 +346,34 @@ describe('Peer Class', () => {
       await vi.advanceTimersByTimeAsync(0);
 
       removeAwarenessStates(peer['presence']['awareness'], [station], 'remote');
-      await vi.advanceTimersByTimeAsync(ABSENT_GRACE - 100);
-      expect(peer.user().room).toBe(stationID);
-      await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(ABSENT_GRACE);
       expect(stationID in (await peer.toJSON()).rooms).toBe(false);
+      expect(peer.user().room).toBe(stationID);
+
+      peer['_leaveMissingRoom']();
+      expect(peer.user().room).toBe(stationID);
+
+      // the heartbeat moves us once the grace has passed
+      await vi.advanceTimersByTimeAsync(STATION_RETURN_GRACE);
+      peer['_leaveMissingRoom']();
       expect(peer.user().room).toBe('Lobby');
+    });
+
+    test('stays in a station that comes back within the grace (a reload)', async () => {
+      const stationID = 'Station stn1';
+      peer['connected'] = true;
+      const station = await addRemote(stationID, { room: stationID }, 'test-peer-id');
+      peer.gotoRoom(stationID);
+      await vi.advanceTimersByTimeAsync(0);
+
+      removeAwarenessStates(peer['presence']['awareness'], [station], 'remote');
+      await vi.advanceTimersByTimeAsync(STATION_RETURN_GRACE / 2);
+      peer['_leaveMissingRoom']();
+      await addRemote(stationID, { room: stationID }, 'test-peer-id');
+      await vi.advanceTimersByTimeAsync(STATION_RETURN_GRACE);
+      peer['_leaveMissingRoom']();
+
+      expect(peer.user().room).toBe(stationID);
     });
 
     test('a room not seen since connecting takes two heartbeat checks', async () => {
@@ -406,6 +389,9 @@ describe('Peer Class', () => {
       peer['_leaveMissingRoom']();
       expect(peer.user().room).toBe(stationID);
       await removeRemote(station);
+      // seen now, so it gets the station grace
+      await vi.advanceTimersByTimeAsync(STATION_RETURN_GRACE);
+      peer['_leaveMissingRoom']();
       expect(peer.user().room).toBe('Lobby');
     });
 
@@ -592,6 +578,16 @@ describe('Peer Class', () => {
       expect(testPeer['allowedToParticipate']()).toBe(false);
       
       vi.mocked(getPeerID).mockReturnValue('student-id');
+      expect(testPeer['allowedToParticipate']()).toBe(true);
+    });
+
+    test('a member key listed without its base64 padding still counts', () => {
+      setup.data.members = { teacher: ['teacher-id'], student: ['student-id'] };
+      const testPeer = new Peer(setup);
+
+      vi.mocked(getPeerID).mockReturnValue('student-id=');
+      expect(testPeer['allowedToParticipate']()).toBe(true);
+      vi.mocked(getPeerID).mockReturnValue('teacher-id==');
       expect(testPeer['allowedToParticipate']()).toBe(true);
     });
 
@@ -1102,28 +1098,6 @@ describe('Peer Class', () => {
     });
   });
 
-  // Transaction Tests
-  describe('Transactions', () => {
-    test('should handle async transactions correctly', async () => {
-      await peer['awaitTransact'](() => {
-        peer['y'].rooms.set('Async', new Y.Map());
-      });
-
-      expect(peer['y'].rooms.has('Async')).toBe(true);
-    });
-
-    test('should handle transaction errors gracefully', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
-      await peer['awaitTransact'](() => {
-        throw new Error('Test error');
-      });
-      
-      expect(consoleSpy).toHaveBeenCalledWith('Error in transaction', expect.any(Error));
-      consoleSpy.mockRestore();
-    });
-  });
-
   // Lifecycle Tests
   describe('Lifecycle', () => {
     test('should properly clean up resources on stop', () => {
@@ -1132,6 +1106,29 @@ describe('Peer Class', () => {
       expect(peer['provider'].destroy).toHaveBeenCalled();
       expect(peer['callback']).toEqual({});
       expect(peer['callbackUpdate']).toEqual({});
+    });
+
+    test('reports losing and regaining the connection, once per change', () => {
+      const states: any[] = []
+      peer.on('online', (online: boolean) => states.push(online))
+      let online = true
+      peer['provider'].isOnline = () => online
+
+      peer['_checkOnline']()
+      peer['_checkOnline']()
+      online = false
+      peer['_checkOnline']()
+      peer['_checkOnline']()
+      online = true
+      peer['_checkOnline']()
+
+      expect(states).toEqual([true, false, true])
+    })
+
+    test('stops when the page is hidden for good (pagehide)', () => {
+      window.dispatchEvent(new Event('pagehide'));
+      expect(peer['_stopped']).toBe(true);
+      expect(peer['provider'].disconnect).toHaveBeenCalled();
     });
   });
 

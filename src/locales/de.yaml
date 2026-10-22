@@ -32,6 +32,7 @@ index:
       off: "aus"
 
 classroom:
+  reconnecting: "Verbindung wird wiederhergestellt…"
   station:
     mode: "Station-Modus aktiv"
     label: "Station-Name"

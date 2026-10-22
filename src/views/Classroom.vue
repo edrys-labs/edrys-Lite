@@ -21,7 +21,9 @@ import {
   cleanUrlAfterCommConfigExtraction,
   updateUrlWithCommConfig,
   encodeCommConfig,
-  decodeCommConfig
+  decodeCommConfig,
+  sameKey,
+  isMember,
 } from "../ts/Utils";
 import { markRaw, onMounted } from "vue";
 import Peer from "../ts/Peer";
@@ -125,6 +127,9 @@ export default {
       isLoggerRunning: false,
 
       urlCommunicationConfig: null, // Stores URL-provided communication config 
+
+      // False while the connection to the class is lost (the transport reconnects).
+      online: true,
     };
   },
   watch: {
@@ -255,6 +260,9 @@ export default {
         });
 
         this.communication.on("popup", this.addPopup);
+        this.communication.on("online", (online: boolean) => {
+          self.online = online;
+        });
       }
 
       this.database.setObservable(this.id, (config: DatabaseItem) => {
@@ -307,13 +315,13 @@ export default {
         return "station";
       }
 
-      if (this.configuration.data.createdBy && this.peerID.startsWith(this.configuration.data.createdBy)) {
+      if (sameKey(getPeerID(false), this.configuration.data.createdBy)) {
         this.isOwner = true;
         this.isTeacher = true;
         return "teacher";
       }
 
-      if (this.configuration?.data?.members?.teacher?.includes(getPeerID(false))) {
+      if (isMember(this.configuration?.data?.members?.teacher, getPeerID(false))) {
         this.isOwner = false;
         this.isTeacher = true;
         return "teacher";
@@ -539,6 +547,16 @@ export default {
         </template>
 
         <v-spacer></v-spacer>
+
+        <v-chip
+          v-if="!online"
+          color="warning"
+          prepend-icon="mdi-wifi-off"
+          class="mr-2"
+          data-test="offline-chip"
+        >
+          {{ t("classroom.reconnecting") }}
+        </v-chip>
 
         <v-tooltip text="Open Logger" location="bottom">
           <template v-slot:activator="{ props }">

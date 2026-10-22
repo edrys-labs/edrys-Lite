@@ -119,7 +119,9 @@ async function getWebRTCConfig(origin: string): Promise<RTCConfiguration> {
   return rtcConfig
 }
 
-window.addEventListener('unload', () => {
+// pagehide, not unload: unload is being phased out (Chrome) and fires
+// unreliably on mobile.
+window.addEventListener('pagehide', () => {
   window.parent.postMessage(
   {
     event: 'reload',

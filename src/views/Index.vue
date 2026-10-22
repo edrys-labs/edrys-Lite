@@ -9,6 +9,8 @@ import {
   normalizeClassroom,
   removeKeysStartingWithSecret,
   copyToClipboard,
+  sameKey,
+  isMember,
 } from "../ts/Utils";
 
 import Footer from "../components/Footer.vue";
@@ -22,7 +24,7 @@ export default {
 
   setup() {
     const { t, locale } = useI18n();
-    return { t, locale };
+    return { t, locale, sameKey, isMember };
   },
 
   data() {
@@ -179,8 +181,8 @@ export default {
                   background-color: white;
                 "
                 :disabled="
-                  classroom?.data?.createdBy !== peerID &&
-                  !classroom?.data?.members?.teacher?.includes(peerID)
+                  !sameKey(classroom?.data?.createdBy, peerID) &&
+                  !isMember(classroom?.data?.members?.teacher, peerID)
                 "
               >
               {{ t('index.classroom.writeProtection') }} 
@@ -202,8 +204,8 @@ export default {
               ></v-img>
               <v-card-title>{{ classroom.data?.name }}</v-card-title>
               <v-card-subtitle>
-                <span v-if="classroom?.data?.createdBy === peerID">{{ t('index.classroom.ownership.owner') }}</span>
-                <span v-else-if="classroom?.data?.members?.teacher?.includes(peerID)">{{ t('index.classroom.ownership.teacher') }}</span>
+                <span v-if="sameKey(classroom?.data?.createdBy, peerID)">{{ t('index.classroom.ownership.owner') }}</span>
+                <span v-else-if="isMember(classroom?.data?.members?.teacher, peerID)">{{ t('index.classroom.ownership.teacher') }}</span>
                 <span v-else>{{ t('index.classroom.ownership.student') }}</span>
               </v-card-subtitle>
 

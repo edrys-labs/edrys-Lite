@@ -32,6 +32,7 @@ index:
       off: "متوقف"
 
 classroom:
+  reconnecting: "جارٍ إعادة الاتصال…"
   station:
     mode: "وضع المحطة نشط"
     label: "اسم المحطة"

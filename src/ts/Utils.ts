@@ -264,25 +264,6 @@ function initialShow(module: any) {
   return module
 }
 
-export function download(filename, text) {
-  /**
-   * https://stackoverflow.com/questions/3665115/how-to-create-a-file-in-memory-for-user-to-download-but-not-through-server
-   */
-  const element = document.createElement('a')
-  element.setAttribute(
-    'href',
-    'data:text/plain;charset=utf-8,' + encodeURIComponent(text)
-  )
-  element.setAttribute('download', filename)
-
-  element.style.display = 'none'
-  document.body.appendChild(element)
-
-  element.click()
-
-  document.body.removeChild(element)
-}
-
 export function throttle(func, limit, options = { trailing: true }) {
   let lastFunc
   let lastRan
@@ -311,36 +292,6 @@ export function throttle(func, limit, options = { trailing: true }) {
   }
 }
 
-export function debounce(func, wait, immediate?) {
-  /**
-   * https://davidwalsh.name/javascript-debounce-function
-   */
-  let timeout
-  return function () {
-    const context = this,
-      args = arguments
-    const later = function () {
-      timeout = null
-      if (!immediate) func.apply(context, args)
-    }
-    const callNow = immediate && !timeout
-    clearTimeout(timeout)
-    timeout = setTimeout(later, wait)
-    if (callNow) func.apply(context, args)
-  }
-}
-
-export function setToValue(obj, pathArr, value) {
-  let i = 0
-
-  for (i = 0; i < pathArr.length - 1; i++) {
-    obj = obj[pathArr[i]]
-    if (!obj[pathArr[i + 1]]) obj[pathArr[i + 1]] = {}
-  }
-  obj[pathArr[i]] = value
-  // if (value == undefined)
-  //     delete obj[pathArr[i]]
-}
 
 // Rooms colour palette: 8 distinct but soft colours.
 const ROOM_PALETTE = [
@@ -539,6 +490,16 @@ function b64ToB64Url(b64: string): string {
 
 export function stripPubKey(key: string): string {
   return key.replace(/=/g, '')
+}
+
+/** Whether two keys are the same, ignoring base64 padding (as signature checks do). */
+export function sameKey(a: string | undefined | null, b: string | undefined | null): boolean {
+  return !!a && !!b && stripPubKey(a) === stripPubKey(b)
+}
+
+/** Whether `key` is in a members list, ignoring base64 padding (as signature checks do). */
+export function isMember(list: string[] | undefined | null, key: string): boolean {
+  return (list || []).some((m) => typeof m === 'string' && sameKey(m, key))
 }
 
 /** Decode base64 or base64url, with or without padding. Throws on invalid input. */

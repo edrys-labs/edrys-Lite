@@ -325,6 +325,12 @@ const router = async () => {
 
 window.addEventListener('popstate', router)
 
+// Leaving the page (pagehide) stops the classroom's connection; a page the
+// browser restores from its back/forward cache would come back without one.
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) location.reload()
+})
+
 document.addEventListener('DOMContentLoaded', () => {
   document.body.addEventListener('click', (e) => {
     if (e.target && (e.target as Element).matches('[data-link]')) {

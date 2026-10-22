@@ -32,6 +32,7 @@ index:
       off: "off"
 
 classroom:
+  reconnecting: "Reconnecting…"
   station:
     mode: "Station Mode Active"
     label: "Station Name"

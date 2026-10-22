@@ -105,6 +105,15 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
     return new GenericWebsocketProviderAdapter('room1', {} as any, { userid: 'alice' })
   }
 
+  test('is online while the socket to the server is open', () => {
+    const adapter = makeAdapter()
+    ;(adapter as any).transport.isConnected = true
+    expect(adapter.isOnline()).toBe(true)
+    ;(adapter as any).transport.isConnected = false
+    expect(adapter.isOnline()).toBe(false)
+    adapter.destroy()
+  })
+
   // Seat a verified remote peer and return its clientId.
   async function seatVerified(pubkey: string, userid: string, clientId: number) {
     verifiablePubkeys.add(pubkey)
