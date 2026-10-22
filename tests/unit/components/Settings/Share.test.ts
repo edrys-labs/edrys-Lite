@@ -2,6 +2,19 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Share from '../../../../src/components/Settings/Share.vue';
 
+vi.mock('../../../../src/ts/Utils', async (importOriginal) => ({
+  ...(await importOriginal<any>()),
+  getPeerID: () => 'importer-key',
+}));
+
+// jsdom's Blob has no text()
+const readBlob = (blob: Blob) =>
+  new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.readAsText(blob);
+  });
+
 describe('Share Settings Component', () => {
   const mockConfig = {
     id: 'test-id',
@@ -114,6 +127,45 @@ describe('Share Settings Component', () => {
     await downloadBtns[0].trigger('click'); 
     expect(global.URL.createObjectURL).toHaveBeenCalled();
     expect(document.createElement('a').click).toHaveBeenCalled();
+  });
+
+  test('export omits createdBy and setup signature fields', async () => {
+    const wrapper = createWrapper({
+      config: {
+        ...mockConfig,
+        createdBy: 'owner-key',
+        setupSigner: 'owner-key',
+        setupSignature: 'sig',
+        modules: [{ id: 'm1', url: 'http://example.com' }]
+      }
+    });
+
+    wrapper.vm.downloadClass('json');
+    const blob = (global.URL.createObjectURL as any).mock.calls[0][0] as Blob;
+    const exported = JSON.parse(await readBlob(blob));
+
+    expect(exported).not.toHaveProperty('createdBy');
+    expect(exported).not.toHaveProperty('setupSigner');
+    expect(exported).not.toHaveProperty('setupSignature');
+    expect(exported.name).toBe('Test Class');
+    expect(exported.modules[0].id).toBe('m1');
+  });
+
+  test('import backfills missing module ids and keeps existing ones', () => {
+    const config: any = { ...mockConfig, modules: [] };
+    const wrapper = createWrapper({ config });
+
+    wrapper.vm.updateConfig({
+      name: 'Imported',
+      meta: {},
+      members: { teacher: [], student: [] },
+      modules: [{ url: 'http://a.com' }, { id: 'keep', url: 'http://b.com' }]
+    });
+
+    expect(typeof config.modules[0].id).toBe('string');
+    expect(config.modules[0].id.length).toBeGreaterThan(0);
+    expect(config.modules[1].id).toBe('keep');
+    expect(config.createdBy).toBe('importer-key');
   });
 
   test('handles file restore', async () => {
