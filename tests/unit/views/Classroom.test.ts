@@ -8,7 +8,6 @@ const flushPromises = () => new Promise((r) => setTimeout(r, 0));
 // Mock dependencies
 vi.mock('../../../src/ts/Database', () => ({
   Database: vi.fn().mockImplementation(() => ({
-    setProtection: vi.fn(),
     get: vi.fn().mockResolvedValue({
       id: 'test-class',
       data: {

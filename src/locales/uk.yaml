@@ -16,7 +16,6 @@ index:
   classroom:
     create: "Створити клас"
     startTeaching: "Почати викладання"
-    writeProtection: "Захист від запису"
     newClass: "Мій новий клас"
     ownership:
       owner: "Ви власник цього класу"
@@ -28,8 +27,6 @@ index:
       deleteForever: "Так, видалити назавжди"
       fork: "Копіювати"
       open: "Відкрити"
-      on: "увімкнено"
-      off: "вимкнено"
 
 classroom:
   reconnecting: "Повторне з’єднання…"
@@ -69,7 +66,6 @@ deploy:
 settings:
   general:
     title: "Налаштування"
-    writeProtection: "Захист від запису:"
     Main: "Головне"
     Members: "Користувачі"
     Modules: "Модулі"
@@ -77,8 +73,6 @@ settings:
     Share: "Поділитися"
     Communication: "Спілкування"
     actions:
-      on: "УВІМК"
-      off: "ВИМК"
       save: "Зберегти"
       delete: "Видалити клас"
       deleteConfirm: "Ви впевнені?"

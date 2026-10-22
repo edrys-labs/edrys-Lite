@@ -71,7 +71,6 @@ vi.mock('../../../../src/ts/Utils', () => ({
     const sep = id.lastIndexOf('_');
     return sep > 0 ? id.slice(0, sep) : id;
   }),
-  hashJsonObject: vi.fn().mockResolvedValue('test-hash'),
   hashPubKey: vi.fn(() => Promise.resolve('testhash1234')),
   initCryptoIdentity: vi.fn(() => Promise.resolve()),
   signSetup: vi.fn(() => Promise.resolve('mock-signature')),
@@ -1074,21 +1073,6 @@ describe('Peer Class', () => {
 
       peer.newSetup(newConfig);
       expect(callback).toHaveBeenCalledWith(expect.objectContaining({ id: newConfig.id }));
-    });
-
-    test('a protected classroom ignores local setup changes', () => {
-      peer['lab'].hash = 'pinned-config-hash';
-      const before = JSON.parse(JSON.stringify(peer['y'].setup.get('config')));
-
-      peer.newSetup({
-        id: 'lab1',
-        data: { ...setup.data, name: 'edited' },
-        timestamp: Date.now() + 1000,
-      });
-
-      expect(peer['lab'].timestamp).toBe(setup.timestamp);
-      expect(peer['lab'].data.name).toBeUndefined();
-      expect(peer['y'].setup.get('config')).toEqual(before);
     });
 
     test('should not update setup with older timestamp', () => {

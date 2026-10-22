@@ -51,7 +51,6 @@
                   v-if="fieldConfig.type === 'boolean'"
                   v-model="formValues[configType][field]"
                   :label="String(field)"
-                  :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   color="primary"
                   density="compact"
@@ -68,7 +67,6 @@
                       v-model="formValues[configType][field][option]"
                       :label="option"
                       :hint="fieldConfig.hint"
-                      :disabled="writeProtection"
                       color="primary"
                       density="compact"
                       class="config-checkbox"
@@ -81,7 +79,6 @@
                   <div class="mb-1 custom-label">{{ field }}</div>
                   <v-radio-group
                     v-model="formValues[configType][field]"
-                    :disabled="writeProtection"
                     :hint="fieldConfig.hint"
                     density="compact"
                     inline
@@ -105,7 +102,6 @@
                     :items="fieldConfig.options || []"
                     :label="String(field)"
                     variant="outlined"
-                    :disabled="writeProtection"
                     :hint="fieldConfig.hint"
                     persistent-hint
                     clearable
@@ -129,7 +125,6 @@
                   :items="fieldOptions(configType, field, fieldConfig)"
                   :label="String(field)"
                   variant="outlined"
-                  :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   persistent-hint
                   clearable
@@ -144,7 +139,6 @@
                   :label="String(field)"
                   type="number"
                   variant="outlined"
-                  :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   density="compact"
                   class="mt-3"
@@ -157,7 +151,6 @@
                   v-model="formValues[configType][field]"
                   :label="String(field)"
                   variant="outlined"
-                  :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   rows="5"
                   class="mt-3"
@@ -170,7 +163,6 @@
                   :label="String(field)"
                   type="date"
                   variant="outlined"
-                  :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   density="compact"
                   class="mt-3"
@@ -183,7 +175,6 @@
                   <div class="d-flex align-center">
                     <v-color-picker
                       v-model="formValues[configType][field]"
-                      :disabled="writeProtection"
                       hide-inputs
                       mode="hex"
                       canvas-height="50%"
@@ -210,7 +201,6 @@
                     <prism-editor
                       v-model="formValues[configType][field]"
                       :highlight="highlighter"
-                      :readonly="writeProtection"
                     ></prism-editor>
                   </div>
                   <div
@@ -228,7 +218,6 @@
                   v-model="formValues[configType][field]"
                   :label="String(field)"
                   variant="outlined"
-                  :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   density="compact"
                   class="mt-3"
@@ -250,7 +239,6 @@
           variant="flat"
           color="grey-darken-4"
           @click="saveConfig"
-          :disabled="writeProtection"
         >
           {{ t("settings.modules.moduleConfig.save") }}
           <v-badge
@@ -306,11 +294,6 @@ export default {
       type: [String, Object],
       required: false,
       default: "",
-    },
-
-    writeProtection: {
-      type: Boolean,
-      required: true,
     },
 
     standalone: {

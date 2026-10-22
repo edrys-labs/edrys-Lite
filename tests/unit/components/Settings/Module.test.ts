@@ -27,7 +27,6 @@ describe('Module Settings Component', () => {
       props: {
         module: mockModule,
         error: mockError,
-        writeProtection: false,
         ...props
       },
       global: {
@@ -88,19 +87,6 @@ describe('Module Settings Component', () => {
     expect(wrapper.vm.module.url).toBe('https://newexample.com/module');
   });
 
-  test('disables inputs when write protected', () => {
-    const wrapper = createWrapper({ writeProtection: true });
-    const textFields = wrapper.findAll('.v-text-field input');
-    const radioGroups = wrapper.findAll('.v-radio-group');
-    
-    textFields.forEach(input => {
-      expect((input.element as HTMLInputElement).disabled).toBe(true);
-    });
-    
-    radioGroups.forEach(group => {
-      expect(group.attributes('data-disabled')).toBe('true');
-    });
-  });
 
   test('emits error updates', async () => {
     const wrapper = createWrapper();

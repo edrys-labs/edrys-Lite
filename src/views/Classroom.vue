@@ -33,7 +33,7 @@ import { copyToClipboard, deepEqual, roomColor } from "../ts/Utils";
 import { debug } from "../api/debugHandler";
 
 export default {
-  props: ["id", "station", "owner", "hash"],
+  props: ["id", "station", "owner"],
 
   setup() {
     const { t, locale } = useI18n();
@@ -169,7 +169,6 @@ export default {
       // Extract communication config from URL and decode it if needed
       const urlCommConfig = extractCommunicationConfigFromUrl();
       
-      await this.database.setProtection(this.id, !!this.hash);
       const config = await this.database.get(this.id);
       
       if (urlCommConfig) {
@@ -185,17 +184,7 @@ export default {
           !deepEqual(this.configuration?.data?.modules, config?.data.modules));
 
       this.configuration =
-        config || { id: this.id, data: null, timestamp: 0, hash: this.hash };
-
-      if (!!this.hash && this.configuration?.hash !== this.hash) {
-        debug.views.classroom("Hash mismatch, resetting configuration");
-        this.configuration = {
-          id: this.id,
-          data: null,
-          timestamp: 0,
-          hash: this.hash,
-        };
-      }
+        config || { id: this.id, data: null, timestamp: 0, hash: null };
       
       // Create a minimal valid configuration structure if needed
       if (!this.configuration.data) {
@@ -776,8 +765,6 @@ export default {
         @saveClass="saveClass"
         @deleteClass="deleteClass"
         @updateClass="updateClass"
-        :writeProtection="!!hash"
-        :membersWriteProtection="!!hash && !isTeacher"
       ></Settings>
     </v-dialog>
 

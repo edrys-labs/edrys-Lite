@@ -21,7 +21,6 @@ describe('Settings Component', () => {
       props: {
         config: mockConfig,
         scrapedModules: mockScrapedModules,
-        writeProtection: false,
         ...props
       },
       global: {
@@ -96,9 +95,4 @@ describe('Settings Component', () => {
     expect(wrapper.vm.configChanged).toBe(false);
   });
 
-  test('shows write protection status', () => {
-    const wrapper = createWrapper({ writeProtection: true });
-    const protectionStatus = wrapper.find('.text-medium-emphasis');
-    expect(protectionStatus.text()).toContain('Write Protection: ON');
-  });
 });

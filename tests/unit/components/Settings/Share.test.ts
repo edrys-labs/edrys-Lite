@@ -69,7 +69,6 @@ describe('Share Settings Component', () => {
     return mount(Share, {
       props: {
         config: mockConfig,
-        writeProtection: false,
         ...props
       },
       global: {
@@ -148,12 +147,4 @@ describe('Share Settings Component', () => {
     expect(mockFileReader.readAsText).toHaveBeenCalledWith(file);
   });
 
-  test('disables inputs when write protected', () => {
-    const wrapper = createWrapper({ writeProtection: true });
-    const fileInput = wrapper.find('.v-file-input');
-    const urlInput = wrapper.find('.v-text-field');
-    
-    expect((fileInput.element as HTMLInputElement).disabled).toBe(true);
-    expect((urlInput.element as HTMLInputElement).disabled).toBe(true);
-  });
 });

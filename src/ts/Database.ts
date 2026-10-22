@@ -1,7 +1,5 @@
 import { Dexie, liveQuery } from 'dexie'
 
-import { hashJsonObject } from './Utils'
-
 import { MemoryData, ConsoleData, NetworkData, IUserInStation } from '../components/Logger.vue'
 
 import { debug } from '../api/debugHandler'
@@ -87,16 +85,6 @@ export class Database {
 
   drop(id: string) {
     this.db['data'].delete(id)
-  }
-
-  async setProtection(id: string, on: boolean = true) {
-    const classroom = await this.get(id)
-
-    if (classroom) {
-      classroom.hash = on ? await hashJsonObject(classroom.data) : null
-
-      this.update(classroom, false)
-    }
   }
 
   setObservable(id: string, callback: (result: any) => void) {

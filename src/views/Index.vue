@@ -62,10 +62,6 @@ export default {
       copyToClipboard(this.peerID);
     },
 
-    switchClassroomProtection(id: string, on: boolean) {
-      this.database.setProtection(id, on);
-    },
-
     deleteClass(id: string) {
       this.database.drop(id);
     },
@@ -171,29 +167,6 @@ export default {
             :key="classroom.id"
           >
             <v-card class="item" color="surface-variant" elevation="4">
-              <v-chip
-                :color="!!classroom.hash ? 'primary' : 'secondary'"
-                style="
-                  position: absolute;
-                  z-index: 100;
-                  right: 10px;
-                  top: 10px;
-                  background-color: white;
-                "
-                :disabled="
-                  !sameKey(classroom?.data?.createdBy, peerID) &&
-                  !isMember(classroom?.data?.members?.teacher, peerID)
-                "
-              >
-              {{ t('index.classroom.writeProtection') }} 
-                <v-switch
-                  :model-value="!!classroom.hash"
-                  color="primary"
-                  :label="!!classroom.hash ? t('index.classroom.actions.on') : t('index.classroom.actions.off')"
-                  style="padding-top: 20px; z-index: 200"
-                  @change="switchClassroomProtection(classroom.id, !classroom.hash)"
-                ></v-switch>
-              </v-chip>
               <v-img
                 :src="
                   classroom?.data?.meta?.logo ||
@@ -247,8 +220,6 @@ export default {
                   data-link="true"
                   :href="`./?/classroom/${classroom.id}${
                     classroom.ownerHash ? `/${classroom.ownerHash}` : ''
-                  }${
-                    !!classroom.hash ? `/${classroom.hash}` : ''
                   }`"
                   style="color: white"
                 >

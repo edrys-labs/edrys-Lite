@@ -111,12 +111,12 @@ describe("Router", () => {
     );
   });
 
-  test("passes the owner hash (trust anchor) and write-protection hash to Classroom", async () => {
+  test("passes the owner hash (trust anchor) to Classroom, ignoring an old write-protection hash", async () => {
     const cases = [
       ["?/classroom/cid/OWNER-h_sh", { id: "cid", owner: "OWNER-h_sh", station: false }],
-      ["?/classroom/cid/OWNER-h_sh/protect", { id: "cid", owner: "OWNER-h_sh", hash: "protect", station: false }],
+      ["?/classroom/cid/OWNER-h_sh/protect", { id: "cid", owner: "OWNER-h_sh", station: false }],
       ["?/station/cid/OWNER-h_sh", { id: "cid", owner: "OWNER-h_sh", station: true }],
-      ["?/station/cid/OWNER-h_sh/protect", { id: "cid", owner: "OWNER-h_sh", hash: "protect", station: true }],
+      ["?/station/cid/OWNER-h_sh/protect", { id: "cid", owner: "OWNER-h_sh", station: true }],
     ] as const;
 
     for (const [search, props] of cases) {

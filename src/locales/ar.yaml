@@ -16,7 +16,6 @@ index:
   classroom:
     create: "إنشاء فصل دراسي"
     startTeaching: "ابدأ التدريس الآن"
-    writeProtection: "حماية الكتابة"
     newClass: "فصلي الجديد"
     ownership:
       owner: "أنت تمتلك هذا الفصل"
@@ -28,8 +27,6 @@ index:
       deleteForever: "نعم، احذف بشكل دائم"
       fork: "نسخ"
       open: "فتح"
-      on: "مشغّل"
-      off: "متوقف"
 
 classroom:
   reconnecting: "جارٍ إعادة الاتصال…"
@@ -69,7 +66,6 @@ deploy:
 settings:
   general:
     title: "الإعدادات"
-    writeProtection: "حماية الكتابة:"
     Main: "الرئيسية"
     Members: "الأعضاء"
     Modules: "الوحدات"
@@ -77,8 +73,6 @@ settings:
     Share: "مشاركة"
     Communication: "الاتصال"
     actions:
-      on: "تشغيل"
-      off: "إيقاف"
       save: "حفظ"
       delete: "حذف الفصل الدراسي"
       deleteConfirm: "هل أنت متأكد؟"

@@ -159,7 +159,6 @@ describe('ModuleConfigForm Component', () => {
         currentStudentConfig: '',
         currentTeacherConfig: '',
         currentStationConfig: '',
-        writeProtection: false,
         ...props
       },
       global: {
@@ -259,17 +258,6 @@ describe('ModuleConfigForm Component', () => {
     expect(Utils.parse).toHaveBeenCalled();
   });
 
-  test('responds correctly to writeProtection prop', async () => {
-    wrapper = createWrapper({
-      moduleConfig: complexModuleConfig,
-      writeProtection: true
-    });
-    
-    
-    const buttons = wrapper.findAll('.v-btn');
-    const saveButton = buttons[buttons.length - 1];
-    expect(saveButton.attributes('disabled')).toBeDefined();
-  });
   
   test('starts fields at the schema default, the saved config still wins', async () => {
     const moduleConfig = JSON.stringify({

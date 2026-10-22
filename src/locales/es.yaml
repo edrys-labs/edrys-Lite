@@ -16,7 +16,6 @@ index:
   classroom:
     create: "Crear una clase"
     startTeaching: "Empieza a enseñar ahora"
-    writeProtection: "Protección de escritura"
     newClass: "Mi Nueva Clase"
     ownership:
       owner: "Eres propietario de esta clase"
@@ -28,8 +27,6 @@ index:
       deleteForever: "Sí, eliminar para siempre"
       fork: "Bifurcar"
       open: "Abrir"
-      on: "activado"
-      off: "desactivado"
 
 classroom:
   reconnecting: "Reconectando…"
@@ -69,7 +66,6 @@ deploy:
 settings:
   general:
     title: "Configuración"
-    writeProtection: "Protección de escritura:"
     Main: "Principal"
     Members: "Miembros"
     Modules: "Módulos"
@@ -77,8 +73,6 @@ settings:
     Share: "Compartir"
     Communication: "Comunicación"
     actions:
-      on: "ACTIVADO"
-      off: "DESACTIVADO"
       save: "Guardar"
       delete: "Eliminar Clase"
       deleteConfirm: "¿Estás seguro?"

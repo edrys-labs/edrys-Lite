@@ -5,7 +5,6 @@
     :label="t('settings.main.className')"
     outlined
     required
-    :disabled="writeProtection"
   ></v-text-field>
 
   <v-text-field
@@ -13,7 +12,6 @@
     :label="t('settings.main.logoUrl')"
     outlined
     required
-    :disabled="writeProtection"
   ></v-text-field>
 
   <v-textarea
@@ -21,7 +19,6 @@
     filled
     :label="t('settings.main.description')"
     auto-grow
-    :disabled="writeProtection"
   ></v-textarea>
 
   <v-text-field
@@ -29,7 +26,6 @@
     :label="t('settings.main.roomsNum')"
     type="number"
     outlined
-    :disabled="writeProtection"
   ></v-text-field>
 
   <!-- selfAssign checkbox hidden until the feature is implemented
@@ -37,7 +33,6 @@
     v-model="config.meta.selfAssign"
     :label="t('settings.main.selfAssign')"
     outlined
-    :disabled="writeProtection"
   ></v-checkbox>
   -->
 </template>
@@ -51,11 +46,6 @@ export default {
   props: {
     config: {
       type: Object,
-      required: true,
-    },
-
-    writeProtection: {
-      type: Boolean,
       required: true,
     },
   },

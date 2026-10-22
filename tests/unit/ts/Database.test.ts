@@ -1,5 +1,4 @@
 import { Database, DatabaseItem } from "../../../src/ts/Database";
-import { hashJsonObject } from "../../../src/ts/Utils";
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from "vitest";
 import { Dexie, liveQuery } from "dexie";
 
@@ -57,12 +56,6 @@ vi.mock("dexie", () => {
     })),
   };
 });
-
-vi.mock("../../../src/ts/Utils", () => ({
-  hashJsonObject: vi
-    .fn()
-    .mockImplementation(() => Promise.resolve("hashedData")),
-}));
 
 describe("Database", () => {
   let db: Database;
@@ -146,17 +139,6 @@ describe("Database", () => {
 
     db.drop("1");
     expect(mockData.delete).toHaveBeenCalledWith("1");
-  });
-
-  it("should set protection (hash) for an item", async () => {
-    const mockItem = { id: "1", timestamp: 123, data: {}, hash: null };
-    mockData.get.mockResolvedValue(mockItem);
-
-    await db.setProtection("1", true);
-
-    expect(vi.mocked(hashJsonObject)).toHaveBeenCalledWith(mockItem.data);
-    expect(mockItem.hash).toBe("hashedData");
-    expect(mockData.put).toHaveBeenCalledWith(mockItem);
   });
 
   it("should add an observable for an item", () => {

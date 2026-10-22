@@ -7,7 +7,6 @@
       @end="move"
       class="list-group"
       ghost-class="drag-ghost"
-      :disabled="writeProtection"
       :scroll="true"
       :bubbleScroll="true"
       :scrollSensitivity="80"
@@ -64,7 +63,6 @@
                       v-bind="{ ...tooltipProps, ...menuProps }"
                       icon="mdi-delete"
                       variant="text"
-                      :disabled="writeProtection"
                     ></v-btn>
                   </template>
 
@@ -94,7 +92,7 @@
         </div>
       </template>
     </draggable>
-    <v-list-item :disabled="writeProtection">
+    <v-list-item>
       <template v-slot:prepend>
         <v-icon icon="mdi-link"></v-icon>
       </template>
@@ -158,7 +156,6 @@
                 :currentStudentConfig="moduleDialogDraft?.studentConfig"
                 :currentTeacherConfig="moduleDialogDraft?.teacherConfig"
                 :currentStationConfig="moduleDialogDraft?.stationConfig"
-                :writeProtection="writeProtection"
                 @update:hasChanges="formHasChanges = $event"
               />
             </v-expansion-panel-text>
@@ -177,7 +174,6 @@
               <Module
                 v-model:module="moduleDialogDraft"
                 v-model:error="errors[moduleDialogIndex]"
-                :writeProtection="writeProtection"
               ></Module>
             </v-expansion-panel-text>
           </v-expansion-panel>
@@ -193,7 +189,6 @@
           variant="flat"
           color="grey-darken-4"
           @click="saveModuleDialog"
-          :disabled="writeProtection"
         >
           {{ t('settings.modules.moduleConfig.save') }}
           <v-badge
@@ -243,11 +238,6 @@ export default {
 
     scrapedModules: {
       type: Object,
-      required: true,
-    },
-
-    writeProtection: {
-      type: Boolean,
       required: true,
     },
   },

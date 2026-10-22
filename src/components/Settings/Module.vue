@@ -13,7 +13,6 @@
           variant="underlined"
           :label="t('settings.modules.module.url.urlLabel')"
           v-model="module.url"
-          :disabled="writeProtection"
         ></v-text-field>
       </v-expansion-panel-text>
     </v-expansion-panel>
@@ -32,7 +31,7 @@
           <v-col cols="6">
             <v-container fluid>
               <p>{{ t('settings.modules.module.design.width.title') }}</p>
-              <v-radio-group v-model="widthSelection" :disabled="writeProtection">
+              <v-radio-group v-model="widthSelection">
                 <v-radio :label="t('settings.modules.module.design.width.full')" value="full"></v-radio>
                 <v-radio :label="t('settings.modules.module.design.width.half')" value="half"></v-radio>
                 <v-radio :label="t('settings.modules.module.design.width.quarter')" value="third"></v-radio>
@@ -44,7 +43,6 @@
                 variant="underlined"
                 :label="t('settings.modules.module.design.width.custom.label')"
                 v-model.number="customWidth"
-                :disabled="writeProtection"
                 type="number"
                 min="1"
                 :hint="t('settings.modules.module.design.width.custom.hint')"
@@ -57,7 +55,7 @@
           <v-col cols="6">
             <v-container fluid>
               <p>{{ t('settings.modules.module.design.height.title') }}</p>
-              <v-radio-group v-model="heightSelection" :disabled="writeProtection">
+              <v-radio-group v-model="heightSelection">
                 <v-radio :label="t('settings.modules.module.design.height.huge')" value="huge"></v-radio>
                 <v-radio :label="t('settings.modules.module.design.height.tall')"  value="tall"></v-radio>
                 <v-radio :label="t('settings.modules.module.design.height.medium')"  value="medium"></v-radio>
@@ -70,7 +68,6 @@
                 variant="underlined"
                 :label="t('settings.modules.module.design.height.custom.label')"
                 v-model.number="customHeight"
-                :disabled="writeProtection"
                 type="number"
                 min="1"
                 :hint="t('settings.modules.module.design.height.custom.hint')"
@@ -88,7 +85,6 @@
       icon="mdi-script-text"
       v-model:config="module.config"
       v-model:error="error.config"
-      :writeProtection="writeProtection"
     ></Editor>
 
     <Editor
@@ -96,7 +92,6 @@
       icon="mdi-account-circle-outline"
       v-model:config="module.studentConfig"
       v-model:error="error.studentConfig"
-      :writeProtection="writeProtection"
     ></Editor>
 
     <Editor
@@ -104,7 +99,6 @@
       icon="mdi-clipboard-account-outline"
       v-model:config="module.teacherConfig"
       v-model:error="error.teacherConfig"
-      :writeProtection="writeProtection"
     ></Editor>
 
     <Editor
@@ -112,7 +106,6 @@
       icon="mdi-router-wireless"
       v-model:config="module.stationConfig"
       v-model:error="error.stationConfig"
-      :writeProtection="writeProtection"
     ></Editor>
 
     <!-- Show In Panel -->
@@ -128,7 +121,6 @@
           variant="underlined"
           :label="t('settings.modules.module.showIn.label')"
           v-model="module.showInCustom"
-          :disabled="writeProtection"
         ></v-text-field>
       </v-expansion-panel-text>
     </v-expansion-panel>
@@ -149,10 +141,6 @@ export default {
     },
     error: {
       type: Object,
-      required: true,
-    },
-    writeProtection: {
-      type: Boolean,
       required: true,
     },
   },

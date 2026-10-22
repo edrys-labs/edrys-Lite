@@ -12,7 +12,6 @@ describe('Members Settings Component', () => {
     return mount(Members, {
       props: {
         members: mockMembers,
-        writeProtection: false,
         ...props
       },
       global: {
@@ -51,11 +50,4 @@ describe('Members Settings Component', () => {
       student: ['student1', 'student2']
     });
   });
-
-  test('disables inputs when write protected', () => {
-    const wrapper = createWrapper({ writeProtection: true });
-    const textarea = wrapper.find('.v-textarea');
-    expect((textarea.element as HTMLTextAreaElement).disabled).toBe(true);
-  });
-
 });

@@ -12,7 +12,6 @@ describe('Editor Component', () => {
         config: {},
         title: 'Test Editor',
         icon: 'mdi-test',
-        writeProtection: false,
         ...props
       },
       global: {
@@ -80,13 +79,6 @@ describe('Editor Component', () => {
     expect(wrapper.vm.errorMessage).toBeTruthy();
   });
 
-  test('respects write protection', () => {
-    const wrapper = createWrapper({ writeProtection: true });
-    const editor = wrapper.find('.prism-editor');
-    expect(editor.attributes('data-readonly')).toBe('true');
-    const textarea = editor.find('textarea');
-    expect(textarea.attributes('readonly')).toBe('');
-  });
 
   test('highlights code using prism', () => {
     const wrapper = createWrapper();

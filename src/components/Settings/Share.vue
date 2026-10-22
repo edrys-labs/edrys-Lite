@@ -22,7 +22,6 @@
         v-model="selectedFile"
         :append-icon="selectedFileIcon"
         @click:append.self="restoreFile"
-        :disabled="writeProtection"
       ></v-file-input>
     </v-col>
 
@@ -36,7 +35,6 @@
         @click:append.self="restoreURL"
         @mouseover="showTemplate = true"
         @mouseleave="showTemplate = false"
-        :disabled="writeProtection"
       >
         <template v-slot:append-inner>
           <v-icon
@@ -70,11 +68,6 @@ export default {
   props: {
     config: {
       type: Object,
-      required: true,
-    },
-
-    writeProtection: {
-      type: Boolean,
       required: true,
     },
   },

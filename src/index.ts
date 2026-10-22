@@ -309,6 +309,9 @@ const router = async () => {
   }
 
   const params = getParams(match)
+  // Links from the removed write protection carry a content hash after the
+  // owner; the routes still match them so the owner segment parses, but it's unused.
+  delete params.hash
   const view = match.route.view
 
   app?.unmount()

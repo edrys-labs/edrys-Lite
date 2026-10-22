@@ -5,7 +5,6 @@
       :items="['WebRTC', 'Websocket']"
       :label="$t('settings.communication.labels.method')"
       @change="updateConfig"
-      :disabled="writeProtection"
     ></v-select>
 
     <v-text-field
@@ -14,7 +13,6 @@
       :label="$t('settings.communication.labels.websocketServer')"
       placeholder="wss://demos.yjs.dev"
       @change="updateConfig"
-      :disabled="writeProtection"
     ></v-text-field>
 
     <template v-if="communicationMethod === 'WebRTC'">
@@ -23,7 +21,6 @@
         :label="$t('settings.communication.labels.webrtcSignaling')"
         placeholder="wss://rooms.deno.dev"
         @change="updateConfig"
-        :disabled="writeProtection"
       ></v-text-field>
 
       <v-textarea
@@ -32,13 +29,12 @@
         placeholder='{"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}'
         rows="5"
         @change="updateConfig"
-        :disabled="writeProtection"
       ></v-textarea>
     </template>
     
     <v-divider class="my-4 border-opacity-50" color="primary"></v-divider>
     
-    <div v-if="!writeProtection">
+    <div>
       <h3 class="text-h6 mb-2 font-weight-bold">{{ $t('settings.communication.shareLink.title') }}</h3>
       <p class="text-body-2 mb-3">{{ $t('settings.communication.shareLink.description') }}</p>
       
@@ -57,7 +53,6 @@
         @change="updateKeepConfigPreference"
         class="mt-2"
         color="primary"
-        :disabled="writeProtection"
       ></v-checkbox>
     </div>
 
@@ -88,10 +83,6 @@ export default {
   props: {
     config: {
       type: String,
-      required: true,
-    },
-    writeProtection: {
-      type: Boolean,
       required: true,
     },
     classId: {
@@ -185,8 +176,6 @@ export default {
     },
 
     updateConfig() {
-      if (this.writeProtection) return;
-      
       const commConfig = this.buildCommConfig();
       const encodedConfig = encodeCommConfig(commConfig);
       this.lastEmittedConfig = encodedConfig;
@@ -198,19 +187,17 @@ export default {
     },
     
     generateShareableLink() {
-      if (this.writeProtection) return;
-      
       try {
         const commConfig = this.buildCommConfig();
         const encodedConfig = encodeCommConfig(commConfig);
         
         const urlBase = window.location.origin + window.location.pathname;
 
-        // Keep the /:owner[/:hash] segments of the current URL: the owner hash
-        // is the first-join trust anchor.
+        // Keep the /:owner segment of the current URL: the owner hash is the
+        // first-join trust anchor.
         const anchor =
           (window.location.search || "").match(
-            /^\?\/(?:classroom|station)\/[^/?#]+((?:\/[^/?#]+)*)/
+            /^\?\/(?:classroom|station)\/[^/?#]+(\/[^/?#]+)?/
           )?.[1] || "";
         const link = `${urlBase}?/classroom/${this.classId}${anchor}`;
 
@@ -242,8 +229,6 @@ export default {
     },
 
     onSettingsSaved() {
-      if (this.writeProtection) return;
-      
       const commConfig = this.buildCommConfig();
       
       // Update URL with current config if keepConfigInUrl is checked

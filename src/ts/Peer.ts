@@ -200,7 +200,6 @@ export default class Peer {
     id: string
     data: any
     timestamp: number
-    hash: string | null
   }
 
   private connected: boolean = false
@@ -213,7 +212,7 @@ export default class Peer {
   private ownerMismatch: boolean = false
 
   constructor(
-    setup: { id: string; data: any; timestamp: number; hash: string | null },
+    setup: { id: string; data: any; timestamp: number },
     stationID?: string,
     t?: (key: string) => string,
     password?: string,
@@ -288,9 +287,7 @@ export default class Peer {
     }
 
     // Set up persistence before connecting
-    const room = this.lab.id + (this.lab.hash || '')
-
-    this.connectProvider(room, password)
+    this.connectProvider(this.lab.id, password)
 
     // Leave on page unload. beforeunload, while the connections still carry
     // our signed leave (by pagehide they no longer do); pagehide where
@@ -1124,12 +1121,6 @@ export default class Peer {
    * @param config The new configuration.
    */
   newSetup(config: { id: string; data: any; timestamp: number }) {
-    // A protected classroom's config is pinned by the hash in its URL (which
-    // also names its network room); local edits are not published there.
-    if (this.lab.hash) {
-      LOG('protected classroom, ignoring local setup change')
-      return
-    }
     if (this.lab.timestamp < config.timestamp) {
       this.logSetupChanges(this.lab.data, config.data)
       this.lab.id = config.id

@@ -12,8 +12,7 @@ vi.mock('../../../src/ts/Database', () => ({
       callback(mockClassrooms);
     }),
     put: vi.fn().mockResolvedValue('test-hash'),
-    drop: vi.fn(),
-    setProtection: vi.fn()
+    drop: vi.fn()
   }))
 }));
 
@@ -224,12 +223,6 @@ describe('Index View', () => {
     const wrapper = createWrapper();
     wrapper.vm.deleteClass('class-1');
     expect(wrapper.vm.database.drop).toHaveBeenCalledWith('class-1');
-  });
-
-  test('toggles write protection', async () => {
-    const wrapper = createWrapper();
-    wrapper.vm.switchClassroomProtection('class-1', true);
-    expect(wrapper.vm.database.setProtection).toHaveBeenCalledWith('class-1', true);
   });
 
   test('handles classroom forking', async () => {

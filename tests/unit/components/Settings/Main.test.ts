@@ -15,7 +15,6 @@ describe('Main Settings Component', () => {
     return mount(Main, {
       props: {
         config: mockConfig,
-        writeProtection: false,
         ...props
       },
       global: {
@@ -46,11 +45,4 @@ describe('Main Settings Component', () => {
     expect(wrapper.props('config').meta.description).toBe('Test Description');
   });
 
-  test('disables inputs when write protected', () => {
-    const wrapper = createWrapper({ writeProtection: true });
-    const inputs = wrapper.findAll('v-input');
-    inputs.forEach(input => {
-      expect(input.attributes('disabled')).toBeTruthy();
-    });
-  });
 });

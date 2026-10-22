@@ -16,7 +16,6 @@ index:
   classroom:
     create: "Create a class"
     startTeaching: "Start teaching now"
-    writeProtection: "Write Protection"
     newClass: "My New Class"
     ownership:
       owner: "You own this class"
@@ -28,8 +27,6 @@ index:
       deleteForever: "Yes, delete forever"
       fork: "Fork"
       open: "Open"
-      on: "on"
-      off: "off"
 
 classroom:
   reconnecting: "Reconnecting…"
@@ -69,7 +66,6 @@ deploy:
 settings:
   general:
     title: "Settings"
-    writeProtection: "Write Protection:"
     Main: "Main"
     Members: "Members"
     Modules: "Modules"
@@ -77,8 +73,6 @@ settings:
     Share: "Share"
     Communication: "Communication"
     actions:
-      on: "ON"
-      off: "OFF"
       save: "Save"
       delete: "Delete Class"
       deleteConfirm: "Are you sure?"

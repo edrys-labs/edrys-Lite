@@ -34,7 +34,6 @@ describe('Modules Settings Component', () => {
       props: {
         config: mockConfig,
         scrapedModules: mockScrapedModules,
-        writeProtection: false,
         ...props
       },
       global: {
@@ -135,9 +134,4 @@ describe('Modules Settings Component', () => {
     expect(wrapper.vm.validate_config(0)).toBe(false);
   });
 
-  test('disables controls when write protected', () => {
-    const wrapper = createWrapper({ writeProtection: true });
-    const draggableContainer = wrapper.find('.draggable-container');
-    expect(draggableContainer.attributes('disabled')).toBeTruthy();
-  });
 });
