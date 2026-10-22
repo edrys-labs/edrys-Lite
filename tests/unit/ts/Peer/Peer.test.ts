@@ -143,7 +143,6 @@ describe('Peer Class', () => {
         createdBy: 'test-peer-id', // matches getPeerID() mock so _signAndWrite proceeds
       },
       timestamp: Date.now(),
-      hash: null,
     };
 
     peer = new Peer(setup, undefined, i18n.global.t);
@@ -451,7 +450,6 @@ describe('Peer Class', () => {
         id: 'lab1',
         data: { meta: { defaultNumberOfRooms: 0 }, members: { teacher: [], student: [] }, createdBy: 'some-other-owner' },
         timestamp: Date.now(),
-        hash: null,
       }, undefined, i18n.global.t);
       await vi.advanceTimersByTimeAsync(0);
       await Promise.resolve();

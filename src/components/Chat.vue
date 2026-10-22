@@ -122,7 +122,7 @@ export default {
         <v-col
           cols="12"
           style="padding: 15px 0.5rem 15px 0.5rem"
-          v-if="this.deletedMessages"
+          v-if="deletedMessages"
         >
           <div>{{ t('chat.deletedMessage') }}</div>
         </v-col>

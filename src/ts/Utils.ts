@@ -503,7 +503,7 @@ export function isMember(list: string[] | undefined | null, key: string): boolea
 }
 
 /** Decode base64 or base64url, with or without padding. Throws on invalid input. */
-function _pubKeyBytes(pubKeyBase64: string): Uint8Array {
+function _pubKeyBytes(pubKeyBase64: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(atob(pubKeyBase64.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(pubKeyBase64.length / 4) * 4, '=')), c => c.charCodeAt(0))
 }
 
@@ -524,7 +524,7 @@ export async function hashPubKey(pubKeyBase64: string): Promise<string> {
   return b64ToB64Url(btoa(String.fromCharCode(...new Uint8Array(digest)))).slice(0, 16)
 }
 
-function _b64ToBytes(b64: string): Uint8Array {
+function _b64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
 }
 
@@ -601,7 +601,7 @@ function buildSignedBody(
   nonce: number,
   key: string,
   container: SignedContainer
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
   const body = canonicalize({ payload, signer, nonce, key, container })
   return new TextEncoder().encode(body)
 }

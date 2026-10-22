@@ -12,8 +12,8 @@ describe('Stations Settings Component', () => {
     originalClipboard = navigator.clipboard;
 
     // Mock window.location
-    delete window.location;
-    window.location = {
+    delete (window as any).location;
+    (window as any).location = {
       ...originalLocation,
       toString: () => 'http://localhost:3000/classroom',
     } as Location;
@@ -29,7 +29,7 @@ describe('Stations Settings Component', () => {
 
   afterEach(() => {
     // Restore the original window.location and navigator.clipboard
-    window.location = originalLocation;
+    (window as any).location = originalLocation;
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,
       writable: true,
