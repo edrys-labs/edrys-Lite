@@ -127,6 +127,29 @@ describe('Signed y.rooms', () => {
     peer.stop()
   })
 
+  test('saving a higher default room count adds the missing rooms at once', async () => {
+    await Utils.initCryptoIdentity()
+    const myPubKey = Utils.getPeerID(false)
+
+    const setup = makeSetup(myPubKey, 1)
+    const peer: any = new Peer(setup, undefined, i18n.global.t)
+    await flushPromises()
+    await peer.join('student')
+    await flushPromises()
+    await flushPromises()
+    expect(Object.keys((await peer.toJSON()).rooms)).toEqual(['Lobby', 'Room 1'])
+
+    const saved = makeSetup(myPubKey, 3)
+    saved.timestamp = setup.timestamp + 1
+    peer.newSetup(saved)
+    await flushPromises()
+    await flushPromises()
+
+    expect(Object.keys((await peer.toJSON()).rooms)).toEqual(['Lobby', 'Room 1', 'Room 2', 'Room 3'])
+
+    peer.stop()
+  })
+
   // Another identity, for attackers and second teachers.
   async function otherIdentity() {
     vi.resetModules()

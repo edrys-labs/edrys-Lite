@@ -1011,18 +1011,17 @@ export default class Peer {
     if (fresh) {
       LOG('initializing rooms')
 
-      if (this.canManageRooms()) {
-        let defaultRooms = 0
-        try {
-          defaultRooms = this.lab.data.meta.defaultNumberOfRooms
-        } catch (e) {}
-
-        for (let i = 1; i <= defaultRooms; i++) {
-          this._writeAndSignRoom('Room ' + i, 'initRooms')
-        }
-      }
+      this._addDefaultRooms()
     }
     this._ensureStationRoom()
+  }
+
+  /** Adds whichever of Room 1..defaultNumberOfRooms is missing. */
+  private _addDefaultRooms() {
+    const defaultRooms: number = this.lab.data?.meta?.defaultNumberOfRooms || 0
+    for (let i = 1; i <= defaultRooms; i++) {
+      this.addRoom('Room ' + i)
+    }
   }
 
   /** Signature check result per chat entry, by its content. */
@@ -1122,6 +1121,8 @@ export default class Peer {
    */
   newSetup(config: { id: string; data: any; timestamp: number }) {
     if (this.lab.timestamp < config.timestamp) {
+      const roomsChanged =
+        this.lab.data?.meta?.defaultNumberOfRooms !== config.data?.meta?.defaultNumberOfRooms
       this.logSetupChanges(this.lab.data, config.data)
       this.lab.id = config.id
       this.lab.data = config.data
@@ -1130,6 +1131,7 @@ export default class Peer {
       this.initSetup(true)
       this.update('setup')
       this._reverifyAfterSetup()
+      if (roomsChanged) this._addDefaultRooms()
     }
   }
 
