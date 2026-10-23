@@ -128,6 +128,9 @@ let heartbeatID: ReturnType<typeof setInterval> | null
 // already holds a vanished station for ABSENT_GRACE.
 const MISSING_ROOM_CHECKS = 2
 
+// Most numbered rooms a setup's room count makes; each one is a signed write.
+export const MAX_ROOMS = 50
+
 // A station that reloads drops out of the view until it is back (well under
 // a second in tests); its visitors wait this long for it before moving to the
 // Lobby. A station's signed leave looks the same whether it reloads or closes,
@@ -685,6 +688,8 @@ export default class Peer {
     this._refreshChat()
     this._checkRooms(new Set([...this.y.roomSigs.keys(), ...this.y.rooms.keys()]))
     this._ensureStationRoom()
+    // The room count may have dropped below our room.
+    this._leaveMissingRoom(false)
   }
 
   private async _verifyAndAccept(data: any, timestamp: number): Promise<boolean> {
@@ -1016,9 +1021,14 @@ export default class Peer {
     this._ensureStationRoom()
   }
 
+  /** The setup's room count, capped at MAX_ROOMS. */
+  private _roomCount(): number {
+    return Math.min(Number(this.lab.data?.meta?.defaultNumberOfRooms) || 0, MAX_ROOMS)
+  }
+
   /** Adds whichever of Room 1..defaultNumberOfRooms is missing. */
   private _addDefaultRooms() {
-    const defaultRooms: number = this.lab.data?.meta?.defaultNumberOfRooms || 0
+    const defaultRooms = this._roomCount()
     for (let i = 1; i <= defaultRooms; i++) {
       this.addRoom('Room ' + i)
     }
@@ -1445,30 +1455,13 @@ export default class Peer {
   }
 
   /**
-   * Adds a new room.
-   * @param name Optional name of the room.
+   * Adds a room. Numbered rooms ("Room N") only show while N is within the
+   * setup's defaultNumberOfRooms, so they are added by raising that.
+   * @param name The name of the room.
    */
-  addRoom(name?: string) {
+  addRoom(name: string) {
     if (!this.canManageRooms()) return
-    if (name) {
-      if (!(name in this._viewRooms())) this._writeAndSignRoom(name, 'addRoom')
-      return
-    }
-    const roomIDs: number[] = Object.keys(this._viewRooms())
-      .filter((e) => e.match(/Room/))
-      .map((e) => e.split(' ')[1])
-      .map((e) => parseInt(e))
-      .sort((a, b) => a - b)
-
-    let newRoomID = 1
-    for (const id of roomIDs) {
-      if (id !== newRoomID) {
-        break
-      }
-      newRoomID++
-    }
-
-    this.addRoom('Room ' + newRoomID)
+    if (!(name in this._viewRooms())) this._writeAndSignRoom(name, 'addRoom')
   }
 
   /**
@@ -1669,10 +1662,17 @@ export default class Peer {
     return users
   }
 
+  /** Whether `name` is a numbered room beyond the setup's room count. */
+  private _isRemovedRoom(name: string): boolean {
+    const n = /^Room (\d+)$/.exec(name)
+    return !!n && Number(n[1]) > this._roomCount()
+  }
+
   /**
    * Rooms as the UI and modules see them: the Lobby, rooms with a valid
    * record (oldest first), and the stations that are present. A room's Y.Map
-   * in the doc only holds module state.
+   * in the doc only holds module state. Numbered rooms beyond the setup's
+   * room count are left out, so lowering it removes them for everyone.
    *
    * While we wait for our station to come back (STATION_RETURN_GRACE), its
    * room stays in our view so we still see ourselves in it; `waiting: false`
@@ -1685,7 +1685,8 @@ export default class Peer {
     }
     const rooms: Record<string, any> = { [LOBBY]: state(LOBBY) }
     const records = [...this._roomRecords]
-      .filter(([name, envelope]) => this._isValidRoomRecord(name, envelope))
+      .filter(([name, envelope]) =>
+        this._isValidRoomRecord(name, envelope) && !this._isRemovedRoom(name))
       .sort(([a, x], [b, y]) =>
         x.nonce - y.nonce || a.localeCompare(b, undefined, { numeric: true }))
     for (const [name] of records) rooms[name] = state(name)

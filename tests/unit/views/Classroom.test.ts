@@ -66,7 +66,8 @@ const mockCommunication = {
 
 // Update the Peer mock to return our mockCommunication
 vi.mock('../../../src/ts/Peer', () => ({
-  default: vi.fn().mockImplementation(() => mockCommunication)
+  default: vi.fn().mockImplementation(() => mockCommunication),
+  MAX_ROOMS: 50,
 }));
 
 describe('Classroom View', () => {
@@ -311,6 +312,44 @@ describe('Classroom View', () => {
       expect(mockCommunication.newSetup).toHaveBeenCalledWith(await db.get.mock.results[0].value);
       expect(wrapper.vm.data.name).toBe('Updated Class');
       expect(scrapeModule).toHaveBeenCalledWith(savedModule);
+    });
+
+    test('New room saves the room count plus one', async () => {
+      const { wrapper, db } = await saveWith({});
+      db.update.mockClear();
+      mockCommunication.newSetup.mockClear();
+
+      wrapper.vm.addRoom();
+      await flushPromises();
+
+      expect(db.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ meta: expect.objectContaining({ defaultNumberOfRooms: 3 }) }) })
+      );
+      expect(mockCommunication.newSetup).toHaveBeenCalled();
+      expect(wrapper.vm.configuration.data.meta.defaultNumberOfRooms).toBe(3);
+    });
+
+    test('New room counts up from a room count saved as text', async () => {
+      // The settings field stored the count as a string before it used v-model.number.
+      const { wrapper, db } = await saveWith({ meta: { defaultNumberOfRooms: '1' } });
+      db.update.mockClear();
+
+      wrapper.vm.addRoom();
+      await flushPromises();
+
+      expect(wrapper.vm.configuration.data.meta.defaultNumberOfRooms).toBe(2);
+    });
+
+    test('New room does nothing at the room cap', async () => {
+      const { wrapper, db } = await saveWith({ meta: { defaultNumberOfRooms: 50 } });
+      db.update.mockClear();
+
+      expect(wrapper.vm.canAddRoom()).toBe(false);
+      wrapper.vm.addRoom();
+      await flushPromises();
+
+      expect(db.update).not.toHaveBeenCalled();
+      expect(wrapper.vm.configuration.data.meta.defaultNumberOfRooms).toBe(50);
     });
 
     test('does not reload modules when the transport changed (the page reloads instead)', async () => {

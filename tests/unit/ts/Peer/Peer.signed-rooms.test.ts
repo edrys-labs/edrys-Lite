@@ -150,6 +150,74 @@ describe('Signed y.rooms', () => {
     peer.stop()
   })
 
+  test('saving a lower room count removes the rooms above it and moves us out of them', async () => {
+    await Utils.initCryptoIdentity()
+    const myPubKey = Utils.getPeerID(false)
+
+    const setup = makeSetup(myPubKey, 3)
+    const peer: any = new Peer(setup, undefined, i18n.global.t)
+    await flushPromises()
+    await peer.join('student')
+    await flushPromises()
+    await flushPromises()
+    peer.connected = true
+    peer.gotoRoom('Room 3')
+    await flushPromises()
+    peer._leaveMissingRoom(false) // sees Room 3 in the view
+    expect(peer.user().room).toBe('Room 3')
+
+    const saved = makeSetup(myPubKey, 1)
+    saved.timestamp = setup.timestamp + 1
+    peer.newSetup(saved)
+    await flushPromises()
+
+    expect(Object.keys((await peer.toJSON()).rooms)).toEqual(['Lobby', 'Room 1'])
+    // The records stay in the doc; the view leaves them out.
+    expect(peer['y'].roomSigs.has('Room 3')).toBe(true)
+    expect(peer.user().room).toBe('Lobby')
+
+    peer.stop()
+  })
+
+  test('a numbered room above the room count is not shown, a named room is', async () => {
+    await Utils.initCryptoIdentity()
+    const myPubKey = Utils.getPeerID(false)
+
+    const peer: any = new Peer(makeSetup(myPubKey, 1), undefined, i18n.global.t)
+    await flushPromises()
+    await peer.join('student')
+    await flushPromises()
+    peer.addRoom('Room 5')
+    peer.addRoom('Discussion')
+    await flushPromises()
+    await flushPromises()
+
+    expect(Object.keys((await peer.toJSON()).rooms)).toEqual(['Lobby', 'Room 1', 'Discussion'])
+
+    peer.stop()
+  })
+
+  test('the room count is capped at 50 rooms', async () => {
+    await Utils.initCryptoIdentity()
+    const myPubKey = Utils.getPeerID(false)
+
+    const peer: any = new Peer(makeSetup(myPubKey, 1000), undefined, i18n.global.t)
+    await flushPromises()
+    await peer.join('student')
+    await flushPromises()
+    await flushPromises()
+    peer.addRoom('Room 51')
+    await flushPromises()
+    await flushPromises()
+
+    const rooms = Object.keys((await peer.toJSON()).rooms)
+    expect(rooms).toHaveLength(51) // Lobby + Room 1..50
+    expect(rooms).toContain('Room 50')
+    expect(rooms).not.toContain('Room 51')
+
+    peer.stop()
+  })
+
   // Another identity, for attackers and second teachers.
   async function otherIdentity() {
     vi.resetModules()

@@ -26,7 +26,7 @@ import {
   isMember,
 } from "../ts/Utils";
 import { markRaw, onMounted } from "vue";
-import Peer from "../ts/Peer";
+import Peer, { MAX_ROOMS } from "../ts/Peer";
 
 import { copyToClipboard, deepEqual, roomColor } from "../ts/Utils";
 
@@ -380,7 +380,8 @@ export default {
     },
 
     saveClass(configuration: any) {
-      this.$refs.Settings.close = true;
+      // Settings is only mounted while its dialog is open.
+      if (this.$refs.Settings) this.$refs.Settings.close = true;
 
       // Get the current encoded config
       const oldEncodedConfig = this.configuration?.data?.communicationConfig || null;
@@ -472,8 +473,23 @@ export default {
       }, 1000);
     },
 
+    roomCount(): number {
+      return Number(this.configuration?.data?.meta?.defaultNumberOfRooms) || 0;
+    },
+
+    canAddRoom(): boolean {
+      return this.roomCount() < MAX_ROOMS;
+    },
+
+    // Rooms come from the room count in the setup, so a new room is a saved +1.
     addRoom() {
-      this.communication?.addRoom();
+      if (!this.canAddRoom()) return;
+      const configuration = clone(this.configuration.data);
+      configuration.meta = {
+        ...configuration.meta,
+        defaultNumberOfRooms: this.roomCount() + 1,
+      };
+      this.saveClass(configuration);
     },
 
     deleteClass() {
@@ -726,7 +742,7 @@ export default {
 
         <template v-slot:append>
           <div class="pa-2">
-            <v-btn depressed block class="mb-2" @click="addRoom" v-if="isOwner">
+            <v-btn depressed block class="mb-2" @click="addRoom" v-if="isOwner" :disabled="!canAddRoom()">
               <v-icon left>mdi-forum</v-icon>
               {{ t("classroom.sideMenu.newRoom") }}
             </v-btn>

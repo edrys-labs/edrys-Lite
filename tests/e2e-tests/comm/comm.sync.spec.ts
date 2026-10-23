@@ -31,14 +31,14 @@ test.describe('Comm — shared state', () => {
   })
 
   test('room created by the owner reaches the guest; guest moving is seen by the owner', async () => {
-    await inPeer(owner!.page, `p.addRoom('Room 1'); return true`)
-    await eventually(guest!, `return 'Room 1' in v.rooms`, 'guest sees Room 1')
+    await inPeer(owner!.page, `p.addRoom('Group 1'); return true`)
+    await eventually(guest!, `return 'Group 1' in v.rooms`, 'guest sees Group 1')
 
-    await inPeer(guest!.page, `p.gotoRoom('Room 1'); return true`)
+    await inPeer(guest!.page, `p.gotoRoom('Group 1'); return true`)
     await eventually(
       owner!,
-      `return v.users[${JSON.stringify(guest!.peerId)}]?.room === 'Room 1'`,
-      'owner sees guest in Room 1'
+      `return v.users[${JSON.stringify(guest!.peerId)}]?.room === 'Group 1'`,
+      'owner sees guest in Group 1'
     )
   })
 
@@ -58,9 +58,9 @@ test.describe('Comm — shared state', () => {
 
   test('a late joiner receives rooms, chat and everyone present', async ({ browser }) => {
     const chat = marker('before-late')
-    await inPeer(owner!.page, `p.addRoom('Room 1'); return true`)
+    await inPeer(owner!.page, `p.addRoom('Group 1'); return true`)
     await inPeer(owner!.page, `p.sendMessage(${JSON.stringify(chat)}); return true`)
-    await eventually(guest!, `return 'Room 1' in v.rooms`, 'guest sees Room 1')
+    await eventually(guest!, `return 'Group 1' in v.rooms`, 'guest sees Group 1')
 
     late = await joinClassroom(browser, joinUrl)
     const ids = JSON.stringify([owner!.peerId, guest!.peerId])
@@ -69,7 +69,7 @@ test.describe('Comm — shared state', () => {
       `
       const users = Object.keys(v.users);
       const chat = v.chat.map((m) => m.msg);
-      return 'Room 1' in v.rooms && chat.includes(${JSON.stringify(chat)}) &&
+      return 'Group 1' in v.rooms && chat.includes(${JSON.stringify(chat)}) &&
         ${ids}.every((id) => users.includes(id));
     `,
       'late joiner has room, chat and both peers'

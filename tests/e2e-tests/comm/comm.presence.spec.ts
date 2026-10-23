@@ -48,19 +48,19 @@ test.describe('Comm — presence (3 peers)', () => {
   })
 
   test("each guest's room move reaches both other peers", async () => {
-    await inPeer(owner!.page, `p.addRoom('Room 1'); p.addRoom('Room 2'); return true`)
+    await inPeer(owner!.page, `p.addRoom('Group 1'); p.addRoom('Group 2'); return true`)
     for (const s of all()) {
-      await eventually(s, `return 'Room 1' in v.rooms && 'Room 2' in v.rooms`, `${name(s)} shows both rooms`)
+      await eventually(s, `return 'Group 1' in v.rooms && 'Group 2' in v.rooms`, `${name(s)} shows both rooms`)
     }
 
-    await inPeer(a!.page, `p.gotoRoom('Room 1'); return true`)
-    await inPeer(b!.page, `p.gotoRoom('Room 2'); return true`)
+    await inPeer(a!.page, `p.gotoRoom('Group 1'); return true`)
+    await inPeer(b!.page, `p.gotoRoom('Group 2'); return true`)
 
-    const placed = `return v.users[${JSON.stringify(a!.peerId)}]?.room === 'Room 1' &&
-      v.users[${JSON.stringify(b!.peerId)}]?.room === 'Room 2' &&
+    const placed = `return v.users[${JSON.stringify(a!.peerId)}]?.room === 'Group 1' &&
+      v.users[${JSON.stringify(b!.peerId)}]?.room === 'Group 2' &&
       v.users[${JSON.stringify(owner!.peerId)}]?.room === 'Lobby'`
     for (const s of all()) {
-      await eventually(s, placed, `${name(s)} shows A in Room 1, B in Room 2, owner in Lobby`)
+      await eventually(s, placed, `${name(s)} shows A in Group 1, B in Group 2, owner in Lobby`)
     }
   })
 

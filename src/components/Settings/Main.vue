@@ -22,9 +22,11 @@
   ></v-textarea>
 
   <v-text-field
-    v-model="config.meta.defaultNumberOfRooms"
+    v-model.number="config.meta.defaultNumberOfRooms"
     :label="t('settings.main.roomsNum')"
     type="number"
+    min="0"
+    max="50"
     outlined
   ></v-text-field>
 
