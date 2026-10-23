@@ -21,6 +21,29 @@ index:
     create: "Create a class"
     startTeaching: "Start teaching now"
     newClass: "My New Class"
+    welcome:
+      teacher: |
+        # Welcome to your new classroom 👋
+
+        This panel is a module. Edit or delete it any time in **⚙️ Settings → Modules**.
+
+        **Set up your classroom** (open **⚙️ Settings** next to the classroom name):
+
+        1. **Main**: give the class a name and description, and set the number of rooms.
+        2. **Modules**: add the tools your class needs (code editor, terminal, markdown, …) from the **Modules Explorer**, or paste a module URL. Then click ⚙️ on each module to configure it: its content and settings, its size, and which rooms it appears in.
+        3. **Members**: add teachers by their public key (each user can copy theirs from the ⋮ menu). Leave students empty to let anyone with the link join.
+        4. **Stations**: open the station link on a device (e.g. a PC attached to lab hardware). It becomes a room that students can join.
+        5. **Share**: download a backup of your classroom, or restore one from a file.
+
+        **Invite people:** share the classroom link from your browser's address bar.
+
+        ℹ️ There is no central server: your classroom lives in your browser, and everyone connects directly to each other. Download a backup from **Share** now and then.
+
+        📚 Read the [documentation](https://liascript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md) to learn more.
+      student: |
+        # Welcome 👋
+
+        Your teacher hasn't set up this classroom yet. Please check back later.
     ownership:
       owner: "You own this class"
       teacher: "You're a teacher here"

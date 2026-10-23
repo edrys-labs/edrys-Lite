@@ -112,13 +112,14 @@ export default {
         },
         modules: [
           {
-            url: "https://edrys-labs.github.io/module-reference/",
+            url: "https://edrys-labs.github.io/module-markdown-it/",
             config: "",
-            studentConfig: "",
-            teacherConfig: "",
+            studentConfig: { content: this.t('index.classroom.welcome.student') },
+            teacherConfig: { content: this.t('index.classroom.welcome.teacher') },
             stationConfig: "",
+            showInCustom: "lobby",
             width: "full",
-            height: "tall",
+            height: 600,
           },
         ],
       };

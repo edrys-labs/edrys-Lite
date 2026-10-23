@@ -21,6 +21,29 @@ index:
     create: "Klasse erstellen"
     startTeaching: "Jetzt unterrichten"
     newClass: "Meine neue Klasse"
+    welcome:
+      teacher: |
+        # Willkommen in deiner neuen Klasse 👋
+
+        Dieses Feld ist ein Modul. Du kannst es jederzeit unter **⚙️ Einstellungen → Module** bearbeiten oder löschen.
+
+        **Richte deine Klasse ein** (öffne **⚙️ Einstellungen** neben dem Klassennamen):
+
+        1. **Haupt**: Gib der Klasse einen Namen und eine Beschreibung und lege die Anzahl der Räume fest.
+        2. **Module**: Füge die Werkzeuge hinzu, die deine Klasse braucht (Code-Editor, Terminal, Markdown, …), über den **Module Explorer** oder per Modul-URL. Klicke dann bei jedem Modul auf ⚙️, um es zu konfigurieren: Inhalt und Einstellungen, Größe und in welchen Räumen es erscheint.
+        3. **Mitglieder**: Füge Lehrkräfte über ihren öffentlichen Schlüssel hinzu (jede Person kann ihren eigenen im ⋮-Menü kopieren). Lass die Liste der Studierenden leer, damit alle mit dem Link beitreten können.
+        4. **Stationen**: Öffne den Stations-Link auf einem Gerät (z. B. einem PC an Laborhardware). Es wird zu einem Raum, dem Studierende beitreten können.
+        5. **Teilen**: Lade eine Sicherung deiner Klasse herunter oder stelle eine aus einer Datei wieder her.
+
+        **Leute einladen:** Teile den Link der Klasse aus der Adressleiste deines Browsers.
+
+        ℹ️ Es gibt keinen zentralen Server: Deine Klasse liegt in deinem Browser, und alle verbinden sich direkt miteinander. Lade ab und zu unter **Teilen** eine Sicherung herunter.
+
+        📚 Mehr erfährst du in der [Dokumentation](https://liascript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md).
+      student: |
+        # Willkommen 👋
+
+        Deine Lehrkraft hat diese Klasse noch nicht eingerichtet. Bitte schau später noch einmal vorbei.
     ownership:
       owner: "Sie besitzen diese Klasse"
       teacher: "Sie sind hier Lehrer"

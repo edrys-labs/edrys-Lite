@@ -21,6 +21,29 @@ index:
     create: "Crear una clase"
     startTeaching: "Empieza a enseñar ahora"
     newClass: "Mi Nueva Clase"
+    welcome:
+      teacher: |
+        # Bienvenido a tu nueva clase 👋
+
+        Este panel es un módulo. Puedes editarlo o eliminarlo en cualquier momento en **⚙️ Configuración → Módulos**.
+
+        **Configura tu clase** (abre **⚙️ Configuración** junto al nombre de la clase):
+
+        1. **Principal**: dale a la clase un nombre y una descripción, y fija el número de salas.
+        2. **Módulos**: añade las herramientas que necesita tu clase (editor de código, terminal, markdown, …) desde el **Explorador de Módulos**, o pega la URL de un módulo. Después haz clic en ⚙️ en cada módulo para configurarlo: su contenido y ajustes, su tamaño y en qué salas aparece.
+        3. **Miembros**: añade profesores mediante su clave pública (cada usuario puede copiar la suya desde el menú ⋮). Deja vacía la lista de estudiantes para que cualquiera con el enlace pueda unirse.
+        4. **Estaciones**: abre el enlace de estación en un dispositivo (p. ej. un PC conectado al hardware del laboratorio). Se convierte en una sala a la que los estudiantes pueden unirse.
+        5. **Compartir**: descarga una copia de seguridad de tu clase o restaura una desde un archivo.
+
+        **Invita a otros:** comparte el enlace de la clase desde la barra de direcciones de tu navegador.
+
+        ℹ️ No hay un servidor central: tu clase vive en tu navegador y todos se conectan directamente entre sí. Descarga de vez en cuando una copia de seguridad desde **Compartir**.
+
+        📚 Lee la [documentación](https://liascript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md) para saber más.
+      student: |
+        # Bienvenido 👋
+
+        Tu profesor todavía no ha preparado esta clase. Vuelve a intentarlo más tarde.
     ownership:
       owner: "Eres propietario de esta clase"
       teacher: "Eres profesor aquí"
