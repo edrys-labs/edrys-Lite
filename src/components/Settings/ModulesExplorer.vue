@@ -8,6 +8,21 @@ interface Module {
   html_url: string;
 }
 
+// Shown first, in this order; all other modules follow in GitHub's order.
+const PINNED_MODULES = [
+  "module-markdown-it",
+  "module-monaco-editor",
+  "module-pyxtermjs",
+  "module-streaming",
+  "module-serial",
+  "module-liascript",
+];
+
+const pinRank = (name: string) => {
+  const i = PINNED_MODULES.indexOf(name);
+  return i === -1 ? PINNED_MODULES.length : i;
+};
+
 export default {
   name: "ModulesExplorer",
 
@@ -46,7 +61,9 @@ export default {
       try {
         const response = await fetch('https://api.github.com/search/repositories?q=topic:edrys-module+fork:true+owner:edrys-labs');
         const data = await response.json();
-        this.fetchedModules = data.items;
+        this.fetchedModules = data.items
+          .slice()
+          .sort((a: Module, b: Module) => pinRank(a.name) - pinRank(b.name));
         this.hasError = false;
       } catch (error) {
         console.error(error);
