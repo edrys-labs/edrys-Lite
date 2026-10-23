@@ -24,7 +24,7 @@ export default {
 
   data() {
     const md = markdownit({
-      html: true,
+      html: false,
       linkify: true,
       typographer: true,
       highlight: (code: string, lang: string) => {
@@ -117,18 +117,18 @@ export default {
     location="right"
     @click="focusEditor"
   >
-    <v-container>
+    <v-container role="log">
       <v-row align="center" justify="center">
         <v-col
           cols="12"
           style="padding: 15px 0.5rem 15px 0.5rem"
-          v-if="this.deletedMessages"
+          v-if="deletedMessages"
         >
           <div>{{ t('chat.deletedMessage') }}</div>
         </v-col>
         <v-col
           v-for="msg in history"
-          :key="msg.timestamp"
+          :key="msg.signature"
           cols="12"
           style="padding: 5px 0.5rem 5px 0.5rem"
         >
@@ -137,8 +137,8 @@ export default {
               <div class="markdown" v-html="render(msg.id, msg.msg)"></div>
 
               <p
-                class="text-end text-decoration-overline"
-                style="font-size: 10px; color: gray; margin-top: -10px"
+                class="text-end text-decoration-overline text-medium-emphasis"
+                style="font-size: 10px; margin-top: -10px"
               >
                 {{ toDate(msg.timestamp) }} / {{ msg.user }}
               </p>

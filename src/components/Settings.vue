@@ -22,16 +22,6 @@ export default {
       type: Object,
       required: true,
     },
-
-    writeProtection: {
-      type: Boolean,
-      required: true,
-    },
-
-    membersWriteProtection: {
-      type: Boolean,
-      default: null,
-    },
   },
 
   emits: ["close", "saveClass", "deleteClass", "updateClass"],
@@ -118,18 +108,9 @@ export default {
     <v-toolbar dark flat>
       <v-toolbar-title>{{ t("settings.general.title") }}</v-toolbar-title>
 
-      <span class="text-decoration-underline text-medium-emphasis">
-        {{ t("settings.general.writeProtection") }}
-        {{
-          writeProtection
-            ? t("settings.general.actions.on")
-            : t("settings.general.actions.off")
-        }}
-      </span>
-
       <v-spacer></v-spacer>
 
-      <v-btn icon @click="$emit('close')">
+      <v-btn icon :aria-label="t('classroom.popup.close')" @click="$emit('close')">
         <v-icon>mdi-close</v-icon>
       </v-btn>
 
@@ -165,14 +146,13 @@ export default {
     <v-card-text style="height: 565px">
       <v-window v-model="tab" class="pt-5">
         <v-window-item>
-          <Main :config="configClone" :writeProtection="writeProtection"></Main>
+          <Main :config="configClone"></Main>
         </v-window-item>
 
         <v-window-item>
           <Members
             :members="configClone.members"
             @updateMembers="updateMembers"
-            :writeProtection="membersWriteProtection !== null ? membersWriteProtection : writeProtection"
           ></Members>
         </v-window-item>
 
@@ -180,16 +160,15 @@ export default {
           <Modules
             :config="configClone"
             :scraped-modules="scrapedModules"
-            :writeProtection="writeProtection"
           ></Modules>
         </v-window-item>
 
         <v-window-item>
-          <Stations :config="configClone" :writeProtection="writeProtection"></Stations>
+          <Stations :config="configClone"></Stations>
         </v-window-item>
 
         <v-window-item>
-          <Share :config="configClone" :writeProtection="writeProtection"></Share>
+          <Share :config="configClone"></Share>
         </v-window-item>
 
         <v-window-item>
@@ -197,7 +176,6 @@ export default {
             ref="CommunicationComponent"
             :config="configClone.communicationConfig || ''"
             @update:config="updateCommunicationConfig"
-            :writeProtection="writeProtection"
             :classId="configClone.id || ''"
             :keepUrlConfig="configClone.keepUrlConfig || false"
             @update:keepUrlConfig="updateKeepUrlConfig"
@@ -211,7 +189,6 @@ export default {
         @click="saveClass"
         color="primary"
         style="margin-top: 30px"
-        :disabled="writeProtection"
       >
         <v-icon left> mdi-upload </v-icon>
         {{ t("settings.general.actions.save") }}

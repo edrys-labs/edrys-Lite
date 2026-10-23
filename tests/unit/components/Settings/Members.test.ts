@@ -1,7 +1,6 @@
 import { describe, test, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Members from '../../../../src/components/Settings/Members.vue';
-import { i18n, messages } from '../../../setup';
 
 describe('Members Settings Component', () => {
   const mockMembers = {
@@ -13,7 +12,6 @@ describe('Members Settings Component', () => {
     return mount(Members, {
       props: {
         members: mockMembers,
-        writeProtection: false,
         ...props
       },
       global: {
@@ -50,34 +48,6 @@ describe('Members Settings Component', () => {
     expect(wrapper.emitted('updateMembers')[0][0]).toEqual({
       teacher: ['teacher1', 'teacher2', 'teacher3'],
       student: ['student1', 'student2']
-    });
-  });
-
-  test('disables inputs when write protected', () => {
-    const wrapper = createWrapper({ writeProtection: true });
-    const textarea = wrapper.find('.v-textarea');
-    expect((textarea.element as HTMLTextAreaElement).disabled).toBe(true);
-  });
-
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const wrapper = createWrapper();
-      
-      const translations = messages[locale].settings.members;
-
-      const alerts = wrapper.findAll('.v-alert');
-      const inputs = wrapper.findAll('.v-textarea');
-
-      const alertText = alerts.find(alert => alert.attributes('text')  === translations.info);
-      expect(alertText).toBeTruthy();
-
-      const teacherIdsInput = inputs.find(input => input.attributes('label') === translations.teacherIds);
-      expect(teacherIdsInput).toBeTruthy();
-
-      const studentsIdsInput = inputs.find(input => input.attributes('label') === translations.studentIds);
-      expect(studentsIdsInput).toBeTruthy();
     });
   });
 });

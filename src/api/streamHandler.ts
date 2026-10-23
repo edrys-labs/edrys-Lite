@@ -10,10 +10,19 @@
 import { debug } from './debugHandler'
 import { Peer } from 'peerjs'
 
+// 64-bit FNV-1a as 16 hex chars: synchronous, and unique enough for peer IDs.
+function fnv1a64(text: string): string {
+  let hash = 0xcbf29ce484222325n
+  for (const byte of new TextEncoder().encode(text)) {
+    hash ^= BigInt(byte)
+    hash = (hash * 0x100000001b3n) & 0xffffffffffffffffn
+  }
+  return hash.toString(16).padStart(16, '0')
+}
+
+// Hashed, not truncated: two streams of one station whose names differ only late.
 function generateStreamPeerID(context: any, streamName: string): string {
-  const baseId = `${context.class_id}_${context.liveUser.room}_${streamName}`
-  const cleanId = baseId.replace(/[^a-zA-Z0-9_-]/g, '_')
-  return `stream_${cleanId}`.substring(0, 50)
+  return `stream_${fnv1a64(`${context.class_id}/${context.liveUser.room}/${streamName}`)}`
 }
 
 // Namespaced handshake subjects (won't collide with module messages).
@@ -44,6 +53,12 @@ export class StreamServer {
   private streamName: string
   private calls: Map<string, any> = new Map()
   private unsubscribeMessage: (() => void) | null = null
+  // Anyone can work out this stream's peer ID, so a viewer is only called
+  // back once it asked for the stream with its PeerJS id in a STREAM_REQUEST:
+  // edrys delivers that message only if it is signed by a member in this
+  // room. A connection that comes first waits for its request.
+  private viewers: Set<string> = new Set()
+  private waiting: Map<string, any> = new Map()
 
   constructor(
     context: any,
@@ -71,20 +86,32 @@ export class StreamServer {
     // Re-announce when a client asks for this stream (handles late joiners).
     this.unsubscribeMessage = this.context.onMessage(({ subject, body }: any) => {
       if (subject === STREAM_REQUEST && body?.streamName === this.streamName) {
+        if (typeof body.peerId === 'string') {
+          this.viewers.add(body.peerId)
+          if (this.waiting.delete(body.peerId)) this.callClient(body.peerId)
+        }
         this.announceReady()
       }
     })
 
     this.peer.on('connection', (conn) => {
-      this.callClient(conn.peer)
+      if (this.viewers.has(conn.peer)) {
+        this.callClient(conn.peer)
+      } else {
+        this.waiting.set(conn.peer, conn)
+      }
 
-      conn.on('close', () => {
+      const forget = () => {
+        this.viewers.delete(conn.peer)
+        this.waiting.delete(conn.peer)
         this.closeCall(conn.peer)
-      })
+      }
+
+      conn.on('close', forget)
 
       conn.on('error', (err: any) => {
         debug.api.general('StreamServer connection error:', err?.type || err)
-        this.closeCall(conn.peer)
+        forget()
       })
     })
 
@@ -170,6 +197,8 @@ export class StreamServer {
     // Close every outstanding media call, then the peer itself.
     this.calls.forEach((_call, clientPeerId) => this.closeCall(clientPeerId))
     this.calls.clear()
+    this.viewers.clear()
+    this.waiting.clear()
     if (this.peer && !this.peer.destroyed) {
       this.peer.destroy()
     }
@@ -190,6 +219,9 @@ export class StreamClient {
   private connectionTimeout: any = null
   private requestInterval: any = null
   private unsubscribeMessage: (() => void) | null = null
+  // Media is coming in: only then stop asking, since the server holds a
+  // connection until a request from us reaches it.
+  private receiving: boolean = false
 
   constructor(
     context: any,
@@ -224,7 +256,7 @@ export class StreamClient {
         // Retry until connected: the comm layer can drop messages right after joining.
         this.requestStream()
         this.requestInterval = setInterval(() => {
-          if (!this.currentConnection) {
+          if (!this.receiving) {
             this.requestStream()
           }
         }, 3000)
@@ -234,7 +266,12 @@ export class StreamClient {
     this.peer.on('call', (call) => {
       call.answer()
 
+      call.on('close', () => {
+        this.receiving = false
+      })
+
       call.on('stream', (remoteStream) => {
+        this.receiving = true
         const metadata = {
           streamName: this.currentStreamName || 'unknown',
           room: this.context.liveUser?.room
@@ -269,9 +306,11 @@ export class StreamClient {
 
   private currentStreamName?: string
 
+  // Our PeerJS id tells the server whom to call back.
   private requestStream() {
     this.context.sendMessage(STREAM_REQUEST, {
       streamName: this.defaultStreamName,
+      peerId: this.peer.id,
     })
   }
 
@@ -317,6 +356,7 @@ export class StreamClient {
 
       this.currentConnection.on('close', () => {
         this.currentConnection = null
+        this.receiving = false
       })
 
       this.currentConnection.on('error', (err: any) => {
@@ -390,9 +430,16 @@ const WS_BUFFER_TRIM_AT_S = 60 // trim once history exceeds this
 const WS_RECONNECT_BASE_MS = 1000
 const WS_RECONNECT_MAX_MS = 15000
 
-function buildWsRoomId(context: any, streamName: string): string {
-  const baseId = `${context.class_id}_${context.liveUser?.room}_${streamName}`
-  return baseId.replace(/[^a-zA-Z0-9_-]/g, '_')
+// Handshake for the relay room, apart from the PeerJS one.
+const WS_STREAM_READY = '__edrys_ws_stream_ready'
+const WS_STREAM_REQUEST = '__edrys_ws_stream_request'
+
+// The relay lets anyone join a room, or take over its source, so the room id
+// is the key: random per stream, and handed out only in edrys messages, which
+// reach members in the station's room only.
+function randomRoomId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 abstract class WebSocketStreamBase {
@@ -400,7 +447,7 @@ abstract class WebSocketStreamBase {
   protected wsConnection: WebSocket | null = null
   protected websocketUrl: string
   protected streamName: string
-  protected roomId: string
+  protected roomId: string | null = null
   private label: string
   private reconnectDelay = WS_RECONNECT_BASE_MS
   private reconnectTimer: any = null
@@ -410,7 +457,6 @@ abstract class WebSocketStreamBase {
     this.context = context
     this.websocketUrl = options.websocketUrl
     this.streamName = options.streamName || 'Camera 1'
-    this.roomId = buildWsRoomId(context, this.streamName)
     this.label = label
   }
 
@@ -466,16 +512,29 @@ export class WebSocketStreamServer extends WebSocketStreamBase {
   private stream: MediaStream
   private recorder: MediaRecorder | null = null
   private restartTimer: any = null
+  private unsubscribeMessage: (() => void) | null = null
 
   constructor(context: any, stream: MediaStream, options: any = {}) {
     super(context, options, 'WebSocketStreamServer')
     this.stream = stream
+    this.roomId = randomRoomId()
+    // Tell viewers that ask (late joiners) which relay room to join.
+    this.unsubscribeMessage = context.onMessage(({ subject, body }: any) => {
+      if (subject === WS_STREAM_REQUEST && body?.streamName === this.streamName) {
+        this.announce()
+      }
+    })
     this.connect()
   }
 
   protected onOpen() {
     this.startRecording()
     this.register()
+    this.announce()
+  }
+
+  private announce() {
+    this.context.sendMessage(WS_STREAM_READY, { streamName: this.streamName, roomId: this.roomId })
   }
 
   // Register with the EXACT mimeType the recorder produces — the viewer's
@@ -543,6 +602,8 @@ export class WebSocketStreamServer extends WebSocketStreamBase {
 
   public stop() {
     clearTimeout(this.restartTimer)
+    this.unsubscribeMessage?.()
+    this.unsubscribeMessage = null
     if (this.recorder) {
       this.recorder.ondataavailable = null
       if (this.recorder.state !== 'inactive') this.recorder.stop()
@@ -565,6 +626,10 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
   // Codec the SourceBuffer must declare; announced by the source (vp8-only if no audio).
   private mimeType: string | null = null
   private mediaSourceOpen = false
+  private unsubscribeMessage: (() => void) | null = null
+  private requestInterval: any = null
+  // No source to watch yet (or it went away): keep asking the station.
+  private asking = true
 
   constructor(
     context: any,
@@ -573,6 +638,21 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
   ) {
     super(context, options, 'WebSocketStreamClient')
     this.handler = handler
+
+    // The station names its relay room in an edrys message; join only that.
+    this.unsubscribeMessage = context.onMessage(({ subject, body }: any) => {
+      if (subject !== WS_STREAM_READY || body?.streamName !== this.streamName) return
+      if (typeof body.roomId !== 'string') return
+      this.asking = false
+      if (body.roomId === this.roomId) return
+      this.roomId = body.roomId
+      this.send({ type: 'join-room', roomId: this.roomId })
+    })
+    // Retry: the comm layer can drop messages right after joining.
+    this.request()
+    this.requestInterval = setInterval(() => {
+      if (this.asking) this.request()
+    }, 3000)
 
     this.video = document.createElement('video')
     this.video.muted = true
@@ -593,6 +673,10 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
 
   protected onOpen() {
     if (this.roomId) this.send({ type: 'join-room', roomId: this.roomId })
+  }
+
+  private request() {
+    this.context.sendMessage(WS_STREAM_REQUEST, { streamName: this.streamName })
   }
 
   // Needs both the MediaSource open and the source's mimeType; whichever lands last calls this.
@@ -651,6 +735,8 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
         this.mimeType = msg.mimeType
         this.maybeCreateSourceBuffer()
       }
+      // A restarted station streams to a new room: ask for it.
+      if (msg.type === 'source-disconnected') this.asking = true
     } catch (error: any) {
       debug.api.general('WebSocketStreamClient message parse error:', error?.message || error)
     }
@@ -709,7 +795,9 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
   private handOff() {
     if (this.handedOff) return
     this.handedOff = true
-    this.stream = (this.video as any).captureStream()
+    // Firefox only offers the prefixed mozCaptureStream.
+    const video = this.video as any
+    this.stream = (video.captureStream ?? video.mozCaptureStream).call(video)
     this.handler(this.stream!, this.context.module.stationConfig || {}, {
       streamName: this.streamName,
       room: this.context.liveUser?.room,
@@ -718,6 +806,10 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
 
   public stop() {
     super.stop()
+    clearInterval(this.requestInterval)
+    this.requestInterval = null
+    this.unsubscribeMessage?.()
+    this.unsubscribeMessage = null
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop())
       this.stream = null

@@ -22,7 +22,6 @@
         v-model="selectedFile"
         :append-icon="selectedFileIcon"
         @click:append.self="restoreFile"
-        :disabled="writeProtection"
       ></v-file-input>
     </v-col>
 
@@ -36,7 +35,6 @@
         @click:append.self="restoreURL"
         @mouseover="showTemplate = true"
         @mouseleave="showTemplate = false"
-        :disabled="writeProtection"
       >
         <template v-slot:append-inner>
           <v-icon
@@ -72,11 +70,6 @@ export default {
       type: Object,
       required: true,
     },
-
-    writeProtection: {
-      type: Boolean,
-      required: true,
-    },
   },
 
   setup() {
@@ -102,21 +95,19 @@ export default {
   },
 
   methods: {
+    // newConfig comes from parseClassroom, so meta/members/modules exist.
     updateConfig(newConfig: any) {
-      if (!newConfig.meta) {
-        newConfig.meta = {
-          logo: "",
-          description: "",
-          selfAssign: false,
-          defaultNumberOfRooms: 0,
-        };
-      }
       this.config.name = newConfig.name;
 
       this.config.meta = newConfig.meta;
       this.config.createdBy = getPeerID(false);
       this.config.dateCreated = newConfig.dateCreated;
       this.config.members = newConfig.members;
+      // Settings.vue only backfills ids when it opens, and the drag list keys
+      // on them, so files without ids need them here.
+      for (const module of newConfig.modules) {
+        if (!module.id) module.id = crypto.randomUUID();
+      }
       this.config.modules = newConfig.modules;
     },
 
@@ -125,8 +116,11 @@ export default {
     },
 
     downloadClass(format: "yaml" | "json") {
+      // Identity and signature fields are dropped: import replaces createdBy
+      // with the importer's key and the next save re-signs the setup.
+      const { createdBy, setupSigner, setupSignature, ...config } = this.config;
       const data =
-        format === "yaml" ? yaml.dump(this.config) : JSON.stringify(this.config, null, 2);
+        format === "yaml" ? yaml.dump(config) : JSON.stringify(config, null, 2);
 
       const name = "class-" + this.config.id + (format === "yaml" ? ".yml" : ".json");
 

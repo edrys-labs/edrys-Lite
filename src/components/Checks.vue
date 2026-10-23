@@ -39,6 +39,12 @@ export default {
   },
 
   methods: {
+    statusLabel(state?: boolean) {
+      if (state === true) return this.t('checks.status.ok');
+      if (state === false) return this.t('checks.status.failed');
+      return this.t('checks.status.pending');
+    },
+
     dismissError() {
       this.manuallyDismissed = true;
       this.model = false;
@@ -197,6 +203,7 @@ export default {
           <template v-else>
             <v-progress-circular
               indeterminate
+              :aria-label="t('checks.connecting')"
               :size="88"
               :width="7"
               justify="center"
@@ -207,21 +214,9 @@ export default {
               <div v-if="showWebRTCCheck">
                 {{ t('checks.webRTCSupport') }}
 
-                <v-btn
-                  class="ma-5"
-                  size="x-small"
-                  color="success"
-                  icon="mdi-check"
-                  v-if="states.webRTCSupport === true"
-                ></v-btn>
-
-                <v-btn
-                  class="ma-5"
-                  size="x-small"
-                  color="error"
-                  icon="mdi-close"
-                  v-if="states.webRTCSupport === false"
-                ></v-btn>
+                <v-icon class="ma-5" color="success" icon="mdi-check-circle" v-if="states.webRTCSupport === true"></v-icon>
+                <v-icon class="ma-5" color="error" icon="mdi-close-circle" v-if="states.webRTCSupport === false"></v-icon>
+                <span class="d-sr-only">{{ statusLabel(states.webRTCSupport) }}</span>
               </div>
 
               <div v-if="!showWebRTCCheck">
@@ -231,41 +226,17 @@ export default {
               <div>
                 {{ t('checks.configLoaded') }}
 
-                <v-btn
-                  class="ma-5"
-                  size="x-small"
-                  color="success"
-                  icon="mdi-check"
-                  v-if="states.receivedConfiguration === true"
-                ></v-btn>
-
-                <v-btn
-                  class="ma-5"
-                  size="x-small"
-                  color="error"
-                  icon="mdi-close"
-                  v-if="states.receivedConfiguration === false"
-                ></v-btn>
+                <v-icon class="ma-5" color="success" icon="mdi-check-circle" v-if="states.receivedConfiguration === true"></v-icon>
+                <v-icon class="ma-5" color="error" icon="mdi-close-circle" v-if="states.receivedConfiguration === false"></v-icon>
+                <span class="d-sr-only">{{ statusLabel(states.receivedConfiguration) }}</span>
               </div>
 
               <div>
                 {{ connectivityLabel }} {{ counter }} {{ t('checks.connected.2') }}
 
-                <v-btn
-                  class="ma-5"
-                  size="x-small"
-                  color="success"
-                  icon="mdi-check"
-                  v-if="states.connectedToNetwork === true"
-                ></v-btn>
-
-                <v-btn
-                  class="ma-5"
-                  size="x-small"
-                  color="error"
-                  icon="mdi-close"
-                  v-if="states.connectedToNetwork === false"
-                ></v-btn>
+                <v-icon class="ma-5" color="success" icon="mdi-check-circle" v-if="states.connectedToNetwork === true"></v-icon>
+                <v-icon class="ma-5" color="error" icon="mdi-close-circle" v-if="states.connectedToNetwork === false"></v-icon>
+                <span class="d-sr-only">{{ statusLabel(states.connectedToNetwork) }}</span>
               </div>
             </div>
           </template>

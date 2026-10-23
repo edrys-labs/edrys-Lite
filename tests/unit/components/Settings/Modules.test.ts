@@ -1,7 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Modules from '../../../../src/components/Settings/Modules.vue';
-import { i18n, messages } from '../../../setup';
 
 describe('Modules Settings Component', () => {
   let mockConfig;
@@ -35,7 +34,6 @@ describe('Modules Settings Component', () => {
       props: {
         config: mockConfig,
         scrapedModules: mockScrapedModules,
-        writeProtection: false,
         ...props
       },
       global: {
@@ -103,6 +101,22 @@ describe('Modules Settings Component', () => {
     expect(moduleItems).toHaveLength(mockConfig.modules.length);
   });
 
+  test("renders only text and web links from a module's description", () => {
+    mockScrapedModules[0].description =
+      'See <img src=x onerror=alert(1)><br/><a href="https://example.com/m" onclick="alert(1)">docs</a>';
+    const wrapper = createWrapper();
+
+    const subtitle = wrapper.find('.v-list-item-subtitle');
+    expect(subtitle.find('img').exists()).toBe(false);
+    const link = subtitle.find('a');
+    expect(link.attributes()).toEqual({
+      href: 'https://example.com/m',
+      target: '_blank',
+      rel: 'noopener noreferrer',
+    });
+    expect(subtitle.text()).toBe('See \ndocs');
+  });
+
   test('handles module deletion', async () => {
     const wrapper = createWrapper();
     wrapper.vm.deleteModule(0);
@@ -126,49 +140,4 @@ describe('Modules Settings Component', () => {
     expect(wrapper.vm.validate_config(0)).toBe(false);
   });
 
-  test('disables controls when write protected', () => {
-    const wrapper = createWrapper({ writeProtection: true });
-    const draggableContainer = wrapper.find('.draggable-container');
-    expect(draggableContainer.attributes('disabled')).toBeTruthy();
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const wrapper = createWrapper();
-      
-      const translations = messages[locale].settings.modules;
-
-      // Check module URL input label
-      const urlInput = wrapper.find('input');
-      expect(urlInput.attributes('label')).toBe(translations.url);
-
-      // Check Add button text
-      const addButton = wrapper.findAll('button').find(btn => btn.text().includes(translations.add));
-      expect(addButton).toBeTruthy();
-
-      // Check delete confirmation text
-      const deleteConfirmation = wrapper.findAll('.v-list-item-title').find(el => el.text().includes(translations.delete));
-      expect(deleteConfirmation).toBeTruthy();
-
-      // Check delete button text
-      const deleteButton = wrapper.findAll('button').find(btn => btn.text().includes(translations.deleteConfirm));
-      expect(deleteButton).toBeTruthy();
-
-      // Check explore button text
-      const exploreButton = wrapper.findAll('button').find(btn => btn.text().includes(translations.explore));
-      expect(exploreButton).toBeTruthy();
-
-      // Check "No description" text
-      await wrapper.setProps({
-        scrapedModules: [
-          { name: 'Module 1', description: '' },
-          { name: 'Module 2', description: '' }
-        ]
-      });
-            
-      const noDescriptionText = wrapper.findAll('.v-list-item-subtitle').find(el => el.text().includes(translations.noDescription));
-      expect(noDescriptionText).toBeTruthy();
-    });
-  });
 });

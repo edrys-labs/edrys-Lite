@@ -7,7 +7,6 @@
       @end="move"
       class="list-group"
       ghost-class="drag-ghost"
-      :disabled="writeProtection"
       :scroll="true"
       :bubbleScroll="true"
       :scrollSensitivity="80"
@@ -38,24 +37,23 @@
             {{ localScrapedModules[index].name }}
           </v-list-item-title>
 
-          <v-list-item-subtitle
-            v-html="localScrapedModules[index]?.description || t('settings.modules.noDescription')"
-            style="white-space: break-spaces"
-          >
+          <v-list-item-subtitle style="white-space: break-spaces">
+            <LinkedText :text="localScrapedModules[index]?.description || t('settings.modules.noDescription')" />
           </v-list-item-subtitle>
 
           <template v-slot:append>
             <v-tooltip location="top">
               <template v-slot:activator="{ props }">
                 <v-btn
-                  icon="mdi-cog"
+                  :icon="validate_config(index) ? 'mdi-cog' : 'mdi-alert-circle'"
                   variant="text"
                   v-bind="props"
+                  :aria-label="configLabel(index)"
                   :style="validate_config(index) ? '' : 'color: red'"
                   @click="openModuleDialog(index)"
                 ></v-btn>
               </template>
-              <span>{{ t('settings.modules.tooltip.config') }}</span>
+              <span>{{ configLabel(index) }}</span>
             </v-tooltip>
 
             <v-tooltip location="top">
@@ -66,7 +64,7 @@
                       v-bind="{ ...tooltipProps, ...menuProps }"
                       icon="mdi-delete"
                       variant="text"
-                      :disabled="writeProtection"
+                      :aria-label="t('settings.modules.tooltip.delete')"
                     ></v-btn>
                   </template>
 
@@ -96,7 +94,7 @@
         </div>
       </template>
     </draggable>
-    <v-list-item :disabled="writeProtection">
+    <v-list-item>
       <template v-slot:prepend>
         <v-icon icon="mdi-link"></v-icon>
       </template>
@@ -130,7 +128,7 @@
         <v-toolbar-title class="text-h6 font-weight-medium">
           {{ localScrapedModules[moduleDialogIndex]?.name }}
         </v-toolbar-title>
-        <v-btn icon @click="closeModuleDialog">
+        <v-btn icon :aria-label="t('classroom.popup.close')" @click="closeModuleDialog">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-toolbar>
@@ -160,7 +158,6 @@
                 :currentStudentConfig="moduleDialogDraft?.studentConfig"
                 :currentTeacherConfig="moduleDialogDraft?.teacherConfig"
                 :currentStationConfig="moduleDialogDraft?.stationConfig"
-                :writeProtection="writeProtection"
                 @update:hasChanges="formHasChanges = $event"
               />
             </v-expansion-panel-text>
@@ -179,7 +176,6 @@
               <Module
                 v-model:module="moduleDialogDraft"
                 v-model:error="errors[moduleDialogIndex]"
-                :writeProtection="writeProtection"
               ></Module>
             </v-expansion-panel-text>
           </v-expansion-panel>
@@ -195,7 +191,6 @@
           variant="flat"
           color="grey-darken-4"
           @click="saveModuleDialog"
-          :disabled="writeProtection"
         >
           {{ t('settings.modules.moduleConfig.save') }}
           <v-badge
@@ -229,6 +224,7 @@ import Module from "./Module.vue";
 import { useI18n } from 'vue-i18n';
 import ModulesExplorer from "./ModulesExplorer.vue";
 import ModuleConfigForm from "./ModuleConfigForm.vue";
+import LinkedText from "../LinkedText.vue";
 
 // A module's room key. Missing modules (list edges) get a unique sentinel so
 // group-boundary checks treat them as "no neighbour".
@@ -245,11 +241,6 @@ export default {
 
     scrapedModules: {
       type: Object,
-      required: true,
-    },
-
-    writeProtection: {
-      type: Boolean,
       required: true,
     },
   },
@@ -299,6 +290,11 @@ export default {
     // Re-sync the local copy whenever the parent re-scrapes the modules.
     scrapedModules(next: any[]) {
       this.localScrapedModules = [...next];
+    },
+
+    // Flush form edits into draft before it unmounts (panel switch).
+    activeEditor(next: string, prev: string) {
+      if (prev === "form") this.collectFormIntoDraft();
     },
   },
 
@@ -357,6 +353,35 @@ export default {
       this.errors.splice(event.newIndex, 0, er);
     },
 
+    // Modules of the same room must sit next to each other for the group
+    // headers/borders to render one block per room.
+    regroup() {
+      const modules = this.config.modules as any[];
+      const order: string[] = [];
+      modules.forEach((m) => {
+        const room = roomOf(m);
+        if (!order.includes(room)) order.push(room);
+      });
+
+      const indices = modules.map((_, i) => i);
+      indices.sort(
+        (a, b) =>
+          order.indexOf(roomOf(modules[a])) - order.indexOf(roomOf(modules[b])) || a - b
+      );
+
+      // Already grouped → don't touch the arrays (keeps reactivity churn down).
+      if (indices.every((from, to) => from === to)) return;
+
+      // Splice in place: `config` is a prop object whose `modules` array is
+      // bound elsewhere (draggable, parent), so keep the same array instance.
+      const reorder = (arr: any[]) => indices.map((i) => arr[i]);
+      const sortedScraped = reorder(this.localScrapedModules);
+      const sortedErrors = reorder(this.errors);
+      modules.splice(0, modules.length, ...reorder(modules));
+      this.localScrapedModules = sortedScraped;
+      this.errors = sortedErrors;
+    },
+
     validate_config(i: number) {
       return (
         this.errors[i].config === "" &&
@@ -364,6 +389,12 @@ export default {
         this.errors[i].teacherConfig === "" &&
         this.errors[i].stationConfig === ""
       );
+    },
+
+    configLabel(i: number) {
+      return this.validate_config(i)
+        ? this.t("settings.modules.tooltip.config")
+        : this.t("settings.modules.tooltip.invalidConfig");
     },
 
     validate_url(url: string) {
@@ -409,6 +440,8 @@ export default {
         showInCustom: "",
       });
 
+      this.regroup();
+
       this.moduleImportUrl = "";
     },
 
@@ -451,27 +484,35 @@ export default {
       return {};
     },
 
+    // Merge the schema form's current values into the draft, so they survive a
+    // panel switch or a save. No-op when the form isn't mounted.
+    collectFormIntoDraft() {
+      const form = this.$refs.moduleConfigForm as any;
+      if (!form || !this.moduleDialogDraft) return;
+
+      const formConfig = form.collectConfig();
+      Object.entries(formConfig).forEach(([configType, value]) => {
+        const existing = this.parseConfig(this.moduleDialogDraft[configType]);
+        this.moduleDialogDraft[configType] = { ...existing, ...(value as object) };
+      });
+    },
+
     saveModuleDialog() {
       if (this.moduleDialogIndex === null) return;
 
-      const form = this.$refs.moduleConfigForm as any;
-      if (this.activeEditor === "form" && form) {
-        const formConfig = form.saveConfig();
-        Object.entries(formConfig).forEach(([configType, value]) => {
-          const existing = this.parseConfig(this.moduleDialogDraft[configType]);
-          this.moduleDialogDraft[configType] = { ...existing, ...(value as object) };
-        });
-      }
+      if (this.activeEditor === "form") this.collectFormIntoDraft();
 
       Object.assign(this.config.modules[this.moduleDialogIndex], this.moduleDialogDraft);
       this.closeModuleDialog();
+      this.regroup();
     },
   },
   components: { 
     Module, 
     draggable,
     ModulesExplorer,
-    ModuleConfigForm
+    ModuleConfigForm,
+    LinkedText
   },
 };
 </script>

@@ -2,7 +2,6 @@ import { describe, test, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import UserMenu from '../../../src/components/UserMenu.vue';
 import { copyToClipboard } from '../../../src/ts/Utils';
-import { i18n, messages } from '../../setup';
 
 // Mock Utils
 vi.mock('../../../src/ts/Utils', () => ({
@@ -110,36 +109,9 @@ describe('UserMenu Component', () => {
     expect(localStorage.getItem('locale')).toBe('de');
   });
 
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const translations = messages[locale].general;
-      
-      const wrapper = createWrapper();
-      await wrapper.vm.$nextTick();
-
-      // Check translations
-      expect(wrapper.find('.v-list-item-title').text()).toContain(translations.userId);
-      expect(wrapper.findAll('.v-list-item-title')[1].text()).toContain(translations.language);
-
-      // Check language options exist
-      const select = wrapper.find('.v-select');
-      const options = select.findAll('option');
-      expect(options.length).toBe(5); // en, de, uk, ar, es
-
-      // Test each language option exists
-      const languageOptions = [
-        { title: 'English', value: 'en' },
-        { title: 'Deutsch', value: 'de' },
-        { title: 'Українська', value: 'uk' },
-        { title: 'العربية', value: 'ar' },
-        { title: 'Español', value: 'es' }
-      ];
-
-      languageOptions.forEach(lang => {
-        const option = options.find(o => o.text() === lang.title);
-        expect(option).toBeTruthy();
-      });
-    });
+  test('offers every supported language', () => {
+    const wrapper = createWrapper();
+    const options = wrapper.find('.v-select').findAll('option').map((o) => o.text());
+    expect(options.sort()).toEqual(['Deutsch', 'English', 'Español', 'Українська', 'العربية'].sort());
   });
 });

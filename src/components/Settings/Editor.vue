@@ -20,7 +20,6 @@
         v-model="code"
         :highlight="highlighter"
         line-numbers
-        :readonly="writeProtection"
       ></prism-editor>
     </v-expansion-panel-text>
   </v-expansion-panel>
@@ -52,11 +51,6 @@ export default {
 
     icon: {
       type: String,
-      required: true,
-    },
-
-    writeProtection: {
-      type: Boolean,
       required: true,
     },
   },

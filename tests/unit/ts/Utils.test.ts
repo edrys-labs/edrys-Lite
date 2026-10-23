@@ -1,5 +1,11 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
+import * as YAML from 'js-yaml';
 import {
+  scrapeModule,
+  parseClassroom,
+  normalizeClassroom,
+  sameKey,
+  isMember,
   validateUrl,
   infoHash,
   deepEqual,
@@ -10,6 +16,7 @@ import {
   encodeCommConfig,
   decodeCommConfig,
   stripPubKey,
+  removeKeysStartingWithSecret,
 } from '../../../src/ts/Utils';
 
 vi.mock('js-yaml', () => ({
@@ -63,6 +70,105 @@ describe('Utils', () => {
     });
   });
 
+  // Forking someone else's classroom runs this, so their secrets don't leak.
+  describe('comparing keys', () => {
+    test('ignores base64 padding, as signature checks do', () => {
+      expect(sameKey('abc=', 'abc')).toBe(true);
+      expect(sameKey('abc', 'abd')).toBe(false);
+      expect(sameKey('', '')).toBe(false);
+      expect(sameKey(undefined, 'abc')).toBe(false);
+      expect(isMember(['x', 'abc=='], 'abc')).toBe(true);
+      expect(isMember(['x'], 'abc')).toBe(false);
+      expect(isMember(undefined, 'abc')).toBe(false);
+    });
+  });
+
+  describe('importing a classroom', () => {
+    test('fills in missing meta, members and modules', () => {
+      const classroom = parseClassroom(JSON.stringify({ name: 'Bare' }));
+
+      expect(classroom.members).toEqual({ teacher: [], student: [] });
+      expect(classroom.modules).toEqual([]);
+      expect(classroom.meta).toMatchObject({ description: '', defaultNumberOfRooms: 0 });
+    });
+
+    test('keeps what is there, and gives older modules a showInCustom', () => {
+      const classroom = parseClassroom(JSON.stringify({
+        meta: { description: 'kept', defaultNumberOfRooms: 2 },
+        members: { teacher: ['t1', 42], student: ['*'] },
+        modules: [
+          { url: 'a', showIn: ['lobby', 'station'] },
+          { url: 'b', showIn: 'Room 1' },
+          { url: 'c', showInCustom: 'teacher-only', showIn: ['*'] },
+        ],
+      }));
+
+      expect(classroom.meta).toMatchObject({ description: 'kept', defaultNumberOfRooms: 2 });
+      expect(classroom.members).toEqual({ teacher: ['t1'], student: ['*'] });
+      expect(classroom.modules.map((m: any) => m.showInCustom)).toEqual(['lobby, station', 'Room 1', 'teacher-only']);
+    });
+
+    test('is undefined for text that is not a classroom', () => {
+      expect(parseClassroom('"just a string"')).toBeUndefined();
+      expect(parseClassroom('[1, 2]')).toBeUndefined();
+      expect(normalizeClassroom(null)).toBeUndefined();
+    });
+  });
+
+  describe('scrapeModule', () => {
+    test("applies a YAML module's style (a typed <style> would be ignored)", async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ text: () => Promise.resolve('yaml') }));
+      (YAML.load as any).mockReturnValue({ name: 'Y', style: 'body { color: red }', main: '', body: '' });
+
+      const module = await scrapeModule({ url: 'https://example.com/module.yml' });
+      const html = unescape(module.srcdoc.replace('data:text/html,', ''));
+
+      expect(html).toContain('<style>body { color: red }</style>');
+      vi.unstubAllGlobals();
+    });
+  });
+
+  describe('removeKeysStartingWithSecret', () => {
+    test('removes secret keys at any depth, ignoring case', () => {
+      const classroom = {
+        id: 'c1',
+        secretToken: 't',
+        data: {
+          name: 'Lab',
+          modules: [
+            { url: 'm1', config: { SecretKey: 'k', host: 'h' } },
+            { url: 'm2', stationConfig: { secret: { nested: 1 }, port: 22 } },
+          ],
+        },
+      };
+
+      removeKeysStartingWithSecret(classroom);
+
+      expect(classroom).toEqual({
+        id: 'c1',
+        data: {
+          name: 'Lab',
+          modules: [
+            { url: 'm1', config: { host: 'h' } },
+            { url: 'm2', stationConfig: { port: 22 } },
+          ],
+        },
+      });
+    });
+
+    test('drops an object that held nothing but secrets', () => {
+      const data: any = { modules: [{ url: 'm1', teacherConfig: { secretPassword: 'p' } }] };
+      removeKeysStartingWithSecret(data);
+      expect(data.modules[0]).toEqual({ url: 'm1' });
+    });
+
+    test('keeps keys that merely contain "secret" later in the name', () => {
+      const data = { mySecret: 1, notsecret: 2 };
+      removeKeysStartingWithSecret(data);
+      expect(data).toEqual({ mySecret: 1, notsecret: 2 });
+    });
+  });
+
     describe('Communication Configuration', () => {
     describe('compareCommunicationConfig', () => {
       test('should compare different communication configs correctly', () => {
@@ -74,6 +180,28 @@ describe('Utils', () => {
         
         expect(compareCommunicationConfig(wsConfig, wsConfig)).toBe(true);
         expect(compareCommunicationConfig(wsConfig, rtcConfig)).toBe(false);
+      });
+
+      // A "changed" result reloads every peer, so false positives matter as much.
+      test('compares WebRTC configs by content, not by encoding', () => {
+        const ice = { iceServers: [{ urls: 'stun:a' }] };
+        const asObject = { communicationMethod: 'WebRTC', signalingServer: ['wss://s'], webrtcConfig: ice };
+        // Formatted differently, as an owner might paste it.
+        const asString = { communicationMethod: 'WebRTC', signalingServer: 'wss://s', webrtcConfig: JSON.stringify(ice, null, 2) };
+
+        expect(compareCommunicationConfig(asObject, asString)).toBe(true);
+      });
+
+      test('detects a changed signaling server or ICE config', () => {
+        const base = { communicationMethod: 'WebRTC', signalingServer: ['wss://s'], webrtcConfig: { iceServers: [] } };
+
+        expect(compareCommunicationConfig(base, { ...base, signalingServer: ['wss://other'] })).toBe(false);
+        expect(compareCommunicationConfig(base, { ...base, webrtcConfig: { iceServers: [{ urls: 'stun:b' }] } })).toBe(false);
+      });
+
+      test('detects a changed WebSocket server', () => {
+        const ws = { communicationMethod: 'Websocket', websocketUrl: 'wss://a' };
+        expect(compareCommunicationConfig(ws, { ...ws, websocketUrl: 'wss://b' })).toBe(false);
       });
     });
 
@@ -276,6 +404,15 @@ describe('Crypto Identity', () => {
     expect(getDisplayPeerID().length).toBeGreaterThan(0);
   });
 
+  test("the short ID skips the key's constant 0x04 byte", async () => {
+    const { getShortPeerID } = await freshUtils();
+    const key = new Uint8Array(65);
+    key.set([0x04, 0xab, 0xcd, 0xef, 0x01, 0x23]);
+    const pub = btoa(String.fromCharCode(...key));
+
+    expect(getShortPeerID(pub + '_session')).toBe('abcdef01');
+  });
+
   test('signChallenge and verifyChallenge round-trip', async () => {
     const { initCryptoIdentity, signChallenge, verifyChallenge, getPeerID } = await freshUtils();
     await initCryptoIdentity();
@@ -416,6 +553,28 @@ describe('Crypto Identity', () => {
     expect(hash1).not.toBe(hash2);
   });
 
+  test('isPubKey accepts a public key in base64, stripped and base64url form', async () => {
+    const { initCryptoIdentity, getPeerID, isPubKey, stripPubKey } = await freshUtils();
+    await initCryptoIdentity();
+    const pubKey = getPeerID(false);
+
+    expect(isPubKey(pubKey)).toBe(true);
+    expect(isPubKey(stripPubKey(pubKey))).toBe(true);
+    expect(isPubKey(pubKey.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''))).toBe(true);
+  });
+
+  test('isPubKey rejects legacy peer IDs without throwing', async () => {
+    const { initCryptoIdentity, getPeerID, isPubKey } = await freshUtils();
+    await initCryptoIdentity();
+
+    // 13 chars: length % 4 == 1 makes atob throw (fingerprint-era IDs)
+    expect(isPubKey('2a124n9Mps2qN')).toBe(false);
+    // 12 chars: decodes, but is not a key
+    expect(isPubKey('o3ff8o6DhNXC')).toBe(false);
+    expect(isPubKey(getPeerID(true))).toBe(false);
+    expect(isPubKey('')).toBe(false);
+  });
+
   // Signed live-state primitives
 
   test('canonicalize sorts keys deterministically', async () => {
@@ -473,23 +632,12 @@ describe('Crypto Identity', () => {
     expect(replay).toBe(false);
   });
 
-  test('verifyEntry rejects stale nonce outside replay window', async () => {
+  test('verifyEntry accepts an old nonce (freshness is the caller\'s job)', async () => {
     const { initCryptoIdentity, signEntry, verifyEntry } = await freshUtils();
     await initCryptoIdentity();
 
-    // Sign with a nonce far in the past.
-    const env = await signEntry('users', 'k', { x: 1 }, Date.now() - 5 * 60_000);
-    const valid = await verifyEntry('users', 'k', { x: 1 }, env);
-    expect(valid).toBe(false);
-  });
-
-  test('verifyEntry accepts nonce inside replay window', async () => {
-    const { initCryptoIdentity, signEntry, verifyEntry } = await freshUtils();
-    await initCryptoIdentity();
-
-    const env = await signEntry('users', 'k', { x: 1 }, Date.now() - 1_000);
-    const valid = await verifyEntry('users', 'k', { x: 1 }, env);
-    expect(valid).toBe(true);
+    const env = await signEntry('users', 'k', { x: 1 }, Date.now() - 24 * 3600_000);
+    expect(await verifyEntry('users', 'k', { x: 1 }, env)).toBe(true);
   });
 
   test('verifyEntry rejects malformed envelopes', async () => {
@@ -498,11 +646,6 @@ describe('Crypto Identity', () => {
     expect(await verifyEntry('users', 'k', {}, undefined as any)).toBe(false);
     expect(await verifyEntry('users', 'k', {}, { signer: 'a', signature: 'b' } as any)).toBe(false);
     expect(await verifyEntry('users', 'k', {}, { signer: 'a', nonce: NaN, signature: 'b' } as any)).toBe(false);
-  });
-
-  test('REVERT_INVALID_ORIGIN is the expected sentinel string', async () => {
-    const { REVERT_INVALID_ORIGIN } = await freshUtils();
-    expect(REVERT_INVALID_ORIGIN).toBe('revert-invalid');
   });
 });
 

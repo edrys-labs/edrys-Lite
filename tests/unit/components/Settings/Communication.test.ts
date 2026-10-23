@@ -58,13 +58,12 @@ describe('Communication Component', () => {
     if (wrapper) wrapper.unmount();
   });
   
-  const createWrapper = (config = '', writeProtection = false, locale = 'en') => {
+  const createWrapper = (config = '', locale = 'en') => {
     i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
     
     return mount(Communication, {
       props: {
         config,
-        writeProtection,
         classId: 'test-class',
         keepUrlConfig: false
       },
@@ -138,13 +137,6 @@ describe('Communication Component', () => {
       
       expect(wrapper.emitted()['update:config']).toBeTruthy();
     });
-
-    test('respects write protection mode', async () => {
-      wrapper = createWrapper('', true);
-      
-      await wrapper.vm.updateConfig();
-      expect(wrapper.emitted()['update:config']).toBeFalsy();
-    });
   });
 
   describe('Shareable Links', () => {
@@ -179,6 +171,29 @@ describe('Communication Component', () => {
       expect(wrapper.vm.shareableLink).toBe('http://localhost:6999/?/classroom/test-class#comm=encodedCustomWebRTC');
     });
 
+    test('keeps the owner hash of the current URL', async () => {
+      const at = (search: string) =>
+        Object.defineProperty(window, 'location', {
+          value: { origin: 'http://localhost:6999', pathname: '/', search },
+          writable: true
+        });
+
+      at('?/classroom/test-class/OWNERHASH');
+      wrapper = createWrapper('ws');
+      wrapper.vm.generateShareableLink();
+      expect(wrapper.vm.shareableLink).toBe('http://localhost:6999/?/classroom/test-class/OWNERHASH#comm=ws');
+
+      // An old write-protection link: its trailing content hash is dropped.
+      at('?/classroom/test-class/OWNERHASH/DATAHASH');
+      wrapper.vm.generateShareableLink();
+      expect(wrapper.vm.shareableLink).toBe('http://localhost:6999/?/classroom/test-class/OWNERHASH#comm=ws');
+
+      // Opened from a station page: share the classroom link, same anchor.
+      at('?/station/test-class/OWNERHASH');
+      wrapper.vm.generateShareableLink();
+      expect(wrapper.vm.shareableLink).toBe('http://localhost:6999/?/classroom/test-class/OWNERHASH#comm=ws');
+    });
+
     test('copies link to clipboard', async () => {
       const mockClipboard = {
         writeText: vi.fn().mockResolvedValue(undefined)
@@ -202,18 +217,11 @@ describe('Communication Component', () => {
   });
 
   describe('URL Configuration Checkbox', () => {
-    test('renders keepConfigInUrl checkbox when not write protected', () => {
+    test('renders keepConfigInUrl checkbox', () => {
       wrapper = createWrapper();
       
       const checkbox = wrapper.find('.v-checkbox input[type="checkbox"]');
       expect(checkbox.exists()).toBe(true);
-    });
-
-    test('does not render checkbox when write protected', () => {
-      wrapper = createWrapper('', true);
-      
-      // Share link section and checkbox should not be visible
-      expect(wrapper.text()).not.toContain(messages.en.settings.communication.shareLink.title);
     });
 
     test('emits keepUrlConfig event when checkbox changes', async () => {

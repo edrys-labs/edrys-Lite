@@ -1,7 +1,6 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import ModuleConfigForm from '../../../../src/components/Settings/ModuleConfigForm.vue';
-import { i18n } from '../../../setup';
 import * as Utils from '../../../../src/ts/Utils';
 
 // Define interface for component's data structure
@@ -75,6 +74,12 @@ const stubs = {
   },
   'v-radio': {
     template: '<div class="v-radio"><input type="radio" :value="$attrs.value" v-model="$attrs.modelValue" /></div>',
+  },
+  'v-select': {
+    template: '<div class="v-select"><select v-model="$attrs.modelValue"></select></div>',
+  },
+  'v-combobox': {
+    template: '<div class="v-combobox"><input v-model="$attrs.modelValue" /></div>',
   },
   'v-badge': {
     template: '<div v-if="$attrs.modelValue !== false" class="v-badge"><slot /></div>',
@@ -154,7 +159,6 @@ describe('ModuleConfigForm Component', () => {
         currentStudentConfig: '',
         currentTeacherConfig: '',
         currentStationConfig: '',
-        writeProtection: false,
         ...props
       },
       global: {
@@ -254,18 +258,39 @@ describe('ModuleConfigForm Component', () => {
     expect(Utils.parse).toHaveBeenCalled();
   });
 
-  test('responds correctly to writeProtection prop', async () => {
-    wrapper = createWrapper({
-      moduleConfig: complexModuleConfig,
-      writeProtection: true
-    });
-    
-    
-    const buttons = wrapper.findAll('.v-btn');
-    const saveButton = buttons[buttons.length - 1];
-    expect(saveButton.attributes('disabled')).toBeDefined();
-  });
   
+  test('starts fields at the schema default, the saved config still wins', async () => {
+    const moduleConfig = JSON.stringify({
+      stationConfig: {
+        video: { type: 'boolean', default: true },
+        audio: { type: 'boolean', default: true },
+        quality: { type: 'radio-button', options: ['low', 'medium'], default: 'medium' },
+        rotate: { type: 'number', default: 90 },
+        plain: { type: 'boolean' },
+      },
+    });
+
+    wrapper = createWrapper({ moduleConfig });
+    const vm = wrapper.vm as ModuleConfigFormData;
+    expect(vm.formValues.stationConfig).toEqual({
+      video: true,
+      audio: true,
+      quality: 'medium',
+      rotate: 90,
+      plain: false,
+    });
+    wrapper.unmount();
+
+    wrapper = createWrapper({
+      moduleConfig,
+      currentStationConfig: JSON.stringify({ audio: false, quality: 'low' }),
+    });
+    const saved = wrapper.vm as ModuleConfigFormData;
+    expect(saved.formValues.stationConfig.video).toBe(true);
+    expect(saved.formValues.stationConfig.audio).toBe(false);
+    expect(saved.formValues.stationConfig.quality).toBe('low');
+  });
+
   describe('calls parseModuleConfig on mount', () => {
     test('correctly processes different field types', async () => {
       const parseModuleConfigSpy = vi.spyOn(ModuleConfigForm.methods!, 'parseModuleConfig');
@@ -288,24 +313,202 @@ describe('ModuleConfigForm Component', () => {
     });
   });
 
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays with %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      wrapper = createWrapper({
-        moduleConfig: complexModuleConfig,
-        currentConfig
-      });
-      
-      await flushPromises();
-      
-      // Verify key UI elements are present regardless of locale
-      expect(wrapper.find('.v-toolbar-title').exists()).toBe(true);
-      expect(wrapper.find('.v-card-text').exists()).toBe(true);
-      
-      // Check that the save button exists
-      const buttons = wrapper.findAll('.v-btn');
-      const saveButton = buttons[buttons.length - 1];
-      expect(saveButton.exists()).toBe(true);
+  describe('select, combobox and presets', () => {
+    // Mirrors what module-pyxtermjs declares: a `workflow` picker whose
+    // presets fill in the sibling fields of the same config type.
+    const presetModuleConfig = JSON.stringify({
+      stationConfig: {
+        workflow: {
+          type: 'select',
+          options: ['arduino-avr', 'micropython'],
+          presets: {
+            // `board` uses the { value, options } form; the rest are plain
+            'arduino-avr': {
+              board: {
+                value: 'arduino:avr:uno',
+                options: ['arduino:avr:uno', 'arduino:avr:mega'],
+              },
+              port: '/dev/ttyACM0',
+              baud: 9600,
+              script: 'arduino-cli compile -b $BOARD $SKETCH',
+            },
+            micropython: {
+              board: { value: '', options: [] },
+              port: 'auto',
+              baud: 115200,
+              script: 'mpremote connect $PORT fs cp $FILE :$FILE',
+            },
+          },
+        },
+        board: {
+          type: 'combobox',
+          options: ['arduino:avr:uno', 'esp32:esp32:esp32', 'avr128db48'],
+        },
+        port: { type: 'string' },
+        baud: { type: 'number' },
+        script: { type: 'code-area' },
+      },
     });
+
+    const createPresetWrapper = (currentStationConfig = '') =>
+      createWrapper({ moduleConfig: presetModuleConfig, currentStationConfig });
+
+    test('renders select and combobox fields, both defaulting to empty', () => {
+      wrapper = createPresetWrapper();
+
+      expect(wrapper.find('.v-select').exists()).toBe(true);
+      expect(wrapper.find('.v-combobox').exists()).toBe(true);
+
+      // not the first option - that would write a value nobody chose
+      const vm = wrapper.vm as ModuleConfigFormData;
+      expect(vm.formValues.stationConfig.workflow).toBe('');
+      expect(vm.formValues.stationConfig.board).toBe('');
+    });
+
+    test('choosing a preset writes all its sibling values', () => {
+      wrapper = createPresetWrapper();
+
+      const vm = wrapper.vm as any;
+      vm.applyPreset(
+        'stationConfig',
+        'workflow',
+        vm.configSchemas.stationConfig.workflow,
+        'arduino-avr'
+      );
+
+      expect(vm.formValues.stationConfig.board).toBe('arduino:avr:uno');
+      expect(vm.formValues.stationConfig.port).toBe('/dev/ttyACM0');
+      expect(vm.formValues.stationConfig.baud).toBe(9600);
+      expect(vm.formValues.stationConfig.script).toBe(
+        'arduino-cli compile -b $BOARD $SKETCH'
+      );
+    });
+
+    test('last action wins: a preset overwrites hand-edited fields', () => {
+      wrapper = createPresetWrapper();
+
+      const vm = wrapper.vm as any;
+      const schema = vm.configSchemas.stationConfig.workflow;
+
+      vm.applyPreset('stationConfig', 'workflow', schema, 'arduino-avr');
+      vm.formValues.stationConfig.port = '/dev/ttyUSB9';
+      vm.formValues.stationConfig.script = 'my own script';
+
+      vm.applyPreset('stationConfig', 'workflow', schema, 'micropython');
+
+      expect(vm.formValues.stationConfig.port).toBe('auto');
+      expect(vm.formValues.stationConfig.baud).toBe(115200);
+      expect(vm.formValues.stationConfig.script).toBe(
+        'mpremote connect $PORT fs cp $FILE :$FILE'
+      );
+    });
+
+    test('a preset cannot write fields the schema does not declare', () => {
+      wrapper = createPresetWrapper();
+
+      const vm = wrapper.vm as any;
+      vm.applyPreset('stationConfig', 'workflow', {
+        presets: { x: { undeclared: 'nope', port: '/dev/ttyACM1' } },
+      }, 'x');
+
+      expect(vm.formValues.stationConfig.undeclared).toBeUndefined();
+      expect(vm.formValues.stationConfig.port).toBe('/dev/ttyACM1');
+    });
+
+    test('an option without a preset leaves the other fields alone', () => {
+      wrapper = createPresetWrapper(
+        JSON.stringify({ workflow: 'arduino-avr', port: '/dev/ttyACM0' })
+      );
+
+      const vm = wrapper.vm as any;
+      vm.applyPreset(
+        'stationConfig',
+        'workflow',
+        vm.configSchemas.stationConfig.workflow,
+        'unknown-workflow'
+      );
+
+      expect(vm.formValues.stationConfig.port).toBe('/dev/ttyACM0');
+    });
+
+    test('a preset narrows the board suggestions to its own list', () => {
+      wrapper = createPresetWrapper();
+
+      const vm = wrapper.vm as any;
+      const schema = vm.configSchemas.stationConfig;
+
+      // before any workflow is chosen, the schema's full list is offered
+      expect(vm.fieldOptions('stationConfig', 'board', schema.board)).toEqual([
+        'arduino:avr:uno',
+        'esp32:esp32:esp32',
+        'avr128db48',
+      ]);
+
+      vm.applyPreset('stationConfig', 'workflow', schema.workflow, 'arduino-avr');
+
+      expect(vm.fieldOptions('stationConfig', 'board', schema.board)).toEqual([
+        'arduino:avr:uno',
+        'arduino:avr:mega',
+      ]);
+      expect(vm.formValues.stationConfig.board).toBe('arduino:avr:uno');
+    });
+
+    test('switching workflow replaces the previous scoped list', () => {
+      wrapper = createPresetWrapper();
+
+      const vm = wrapper.vm as any;
+      const schema = vm.configSchemas.stationConfig;
+
+      vm.applyPreset('stationConfig', 'workflow', schema.workflow, 'arduino-avr');
+      vm.applyPreset('stationConfig', 'workflow', schema.workflow, 'micropython');
+
+      // micropython has no board concept - empty list, empty value
+      expect(vm.fieldOptions('stationConfig', 'board', schema.board)).toEqual([]);
+      expect(vm.formValues.stationConfig.board).toBe('');
+    });
+
+    test('scoped options are a UI affordance and never get saved', () => {
+      wrapper = createPresetWrapper();
+
+      const vm = wrapper.vm as any;
+      vm.applyPreset(
+        'stationConfig',
+        'workflow',
+        vm.configSchemas.stationConfig.workflow,
+        'arduino-avr'
+      );
+
+      const saved = vm.collectConfig();
+      // the value is stored, the option list is not
+      expect(saved.stationConfig.board).toBe('arduino:avr:uno');
+      expect(JSON.stringify(saved)).not.toContain('arduino:avr:mega');
+    });
+
+    test('a saved workflow keeps its narrowed board list on reopen', () => {
+      // freshly mounted, no click - i.e. reopening the dialog
+      wrapper = createPresetWrapper(
+        JSON.stringify({ workflow: 'arduino-avr', board: 'arduino:avr:mega' })
+      );
+
+      const vm = wrapper.vm as any;
+
+      expect(
+        vm.fieldOptions('stationConfig', 'board', vm.configSchemas.stationConfig.board)
+      ).toEqual(['arduino:avr:uno', 'arduino:avr:mega']);
+      // restoring suggestions must not overwrite the saved value
+      expect(vm.formValues.stationConfig.board).toBe('arduino:avr:mega');
+      expect(vm.hasChanges).toBe(false);
+    });
+
+    test('a saved config with no workflow keeps the full list', () => {
+      wrapper = createPresetWrapper(JSON.stringify({ board: 'something:custom' }));
+
+      const vm = wrapper.vm as any;
+
+      expect(
+        vm.fieldOptions('stationConfig', 'board', vm.configSchemas.stationConfig.board)
+      ).toEqual(['arduino:avr:uno', 'esp32:esp32:esp32', 'avr128db48']);
+    });
+
   });
 });

@@ -4,23 +4,28 @@ import {
   infoHash,
   getPeerID,
   hashPubKey,
+  isPubKey,
   clone,
+  normalizeClassroom,
   removeKeysStartingWithSecret,
   copyToClipboard,
+  sameKey,
+  isMember,
 } from "../ts/Utils";
 
 import Footer from "../components/Footer.vue";
 import UserMenu from '../components/UserMenu.vue';
+import LinkedText from '../components/LinkedText.vue';
 import { useI18n } from 'vue-i18n';
 
 export default {
   name: "Index",
 
-  components: { Footer, UserMenu },
+  components: { Footer, UserMenu, LinkedText },
 
   setup() {
     const { t, locale } = useI18n();
-    return { t, locale };
+    return { t, locale, sameKey, isMember };
   },
 
   data() {
@@ -28,8 +33,14 @@ export default {
     const classrooms: DatabaseItem[] = [];
 
     database.setObservable("*", async (rooms: any) => {
+      // Classrooms from before the crypto migration keep a legacy createdBy,
+      // which has no owner hash. One of them must not hide the whole list.
       await Promise.all(rooms.map(async (c: any) => {
-        if (c?.data?.createdBy) c.ownerHash = await hashPubKey(c.data.createdBy);
+        const createdBy = c?.data?.createdBy;
+        if (!createdBy || !isPubKey(createdBy)) return;
+        try {
+          c.ownerHash = await hashPubKey(createdBy);
+        } catch {}
       }));
       this.classrooms = rooms;
     });
@@ -52,16 +63,13 @@ export default {
       copyToClipboard(this.peerID);
     },
 
-    switchClassroomProtection(id: string, on: boolean) {
-      this.database.setProtection(id, on);
-    },
-
     deleteClass(id: string) {
       this.database.drop(id);
     },
 
     async forkClass(classroom: any) {
       classroom = clone(classroom);
+      normalizeClassroom(classroom.data);
 
       const id = infoHash();
       const peerID = getPeerID(false);
@@ -104,13 +112,14 @@ export default {
         },
         modules: [
           {
-            url: "https://edrys-labs.github.io/module-reference/",
+            url: "https://edrys-labs.github.io/module-markdown-it/",
             config: "",
-            studentConfig: "",
-            teacherConfig: "",
+            studentConfig: { content: this.t('index.classroom.welcome.student') },
+            teacherConfig: { content: this.t('index.classroom.welcome.teacher') },
             stationConfig: "",
+            showInCustom: "lobby",
             width: "full",
-            height: "tall",
+            height: 600,
           },
         ],
       };
@@ -160,29 +169,6 @@ export default {
             :key="classroom.id"
           >
             <v-card class="item" color="surface-variant" elevation="4">
-              <v-chip
-                :color="!!classroom.hash ? 'primary' : 'secondary'"
-                style="
-                  position: absolute;
-                  z-index: 100;
-                  right: 10px;
-                  top: 10px;
-                  background-color: white;
-                "
-                :disabled="
-                  classroom?.data.createdBy !== peerID &&
-                  !classroom?.data.members.teacher.includes(peerID)
-                "
-              >
-              {{ t('index.classroom.writeProtection') }} 
-                <v-switch
-                  :model-value="!!classroom.hash"
-                  color="primary"
-                  :label="!!classroom.hash ? t('index.classroom.actions.on') : t('index.classroom.actions.off')"
-                  style="padding-top: 20px; z-index: 200"
-                  @change="switchClassroomProtection(classroom.id, !classroom.hash)"
-                ></v-switch>
-              </v-chip>
               <v-img
                 :src="
                   classroom?.data?.meta?.logo ||
@@ -193,15 +179,15 @@ export default {
               ></v-img>
               <v-card-title>{{ classroom.data?.name }}</v-card-title>
               <v-card-subtitle>
-                <span v-if="classroom?.data.createdBy === peerID">{{ t('index.classroom.ownership.owner') }}</span>
-                <span v-else-if="classroom?.data?.members?.teacher.includes(peerID)">{{ t('index.classroom.ownership.teacher') }}</span>
+                <span v-if="sameKey(classroom?.data?.createdBy, peerID)">{{ t('index.classroom.ownership.owner') }}</span>
+                <span v-else-if="isMember(classroom?.data?.members?.teacher, peerID)">{{ t('index.classroom.ownership.teacher') }}</span>
                 <span v-else>{{ t('index.classroom.ownership.student') }}</span>
               </v-card-subtitle>
 
               <v-card-text>
-                <span
-                  v-html="classroom?.data?.meta?.description || 'No description'"
-                ></span>
+                <span style="white-space: pre-line"><LinkedText
+                  :text="classroom?.data?.meta?.description || 'No description'"
+                /></span>
               </v-card-text>
 
               <v-card-actions>
@@ -232,17 +218,16 @@ export default {
                 </v-menu>
 
                 <v-spacer></v-spacer>
-                <a
+                <v-btn
+                  icon
                   data-link="true"
-                  :href="`./?/classroom/${classroom.id}/${classroom.ownerHash}${
-                    !!classroom.hash ? `/${classroom.hash}` : ''
+                  :href="`./?/classroom/${classroom.id}${
+                    classroom.ownerHash ? `/${classroom.ownerHash}` : ''
                   }`"
-                  style="color: white"
+                  :title="t('index.classroom.actions.open')"
                 >
-                  <v-btn icon title="open">
-                    <v-icon>{{ ['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left-bold' : 'mdi-arrow-right-bold' }}</v-icon>
-                  </v-btn>
-                </a>
+                  <v-icon>{{ ['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left-bold' : 'mdi-arrow-right-bold' }}</v-icon>
+                </v-btn>
               </v-card-actions>
             </v-card>
           </v-col>
@@ -259,7 +244,7 @@ export default {
               <v-card-subtitle>{{ t('index.classroom.startTeaching') }}</v-card-subtitle>
               <v-card-actions>
                 <v-spacer></v-spacer>
-                <v-btn icon>
+                <v-btn icon :aria-label="t('index.classroom.create')">
                   <v-icon icon="mdi-plus"></v-icon>
                 </v-btn>
               </v-card-actions>

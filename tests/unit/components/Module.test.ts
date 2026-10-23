@@ -52,16 +52,17 @@ describe('Module Component', () => {
     expect(iframe.attributes('frameborder')).toBe('0');
   });
 
-  test('handles srcdoc and URL correctly', () => {
+  test('loads an inlined module as src, never as srcdoc', () => {
+    // srcdoc would give the module this page's origin
     const dataUrlModule = {
       ...defaultProps.scrapedModule,
       url: 'data:text/html,<html><body>Test</body></html>',
-      srcdoc: '<html><body>Test</body></html>'
+      srcdoc: 'data:text/html,%3Chtml%3E%3Cbody%3ETest%3C/body%3E%3C/html%3E'
     };
     wrapper = createWrapper({ scrapedModule: dataUrlModule });
-    
+
     expect(wrapper.find('iframe').attributes('src')).toBe(dataUrlModule.srcdoc);
-    expect(wrapper.find('iframe').attributes('srcdoc')).toBe(dataUrlModule.url);
+    expect(wrapper.find('iframe').attributes('srcdoc')).toBeUndefined();
   });
 
   test('sends correct postMessage on load', async () => {
@@ -106,6 +107,27 @@ describe('Module Component', () => {
     
     await wrapper.find('iframe').trigger('load');
     expect(wrapper.vm.loaded).toBe(true);
+  });
+
+  test('emits loaded on every iframe load, not only the first', async () => {
+    // A module page that reloads itself gets a new window; it needs a current
+    // doc, which the parent asks for on "loaded".
+    wrapper = createWrapper();
+    await wrapper.find('iframe').trigger('load');
+    await wrapper.find('iframe').trigger('load');
+
+    expect(wrapper.emitted('loaded')).toHaveLength(2);
+  });
+
+  test('hands its frame and origin to the parent on load, after the first update', async () => {
+    wrapper = createWrapper();
+    await wrapper.find('iframe').trigger('load');
+
+    const [frame, origin] = wrapper.emitted('loaded')[0];
+    expect(frame.postMessage).toBe(mockPostMessage);
+    expect(origin).toBe('https://example.com');
+    // the frame got its update (which creates its awareness) before the parent may seed it
+    expect(mockPostMessage).toHaveBeenCalledWith(expect.objectContaining({ event: 'update' }), 'https://example.com');
   });
 
   test('reacts to room changes', async () => {

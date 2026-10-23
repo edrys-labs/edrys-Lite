@@ -111,6 +111,23 @@ describe("Router", () => {
     );
   });
 
+  test("passes the owner hash (trust anchor) to Classroom, ignoring an old write-protection hash", async () => {
+    const cases = [
+      ["?/classroom/cid/OWNER-h_sh", { id: "cid", owner: "OWNER-h_sh", station: false }],
+      ["?/classroom/cid/OWNER-h_sh/protect", { id: "cid", owner: "OWNER-h_sh", station: false }],
+      ["?/station/cid/OWNER-h_sh", { id: "cid", owner: "OWNER-h_sh", station: true }],
+      ["?/station/cid/OWNER-h_sh/protect", { id: "cid", owner: "OWNER-h_sh", station: true }],
+    ] as const;
+
+    for (const [search, props] of cases) {
+      vi.mocked(createApp).mockClear();
+      window.location.search = search;
+      window.dispatchEvent(new Event("popstate"));
+      await flushPromises();
+      expect(createApp, search).toHaveBeenCalledWith(Classroom, props);
+    }
+  });
+
   test("handles data-link clicks", async () => {
     const link = document.createElement("a");
     link.setAttribute("data-link", "");
@@ -150,6 +167,18 @@ describe("Router", () => {
       "prismLanguages",
       expect.any(Object)
     );
+  });
+
+  test("reloads a page restored from the back/forward cache, not a fresh one", () => {
+    const reload = vi.fn();
+    (window.location as any).reload = reload;
+    const pageshow = (persisted: boolean) =>
+      window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted }));
+
+    pageshow(false);
+    expect(reload).not.toHaveBeenCalled();
+    pageshow(true);
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 
   test("handles invalid routes", async () => {

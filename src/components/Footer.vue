@@ -27,8 +27,10 @@ export default {
           <v-btn
             density="compact"
             icon="mdi-github"
+            :aria-label="t('footer.github')"
             href="https://github.com/edrys-labs/edrys-Lite/"
-            target="_"
+            target="_blank"
+            rel="noopener"
             class="mx-2"
             v-bind="props"
           >
@@ -41,8 +43,10 @@ export default {
           <v-btn
             density="compact"
             icon="mdi-information"
+            :aria-label="t('footer.docs')"
             href="https://LiaScript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md"
-            target="_"
+            target="_blank"
+            rel="noopener"
             class="mx-2"
             v-bind="props"
           >
@@ -55,8 +59,10 @@ export default {
           <v-btn
             density="compact"
             icon="mdi-share-circle"
+            :aria-label="t('footer.explore')"
             href="https://github.com/topics/edrys-lab"
-            target="_"
+            target="_blank"
+            rel="noopener"
             class="mx-2"
             v-bind="props"
           >
@@ -64,13 +70,15 @@ export default {
         </template>
       </v-tooltip>
 
-      <v-tooltip text="blog" location="top">
+      <v-tooltip :text="t('footer.blog')" location="top">
         <template v-slot:activator="{ props }">
           <v-btn
             density="compact"
             icon="mdi-rss-box"
+            :aria-label="t('footer.blog')"
             href="https://edrys-labs.github.io/blog"
-            target="_"
+            target="_blank"
+            rel="noopener"
             class="mx-2"
             v-bind="props"
           >

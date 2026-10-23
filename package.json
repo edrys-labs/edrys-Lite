@@ -1,11 +1,13 @@
 {
   "name": "edrys-lite",
-  "version": "3.0.1",
-  "description": "Browser based edrys-clone that uses the WebTorrent network sharing labs",
+  "version": "3.1.0",
+  "description": "Browser-based, peer-to-peer remote labs and live classrooms (WebRTC or WebSocket, synced with Yjs)",
   "scripts": {
     "postinstall": "patch-package",
     "test": "npx vitest",
-    "sw": "npx workbox injectManifest workbox-config.js",
+    "test:e2e": "playwright test tests/e2e-tests/comm tests/e2e-tests/app --project=${E2E_BROWSER:-chromium} --workers=1",
+    "test:e2e:ws": "E2E_TRANSPORT=ws npm run test:e2e --",
+    "test:e2e:load": "playwright test tests/e2e-tests/load --project=chromium --workers=1",
     "build": "rm -rf .parcel-cache && rm -rf dist && npm run build:edrys && npx parcel build src/index.html --log-level verbose  --no-scope-hoist --no-source-maps --public-url ./ && cp -r public/* dist/",
     "watch": "rm -rf dist && npm run watch:edrys && npx parcel serve src/*.html --no-cache --open --port 6999",
     "minify:js": "find dist -name \"*.js\" -print0 | xargs -0 -P 4 -I {} sh -c 'before=$(wc -c < {}); npx minify --js {} > {}.min && after=$(wc -c < {}.min); if [ ${after} -lt ${before} ]; then mv {}.min {}; reduction=$((${before}-${after})); percent=$(awk \"BEGIN {printf \\\"%.2f\\\", ${reduction}/${before}*100}\"); echo \"{} reduced from ${before} to ${after} bytes (${percent}% reduction)\"; else rm {}.min; echo \"{} no reduction achieved, file size unchanged\"; fi'",
@@ -16,9 +18,14 @@
     "websocket-server": "npx @y/websocket-server"
   },
   "author": "André Dietrich",
-  "license": "Mozilla Public License Version 2.0",
+  "contributors": [
+    {
+      "name": "Jihad Hyadi",
+      "url": "https://github.com/jh-488"
+    }
+  ],
+  "license": "MPL-2.0",
   "devDependencies": {
-    "@mdi/font": "^7.4.47",
     "@parcel/reporter-bundle-analyzer": "^2.15.2",
     "@parcel/transformer-sass": "^2.15.2",
     "@parcel/transformer-vue": "^2.15.2",
@@ -28,47 +35,47 @@
     "@types/debug": "^4.1.12",
     "@types/node": "^22.15.32",
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vitest/coverage-v8": "^3.2.3",
     "@vue/test-utils": "^2.4.6",
     "@y/websocket-server": "^0.1.1",
     "assert": "^2.1.0",
     "buffer": "^6.0.3",
-    "caniuse-lite": "^1.0.30001713",
-    "create-vuetify": "^2.5.2",
     "dexie": "^4.0.11",
     "events": "^3.3.0",
     "js-yaml": "^4.1.0",
+    "jsdom": "^20.0.3",
     "markdown-it": "^14.0.0",
     "minify": "^14.0.0",
-    "object-hash": "^3.0.0",
     "parcel": "^2.15.2",
-    "parcel-plugin-bundle-visualiser": "^0.8.2",
     "parcel-reporter-static-files-copy": "^1.5.3",
     "patch-package": "^8.0.0",
     "process": "^0.11.10",
+    "typescript": "^7.0.2",
     "vitest": "^3.2.3",
     "vue-i18n": "^11.1.6",
     "vue-prism-editor": "^2.0.0-alpha.2",
     "vuedraggable": "^4.1.0",
     "vuetify": "^3.8.9",
     "y-protocols": "^1.0.6",
-    "y-websocket": "^3.0.0",
     "yjs": "^13.6.27"
   },
   "dependencies": {
+    "@edryslabs/genericprovider": "^2.0.3",
     "echarts": "^5.6.0",
-    "jest-environment-jsdom": "^29.7.0",
     "lz-string": "^1.5.0",
     "msgpackr": "^1.11.4",
     "muuri": "^0.9.5",
     "peerjs": "^1.5.5",
     "prismjs": "^1.29.0",
     "secure-ls": "^2.0.0",
-    "y-webrtc": "github:disarticulate/y-webrtc"
+    "simple-peer": "^9.11.1"
   },
   "browserslist": [
     "cover 85.0%"
   ],
   "alias": {
-    "yjs": "./node_modules/yjs/dist/yjs.mjs"
+    "yjs": "./node_modules/yjs/dist/yjs.mjs",
+    "@edryslabs/genericprovider/providers/simple-peer": "./node_modules/@edryslabs/genericprovider/dist/providers/simple-peer/index.js",
+    "@edryslabs/genericprovider/providers/websocket": "./node_modules/@edryslabs/genericprovider/dist/providers/websocket/index.js"
   }
 }

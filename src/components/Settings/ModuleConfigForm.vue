@@ -51,7 +51,6 @@
                   v-if="fieldConfig.type === 'boolean'"
                   v-model="formValues[configType][field]"
                   :label="String(field)"
-                  :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   color="primary"
                   density="compact"
@@ -68,7 +67,6 @@
                       v-model="formValues[configType][field][option]"
                       :label="option"
                       :hint="fieldConfig.hint"
-                      :disabled="writeProtection"
                       color="primary"
                       density="compact"
                       class="config-checkbox"
@@ -81,7 +79,6 @@
                   <div class="mb-1 custom-label">{{ field }}</div>
                   <v-radio-group
                     v-model="formValues[configType][field]"
-                    :disabled="writeProtection"
                     :hint="fieldConfig.hint"
                     density="compact"
                     inline
@@ -98,6 +95,43 @@
                   </v-radio-group>
                 </div>
 
+                <!-- Select fields (fixed list of options) -->
+                <div v-else-if="fieldConfig.type === 'select'" class="mt-3">
+                  <v-select
+                    v-model="formValues[configType][field]"
+                    :items="fieldConfig.options || []"
+                    :label="String(field)"
+                    variant="outlined"
+                    :hint="fieldConfig.hint"
+                    persistent-hint
+                    clearable
+                    density="compact"
+                    @update:modelValue="
+                      applyPreset(configType, field, fieldConfig, $event)
+                    "
+                  ></v-select>
+                  <div
+                    v-if="fieldConfig.presets"
+                    class="text-caption text-grey mt-1"
+                  >
+                    {{ t("settings.modules.moduleConfig.presetHint") }}
+                  </div>
+                </div>
+
+                <!-- Combobox fields (suggestions, but free text is allowed) -->
+                <v-combobox
+                  v-else-if="fieldConfig.type === 'combobox'"
+                  v-model="formValues[configType][field]"
+                  :items="fieldOptions(configType, field, fieldConfig)"
+                  :label="String(field)"
+                  variant="outlined"
+                  :hint="fieldConfig.hint"
+                  persistent-hint
+                  clearable
+                  density="compact"
+                  class="mt-3"
+                ></v-combobox>
+
                 <!-- Number fields -->
                 <v-text-field
                   v-else-if="fieldConfig.type === 'number'"
@@ -105,7 +139,6 @@
                   :label="String(field)"
                   type="number"
                   variant="outlined"
-                  :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   density="compact"
                   class="mt-3"
@@ -118,7 +151,6 @@
                   v-model="formValues[configType][field]"
                   :label="String(field)"
                   variant="outlined"
-                  :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   rows="5"
                   class="mt-3"
@@ -131,7 +163,6 @@
                   :label="String(field)"
                   type="date"
                   variant="outlined"
-                  :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   density="compact"
                   class="mt-3"
@@ -144,7 +175,6 @@
                   <div class="d-flex align-center">
                     <v-color-picker
                       v-model="formValues[configType][field]"
-                      :disabled="writeProtection"
                       hide-inputs
                       mode="hex"
                       canvas-height="50%"
@@ -171,7 +201,6 @@
                     <prism-editor
                       v-model="formValues[configType][field]"
                       :highlight="highlighter"
-                      :readonly="writeProtection"
                     ></prism-editor>
                   </div>
                   <div
@@ -189,7 +218,6 @@
                   v-model="formValues[configType][field]"
                   :label="String(field)"
                   variant="outlined"
-                  :disabled="writeProtection"
                   :hint="fieldConfig.hint"
                   density="compact"
                   class="mt-3"
@@ -211,7 +239,6 @@
           variant="flat"
           color="grey-darken-4"
           @click="saveConfig"
-          :disabled="writeProtection"
         >
           {{ t("settings.modules.moduleConfig.save") }}
           <v-badge
@@ -269,11 +296,6 @@ export default {
       default: "",
     },
 
-    writeProtection: {
-      type: Boolean,
-      required: true,
-    },
-
     standalone: {
       type: Boolean,
       default: true,
@@ -303,6 +325,7 @@ export default {
         stationConfig: {},
       },
       activeTab: null,
+      presetOptions: {},
       originalValues: {
         config: {},
         studentConfig: {},
@@ -404,6 +427,16 @@ export default {
               for (const key in parsedConfig[configType]) {
                 const fieldConfig = parsedConfig[configType][key];
 
+                // The module's own default wins, so the form never saves a
+                // value the module would not use by itself (e.g. a boolean
+                // that is on unless set to false)
+                if (fieldConfig.default !== undefined) {
+                  initialValues[key] = JSON.parse(
+                    JSON.stringify(fieldConfig.default)
+                  );
+                  continue;
+                }
+
                 // Set default values based on type
                 switch (fieldConfig.type) {
                   case "boolean":
@@ -439,6 +472,8 @@ export default {
                   case "code-area":
                     initialValues[key] = "";
                     break;
+                  // select/combobox fall through: they start empty, unlike
+                  // radio-button, so no option is chosen on the author's behalf
                   default:
                     initialValues[key] = "";
                     break;
@@ -464,6 +499,8 @@ export default {
                 ...parsedValues,
               };
 
+              this.restorePresetOptions(configType);
+
               // Store a deep copy of the initial values for comparison
               this.originalValues[configType] = JSON.parse(
                 JSON.stringify(this.formValues[configType])
@@ -482,8 +519,58 @@ export default {
       }
     },
 
-    saveConfig() {
-      // Emit events for each config type that has values
+    // Suggestions for a field: the active preset's list, else the schema's.
+    fieldOptions(configType, field, fieldConfig) {
+      return (
+        this.presetOptions[`${configType}.${field}`] ||
+        fieldConfig.options ||
+        []
+      );
+    },
+
+    // A `select` field may carry `presets`: option -> values for sibling fields
+    // of the same config type. Each entry is a plain value, or
+    // `{ value, options }` to also narrow that sibling's suggestions (a
+    // combobox still accepts any typed value). Last action wins: a preset
+    // overwrites siblings even if hand-edited.
+    applyPreset(configType, field, fieldConfig, option, valuesToo = true) {
+      const preset = fieldConfig?.presets?.[option];
+
+      if (!preset) return;
+
+      for (const key in preset) {
+        // ignore keys the module never declared
+        if (key === field || !this.configSchemas[configType]?.[key]) continue;
+
+        const entry = preset[key];
+        const scoped = !!entry && typeof entry === "object";
+
+        if (valuesToo) {
+          this.formValues[configType][key] = scoped ? entry.value : entry;
+        }
+
+        // kept out of formValues so option lists are never saved
+        if (scoped && Array.isArray(entry.options)) {
+          this.presetOptions[`${configType}.${key}`] = entry.options;
+        } else {
+          delete this.presetOptions[`${configType}.${key}`];
+        }
+      }
+    },
+
+    // On load, restore the suggestions implied by the already-saved values.
+    restorePresetOptions(configType) {
+      const schema = this.configSchemas[configType];
+
+      for (const field in schema) {
+        const option = this.formValues[configType][field];
+
+        this.applyPreset(configType, field, schema[field], option, false);
+      }
+    },
+
+    // Current form values, keyed by config type.
+    collectConfig() {
       const configResult = {};
 
       Object.keys(this.configSchemas).forEach((configType) => {
@@ -494,6 +581,12 @@ export default {
           configResult[configType] = this.formValues[configType];
         }
       });
+
+      return configResult;
+    },
+
+    saveConfig() {
+      const configResult = this.collectConfig();
 
       this.$emit("save", configResult);
       if (this.standalone) this.$emit("close");

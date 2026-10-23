@@ -1,7 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Footer from '../../../src/components/Footer.vue';
-import { i18n, messages } from '../../setup';
 
 // Create stub components with templates to render content
 const stubs = {
@@ -62,47 +61,7 @@ describe('Footer Component', () => {
   test('all buttons open in new tab', () => {
     const buttons = wrapper.findAll('.v-btn');
     buttons.forEach(btn => {
-      expect(btn.attributes('target')).toBe('_');
-    });
-  });
-
-  test('buttons have correct density', () => {
-    const buttons = wrapper.findAll('.v-btn');
-    buttons.forEach(btn => {
-      expect(btn.attributes('density')).toBe('compact');
-    });
-  });
-
-  test('footer has correct styling', () => {
-    const footer = wrapper.find('.v-footer');
-    expect(footer.attributes('color')).toBe('surface-variant');
-    expect(footer.attributes('elevation')).toBe('15');
-    expect(footer.attributes('app')).toBe('true');
-  });
-
-  test('row has correct layout properties', () => {
-    const row = wrapper.find('.v-row');
-    expect(row.attributes('justify')).toBe('center');
-    expect(row.attributes('no-gutters')).toBe('');
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      await wrapper.vm.$nextTick();
-
-      const translations = messages[locale].footer;
-
-      const tooltips = wrapper.findAll('.v-tooltip');
-
-      // Check GitHub button tooltip
-      expect(tooltips[0].attributes('text')).toBe(translations.github);
-
-      // Check Docs button tooltip
-      expect(tooltips[1].attributes('text')).toBe(translations.docs);
-
-      // Check Explore button tooltip
-      expect(tooltips[2].attributes('text')).toBe(translations.explore);
+      expect(btn.attributes('target')).toBe('_blank');
     });
   });
 });

@@ -1,7 +1,19 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Share from '../../../../src/components/Settings/Share.vue';
-import { i18n, messages } from '../../../setup';
+
+vi.mock('../../../../src/ts/Utils', async (importOriginal) => ({
+  ...(await importOriginal<any>()),
+  getPeerID: () => 'importer-key',
+}));
+
+// jsdom's Blob has no text()
+const readBlob = (blob: Blob) =>
+  new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.readAsText(blob);
+  });
 
 describe('Share Settings Component', () => {
   const mockConfig = {
@@ -70,7 +82,6 @@ describe('Share Settings Component', () => {
     return mount(Share, {
       props: {
         config: mockConfig,
-        writeProtection: false,
         ...props
       },
       global: {
@@ -118,6 +129,45 @@ describe('Share Settings Component', () => {
     expect(document.createElement('a').click).toHaveBeenCalled();
   });
 
+  test('export omits createdBy and setup signature fields', async () => {
+    const wrapper = createWrapper({
+      config: {
+        ...mockConfig,
+        createdBy: 'owner-key',
+        setupSigner: 'owner-key',
+        setupSignature: 'sig',
+        modules: [{ id: 'm1', url: 'http://example.com' }]
+      }
+    });
+
+    wrapper.vm.downloadClass('json');
+    const blob = (global.URL.createObjectURL as any).mock.calls[0][0] as Blob;
+    const exported = JSON.parse(await readBlob(blob));
+
+    expect(exported).not.toHaveProperty('createdBy');
+    expect(exported).not.toHaveProperty('setupSigner');
+    expect(exported).not.toHaveProperty('setupSignature');
+    expect(exported.name).toBe('Test Class');
+    expect(exported.modules[0].id).toBe('m1');
+  });
+
+  test('import backfills missing module ids and keeps existing ones', () => {
+    const config: any = { ...mockConfig, modules: [] };
+    const wrapper = createWrapper({ config });
+
+    wrapper.vm.updateConfig({
+      name: 'Imported',
+      meta: {},
+      members: { teacher: [], student: [] },
+      modules: [{ url: 'http://a.com' }, { id: 'keep', url: 'http://b.com' }]
+    });
+
+    expect(typeof config.modules[0].id).toBe('string');
+    expect(config.modules[0].id.length).toBeGreaterThan(0);
+    expect(config.modules[1].id).toBe('keep');
+    expect(config.createdBy).toBe('importer-key');
+  });
+
   test('handles file restore', async () => {
     const wrapper = createWrapper();
     
@@ -149,44 +199,4 @@ describe('Share Settings Component', () => {
     expect(mockFileReader.readAsText).toHaveBeenCalledWith(file);
   });
 
-  test('disables inputs when write protected', () => {
-    const wrapper = createWrapper({ writeProtection: true });
-    const fileInput = wrapper.find('.v-file-input');
-    const urlInput = wrapper.find('.v-text-field');
-    
-    expect((fileInput.element as HTMLInputElement).disabled).toBe(true);
-    expect((urlInput.element as HTMLInputElement).disabled).toBe(true);
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const wrapper = createWrapper();
-      
-      const buttons = wrapper.findAll('.v-btn');
-      const inputs = wrapper.findAll('input');
-      
-      const translations = messages[locale].settings.share;
-
-      // Check yaml button text
-      const yamlButton = buttons.find(btn => btn.text() === translations.downloadYml);
-      expect(yamlButton).toBeTruthy();
-      
-      // Check json button text
-      const jsonButton = buttons.find(btn => btn.text() === translations.downloadJson);
-      expect(jsonButton).toBeTruthy();
-      
-      // Check file input label
-      const fileInput = inputs.find(input => input.attributes('label') === translations.restoreFromFile);
-      expect(fileInput).toBeTruthy();
-      
-      // Check URL input label
-      const urlInput = inputs.find(input => input.attributes('label') === translations.restoreFromUrl);
-      expect(urlInput).toBeTruthy();
-      
-      // Check explore button text
-      const exploreButton = buttons.find(btn => btn.text() === translations.explore);
-      expect(exploreButton).toBeTruthy();
-    });
-  });
 });

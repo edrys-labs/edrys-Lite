@@ -4,10 +4,14 @@ general:
   copied: "Copied!"
   userRole: "User Role"
   language: "Language"
+  menu: "User menu"
+  copyLink: "Copy link"
+  you: "you"
   roles:
     teacher: "Teacher"
     student: "Student"
     station: "Station"
+    visitor: "Visitor"
 
 index:
   migration:
@@ -16,8 +20,30 @@ index:
   classroom:
     create: "Create a class"
     startTeaching: "Start teaching now"
-    writeProtection: "Write Protection"
     newClass: "My New Class"
+    welcome:
+      teacher: |
+        # Welcome to your new classroom 👋
+
+        This panel is a module. Edit or delete it any time in **⚙️ Settings → Modules**.
+
+        **Set up your classroom** (open **⚙️ Settings** next to the classroom name):
+
+        1. **Main**: give the class a name and description, and set the number of rooms.
+        2. **Modules**: add the tools your class needs (code editor, terminal, markdown, …) from the **Modules Explorer**, or paste a module URL. Then click ⚙️ on each module to configure it: its content and settings, its size, and which rooms it appears in.
+        3. **Members**: add teachers by their public key (each user can copy theirs from the ⋮ menu). Leave students empty to let anyone with the link join.
+        4. **Stations**: open the station link on a device (e.g. a PC attached to lab hardware). It becomes a room that students can join.
+        5. **Share**: download a backup of your classroom, or restore one from a file.
+
+        **Invite people:** share the classroom link from your browser's address bar.
+
+        ℹ️ There is no central server: your classroom lives in your browser, and everyone connects directly to each other. Download a backup from **Share** now and then.
+
+        📚 Read the [documentation](https://liascript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md) to learn more.
+      student: |
+        # Welcome 👋
+
+        Your teacher hasn't set up this classroom yet. Please check back later.
     ownership:
       owner: "You own this class"
       teacher: "You're a teacher here"
@@ -28,10 +54,11 @@ index:
       deleteForever: "Yes, delete forever"
       fork: "Fork"
       open: "Open"
-      on: "on"
-      off: "off"
 
 classroom:
+  reconnecting: "Reconnecting…"
+  chat: "Chat"
+  chatUnread: "Chat, new messages"
   station:
     mode: "Station Mode Active"
     label: "Station Name"
@@ -47,6 +74,8 @@ classroom:
     onlineUsers: "online users"
     settings: "Settings"
     newRoom: "New room"
+    rooms: "Rooms"
+    gotoRoom: "Go to {room}"
   popup:
     close: "Close"
 
@@ -68,7 +97,6 @@ deploy:
 settings:
   general:
     title: "Settings"
-    writeProtection: "Write Protection:"
     Main: "Main"
     Members: "Members"
     Modules: "Modules"
@@ -76,8 +104,6 @@ settings:
     Share: "Share"
     Communication: "Communication"
     actions:
-      on: "ON"
-      off: "OFF"
       save: "Save"
       delete: "Delete Class"
       deleteConfirm: "Are you sure?"
@@ -104,11 +130,13 @@ settings:
       config: "Module Configuration"
       manualConfig: "Advanced (raw config)"
       delete: "Delete Module"
+      invalidConfig: "Module configuration has errors"
     moduleConfig:
       title: "Module Configuration"
       save: "Save Configuration"
       cancel: "Cancel"
       noSchema: "This module doesn't provide a valid configuration schema"
+      presetHint: "Changing this replaces the fields below"
     module:
       url:
         title: "URL"
@@ -188,6 +216,11 @@ checks:
   webRTCSupport: "WebRTC-support"
   configLoaded: "Configuration loaded"
   usingWebsocket: "Using WebSocket Connection"
+  connecting: "Connecting…"
+  status:
+    ok: "OK"
+    failed: "Failed"
+    pending: "In progress"
   connected: 
     1: "Connected to peer 2 peer network ("
     2: "sec.)"
@@ -198,8 +231,11 @@ footer:
   github: "edrys-Lite on GitHub"
   docs: "View the Documentation" 
   explore: "Explore Classrooms"
+  blog: "Blog"
 
 modules:
+  loading: "Loading modules…"
+  noModulesInRoom: "None of this classroom's modules are configured to show in this room."
   noModules:
     1: "Sorry, looks like you have not loaded up any "
     2: " modules. Add some in the class settings to get started."

@@ -21,6 +21,7 @@ export default {
     "username_",
     "liveClassProxy",
     "scrapedModules_",
+    "isLoading",
     "communication",
     "class_id",
   ],
@@ -117,14 +118,18 @@ export default {
     },
   },
   created() {
+    // Module window -> awareness client ids it published, so they can be
+    // removed once that frame is gone (else they linger for 30 s everywhere).
+    this._frameAwareness = new Map<Window, Set<number>>();
     window.addEventListener("message", this.messageHandler);
     const iframes = document.getElementsByTagName("iframe");
 
-    // Post to every module iframe, each at its own origin.
-    const broadcast = (payload: any) => {
+    // Post to every module iframe, each at its own origin, except `except`.
+    const broadcast = (payload: any, except?: unknown) => {
       for (let i = 0; i < iframes.length; i++) {
         const module = this.scrapedModulesFilter[i];
         if (!module) continue;
+        if (except && iframes[i].contentWindow === except) continue;
         iframes[i].contentWindow?.postMessage(
           payload,
           module.origin || new URL(module.url).origin
@@ -140,10 +145,17 @@ export default {
     );
 
     // Forward doc updates: remote edits reach the local Y.Doc but not the
-    // module, so content would only appear on reload. Skip 'extern' echoes.
+    // module, so content would only appear on reload. A module's own update
+    // ('extern') goes to its sibling modules, not back to its sender.
+    const exceptSender = (origin: any) =>
+      origin?.transactionId === "extern" ? origin.source : undefined;
     this._stateUnsub = this.communication.onState((data: Uint8Array, origin: any) => {
-      if (origin?.transactionId === "extern") return;
-      broadcast({ event: "state", data });
+      broadcast({ event: "state", data }, exceptSender(origin));
+    });
+
+    // Forward app-awareness (module cursors/presence), same sender skip.
+    this._awarenessUnsub = this.communication.onAwareness((data: Uint8Array, origin: any) => {
+      broadcast({ event: "awareness", data }, exceptSender(origin));
     });
 
     this.$nextTick(() => {
@@ -190,6 +202,12 @@ export default {
     }
     this.communication.on("message", undefined);
     this._stateUnsub?.();
+    this._awarenessUnsub?.();
+    // Our frames go with us.
+    for (const clients of this._frameAwareness.values()) {
+      this.communication.removeAwareness([...clients]);
+    }
+    this._frameAwareness.clear();
     this.grid.destroy();
   },
 
@@ -296,7 +314,23 @@ export default {
       return result.join(" ");
     },
 
+    // True if `source` is one of our module iframes. Inlined modules run on a
+    // data: URL with an opaque "null" origin, so the sender window, not the
+    // origin, is what identifies a module.
+    isModuleWindow(source: MessageEventSource | null): boolean {
+      if (!source) return false;
+      const iframes = this.$el?.querySelectorAll?.("iframe") ?? [];
+      return Array.from(iframes).some((f: HTMLIFrameElement) => f.contentWindow === source);
+    },
+
     messageHandler(e) {
+      // Any window that holds a reference to this one (an opener, another
+      // frame) can post here; only modules may write state or send messages.
+      if (!this.isModuleWindow(e.source)) {
+        debug.components.modules("[Security] Ignored message from a non-module window:", e.origin);
+        return;
+      }
+
       switch (e.data.event) {
         case "message":
           this.sendMessage(e.data.subject, e.data.body, e.data.user, e.data.module);
@@ -305,11 +339,13 @@ export default {
           this.setToValue(this.liveClassProxy, e.data.path, e.data.value);
           break;
         case "state":
-          this.communication.updateState(e.data.data);
+          this.communication.updateState(e.data.data, e.source);
           break;
-        // case "awareness":
-        //   this.communication.updateAwareness(e.data.data);
-        //   break;
+        case "awareness":
+          if (this.communication.updateAwareness(e.data.data, e.source)) {
+            this.rememberAwareness(e.source, e.data.data);
+          }
+          break;
         case "echo":
           debug.components.modules("ECHO:", e.data);
           break;
@@ -319,29 +355,63 @@ export default {
             this.communication.update("room");
           }, 100);
           break;
-        case "requestWebRTCConfig":
-          // Get config from Peer and send back to iframe
-          // Validate the requesting origin against allowed module origins
+        case "requestWebRTCConfig": {
+          // Only to a module still at its own origin. Inlined modules run on data: URLs: their origin
+          // is "null", and they are addressed with "*".
           const requestOrigin = e.origin;
-          const isAllowedOrigin = this.scrapedModulesFilter.some(m => {
-            const moduleOrigin = m.origin || new URL(m.url).origin;
-            return moduleOrigin === requestOrigin;
-          });
-          
-          if (isAllowedOrigin) {
+          const targetOrigin = this.scrapedModulesFilter
+            .map((m) => m.origin || new URL(m.url).origin)
+            .find((o) => o === requestOrigin || (o === "*" && requestOrigin === "null"));
+
+          if (targetOrigin) {
             this.communication.getWebRTCConfig().then(config => {
               e.source.postMessage({
                 event: "webrtcConfig",
                 config: config
-              }, requestOrigin);
+              }, targetOrigin);
             });
           } else {
             debug.components.modules("[Security] Rejected WebRTC config request from untrusted origin:", requestOrigin);
           }
           break;
+        }
         default:
           debug.components.modules("Unknown event", e.data);
           break;
+      }
+    },
+
+    // A frame that just (re)loaded only sees awareness changes from now on, so
+    // idle peers' cursors would show up only with their next renewal (~15 s).
+    // Hand it every current state, right after its first update.
+    moduleLoaded(frame?: Window, origin?: string) {
+      this.dropGoneAwareness(frame);
+      this.communication.update("room");
+      if (frame && origin) {
+        frame.postMessage({ event: "awareness", data: this.communication.getAwarenessState() }, origin);
+      }
+    },
+
+    rememberAwareness(frame: Window, data: Uint8Array) {
+      let clients = this._frameAwareness.get(frame);
+      if (!clients) this._frameAwareness.set(frame, (clients = new Set()));
+      try {
+        for (const id of this.communication.awarenessClients(data)) clients.add(id);
+      } catch (e) {
+        debug.components.modules("Unreadable awareness update", e);
+      }
+    },
+
+    // Remove the awareness of frames that are gone: `reloaded` (its previous
+    // document; the new one hasn't published yet) and any that is no longer one
+    // of our iframes (remounted on a room switch, or removed). A module can only
+    // have removed what it published itself.
+    dropGoneAwareness(reloaded?: Window) {
+      for (const [frame, clients] of this._frameAwareness) {
+        if (frame === reloaded || !this.isModuleWindow(frame)) {
+          this.communication.removeAwareness([...clients]);
+          this._frameAwareness.delete(frame);
+        }
       }
     },
 
@@ -368,13 +438,17 @@ export default {
       return translatedNames[room.toLowerCase()] || room;
     },
 
-    // Check if the room name matches the showIn field
+    // Whether the room is one of the showIn entries: whole names, `*` as a
+    // wildcard ("Room 1" is not "Room 10"; other characters are literal).
     checkRoomMatch(normalizedShowIn: string[], currentRoom: string) {
-      return normalizedShowIn
-        .map(e => e.toLowerCase().replace(/\*/g, ".*"))
-        .map(e => new RegExp(e))
-        .map(e => currentRoom.match(e) !== null)
-        .includes(true);
+      return normalizedShowIn.some((entry) => {
+        const pattern = entry
+          .toLowerCase()
+          .split("*")
+          .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+          .join(".*");
+        return new RegExp(`^${pattern}$`).test(currentRoom);
+      });
     },
   },
 };
@@ -406,17 +480,31 @@ export default {
           :scrapedModule="m"
           :role="role"
           :class_id="class_id"
+          @loaded="moduleLoaded"
         >
         </Module>
       </div>
     </div>
 
-    <v-card v-if="!scrapedModules_.length">
+    <v-card v-if="isLoading">
+      <v-card-text class="d-flex align-center">
+        <v-progress-circular indeterminate size="20" width="2" class="mr-3" :aria-label="t('modules.loading')" />
+        {{ t('modules.loading') }}
+      </v-card-text>
+    </v-card>
+
+    <v-card v-else-if="!scrapedModules_.length">
       <v-card-text v-if="role == 'teacher' || role == 'station'">
         {{ t('modules.noModules.1') }} {{ modulesType }} {{ t('modules.noModules.2') }}
       </v-card-text>
       <v-card-text v-if="role == 'student'">
         {{ t('modules.noModules.3') }}
+      </v-card-text>
+    </v-card>
+
+    <v-card v-else-if="!scrapedModulesFilter.length">
+      <v-card-text>
+        {{ t('modules.noModulesInRoom') }}
       </v-card-text>
     </v-card>
   </div>

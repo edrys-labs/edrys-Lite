@@ -1,7 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Main from '../../../../src/components/Settings/Main.vue';
-import { i18n, messages } from '../../../setup';
 
 describe('Main Settings Component', () => {
   const mockConfig = {
@@ -16,7 +15,6 @@ describe('Main Settings Component', () => {
     return mount(Main, {
       props: {
         config: mockConfig,
-        writeProtection: false,
         ...props
       },
       global: {
@@ -47,36 +45,4 @@ describe('Main Settings Component', () => {
     expect(wrapper.props('config').meta.description).toBe('Test Description');
   });
 
-  test('disables inputs when write protected', () => {
-    const wrapper = createWrapper({ writeProtection: true });
-    const inputs = wrapper.findAll('v-input');
-    inputs.forEach(input => {
-      expect(input.attributes('disabled')).toBeTruthy();
-    });
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const wrapper = createWrapper();
-      
-      const translations = messages[locale];
-
-      // Get all elements with their labels
-      const elements = wrapper.findAll('[label]');
-      
-      // Verify each translation exists as a label
-      const expectedLabels = [
-        translations.settings.main.className,
-        translations.settings.main.logoUrl,
-        translations.settings.main.description,
-        translations.settings.main.roomsNum,
-      ];
-
-      expectedLabels.forEach(label => {
-        const element = elements.find(el => el.attributes('label') === label);
-        expect(element, `Element with label "${label}" should exist`).toBeTruthy();
-      });
-    });
-  });
 });

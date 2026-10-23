@@ -83,7 +83,7 @@ export default {
         // Initialize the chart instance
         this.memoryChart = echarts.init(chartDom);
         window.addEventListener("resize", () => {
-          ((this.memoryChart as unknown) as echarts.EChartsType)?.resize();
+          (this.memoryChart as any)?.resize();
         });
 
         this.generateChart();
@@ -96,7 +96,7 @@ export default {
       networkData: [] as NetworkData[],
       usersInStations: [] as IUserInStation[],
 
-      memoryChart: null as echarts.EChartsType | null,
+      memoryChart: null as any,
 
       intervalId: null as number | null,
 
@@ -713,7 +713,7 @@ export default {
         };
 
         this.memoryChart?.setOption(option);
-        this.memoryChart?.resize();
+        (this.memoryChart as any)?.resize();
       } else {
         debug.components.logger("No memory data available to plot the chart.");
       }

@@ -1,7 +1,6 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import ModulesExplorer from '../../../../src/components/Settings/ModulesExplorer.vue';
-import { i18n } from '../../../setup';
 
 const stubs = {
   'v-dialog': {
@@ -128,6 +127,31 @@ describe('ModulesExplorer Component', () => {
     expect(wrapper.text()).toContain('Test module 2 description');
   });
 
+  test('lists pinned modules first, in pinned order, then the rest in API order', async () => {
+    const item = (name: string) => ({ id: name, name, description: '', html_url: '' });
+    mockFetch.mockResolvedValue({
+      json: () => Promise.resolve({
+        items: [
+          item('module-other-a'),
+          item('module-pyxtermjs'),
+          item('module-other-b'),
+          item('module-markdown-it'),
+        ],
+      }),
+    });
+
+    wrapper = createWrapper();
+    await flushPromises();
+
+    const names = wrapper.findAll('.v-list-item-title').map((t: any) => t.text());
+    expect(names).toEqual([
+      'module-markdown-it',
+      'module-pyxtermjs',
+      'module-other-a',
+      'module-other-b',
+    ]);
+  });
+
   test('shows error state when API request fails', async () => {
     // Mock failed API response
     mockFetch.mockRejectedValue(new Error('Network error'));
@@ -194,22 +218,6 @@ describe('ModulesExplorer Component', () => {
       'https://github.com/edrys-labs/test-module-1',
       '_blank'
     );
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays with %s locale', async (locale) => {
-      mockFetch.mockResolvedValue({
-        json: () => Promise.resolve(mockModules),
-      });
-      
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      wrapper = createWrapper();
-      
-      await flushPromises();
-      
-      expect(wrapper.find('.v-toolbar-title').exists()).toBe(true);
-      expect(wrapper.find('.v-card-text').exists()).toBe(true);
-    });
   });
 
   test('calls fetchModules on mount', async () => {

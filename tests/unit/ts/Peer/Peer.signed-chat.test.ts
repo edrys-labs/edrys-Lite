@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import * as Y from 'yjs'
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import { i18n } from '../../../setup'
 
 // y.chat signing integration tests.
@@ -24,24 +25,28 @@ vi.mock('secure-ls', () => ({
 vi.mock('../../../../src/api/debugHandler', () => ({
   debug: { ts: { peer: vi.fn() } },
 }))
-vi.mock('../../../../src/ts/EdrysWebrtcProvider', () => ({
-  EdrysWebrtcProvider: vi.fn().mockImplementation(() => ({
+vi.mock('../../../../src/ts/GenericProviderAdapter', () => ({
+  GenericWebrtcProviderAdapter: vi.fn().mockImplementation(() => ({
     on: vi.fn(),
     onLeave: vi.fn(),
     onMessage: vi.fn(),
     sendMessage: vi.fn(),
     disconnect: vi.fn(),
     destroy: vi.fn(),
+    getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
+    getAwareness: vi.fn(function (this: any) { return (this._app ??= new Awareness(new Y.Doc())) }),
   })),
 }))
-vi.mock('../../../../src/ts/EdrysWebsocketProvider', () => ({
-  EdrysWebsocketProvider: vi.fn().mockImplementation(() => ({
+vi.mock('../../../../src/ts/GenericWebsocketProviderAdapter', () => ({
+  GenericWebsocketProviderAdapter: vi.fn().mockImplementation(() => ({
     on: vi.fn(),
     onLeave: vi.fn(),
     onMessage: vi.fn(),
     sendMessage: vi.fn(),
     disconnect: vi.fn(),
     destroy: vi.fn(),
+    getPresenceAwareness: vi.fn(() => new Awareness(new Y.Doc())),
+    getAwareness: vi.fn(function (this: any) { return (this._app ??= new Awareness(new Y.Doc())) }),
   })),
 }))
 
@@ -112,6 +117,81 @@ describe('Signed y.chat', () => {
     peer.stop()
   })
 
+  test('each inserted entry is verified once, however often initChat/join run', async () => {
+    const { peer } = await bootPeer()
+    peer.initChat()
+    await peer.join('student')
+    const verified = vi.spyOn(peer['_chatVerified'], 'set')
+
+    await peer.sendMessage('once')
+    await flushPromises()
+    await peer.sendMessage('twice')
+    await flushPromises()
+
+    expect(verified).toHaveBeenCalledTimes(2)
+    peer.stop()
+  })
+
+  test('a presence change that leaves the shown chat as is sends no update', async () => {
+    const { peer } = await bootPeer()
+    const updates: any[] = []
+    peer.on('chat', (data: any) => updates.push(data.messages))
+    await peer.sendMessage('hello')
+    await flushPromises()
+    await flushPromises()
+    expect(updates.length).toBe(1)
+
+    peer['_refreshChat']()
+    await flushPromises()
+
+    expect(updates.length).toBe(1)
+    peer.stop()
+  })
+
+  test("the name shown is the signer's, not the one in the entry", async () => {
+    const { peer, pubKey } = await bootPeer()
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    // Validly signed by us, but naming someone else
+    const ts = Date.now()
+    const payload = { msg: 'submit now', timestamp: ts, user: 'the-teacher' }
+    const env = await Utils.signEntry('chat', String(ts), payload, ts)
+    peer['y'].doc.transact(() => {
+      peer['y'].chat.push([{ ...payload, signer: env.signer, signature: env.signature }])
+    }, 'sync')
+    await flushPromises()
+    await flushPromises()
+
+    expect(chatMessages.map((m) => [m.msg, m.user])).toEqual([['submit now', Utils.getShortPeerID(pubKey)]])
+    peer.stop()
+  })
+
+  test('deleting an earlier entry does not reveal a rejected one', async () => {
+    const { peer } = await bootPeer()
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    await peer.sendMessage('first')
+    await flushPromises()
+    peer['y'].doc.transact(() => {
+      peer['y'].chat.push([{ timestamp: Date.now(), user: 'attacker', msg: 'unsigned' }])
+    }, 'test-raw')
+    await flushPromises()
+    await peer.sendMessage('last')
+    await flushPromises()
+    await flushPromises()
+    expect(chatMessages.map((m) => m.msg)).toEqual(['first', 'last'])
+
+    // Any peer can edit the doc: shift everything down by one
+    peer['y'].doc.transact(() => peer['y'].chat.delete(0, 1), 'test-delete')
+    await flushPromises()
+    await flushPromises()
+
+    expect(chatMessages.map((m) => m.msg)).toEqual(['last'])
+    peer.stop()
+  })
+
   test('valid signed message appears in update("chat") output', async () => {
     const { peer } = await bootPeer()
 
@@ -142,8 +222,9 @@ describe('Signed y.chat', () => {
     await flushPromises()
     await flushPromises()
 
-    expect(chatMessages).not.toBeNull()
-    expect(chatMessages!.length).toBe(0)
+    // Nothing to show, so nothing changed and no update went out
+    expect(chatMessages).toBeNull()
+    expect(peer['_chatView']).toEqual([])
 
     peer.stop()
   })
@@ -175,7 +256,7 @@ describe('Signed y.chat', () => {
     peer.stop()
   })
 
-  test('entry from unknown signer (not in y.users) is filtered', async () => {
+  test('entry from unknown signer (not present) is filtered', async () => {
     const { peer } = await bootPeer()
 
     // Manually craft a signed entry using a different identity
@@ -186,7 +267,7 @@ describe('Signed y.chat', () => {
     const payload = { msg: 'infiltrate', timestamp: ts, user: 'stranger' }
     const env = await Utils3.signEntry('chat', String(ts), payload, ts)
 
-    let chatMessages: any[] | null = null
+    let chatMessages: any[] = []
     peer.on('chat', (data: any) => { chatMessages = data.messages })
 
     peer['y'].doc.transact(() => {
@@ -201,8 +282,102 @@ describe('Signed y.chat', () => {
     await flushPromises()
     await flushPromises()
 
-    expect(chatMessages!.filter((m: any) => m.msg === 'infiltrate').length).toBe(0)
+    expect(chatMessages.filter((m: any) => m.msg === 'infiltrate').length).toBe(0)
 
+    peer.stop()
+  })
+
+  test('a held-back entry shows once its signer becomes present', async () => {
+    const { peer } = await bootPeer()
+
+    vi.resetModules()
+    const Writer = await import('../../../../src/ts/Utils')
+    await Writer.initCryptoIdentity()
+    const ts = Date.now()
+    const payload = { msg: 'before you arrived', timestamp: ts, user: 'writer' }
+    const env = await Writer.signEntry('chat', String(ts), payload, ts)
+
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    // The chat arrives with the doc, before the writer's presence.
+    peer['y'].doc.transact(() => {
+      peer['y'].chat.push([{ ...payload, signer: env.signer, signature: env.signature }])
+    }, 'sync')
+    await flushPromises()
+    await flushPromises()
+    expect(chatMessages.map((m) => m.msg)).toEqual([])
+
+    const id = `${env.signer}_s1`
+    const presence = { id, payload: { room: 'Lobby' }, envelope: await Writer.signEntry('users', id, { room: 'Lobby' }) }
+    const clientID = 777
+    applyAwarenessUpdate(
+      peer['presence']['awareness'],
+      encodeAwarenessUpdate(
+        { states: new Map([[clientID, { presence }]]), meta: new Map([[clientID, { clock: 1, lastUpdated: Date.now() }]]) } as any,
+        [clientID]
+      ),
+      'remote'
+    )
+    await flushPromises()
+    await flushPromises()
+
+    expect(chatMessages.map((m) => m.msg)).toEqual(['before you arrived'])
+
+    peer.stop()
+  })
+
+  test('a ten-minute-old message still shows', async () => {
+    const { peer } = await bootPeer()
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    const ts = Date.now() - 10 * 60 * 1000
+    const payload = { msg: 'from ten minutes ago', timestamp: ts, user: 'me' }
+    const env = await Utils.signEntry('chat', String(ts), payload, ts)
+    peer['y'].doc.transact(() => {
+      peer['y'].chat.push([{ ...payload, signer: env.signer, signature: env.signature }])
+    }, 'sync')
+    await flushPromises()
+    await flushPromises()
+
+    expect(chatMessages.map((m) => m.msg)).toEqual(['from ten minutes ago'])
+    peer.stop()
+  })
+
+  test('a replayed copy of a signed message is hidden', async () => {
+    const { peer } = await bootPeer()
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    await peer.sendMessage('once')
+    await flushPromises()
+    const original = { ...peer['y'].chat.get(0) }
+    peer['y'].doc.transact(() => peer['y'].chat.push([original]), 'replay')
+    await flushPromises()
+    await flushPromises()
+
+    expect(peer['y'].chat.length).toBe(2)
+    expect(chatMessages.map((m) => m.msg)).toEqual(['once'])
+    peer.stop()
+  })
+
+  test('a replayed copy with a re-encoded signature is hidden too', async () => {
+    const { peer } = await bootPeer()
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    await peer.sendMessage('once')
+    await flushPromises()
+    const original = peer['y'].chat.get(0)
+    // atob ignores whitespace: same signature bytes, different string
+    const copy = { ...original, signature: ' ' + original.signature }
+    peer['y'].doc.transact(() => peer['y'].chat.push([copy]), 'replay')
+    await flushPromises()
+    await flushPromises()
+
+    expect(peer['y'].chat.length).toBe(2)
+    expect(chatMessages.map((m) => m.msg)).toEqual(['once'])
     peer.stop()
   })
 })

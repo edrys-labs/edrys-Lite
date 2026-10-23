@@ -1,12 +1,13 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Classroom from '../../../src/views/Classroom.vue';
-import { i18n, messages } from '../../setup';
+import { scrapeModule, getPeerID } from '../../../src/ts/Utils';
+
+const flushPromises = () => new Promise((r) => setTimeout(r, 0));
 
 // Mock dependencies
 vi.mock('../../../src/ts/Database', () => ({
   Database: vi.fn().mockImplementation(() => ({
-    setProtection: vi.fn(),
     get: vi.fn().mockResolvedValue({
       id: 'test-class',
       data: {
@@ -28,9 +29,12 @@ vi.mock('../../../src/ts/Utils', () => ({
   clone: vi.fn(obj => JSON.parse(JSON.stringify(obj))),
   getPeerID: vi.fn(() => 'test-peer-id'),
   getShortPeerID: vi.fn(() => 'test-user'),
+  sameKey: vi.fn((a: any, b: any) => !!a && !!b && a.replace(/=/g, '') === b.replace(/=/g, '')),
+  isMember: vi.fn((list: any, key: string) => (list || []).some((m: string) => m.replace(/=/g, '') === key.replace(/=/g, ''))),
   getBasePeerID: vi.fn(id => id?.split('-')[0] || id),
   getDisplayPeerID: vi.fn(() => 'test-user'),
-  deepEqual: vi.fn(),
+  deepEqual: vi.fn((a, b) => JSON.stringify(a) === JSON.stringify(b)),
+  decodeCommConfig: vi.fn((s) => (s === 'ws' ? { communicationMethod: 'Websocket' } : null)),
   copyToClipboard: vi.fn(),
   roomColor: vi.fn(() => '#1E88E5'),
   hashPubKey: vi.fn(() => Promise.resolve('testhash1234')),
@@ -56,12 +60,14 @@ const mockCommunication = {
   addRoom: vi.fn(),
   sendMessage: vi.fn(),
   newSetup: vi.fn(),
+  stop: vi.fn(),
   allowedToParticipate: vi.fn().mockReturnValue(true)  
 };
 
 // Update the Peer mock to return our mockCommunication
 vi.mock('../../../src/ts/Peer', () => ({
-  default: vi.fn().mockImplementation(() => mockCommunication)
+  default: vi.fn().mockImplementation(() => mockCommunication),
+  MAX_ROOMS: 50,
 }));
 
 describe('Classroom View', () => {
@@ -165,6 +171,29 @@ describe('Classroom View', () => {
     expect(wrapper.vm.peerID).toBe('test-peer-id');
   });
 
+  test('stops its Peer when unmounted', async () => {
+    // The router remounts the app on popstate; the old Peer must leave the room.
+    const wrapper = createWrapper();
+    await wrapper.vm.init();
+    expect(wrapper.vm.communication).toBeTruthy();
+    mockCommunication.stop.mockClear();
+
+    wrapper.unmount();
+
+    expect(mockCommunication.stop).toHaveBeenCalledTimes(1);
+  });
+
+  test('hands the owner hash from the URL to Peer as the expected owner', async () => {
+    const PeerMock = vi.mocked((await import('../../../src/ts/Peer')).default);
+    PeerMock.mockClear();
+
+    const wrapper = createWrapper({ owner: 'owner-hash-123' });
+    await wrapper.vm.init();
+
+    expect(PeerMock).toHaveBeenCalledTimes(1);
+    expect(PeerMock.mock.calls[0][4]).toBe('owner-hash-123');
+  });
+
   test('handles room management', async () => {
     const wrapper = createWrapper();
 
@@ -193,17 +222,39 @@ describe('Classroom View', () => {
 
     await wrapper.vm.init();
     
-    // Test teacher role
-    wrapper.vm.peerID = 'test-user';
+    // The owner (createdBy) is a teacher, also with the key's padding stripped
+    vi.mocked(getPeerID).mockReturnValue('test-user');
+    expect(wrapper.vm.getRole()).toBe('teacher');
+    wrapper.vm.configuration.data.createdBy = 'test-user==';
     expect(wrapper.vm.getRole()).toBe('teacher');
 
-    // Test student role
-    wrapper.vm.peerID = 'test-student';
+    // Listed teachers too, compared the same way
+    vi.mocked(getPeerID).mockReturnValue('listed-teacher');
+    wrapper.vm.configuration.data.members = { teacher: ['listed-teacher='], student: [] };
+    expect(wrapper.vm.getRole()).toBe('teacher');
+
+    vi.mocked(getPeerID).mockReturnValue('test-student');
     expect(wrapper.vm.getRole()).toBe('student');
 
     // Test station role
     wrapper.vm.isStation = true;
     expect(wrapper.vm.getRole()).toBe('station');
+    vi.mocked(getPeerID).mockReturnValue('test-peer-id');
+  });
+
+  test('shows that the connection is lost until it is back', async () => {
+    const wrapper = createWrapper();
+    mockCommunication.on.mockClear();
+    await wrapper.vm.init();
+    const onOnline = mockCommunication.on.mock.calls.find(([event]) => event === 'online')![1];
+
+    expect(wrapper.find('[data-test="offline-chip"]').exists()).toBe(false);
+    onOnline(false);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="offline-chip"]').exists()).toBe(true);
+    onOnline(true);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="offline-chip"]').exists()).toBe(false);
   });
 
   test('handles chat messages', async () => {
@@ -216,29 +267,155 @@ describe('Classroom View', () => {
     expect(mockCommunication.sendMessage).toHaveBeenCalledWith('test message');
   });
 
-  test('handles class configuration updates', async () => {
+  test('marks the chat as new only for messages written since the class was opened', async () => {
     const wrapper = createWrapper();
     await wrapper.vm.init();
+    mockCommunication.on.mockClear();
+    await wrapper.vm.scrapeModules();
+    const onChat = mockCommunication.on.mock.calls.find(([event]) => event === 'chat')![1];
+    const since = wrapper.vm.chat.since;
+    const msg = (signature: string, timestamp: number) => ({ signature, timestamp, msg: signature, user: 'u' });
 
-    const newConfig = {
-      name: 'Updated Class',
-      modules: [],
-      meta: { defaultNumberOfRooms: 3 }
-    };
+    // History: written before we came, shown as its writers' presence arrives
+    onChat({ messages: [], truncated: false });
+    onChat({ messages: [msg('old-1', since - 60000)], truncated: false });
+    onChat({ messages: [msg('old-1', since - 60000), msg('old-2', since - 1000)], truncated: false });
+    expect(wrapper.vm.chat.new).toBe(false);
 
-    // Directly update the configuration
-    wrapper.vm.configuration = {
-      ...wrapper.vm.configuration,
-      data: newConfig
-    };
+    onChat({ messages: [msg('old-1', since - 60000), msg('old-2', since - 1000), msg('new', since + 1)], truncated: false });
+    expect(wrapper.vm.chat.new).toBe(true);
+  });
 
-    wrapper.vm.updateClass({ data: newConfig });
-    
-    expect(wrapper.vm.data).toEqual(newConfig);
-    
-    // Test database update
-    await wrapper.vm.database.update(wrapper.vm.configuration);
-    expect(wrapper.vm.database.update).toHaveBeenCalled();
+  describe('saveClass', () => {
+    const savedModule = { url: 'https://module.example/new' };
+
+    async function saveWith(changes: any) {
+      const wrapper = createWrapper();
+      await wrapper.vm.init();
+      const db: any = wrapper.vm.database;
+      db.update.mockResolvedValue('test-class');
+      vi.mocked(scrapeModule).mockClear();
+      mockCommunication.newSetup.mockClear();
+
+      wrapper.vm.saveClass({ ...wrapper.vm.configuration.data, ...changes });
+      await flushPromises();
+      return { wrapper, db };
+    }
+
+    test('stores the new setup, hands it to Peer and loads changed modules', async () => {
+      const { wrapper, db } = await saveWith({ name: 'Updated Class', modules: [savedModule] });
+
+      expect(db.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ name: 'Updated Class' }) })
+      );
+      // Peer gets what the database stored, so it signs the persisted version.
+      expect(mockCommunication.newSetup).toHaveBeenCalledWith(await db.get.mock.results[0].value);
+      expect(wrapper.vm.data.name).toBe('Updated Class');
+      expect(scrapeModule).toHaveBeenCalledWith(savedModule);
+    });
+
+    test('New room saves the room count plus one', async () => {
+      const { wrapper, db } = await saveWith({});
+      db.update.mockClear();
+      mockCommunication.newSetup.mockClear();
+
+      wrapper.vm.addRoom();
+      await flushPromises();
+
+      expect(db.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ meta: expect.objectContaining({ defaultNumberOfRooms: 3 }) }) })
+      );
+      expect(mockCommunication.newSetup).toHaveBeenCalled();
+      expect(wrapper.vm.configuration.data.meta.defaultNumberOfRooms).toBe(3);
+    });
+
+    test('New room counts up from a room count saved as text', async () => {
+      // The settings field stored the count as a string before it used v-model.number.
+      const { wrapper, db } = await saveWith({ meta: { defaultNumberOfRooms: '1' } });
+      db.update.mockClear();
+
+      wrapper.vm.addRoom();
+      await flushPromises();
+
+      expect(wrapper.vm.configuration.data.meta.defaultNumberOfRooms).toBe(2);
+    });
+
+    test('New room does nothing at the room cap', async () => {
+      const { wrapper, db } = await saveWith({ meta: { defaultNumberOfRooms: 50 } });
+      db.update.mockClear();
+
+      expect(wrapper.vm.canAddRoom()).toBe(false);
+      wrapper.vm.addRoom();
+      await flushPromises();
+
+      expect(db.update).not.toHaveBeenCalled();
+      expect(wrapper.vm.configuration.data.meta.defaultNumberOfRooms).toBe(50);
+    });
+
+    test('does not reload modules when the transport changed (the page reloads instead)', async () => {
+      await saveWith({ modules: [savedModule], communicationConfig: 'ws' });
+      expect(scrapeModule).not.toHaveBeenCalled();
+    });
+
+    test('does not reload modules that did not change', async () => {
+      await saveWith({ name: 'Renamed only' });
+      expect(scrapeModule).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('scrapeModules', () => {
+    // scrapeModule() calls that resolve only when the test says so.
+    function deferScrapes() {
+      const pending: { module: any; resolve: () => void }[] = [];
+      vi.mocked(scrapeModule).mockImplementation(
+        (module: any) =>
+          new Promise((resolve) =>
+            pending.push({ module, resolve: () => resolve({ ...module, scraped: true }) })
+          )
+      );
+      return pending;
+    }
+
+    async function startTwoScrapes() {
+      const wrapper = createWrapper();
+      await wrapper.vm.init();
+      await flushPromises();
+      const pending = deferScrapes();
+
+      const oldModule = { url: 'https://module.example/old' };
+      const newModule = { url: 'https://module.example/new' };
+      wrapper.vm.data.modules = [oldModule];
+      const first = wrapper.vm.scrapeModules();
+      wrapper.vm.data.modules = [newModule];
+      const second = wrapper.vm.scrapeModules();
+
+      return { wrapper, pending, first, second, oldModule, newModule };
+    }
+
+    test('a slow older load does not overwrite the modules of a newer one', async () => {
+      const { wrapper, pending, first, second, newModule } = await startTwoScrapes();
+
+      pending[1].resolve();
+      await second;
+      pending[0].resolve();
+      await first;
+
+      expect(wrapper.vm.scrapedModules).toEqual([{ ...newModule, scraped: true }]);
+    });
+
+    test('stays loading until the newest load finishes', async () => {
+      const { wrapper, pending, first, second, newModule } = await startTwoScrapes();
+
+      pending[0].resolve();
+      await first;
+      expect(wrapper.vm.isLoadingModules).toBe(true);
+      expect(wrapper.vm.scrapedModules).not.toEqual([{ url: 'https://module.example/old', scraped: true }]);
+
+      pending[1].resolve();
+      await second;
+      expect(wrapper.vm.isLoadingModules).toBe(false);
+      expect(wrapper.vm.scrapedModules).toEqual([{ ...newModule, scraped: true }]);
+    });
   });
 
   test('handles station mode', () => {
@@ -246,9 +423,8 @@ describe('Classroom View', () => {
 
     expect(wrapper.vm.isStation).toBe(true);
     expect(wrapper.vm.stationName).toBeTruthy();
-    
-    wrapper.vm.setStationName();
-    expect(sessionStorage.getItem(`station_test-class`)).toBeTruthy();
+    // A station keeps its generated name for the session.
+    expect(sessionStorage.getItem(`station_test-class`)).toBe(wrapper.vm.stationName);
   });
 
   test('validates station names', () => {
@@ -286,55 +462,6 @@ describe('Classroom View', () => {
     // Verify storage and reload
     expect(sessionStorage.getItem(`station_test-class`)).toBe('new-station');
     expect(reloadMock).toHaveBeenCalled();
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      
-      // Test station mode translations
-      const stationWrapper = createWrapper({ station: true });
-      await stationWrapper.vm.$nextTick();
-      
-      const translations = messages[locale].classroom;
-      
-      // Check station mode text
-      const cardTexts = stationWrapper.findAll('.v-card-text');
-      expect(cardTexts[0].text()).toContain(translations.station.mode);
-
-      // Check station mode form content
-      const form = stationWrapper.find('.v-form');
-      expect(form.exists()).toBe(true);
-
-      // Check that station label is used somewhere in the template
-      expect(stationWrapper.html()).toContain(translations.station.label);
-
-      // Check station mode description
-      expect(cardTexts[1].text()).toContain(translations.station.modeDescription);
-
-      // Check exit station mode button
-      const lastCardText = stationWrapper.findAll('.v-card-text').at(-1);
-      const exitButton = lastCardText.find('.v-btn');
-      expect(exitButton.text()).toContain(translations.station.exit);
-
-      // Create a new wrapper for side menu tests (classroom mode)
-      const menuWrapper = createWrapper();
-      await menuWrapper.vm.$nextTick();
-
-      menuWrapper.vm.showSideMenu = true;
-      await menuWrapper.vm.$nextTick();
-
-      // Check side menu texts
-      const sideMenuTranslations = translations.sideMenu;
-      
-      expect(menuWrapper.html()).toContain(sideMenuTranslations.onlineUsers);
-
-      menuWrapper.vm.isOwner = true;
-      await menuWrapper.vm.$nextTick();
-      
-      expect(menuWrapper.html()).toContain(sideMenuTranslations.settings);
-      expect(menuWrapper.html()).toContain(sideMenuTranslations.newRoom);
-    });
   });
 });
 

@@ -1,5 +1,6 @@
 import {
   getPeerID,
+  getBasePeerID,
   initCryptoIdentity,
   deepEqual,
   getShortPeerID,
@@ -12,15 +13,20 @@ import {
   verifySetup,
   hashPubKey,
   stripPubKey,
+  sameKey,
+  isMember,
   signEntry,
   verifyEntry,
-  REVERT_INVALID_ORIGIN,
+  canonicalize,
   Envelope,
 } from './Utils'
 import * as Y from 'yjs'
+import * as awarenessProtocol from 'y-protocols/awareness'
+import { decoding } from 'lib0'
 // @ts-ignore
-import { EdrysWebrtcProvider } from './EdrysWebrtcProvider'
-import { EdrysWebsocketProvider } from './EdrysWebsocketProvider'
+import { GenericWebrtcProviderAdapter } from './GenericProviderAdapter'
+import { GenericWebsocketProviderAdapter } from './GenericWebsocketProviderAdapter'
+import { SignedPresence } from './Presence'
 import { debug } from '../api/debugHandler'
 
 function LOG(...args: any[]) {
@@ -43,6 +49,18 @@ function teacherMembersChangeAllowed(newMembers: any, ownerPubKey: string): bool
 const LOBBY = 'Lobby'
 const STATION = 'Station'
 
+// A message signed this long before the newest nonce known of its sender is
+// dropped, newer ones only if their nonce was seen.
+const REPLAY_WINDOW = 60000
+
+// What a module message signature covers: everything except the transport's
+// id/sender, the receiver's date and the envelope itself. JSON round-trip, so
+// sender and receiver canonicalize the same value.
+function signedPart(msg: any): any {
+  const { id, sender, date, envelope, ...rest } = msg
+  return JSON.parse(JSON.stringify(rest))
+}
+
 // An empty list or one containing '*' means "everyone allowed" — no allowlist.
 function isExplicitAllowlist(students: string[] | undefined): boolean {
   if (!students || students.length === 0) return false
@@ -63,7 +81,7 @@ function isInMembers(
 }
 
 /**
- * Authorization rule for y.users[id] writes.
+ * Authorization rule for presence entries.
  *  - Human peer (id = "<pubkey>_<sessionID>"): signer's pubkey must equal "<pubkey>".
  *  - Station peer (id starts with "Station "): signer must be owner or in teachers.
  *  - When `students` is a finite allowlist, signer must also be in owner∪teachers∪students.
@@ -87,9 +105,8 @@ export function isAuthorizedUserSigner(
   return stripPubKey(pubkeyPart) === stripPubKey(signer)
 }
 
-// Lobby is the bootstrap room and is always open to any signer (its existence
-// is a global invariant; sub-state writes are gated separately). All other
-// rooms require owner or teacher.
+// Lobby always exists, so any signer may (re)make its state. All other rooms,
+// station rooms included, require owner or teacher.
 export function isAuthorizedRoomSigner(
   name: string,
   signer: string,
@@ -104,6 +121,21 @@ export function isAuthorizedRoomSigner(
 }
 
 let heartbeatID: ReturnType<typeof setInterval> | null
+
+// Heartbeat checks a room we haven't seen in the view since connecting may be
+// missing before we move to the Lobby (e.g. reloading into a stopped
+// station). A room we did see moves us as soon as it drops out: presence
+// already holds a vanished station for ABSENT_GRACE.
+const MISSING_ROOM_CHECKS = 2
+
+// Most numbered rooms a setup's room count makes; each one is a signed write.
+export const MAX_ROOMS = 50
+
+// A station that reloads drops out of the view until it is back (well under
+// a second in tests); its visitors wait this long for it before moving to the
+// Lobby. A station's signed leave looks the same whether it reloads or closes,
+// so this is also how long a closed station keeps its visitors.
+export const STATION_RETURN_GRACE = 8000
 
 const backupConfig = {
   iceServers: [
@@ -138,16 +170,21 @@ const SignallingServer = JSON.parse(
 
 const WebSocketServer = process.env.WEBSOCKET_SERVER || 'wss://demos.yjs.dev'
 
-// Origin for deleting a never-legitimate (forged/unauthorized) y.users entry.
-const PURGE_UNAUTHORIZED_ORIGIN = 'purge-unauthorized'
-
 export default class Peer {
-  private provider: EdrysWebrtcProvider | EdrysWebsocketProvider
+  private provider:
+    | GenericWebrtcProviderAdapter
+    | GenericWebsocketProviderAdapter
   private providerType: 'WebRTC' | 'Websocket' = 'WebRTC'
   private websocketUrl: string = WebSocketServer
   private webrtcConfig: any = RTCConfiguration
   private signalingServer: string[] = SignallingServer
   private _hasSetupObserver: boolean = false
+  // The newest setup record (config + timestamp) we verified or signed, as
+  // plain JSON. Owners/teachers republish it verbatim when the doc copy is
+  // missing, invalid or older.
+  private _lastGoodSetup: { config: any; timestamp: number } | null = null
+  // Setup checks verify asynchronously; chained so they never interleave.
+  private _setupCheck: Promise<void> = Promise.resolve()
   private throttledUpdate: any
 
   private t: (key: string) => string
@@ -157,8 +194,6 @@ export default class Peer {
     chat: Y.Array<any>
     rooms: Y.Map<any>
     roomSigs: Y.Map<Envelope>
-    users: Y.Map<any>
-    userSigs: Y.Map<Envelope>
     setup: Y.Map<any>
   }
 
@@ -168,7 +203,6 @@ export default class Peer {
     id: string
     data: any
     timestamp: number
-    hash: string | null
   }
 
   private connected: boolean = false
@@ -181,7 +215,7 @@ export default class Peer {
   private ownerMismatch: boolean = false
 
   constructor(
-    setup: { id: string; data: any; timestamp: number; hash: string | null },
+    setup: { id: string; data: any; timestamp: number },
     stationID?: string,
     t?: (key: string) => string,
     password?: string,
@@ -194,8 +228,6 @@ export default class Peer {
     this.y = {
       doc,
       setup: doc.getMap('setup'),
-      users: doc.getMap('users'),
-      userSigs: doc.getMap('userSigs'),
       rooms: doc.getMap('rooms'),
       roomSigs: doc.getMap('roomSigs'),
       chat: doc.getArray('chat'),
@@ -258,12 +290,13 @@ export default class Peer {
     }
 
     // Set up persistence before connecting
-    const room = this.lab.id + (this.lab.hash || '')
+    this.connectProvider(this.lab.id, password)
 
-    this.connectProvider(room, password)
-
-    // Ensure cleanup on page unload
+    // Leave on page unload. beforeunload, while the connections still carry
+    // our signed leave (by pagehide they no longer do); pagehide where
+    // beforeunload doesn't fire (mobile).
     window.addEventListener('beforeunload', this.stop)
+    window.addEventListener('pagehide', this.stop)
   }
 
   /**
@@ -277,15 +310,17 @@ export default class Peer {
         this.peerID = getPeerID()
       }
 
-      // Initialize local state now that peerID is known
+      // Initialize local state now that peerID is known. Rooms are seeded by
+      // join() once connected: seeding Lobby into an unsynced doc overwrites
+      // the room's existing Lobby, which every other peer then reverts.
       this.y.doc.transact(() => {
-        this.initUser(this.role, false)
-        this.initRooms()
         this.initChat()
         this.initSetup()
       }, 'initialization')
+      this._observeRooms()
 
       this._connectProviderWithIdentity(room, password)
+      this.initUser(this.role)
     }).catch((e) => console.error('Crypto identity init failed:', e))
   }
 
@@ -300,7 +335,7 @@ export default class Peer {
       if (this.providerType === 'WebRTC') {
         LOG('Connecting using WebRTC provider')
 
-        this.provider = new EdrysWebrtcProvider(room, this.y.doc, {
+        const webrtcOptions = {
           signaling: this.signalingServer,
           password: password || 'password',
           userid: this.peerID,
@@ -308,7 +343,9 @@ export default class Peer {
           peerOpts: {
             config: this.webrtcConfig
           }
-        })
+        }
+
+        this.provider = new GenericWebrtcProviderAdapter(room, this.y.doc, webrtcOptions)
 
         // Handle provider status events
         this.provider.on('status', this.handleStatus.bind(this))
@@ -318,82 +355,58 @@ export default class Peer {
       } else if (this.providerType === 'Websocket') {
         LOG('Connecting using WebSocket provider')
 
-        this.provider = new EdrysWebsocketProvider(room, this.y.doc, {
+        const websocketOptions = {
           serverUrl: this.websocketUrl,
           userid: this.peerID,
           classroomId: room,
-        })
+        }
+
+        this.provider = new GenericWebsocketProviderAdapter(room, this.y.doc, websocketOptions)
 
         // Event handlers for WebSocket provider (status and synced)
         this.provider.on('status', this.handleStatus.bind(this))
         this.provider.on('synced', this.handleSynced.bind(this))
       }
 
+      this.presence?.stop()
+      // Peers show up again one by one on the new connection; until our
+      // room does, it may not be gone.
+      this._seenOwnRoom = null
+      this._ownRoomGoneAt = null
+      this.presence = new SignedPresence(
+        this.provider.getPresenceAwareness(),
+        this.peerID,
+        (id, signer) => this._isAuthorizedUserSigner(id, signer),
+        () => {
+          this._dropDepartedModuleAwareness()
+          this._refreshChat()
+          this._leaveMissingRoom(false)
+          this.throttledUpdate()
+        }
+      )
+      this._visiblePeers = new Set()
+
       // Register the onLeave callback
       this.provider.onLeave((userid) => {
-        debug.ts.peer(`Peer with userid ${userid} has left the room.`)
+        this._dropModuleAwareness(userid)
         if (userid && userid.startsWith(STATION + ' ')) return
+
+        const base = getBasePeerID(userid)
+        const stillPresent = Object.keys(this.presence.visible).some(
+          (id) => id !== userid && getBasePeerID(id) === base
+        )
+        if (!stillPresent) {
+          debug.ts.peer(`Peer with userid ${userid} has left the room.`)
+        }
         this.removePeers([userid])
       })
 
       // Listen for messages
-      this.provider.onMessage((msg) => {
-        this.update('message', msg)
-      })
+      this.provider.onMessage((msg) => this._receive(msg))
     } catch (error) {
       console.error('Error connecting provider:', error)
       // Implement retry logic or other recovery mechanisms if necessary
     }
-  }
-
-  /**
-   * Switches the communication provider at runtime.
-   * @param config The new communication configuration.
-   */
-  switchProvider(config: {
-    communicationMethod: 'WebRTC' | 'Websocket'
-    websocketUrl?: string
-    webrtcConfig?: string | object
-  }) {
-    if (
-      config.communicationMethod === this.providerType &&
-      (config.communicationMethod !== 'Websocket' ||
-        config.websocketUrl === this.websocketUrl) &&
-      (config.communicationMethod !== 'WebRTC' ||
-        deepEqual(
-          typeof config.webrtcConfig === 'string'
-            ? JSON.parse(config.webrtcConfig as string)
-            : config.webrtcConfig,
-          this.webrtcConfig
-        ))
-    ) {
-      LOG('Provider configuration unchanged')
-      return
-    }
-
-    this.providerType = config.communicationMethod
-
-    if (config.websocketUrl) {
-      this.websocketUrl = config.websocketUrl
-    }
-
-    if (config.webrtcConfig) {
-      if (typeof config.webrtcConfig === 'string') {
-        try {
-          this.webrtcConfig = JSON.parse(config.webrtcConfig)
-        } catch (e) {
-          console.error('Invalid WebRTC config JSON:', e)
-        }
-      } else {
-        this.webrtcConfig = config.webrtcConfig
-      }
-    }
-
-    // Reconnect with new provider
-    this.connected = false
-    this.update('connected')
-    const room = this.lab.id + (this.lab.hash || '')
-    this.connectProvider(room)
   }
 
   /**
@@ -402,8 +415,7 @@ export default class Peer {
   private handleStatus(event: { status: string }) {
     LOG('status', event)
 
-    // Observe setup changes
-    this.y.setup.observe(this.handleSetupChange.bind(this))
+    this._observeSetup()
     // Delay setting connected to true to ensure synchronization
     setTimeout(() => {
       if (!this.connected) {
@@ -424,11 +436,7 @@ export default class Peer {
   private handleSynced(event: any) {
     LOG('Synced event received', event)
 
-    // Observe setup changes if not already observing
-    if (!this._hasSetupObserver) {
-      this.y.setup.observe(this.handleSetupChange.bind(this))
-      this._hasSetupObserver = true
-    }
+    this._observeSetup()
 
     if (!this.connected) {
       this.connected = true
@@ -437,39 +445,31 @@ export default class Peer {
       if (!this.allowedToParticipate()) {
         this.update('popup', this.t('peer.feedback.noAccess'))
       }
-      // If the setup is empty or doesn't match our lab data, initialize it
-      const timestamp = this.y.setup.get('timestamp') as number
-      if (!timestamp && this.lab.timestamp > 0 && this.lab.data) {
-        LOG('Initializing setup from local data during sync')
-        this.initSetup(true)
-      }
-
-      this._ownerAutoHealStaleSigner().catch((e) =>
-        console.error('owner auto-heal failed:', e)
-      )
+      // A room with no (valid) setup yet gets ours, if we may publish it.
+      this.initSetup()
     }
+  }
+
+  /**
+   * Observes y.setup once. Status events repeat on every reconnect, and each
+   * extra observer would re-verify (and re-sign) every setup change.
+   */
+  private _observeSetup() {
+    if (this._hasSetupObserver) return
+    this.y.setup.observe(this.handleSetupChange.bind(this))
+    this._hasSetupObserver = true
   }
 
   /**
    * Observes setup changes and initializes setup if necessary.
    */
   private handleSetupChange(_event: Y.YMapEvent<any>) {
-    const timestamp = this.y.setup.get('timestamp')
-
-    // Skip partial merge states where Y.js delivers config and timestamp in
-    // separate observer calls — wait for the event that includes timestamp.
-    if (timestamp === undefined) return
-
-    if (this.lab.timestamp !== timestamp) {
-      this.initSetup()
-    }
+    this.initSetup()
   }
 
-  /**
-   * Returns the current user data.
-   */
-  user() {
-    return this.y.users.get(this.peerID)
+  /** Our own presence payload, or null before it was first published. */
+  user(): any | null {
+    return this.presence?.own ?? null
   }
 
   /**
@@ -479,21 +479,9 @@ export default class Peer {
     return this.role === 'station'
   }
 
-  /**
-   * Removes peers by their peerIDs.
-   * @param peerIds Array of peerIDs to remove.
-   */
+  /** Hides peers the transport reported gone, until they publish again. */
   removePeers(peerIds: string[]) {
-    const peers = this.y.users.toJSON()
-
-    this.y.doc.transact(() => {
-      for (const id in peers) {
-        if (peerIds.includes(id)) {
-          this.y.users.delete(id)
-          this.y.userSigs.delete(id)
-        }
-      }
-    }, 'removePeers')
+    for (const id of peerIds) this.presence?.markLeft(id)
   }
 
   logSetupChanges(oldSetup: any, newSetup: any) {
@@ -534,42 +522,38 @@ export default class Peer {
     if (!deepEqual(oldSetup.members, newSetup.members)) {
       const id = getPeerID(false)
 
-      if (newSetup.createdBy === id || this.isStation()) {
+      if (sameKey(newSetup.createdBy, id) || this.isStation()) {
         return
       }
 
       if (
-        oldSetup.members.teacher.includes(id) &&
-        !newSetup.members.teacher.includes(id)
+        isMember(oldSetup.members.teacher, id) &&
+        !isMember(newSetup.members.teacher, id)
       ) {
         this.update('popup', this.t('peer.feedback.removedTeacher'))
-        const next = this._nextUserPayload(this.peerID, { role: 'student' })
-        if (next) this._writeAndSignUser(this.peerID, next, 'roleDemote')
       }
 
       if (
-        !oldSetup.members.teacher.includes(id) &&
-        newSetup.members.teacher.includes(id)
+        !isMember(oldSetup.members.teacher, id) &&
+        isMember(newSetup.members.teacher, id)
       ) {
         this.update('popup', this.t('peer.feedback.addedTeacher'))
-        const next = this._nextUserPayload(this.peerID, { role: 'teacher' })
-        if (next) this._writeAndSignUser(this.peerID, next, 'rolePromote')
         return
       }
 
       if (
-        oldSetup.members.teacher.includes(id) &&
-        newSetup.members.teacher.includes(id)
+        isMember(oldSetup.members.teacher, id) &&
+        isMember(newSetup.members.teacher, id)
       ) {
         return
       }
 
-      const isInOldSetup = oldSetup.members.student.includes(id)
+      const isInOldSetup = isMember(oldSetup.members.student, id)
       const oldOpen =
         oldSetup.members.student.length === 0 ||
         oldSetup.members.student.includes('*')
 
-      const isInNewSetup = newSetup.members.student.includes(id)
+      const isInNewSetup = isMember(newSetup.members.student, id)
       const newOpen =
         newSetup.members.student.length === 0 ||
         newSetup.members.student.includes('*')
@@ -597,36 +581,70 @@ export default class Peer {
   }
 
   /**
-   * Initializes the setup map with proper conflict resolution.
+   * Publishes our setup (force: a local edit, signed anew) or checks y.setup.
+   *
+   * y.setup is verified on read: a peer adopts a doc record only if it
+   * verifies and is newer than its own, and never writes a reader's
+   * correction. Only owners/teachers republish, and only when the doc copy
+   * is missing, invalid or older than ours, so late joiners still find a
+   * valid one.
    */
   initSetup(force: boolean = false) {
-    const timestamp: number = (this.y.setup.get('timestamp') as number) || 0
-    const data = this.y.setup.get('config')
-
     if (force) {
       LOG('Force update new configuration')
-      this._signAndWrite(data).catch((e) => console.error('initSetup sign failed:', e))
-    } else if (this.lab.timestamp < timestamp) {
-      this._verifyAndAccept(data, timestamp).then((accepted) => {
-        // If the incoming config was rejected and we have our own valid config, overwrite
-        if (!accepted && this.lab.timestamp > 0 && this.lab.data) {
-          LOG('Incoming config rejected, reasserting our own signed config')
-          this._signAndWrite(data).catch((e) => console.error('initSetup reassert failed:', e))
-        }
-      }).catch((e) => console.error('initSetup verify failed:', e))
-    } else if (
-      (this.lab.timestamp !== timestamp && this.lab.timestamp > 0) ||
-      (timestamp === 0 && this.lab.timestamp > 0 && this.lab.data)
-    ) {
-      LOG('received outdated or empty lab configuration, writing changes back')
-      this._signAndWrite(data).catch((e) => console.error('initSetup writeback failed:', e))
+      this._signAndWrite(this._lastGoodSetup?.config ?? this.y.setup.get('config'))
+        .catch((e) => console.error('initSetup sign failed:', e))
+      return
+    }
+    this._setupCheck = this._setupCheck
+      .then(() => this._checkSetup())
+      .catch((e) => console.error('setup check failed:', e))
+  }
+
+  private async _checkSetup(): Promise<void> {
+    const timestamp: number = (this.y.setup.get('timestamp') as number) || 0
+    const raw = this.y.setup.get('config')
+    const data = raw ? JSON.parse(JSON.stringify(raw)) : null
+    const good = this._lastGoodSetup
+    if (data && good && timestamp === good.timestamp && deepEqual(data, good.config)) return
+
+    if (data && timestamp > this.lab.timestamp) {
+      if (await this._verifyAndAccept(data, timestamp)) return
+    } else if (data && timestamp > 0 && timestamp === this.lab.timestamp) {
+      // Our own setup, e.g. published in an earlier session: remember it.
+      if (await this._verifySetupRecord(data, timestamp)) {
+        this._lastGoodSetup = { config: data, timestamp }
+        return
+      }
+    }
+
+    // The doc copy is missing, invalid or older than ours.
+    if (this.lab.timestamp > 0 && this.lab.data) await this._republishSetup()
+  }
+
+  private async _republishSetup(): Promise<void> {
+    const me = stripPubKey(getPeerID(false))
+    const teachers: string[] = this.lab.data?.members?.teacher || []
+    if (me !== stripPubKey(this.lab.data?.createdBy || '') &&
+        !teachers.some((t) => stripPubKey(t) === me)) return
+
+    const good = this._lastGoodSetup
+    if (good && good.timestamp === this.lab.timestamp) {
+      LOG('y.setup is missing, invalid or outdated, republishing the last good one')
+      this.y.doc.transact(() => {
+        this.y.setup.set('config', good.config)
+        this.y.setup.set('timestamp', good.timestamp)
+      }, 'republishSetup')
+    } else {
+      LOG('y.setup is missing, invalid or outdated, signing ours')
+      await this._signAndWrite(good?.config ?? null)
     }
   }
 
   private async _signAndWrite(existingCrdt: any): Promise<void> {
     const myPubKey = getPeerID(false)
     const ownerPubKey: string = this.lab.data?.createdBy || ''
-    const isOwner = myPubKey === ownerPubKey
+    const isOwner = sameKey(myPubKey, ownerPubKey)
 
     // Deserialize Yjs Proxy to plain object for reliable field access and comparison
     const existingMembers = existingCrdt != null ? JSON.parse(JSON.stringify(existingCrdt)).members ?? null : null
@@ -651,6 +669,8 @@ export default class Peer {
       setupSignature: await signSetup({ ...this.lab.data, createdBy: ownerPubKey, timestamp: this.lab.timestamp }),
     }
     this.logSetupChanges(this.lab.data, dataToWrite)
+    // Set before the write so our own observer sees it as already good.
+    this._lastGoodSetup = { config: JSON.parse(JSON.stringify(dataToWrite)), timestamp: this.lab.timestamp }
     this.y.doc.transact(() => {
       this.y.setup.set('config', dataToWrite)
       this.y.setup.set('timestamp', this.lab.timestamp)
@@ -660,47 +680,54 @@ export default class Peer {
     }, 'initSetup')
   }
 
-  /**
-   * When the owner is online and the CRDT setup is signed by someone no longer
-   * authorized, overwrite it with a fresh owner-signed setup.
-   */
-  private async _ownerAutoHealStaleSigner(): Promise<void> {
-    const myPubKey = getPeerID(false)
-    const ownerPubKey: string = this.lab.data?.createdBy || ''
-    if (myPubKey !== ownerPubKey) return
-
-    const currentConfig: any = this.y.setup.get('config')
-    if (!currentConfig || !currentConfig.setupSigner) return
-
-    const signer: string = currentConfig.setupSigner
-    const signerIsOwner = stripPubKey(signer) === stripPubKey(ownerPubKey)
-    if (signerIsOwner) return
-
-    const currentTeachers: string[] = this.lab.data?.members?.teacher || []
-    const signerIsTeacher = currentTeachers.some((t: string) => stripPubKey(t) === stripPubKey(signer))
-    if (signerIsTeacher) return
-
-    LOG('y.setup signed by unauthorized signer, owner re-signing to heal')
-    await this._signAndWrite(currentConfig)
-  }
-
   // Re-run authz on entries we deferred while lab.data.createdBy was empty.
   private _reverifyAfterSetup(): void {
-    const roomKeys = new Set(Object.keys(this.y.rooms.toJSON()))
-    if (roomKeys.size > 0) {
-      this._verifyAndRevertRoomChange(roomKeys, false).catch((e) => LOG('reverify rooms failed', e))
-    }
-    const userKeys = new Set(Object.keys(this.y.users.toJSON()))
-    if (userKeys.size > 0) {
-      this._verifyAndRevertUserChange(userKeys).catch((e) => LOG('reverify users failed', e))
-    }
-    if (this.isStation() && !this.y.rooms.has(this.peerID) &&
-        this._isAuthorizedRoomSigner(this.peerID, getPeerID(false))) {
-      this.addRoom(this.peerID)
-    }
+    // Roles and room authorization are derived from the setup, so the view
+    // changes with it; who may republish a room may change too.
+    this.presence?.reauthorize()
+    this._refreshChat()
+    this._checkRooms(new Set([...this.y.roomSigs.keys(), ...this.y.rooms.keys()]))
+    this._ensureStationRoom()
+    // The room count may have dropped below our room.
+    this._leaveMissingRoom(false)
   }
 
   private async _verifyAndAccept(data: any, timestamp: number): Promise<boolean> {
+    if (!(await this._verifySetupRecord(data, timestamp))) return false
+
+    const localCreatedBy: string | undefined = this.lab.data?.createdBy
+    const isLegacyCreatedBy = !!localCreatedBy && localCreatedBy.length < 40
+
+    LOG(`receiving lab configuration`)
+    this._lastGoodSetup = { config: JSON.parse(JSON.stringify(data)), timestamp }
+    this.logSetupChanges(this.lab.data, data)
+    this.lab.data = {
+      ...this.lab.data,
+      name: data.name,
+      meta: data.meta,
+      modules: data.modules,
+      members: data.members,
+      createdBy: isLegacyCreatedBy ? data.createdBy : (localCreatedBy || data.createdBy),
+      communicationConfig: data.communicationConfig,
+      keepUrlConfig: data.keepUrlConfig,
+    }
+    this.lab.timestamp = timestamp
+    this.update('setup')
+
+    if (!this.allowedToParticipate()) {
+      this.update('popup', this.t('peer.feedback.noAccess'))
+    }
+
+    // Rooms/station-users that we received before knowing the owner pubkey
+    // were left in place with integrity verified but authz deferred. Run
+    // authz now that lab.data.createdBy is known.
+    this._reverifyAfterSetup()
+
+    return true
+  }
+
+  /** Whether a setup record is signed by someone allowed to make it, against our current setup. */
+  private async _verifySetupRecord(data: any, timestamp: number): Promise<boolean> {
     if (!data || !data.setupSignature || !data.setupSigner || !data.createdBy) {
       LOG('Setup rejected: missing signature fields')
       return false
@@ -757,63 +784,11 @@ export default class Peer {
       LOG('Setup rejected: invalid signature')
       return false
     }
-
-    LOG(`receiving lab configuration`)
-    this.logSetupChanges(this.lab.data, data)
-    this.lab.data = {
-      ...this.lab.data,
-      name: data.name,
-      meta: data.meta,
-      modules: data.modules,
-      members: data.members,
-      createdBy: isLegacyCreatedBy ? data.createdBy : (localCreatedBy || data.createdBy),
-      communicationConfig: data.communicationConfig,
-      keepUrlConfig: data.keepUrlConfig,
-    }
-    this.lab.timestamp = timestamp
-    this.update('setup')
-
-    if (!this.allowedToParticipate()) {
-      this.update('popup', this.t('peer.feedback.noAccess'))
-    }
-
-    // Rooms/station-users that we received before knowing the owner pubkey
-    // were left in place with integrity verified but authz deferred. Run
-    // authz now that lab.data.createdBy is known.
-    this._reverifyAfterSetup()
-
     return true
   }
 
-  /**
-   * Write a full user payload AND its signature in a single transaction so the
-   * two land atomically on every remote peer. Receivers verify against the
-   * exact payload that was signed.
-   */
-  private async _writeAndSignUser(peerID: string, payload: any, origin: string): Promise<void> {
-    try {
-      const envelope = await signEntry('users', peerID, payload)
-      this.y.doc.transact(() => {
-        const m = new Y.Map()
-        for (const k of Object.keys(payload)) m.set(k, payload[k])
-        this.y.users.set(peerID, m)
-        this.y.userSigs.set(peerID, envelope)
-      }, origin)
-    } catch (e) {
-      LOG('writeAndSignUser failed', peerID, e)
-    }
-  }
-
-  /**
-   * Write a full user payload AND its signature in a single transaction so the
-   * two land atomically on every remote peer. Receivers verify against the
-   * exact payload that was signed.
-   */
-  private _nextUserPayload(peerID: string, patch: Record<string, any>): any | null {
-    const entry = this.y.users.get(peerID)
-    if (!entry) return null
-    return { ...entry.toJSON(), ...patch }
-  }
+  private presence!: SignedPresence
+  private _stopped: boolean = false
 
   /** Per-instance wrapper around the pure isAuthorizedUserSigner rule. */
   private _isAuthorizedUserSigner(id: string, signer: string): boolean {
@@ -824,87 +799,6 @@ export default class Peer {
       this.lab.data?.members?.teacher || [],
       this.lab.data?.members?.student || []
     )
-  }
-
-  /** Last verified (payload, envelope) per user key — used to restore on invalid mutation. */
-  private _lastGoodUser: Map<string, { payload: any; envelope: Envelope }> = new Map()
-
-  /** Restore the cached good state for key, or delete if no cache exists. */
-  private _restoreOrDelete(key: string): void {
-    const cached = this._lastGoodUser.get(key)
-    if (cached) {
-      // Restore last-good signed state. Stays local (REVERT_INVALID_ORIGIN):
-      // the legit entry already exists on other peers, so no need to propagate.
-      this.y.doc.transact(() => {
-        const m = new Y.Map()
-        for (const k of Object.keys(cached.payload)) m.set(k, cached.payload[k])
-        this.y.users.set(key, m)
-        this.y.userSigs.set(key, cached.envelope)
-      }, REVERT_INVALID_ORIGIN)
-    } else if (key === this.peerID) {
-      LOG('y.users own entry uncached — skipping purge', key)
-    } else {
-      // No last-good state → the entry was never legitimate (forged/unauthorized).
-      // Propagate the delete so a relay's authoritative server doc is corrected
-      // once; otherwise the server re-delivers the forgery forever (WS transport).
-      this.y.doc.transact(() => {
-        this.y.users.delete(key)
-        this.y.userSigs.delete(key)
-      }, PURGE_UNAUTHORIZED_ORIGIN)
-    }
-  }
-
-  /**
-   * Verify y.users mutations for the given keys. Legit writes via
-   * `_writeAndSignUser` always land entry+sig atomically, so an entry without
-   * a matching valid envelope can only come from a forged raw write — revert
-   * by restoring last-good state (or delete if no prior good state exists).
-   */
-  private async _verifyAndRevertUserChange(keys: Set<string>): Promise<void> {
-    const authzKnown = !!(this.lab.data?.createdBy)
-    for (const key of keys) {
-      try {
-        const value = this.y.users.get(key)
-        if (!value) {
-          // Entry was deleted. If the sidecar holds a valid tombstone signed
-          // by an authorized signer, accept the delete; otherwise heal.
-          const sigEnv = this.y.userSigs.get(key) as Envelope | undefined
-          if (await this._isValidTombstone('users', key, sigEnv)) {
-            this._lastGoodUser.delete(key)
-            LOG('y.users entry tombstoned', key)
-          } else {
-            this._restoreOrDelete(key)
-          }
-          continue
-        }
-        const envelope = this.y.userSigs.get(key) as Envelope | undefined
-        const payload = value.toJSON()
-        // Long-lived presence, signed once — bypass the freshness window so old
-        // entries aren't rejected and purge-looped.
-        const sigValid = envelope
-          ? await verifyEntry('users', key, payload, envelope, Number.POSITIVE_INFINITY)
-          : false
-        if (!sigValid) {
-          LOG('y.users entry rejected (bad sig)', key, { hasEnvelope: !!envelope })
-          this._restoreOrDelete(key)
-          continue
-        }
-        // Station authz needs owner/teacher; member-allowlist authz needs the
-        // student list. Defer the authz call entirely until setup has synced.
-        if (!authzKnown) continue
-        const authorized = this._isAuthorizedUserSigner(key, (envelope as Envelope).signer)
-        if (authorized) {
-          this._lastGoodUser.set(key, { payload, envelope: envelope as Envelope })
-        } else if (key === this.peerID) {
-          LOG('y.users own entry not authorized — keeping local-only', key)
-        } else {
-          LOG('y.users entry rejected (unauthorized)', key, { signer: (envelope as Envelope).signer })
-          this._restoreOrDelete(key)
-        }
-      } catch (e) {
-        LOG('verifyAndRevertUserChange failed', key, e)
-      }
-    }
   }
 
   /** Per-instance wrapper around the pure isAuthorizedRoomSigner rule. */
@@ -918,156 +812,102 @@ export default class Peer {
     )
   }
 
-  // Local-origin tags; anything else is treated as remote and verified.
-  private static ROOM_LOCAL_ORIGINS = new Set<string>([
-    'addRoom',
-    'initRooms',
-    'initialization',
-    'checkForDeadStations',
-    'stationShutdown',
-    REVERT_INVALID_ORIGIN,
-  ])
+  /**
+   * Verified room records (y.roomSigs) by name. Rooms are never deleted, so
+   * a record stays here even if the doc copy is later deleted or overwritten.
+   */
+  private _roomRecords: Map<string, Envelope> = new Map()
 
-  // Sentinel payload for "this entry is intentionally deleted".
-  private static TOMBSTONE_PAYLOAD = { tombstone: true } as const
-
-  private async _isValidTombstone(
-    container: 'users' | 'rooms',
-    key: string,
-    envelope: Envelope | undefined
-  ): Promise<boolean> {
-    if (!envelope) return false
-    const sigValid = await verifyEntry(
-      container,
-      key,
-      Peer.TOMBSTONE_PAYLOAD,
-      envelope,
-      Number.POSITIVE_INFINITY
-    )
-    if (!sigValid) return false
-    if (!(this.lab.data?.createdBy)) return false
-    return container === 'users'
-      ? this._isAuthorizedUserSigner(key, envelope.signer)
-      : this._isAuthorizedRoomSigner(key, envelope.signer)
+  /**
+   * Lobby always exists and station rooms come from presence, so only other
+   * names need a record, signed by the owner or a teacher.
+   */
+  private _isValidRoomRecord(name: string, envelope: Envelope): boolean {
+    return name !== LOBBY && !name.startsWith(STATION + ' ') &&
+      this._isAuthorizedRoomSigner(name, envelope.signer)
   }
 
-  /** Last verified envelope per room — used to revert invalid writes and heal unauthorized deletes. */
-  private _lastGoodRoom: Map<string, Envelope> = new Map()
-
-  /** Atomic sign-and-write. Preserves existing Y.Map to avoid stomping per-room module sub-state. */
+  /** Signs a room record; keeps an existing Y.Map so module state survives. */
   private async _writeAndSignRoom(name: string, origin: string): Promise<void> {
     try {
       const envelope = await signEntry('rooms', name, {})
       this.y.doc.transact(() => {
-        if (!this.y.rooms.has(name)) {
+        if (!(this.y.rooms.get(name) instanceof Y.Map)) {
           this.y.rooms.set(name, new Y.Map())
         }
         this.y.roomSigs.set(name, envelope)
       }, origin)
-      // Local writes skip observer-verify, so seed the heal cache directly.
-      this._lastGoodRoom.set(name, envelope)
     } catch (e) {
       LOG('writeAndSignRoom failed', name, e)
     }
   }
 
-  /** Atomic delete of a room and its sidecar envelope. */
-  private _deleteAndUnsignRoom(name: string, origin: string): void {
-    this.y.doc.transact(() => {
-      this.y.rooms.delete(name)
-      this.y.roomSigs.delete(name)
-    }, origin)
-    this._lastGoodRoom.delete(name)
-  }
-
-  /** Restore a room (and its cached envelope) after an unauthorized delete. */
-  private _restoreRoom(name: string, envelope: Envelope): void {
-    this.y.doc.transact(() => {
-      if (!this.y.rooms.has(name)) this.y.rooms.set(name, new Y.Map())
-      this.y.roomSigs.set(name, envelope)
-    }, REVERT_INVALID_ORIGIN)
-  }
-
   /**
-   * Verify-and-revert for remote y.rooms mutations.
-   *  - Add/update with bad/missing sig → revert (delete).
-   *  - Add/update with valid sig but unknown authz (setup not yet synced) → defer.
-   *  - Add/update with valid sig + authorized → cache as last-good.
-   *  - Delete of a cached room → restore.
+   * Verifies the doc's record for each name and remembers valid ones. Nothing
+   * invalid is deleted, the view just ignores it. Only a peer allowed to
+   * create a room puts back its record or Y.Map when they go missing.
    */
-  private async _verifyAndRevertRoomChange(
-    keys: Set<string>,
-    fromLocalOrigin: boolean
-  ): Promise<void> {
-    if (fromLocalOrigin) return
-    const authzKnown = !!(this.lab.data?.createdBy)
-    for (const name of keys) {
+  private async _checkRooms(names: Iterable<string>): Promise<void> {
+    for (const name of names) {
       try {
-        const present = this.y.rooms.has(name)
-        if (!present) {
-          const sigEnv = this.y.roomSigs.get(name) as Envelope | undefined
-          if (await this._isValidTombstone('rooms', name, sigEnv)) {
-            this._lastGoodRoom.delete(name)
-            LOG('y.rooms entry tombstoned', name)
-            if (this.user() && this.user().get('room') === name) {
-              const current = this.user()
-              const next = this._nextUserPayload(this.peerID, {
-                room: LOBBY,
-                logicalClock: (current.get('logicalClock') || 0) + 1,
-              })
-              if (next) this._writeAndSignUser(this.peerID, next, 'moveToLobby')
-            }
-            continue
+        const stored = this.y.roomSigs.get(name) as Envelope | undefined
+        const envelope = stored && typeof stored === 'object'
+          ? { signer: stored.signer, nonce: stored.nonce, signature: stored.signature }
+          : undefined
+        const valid = !!envelope &&
+          await verifyEntry('rooms', name, {}, envelope)
+        if ((this.y.roomSigs.get(name) as any)?.signature !== envelope?.signature) {
+          continue // changed while verifying; that change is checked on its own
+        }
+        if (valid) {
+          const known = this._roomRecords.get(name)
+          if (!known || !this._isValidRoomRecord(name, known)) {
+            this._roomRecords.set(name, envelope as Envelope)
           }
-          const cached = this._lastGoodRoom.get(name)
-          if (cached) {
-            LOG('y.rooms entry deleted by untrusted origin, restoring', name)
-            this._restoreRoom(name, cached)
-          }
-          continue
         }
-        const envelope = this.y.roomSigs.get(name) as Envelope | undefined
-        // Rooms are long-lived and never re-signed; bypass the freshness window. Replay is harmless (creation is idempotent, sig binds to name+container).
-        const sigValid = envelope
-          ? await verifyEntry('rooms', name, {}, envelope, Number.POSITIVE_INFINITY)
-          : false
-        if (!sigValid) {
-          LOG('y.rooms entry rejected (bad sig)', name, { hasEnvelope: !!envelope })
-          this.y.doc.transact(() => {
-            this.y.rooms.delete(name)
-            this.y.roomSigs.delete(name)
-          }, REVERT_INVALID_ORIGIN)
-          continue
-        }
-        if (!authzKnown) {
-          // Integrity is proven; defer authz until setup arrives.
-          continue
-        }
-        const authorized = this._isAuthorizedRoomSigner(name, (envelope as Envelope).signer)
-        if (authorized) {
-          this._lastGoodRoom.set(name, envelope as Envelope)
-        } else {
-          LOG('y.rooms entry rejected (unauthorized)', name, { signer: (envelope as Envelope).signer })
-          this.y.doc.transact(() => {
-            this.y.rooms.delete(name)
-            this.y.roomSigs.delete(name)
-          }, REVERT_INVALID_ORIGIN)
-        }
+        this._republishRoom(name, valid && this._isValidRoomRecord(name, envelope as Envelope))
       } catch (e) {
-        LOG('verifyAndRevertRoomChange failed', name, e)
+        LOG('checkRooms failed', name, e)
       }
+    }
+    this.throttledUpdate()
+  }
+
+  private _republishRoom(name: string, docRecordValid: boolean): void {
+    if (name === this.peerID) return this._ensureStationRoom()
+    if (!this.canManageRooms()) return
+    if (name === LOBBY) {
+      if (!(this.y.rooms.get(LOBBY) instanceof Y.Map)) {
+        LOG('Lobby state is gone, recreating it')
+        this.y.doc.transact(() => this.y.rooms.set(LOBBY, new Y.Map()), 'republishRoom')
+      }
+      return
+    }
+    const record = this._roomRecords.get(name)
+    if (!record || !this._isValidRoomRecord(name, record) ||
+        !this._isAuthorizedRoomSigner(name, getPeerID(false))) return
+    const missingState = !(this.y.rooms.get(name) instanceof Y.Map)
+    if (docRecordValid && !missingState) return
+    LOG('room record or state is gone, republishing', name)
+    this.y.doc.transact(() => {
+      if (missingState) this.y.rooms.set(name, new Y.Map())
+      if (!docRecordValid) this.y.roomSigs.set(name, record)
+    }, 'republishRoom')
+  }
+
+  /** A station's room comes from its presence; this only makes the Y.Map for module state. */
+  private _ensureStationRoom(): void {
+    if (this.isStation() && !(this.y.rooms.get(this.peerID) instanceof Y.Map) &&
+        this._isAuthorizedRoomSigner(this.peerID, getPeerID(false))) {
+      this.y.doc.transact(() => this.y.rooms.set(this.peerID, new Y.Map()), 'initRooms')
     }
   }
 
   /**
-   * Initializes a user within a transaction.
-   * @param role The role of the user.
-   * @param withObserver Whether to set up observers.
+   * Publishes our presence for `role`. A re-join (role change) keeps the room
+   * we are in.
    */
-  initUser(
-    role: 'student' | 'teacher' | 'station',
-    withObserver: boolean = true
-  ) {
+  initUser(role: 'student' | 'teacher' | 'station') {
     this.role = role
 
     if (heartbeatID) {
@@ -1075,131 +915,192 @@ export default class Peer {
       heartbeatID = null
     }
 
-    const timeNow = Date.now()
-    const initialPayload = {
-      displayName: this.isStation() ? this.peerID : getShortPeerID(this.peerID),
-      room: this.isStation() ? this.peerID : LOBBY,
-      role: this.role,
-      dateJoined: timeNow,
-      logicalClock: 0,
+    const current = this.user()
+    this.presence.publish({
+      room: this.isStation() ? this.peerID : current?.room || LOBBY,
+      dateJoined: current?.dateJoined || Date.now(),
       handRaised: false,
       connections: [{ id: '', target: {} }],
-    }
-    this._writeAndSignUser(this.peerID, initialPayload, 'initUser')
+    })
 
     heartbeatID = setInterval(() => {
-      if (this.y.users.has(this.peerID)) {
-        this.checkForDeadStations()
-      } else {
-        LOG('user not found', this.peerID)
-      }
+      this._leaveMissingRoom()
+      this._checkOnline()
     }, 5000)
+  }
 
-    if (withObserver) {
-      this.y.users.observeDeep((events) => {
-        const keysAffected = new Set<string>()
-        const onlyClockEvents = events.every((event) => {
-          return (
-            event.changes.keys &&
-            event.changes.keys.size === 1 &&
-            event.changes.keys.has('logicalClock')
-          )
-        })
+  /** Whether the transport can reach the class right now; null until first checked. */
+  private _online: boolean | null = null
 
-        for (const event of events) {
-          // Top-level event: key was added/updated/deleted at the users map level.
-          if (event.target === this.y.users) {
-            for (const k of event.changes.keys.keys()) keysAffected.add(k)
-          } else {
-            // Nested event: a field changed inside y.users[id]. Walk the path to find id.
-            const path = (event as any).path as Array<string | number>
-            if (path && path.length > 0) keysAffected.add(String(path[0]))
-          }
-        }
+  /**
+   * Reports connection losses and recoveries ('online'). `connected` only
+   * says the first connection was made; the transports reconnect on their
+   * own and emit nothing when a connection drops.
+   */
+  private _checkOnline() {
+    const online = !!this.provider?.isOnline()
+    if (online === this._online) return
+    this._online = online
+    this.update('online')
+  }
 
-        // Verify every key, including our own — foreign mutations of our entry must also revert.
-        if (keysAffected.size > 0) {
-          this._verifyAndRevertUserChange(keysAffected)
-        }
+  /** Consecutive heartbeat checks our room has been missing from the view. */
+  private _missingRoomChecks = 0
+  /** Our room, once it has shown in the view on the current connection. */
+  private _seenOwnRoom: string | null = null
+  /** When our station room, seen before, dropped out of the view. */
+  private _ownRoomGoneAt: number | null = null
+  private _graceTimer: ReturnType<typeof setTimeout> | undefined
 
-        if (!onlyClockEvents) {
-          this.throttledUpdate()
-        }
-      })
+  /**
+   * Move to the Lobby when our room is gone: at once if we saw it in the
+   * view (checked on every presence change), otherwise after a few
+   * heartbeat checks.
+   */
+  private _leaveMissingRoom(heartbeat = true) {
+    const room = this.user()?.room
+    if (!this.connected || !room || room === LOBBY || this.isStation()) {
+      this._missingRoomChecks = 0
+      return
     }
+    if (room in this._viewRooms(false)) {
+      this._seenOwnRoom = room
+      this._missingRoomChecks = 0
+      this._ownRoomGoneAt = null
+      return
+    }
+    if (this._seenOwnRoom !== room &&
+        (!heartbeat || ++this._missingRoomChecks < MISSING_ROOM_CHECKS)) return
+    if (this._seenOwnRoom === room && room.startsWith(STATION + ' ')) {
+      if (this._ownRoomGoneAt === null) {
+        this._ownRoomGoneAt = Date.now()
+        // check again right when the grace ends, not at the next heartbeat
+        clearTimeout(this._graceTimer)
+        this._graceTimer = setTimeout(() => this._leaveMissingRoom(), STATION_RETURN_GRACE + 50)
+      }
+      if (Date.now() - this._ownRoomGoneAt < STATION_RETURN_GRACE) return
+    }
+    LOG('current room is gone, moving to lobby', room)
+    this._missingRoomChecks = 0
+    this._ownRoomGoneAt = null
+    this.gotoRoom(LOBBY)
   }
 
   private _hasRoomsObserver: boolean = false
 
   /** Owner (matched by createdBy) and teachers/stations may manage rooms; students may not. */
   private canManageRooms(): boolean {
-    return this.role !== 'student' || getPeerID(false) === this.lab.data?.createdBy
+    return this.role !== 'student' || sameKey(getPeerID(false), this.lab.data?.createdBy)
   }
 
-  /** Initializes rooms; observer install is idempotent via `_hasRoomsObserver`. */
+  /** Watches room records and room state once, across reconnects. */
+  private _observeRooms() {
+    if (this._hasRoomsObserver) return
+    this._hasRoomsObserver = true
+    this.y.roomSigs.observe((event) => this._checkRooms(event.keysChanged))
+    this.y.rooms.observe((event) => this._checkRooms(event.keysChanged))
+    this._checkRooms(new Set([...this.y.roomSigs.keys(), ...this.y.rooms.keys()]))
+  }
+
+  /** Seeds the Lobby state (and default rooms) of a fresh classroom. */
   initRooms() {
-    if (this.y.rooms.size === 0) {
+    const fresh = this.y.rooms.size === 0
+
+    // Any role may make the Lobby's Y.Map — students may join before the teacher.
+    // Not only in a fresh classroom: a room added before this ran (e.g. right after
+    // creating the class) would otherwise leave the Lobby without state for good.
+    if (!(this.y.rooms.get(LOBBY) instanceof Y.Map)) {
+      this.y.doc.transact(() => this.y.rooms.set(LOBBY, new Y.Map()), 'initRooms')
+    }
+
+    if (fresh) {
       LOG('initializing rooms')
 
-      // Lobby bootstrap is allowed for any role — students may join before the teacher.
-      this._writeAndSignRoom(LOBBY, 'initRooms')
-
-      if (this.canManageRooms()) {
-        let defaultRooms = 0
-        try {
-          defaultRooms = this.lab.data.meta.defaultNumberOfRooms
-        } catch (e) {}
-
-        for (let i = 1; i <= defaultRooms; i++) {
-          this._writeAndSignRoom('Room ' + i, 'initRooms')
-        }
-      }
+      this._addDefaultRooms()
     }
-    if (this.isStation() && !this.y.rooms.has(this.peerID) &&
-        this._isAuthorizedRoomSigner(this.peerID, getPeerID(false))) {
-      this.addRoom(this.peerID)
-    }
+    this._ensureStationRoom()
+  }
 
-    if (!this._hasRoomsObserver) {
-      this._hasRoomsObserver = true
-      this.y.rooms.observe((event) => {
-        const keysChanged = Array.from(event.changes.keys.keys())
-        const originStr = typeof event.transaction.origin === 'string'
-          ? event.transaction.origin
-          : ''
-        const fromLocal = Peer.ROOM_LOCAL_ORIGINS.has(originStr)
+  /** The setup's room count, capped at MAX_ROOMS. */
+  private _roomCount(): number {
+    return Math.min(Number(this.lab.data?.meta?.defaultNumberOfRooms) || 0, MAX_ROOMS)
+  }
 
-        // Verify-and-revert for non-local origins.
-        if (keysChanged.length > 0) {
-          this._verifyAndRevertRoomChange(new Set(keysChanged), fromLocal)
-        }
-
-        // Move-to-Lobby on local deletes only — remote-origin deletes are healed by _verifyAndRevert.
-        if (fromLocal) {
-          keysChanged.forEach((key) => {
-            const change = event.changes.keys.get(key)
-            if (change?.action !== 'delete') return
-            if (this.user() && this.user().get('room') === key) {
-              LOG('current room was deleted, moving to lobby')
-              const current = this.user()
-              const next = this._nextUserPayload(this.peerID, {
-                room: LOBBY,
-                logicalClock: (current.get('logicalClock') || 0) + 1,
-              })
-              if (next) this._writeAndSignUser(this.peerID, next, 'moveToLobby')
-            }
-          })
-        }
-
-        this.throttledUpdate()
-      })
+  /** Adds whichever of Room 1..defaultNumberOfRooms is missing. */
+  private _addDefaultRooms() {
+    const defaultRooms = this._roomCount()
+    for (let i = 1; i <= defaultRooms; i++) {
+      this.addRoom('Room ' + i)
     }
   }
 
-  /** Indices of chat entries that failed signature verification — filtered at render time. */
-  private _invalidChatIndices: Set<number> = new Set()
+  /** Signature check result per chat entry, by its content. */
+  private _chatVerified: Map<string, boolean> = new Map()
+  /** The chat as shown, as last derived from y.chat. */
+  private _chatView: any[] = []
+  private _chatRefreshing: Promise<void> | null = null
+  private _chatRefreshAgain = false
 
-  /** Returns true if signer pubkey matches a known y.users participant. */
+  /** Re-derive the shown chat; at most one run in flight plus one queued. */
+  private _refreshChat(): void {
+    if (this._chatRefreshing) {
+      this._chatRefreshAgain = true
+      return
+    }
+    this._chatRefreshing = this._collectChat()
+      .catch((e) => LOG('chat refresh failed', e))
+      .finally(() => {
+        this._chatRefreshing = null
+        if (this._chatRefreshAgain) {
+          this._chatRefreshAgain = false
+          this._refreshChat()
+        }
+      })
+  }
+
+  /**
+   * Derives the shown chat from y.chat as it is now: entries whose signature
+   * verifies, each signed message once (a copy elsewhere is a replay), from a
+   * signer who may chat. Derived anew on every change, so an entry another
+   * peer deletes or moves can't shift what is hidden, and one still being
+   * verified isn't shown. The name shown is the signer's, never the entry's.
+   */
+  private async _collectChat(): Promise<void> {
+    const shown: any[] = []
+    // Keyed by what is signed, not by the signature: a signature has several
+    // encodings that verify (base64 whitespace and padding, ECDSA's (r, n-s)).
+    const seen = new Set<string>()
+    for (const entry of this.y.chat.toArray() as any[]) {
+      if (!(await this._isSignedChatEntry(entry))) continue
+      const { timestamp, user, msg, signer } = entry
+      const signed = canonicalize({ signer, payload: { msg, timestamp, user } })
+      if (seen.has(signed)) continue
+      seen.add(signed)
+      if (!this._isKnownChatSigner(signer)) continue
+      shown.push({ ...entry, user: getShortPeerID(signer) })
+    }
+    const changed = shown.length !== this._chatView.length ||
+      shown.some((m, i) => m.signature !== this._chatView[i].signature)
+    this._chatView = shown
+    if (changed) this.update('chat')
+  }
+
+  /** Whether a chat entry's signature verifies; checked once per entry. */
+  private async _isSignedChatEntry(entry: any): Promise<boolean> {
+    const { timestamp, user, msg, signer, signature } = entry ?? {}
+    if (typeof signer !== 'string' || typeof signature !== 'string') return false
+    const key = canonicalize({ timestamp, user, msg, signer, signature })
+    let ok = this._chatVerified.get(key)
+    if (ok === undefined) {
+      // Messages stay valid however old they are; replays are caught by the caller.
+      ok = await verifyEntry('chat', String(timestamp), { msg, timestamp, user },
+        { signer, nonce: timestamp, signature })
+      this._chatVerified.set(key, ok)
+    }
+    return ok
+  }
+
+  /** Returns true if signer pubkey matches a peer currently present. */
   private _isKnownChatSigner(signer: string): boolean {
     const students = this.lab.data?.members?.student || []
     if (isExplicitAllowlist(students)) {
@@ -1207,7 +1108,7 @@ export default class Peer {
       const teachers = this.lab.data?.members?.teacher || []
       return isInMembers(signer, owner, teachers, students)
     }
-    for (const id of this.y.users.keys()) {
+    for (const id of Object.keys(this.presence?.visible || {})) {
       const sep = id.lastIndexOf('_')
       const pub = sep > 0 ? id.slice(0, sep) : id
       if (pub === signer) return true
@@ -1215,73 +1116,13 @@ export default class Peer {
     return false
   }
 
-  /** Verify a chat entry by absolute array index; marks invalid if sig or authz fails. */
-  private async _verifyChatEntry(index: number): Promise<void> {
-    const entry = this.y.chat.get(index) as any
-    if (!entry) return
-    const { timestamp, user, msg, signer, signature } = entry
-    if (!signer || !signature) {
-      LOG('y.chat entry rejected (unsigned)', index)
-      this._invalidChatIndices.add(index)
-      return
-    }
-    const envelope: Envelope = { signer, nonce: timestamp, signature }
-    const payload = { msg, timestamp, user }
-    const sigValid = await verifyEntry('chat', String(timestamp), payload, envelope)
-    if (!sigValid) {
-      LOG('y.chat entry rejected (bad sig)', index)
-      this._invalidChatIndices.add(index)
-      return
-    }
-    if (!this._isKnownChatSigner(signer)) {
-      LOG('y.chat entry rejected (unknown signer)', index, signer)
-      this._invalidChatIndices.add(index)
-    }
-  }
+  private _hasChatObserver: boolean = false
 
+  /** Re-derives the shown chat on every change; installs its observer once, across reconnects. */
   initChat() {
-    this.y.doc.transact(() => {
-      this.y.chat.observe(async (event) => {
-        let base = 0
-        for (const delta of event.changes.delta) {
-          if (delta.retain !== undefined) {
-            base += delta.retain
-          } else if (delta.insert !== undefined) {
-            const inserted = delta.insert as any[]
-            for (let i = 0; i < inserted.length; i++) {
-              await this._verifyChatEntry(base + i)
-            }
-            base += inserted.length
-          }
-        }
-        this.update('chat')
-      })
-    }, 'initChat')
-  }
-
-  checkForDeadStations() {
-    const rooms = this.y.rooms.toJSON()
-    const stations = Object.keys(rooms).filter((id) =>
-      id.toLocaleLowerCase().startsWith('station')
-    )
-
-    if (stations.length > 0) {
-      const deadStation: string[] = []
-      const users = this.y.users.toJSON()
-
-      for (const station of stations) {
-        if (!users[station]) {
-          deadStation.push(station)
-        }
-      }
-
-      if (deadStation.length > 0) {
-        for (const station of deadStation) {
-          LOG('Removing dead station', station)
-          this._deleteAndUnsignRoom(station, 'checkForDeadStations')
-        }
-      }
-    }
+    if (this._hasChatObserver) return
+    this._hasChatObserver = true
+    this.y.chat.observe(() => this._refreshChat())
   }
 
   /**
@@ -1289,31 +1130,18 @@ export default class Peer {
    * @param config The new configuration.
    */
   newSetup(config: { id: string; data: any; timestamp: number }) {
-    if (this.lab.hash) {
-      const self = this
-      hashPubKey(config.data.createdBy).then((hash) => {
-        if (hash === self.lab.hash && self.lab.timestamp < config.timestamp) {
-          self.logSetupChanges(self.lab.data, config.data)
-          self.lab.id = config.id
-          self.lab.data = config.data
-          self.lab.timestamp = config.timestamp
+    if (this.lab.timestamp < config.timestamp) {
+      const roomsChanged =
+        this.lab.data?.meta?.defaultNumberOfRooms !== config.data?.meta?.defaultNumberOfRooms
+      this.logSetupChanges(this.lab.data, config.data)
+      this.lab.id = config.id
+      this.lab.data = config.data
+      this.lab.timestamp = config.timestamp
 
-          self.initSetup(true)
-          self.update('setup')
-        } else {
-          LOG('updating failed, hash mismatch')
-        }
-      })
-    } else {
-      if (this.lab.timestamp < config.timestamp) {
-        this.logSetupChanges(this.lab.data, config.data)
-        this.lab.id = config.id
-        this.lab.data = config.data
-        this.lab.timestamp = config.timestamp
-
-        this.initSetup(true)
-        this.update('setup')
-      }
+      this.initSetup(true)
+      this.update('setup')
+      this._reverifyAfterSetup()
+      if (roomsChanged) this._addDefaultRooms()
     }
   }
 
@@ -1330,7 +1158,7 @@ export default class Peer {
       | 'connected'
       | 'chat'
       | 'popup'
-      | 'commChanged',
+      | 'online',
     message?: any
   ) {
     const callback = this.callback[event]
@@ -1368,11 +1196,7 @@ export default class Peer {
 
       case 'chat': {
         if (callback) {
-          const all = this.y.chat.toArray()
-          callback({
-            messages: all.filter((_, i) => !this._invalidChatIndices.has(i)),
-            truncated: false,
-          })
+          callback({ messages: this._chatView, truncated: false })
           this.callbackUpdate[event] = false
         } else {
           this.callbackUpdate[event] = true
@@ -1400,9 +1224,9 @@ export default class Peer {
         break
       }
 
-      case 'commChanged': {
+      case 'online': {
         if (callback) {
-          callback(message)
+          callback(this._online)
           this.callbackUpdate[event] = false
         } else {
           this.callbackUpdate[event] = true
@@ -1418,7 +1242,7 @@ export default class Peer {
    * @param callback The callback function.
    */
   on(
-    event: 'setup' | 'room' | 'connected' | 'popup' | 'commChanged',
+    event: 'setup' | 'room' | 'connected' | 'chat' | 'popup' | 'online',
     callback: any
   ) {
     if (callback) {
@@ -1443,13 +1267,13 @@ export default class Peer {
     }
 
     if (
-      this.lab.data.members.teacher.includes(id) ||
-      this.lab.data.members.student.includes(id)
+      isMember(this.lab.data.members.teacher, id) ||
+      isMember(this.lab.data.members.student, id)
     ) {
       return true
     }
 
-    if (this.lab.data.createdBy === id) {
+    if (sameKey(this.lab.data.createdBy, id)) {
       return true
     }
 
@@ -1475,77 +1299,147 @@ export default class Peer {
       return
     }
 
-    const users = this.y.users.toJSON()
+    const users = this.presence.visible
 
     if (msg.user) {
       if (msg.user === this.peerID) {
         this.update('message', msg)
       } else {
-        this.provider.sendMessage(msg, msg.user)
+        this._sendSigned(msg, room, [msg.user])
       }
       return
     }
 
-    for (const id in users) {
-      if (users[id].room === room && id !== this.peerID) {
-        try {
-          this.provider.sendMessage(msg, id)
-        } catch (e: any) {
-          LOG('warning', e.message)
+    // Recipients as of now; signing is async.
+    this._sendSigned(
+      msg,
+      room,
+      Object.keys(users).filter((id) => users[id].room === room && id !== this.peerID)
+    )
+    this.update('message', msg)
+  }
+
+  // Signed module messages. `from` is written by the sender, and modules take
+  // the sender's role from it, so a receiver delivers a message only if it is
+  // signed by a key that may speak for `from` (the rule of signed presence).
+  // The signature also binds the room and the addressee, so a copy can't be
+  // passed on to another room or user.
+  private _sendQueue: Promise<void> = Promise.resolve()
+  private _receiveQueue: Promise<void> = Promise.resolve()
+  // Our last message nonce; every message takes a higher one.
+  private _messageNonce = 0
+  // Per sender: the newest nonce, and the nonces seen within REPLAY_WINDOW of
+  // it. Relative to the sender's own clock, so clock skew does not matter.
+  // Keyed by nonce, not signature: a signature has several encodings that
+  // verify (base64 whitespace and padding, ECDSA's (r, n-s)).
+  private _messageNonces: Map<string, { newest: number; seen: Set<number> }> = new Map()
+
+  /** Sign `msg` for `room` and send it to `targets`, in call order. */
+  private _sendSigned(msg: any, room: string, targets: string[]) {
+    if (targets.length === 0) return
+    // as of now: the local echo adds `date` to msg before this is signed
+    const copy = { ...msg, room }
+    this._sendQueue = this._sendQueue
+      .then(async () => {
+        this._messageNonce = Math.max(Date.now(), this._messageNonce + 1)
+        const envelope = await signEntry('messages', String(copy.from), signedPart(copy), this._messageNonce)
+        const signed = { ...copy, envelope }
+        for (const id of targets) {
+          try {
+            this.provider.sendMessage(signed, id)
+          } catch (e: any) {
+            LOG('warning', e.message)
+          }
         }
+      })
+      .catch((e) => LOG('message not sent', e))
+  }
+
+  /** Deliver a received message to the modules if it is signed for its `from`; in arrival order. */
+  private _receive(msg: any) {
+    this._receiveQueue = this._receiveQueue
+      .then(async () => {
+        if (await this._isValidMessage(msg)) this.update('message', msg)
+      })
+      .catch((e) => LOG('message dropped', e))
+  }
+
+  private async _isValidMessage(msg: any): Promise<boolean> {
+    const envelope: Envelope | undefined = msg?.envelope
+    if (typeof msg?.from !== 'string' || !envelope || typeof envelope.signature !== 'string') {
+      LOG('message rejected (unsigned)', msg?.subject)
+      return false
+    }
+    if (!this._isAuthorizedUserSigner(msg.from, envelope.signer)) {
+      LOG('message rejected (signer may not send as)', msg.from)
+      return false
+    }
+    if (msg.user ? msg.user !== this.peerID : msg.room !== this.user()?.room) {
+      LOG('message rejected (not for us)', msg.subject)
+      return false
+    }
+    const nonces = this._messageNonces.get(msg.from)
+    if (envelope.nonce < this._messageFloor(msg.from) || nonces?.seen.has(envelope.nonce)) {
+      LOG('message rejected (replayed)', msg.subject)
+      return false
+    }
+    if (!(await verifyEntry('messages', msg.from, signedPart(msg), envelope))) {
+      LOG('message rejected (bad signature)', msg.subject)
+      return false
+    }
+    this._rememberMessage(msg.from, envelope.nonce)
+    return true
+  }
+
+  /**
+   * Oldest nonce still accepted from `from`: REPLAY_WINDOW before the newest
+   * we know of it, from its messages or its signed presence (both its own
+   * clock). A receiver that has neither yet, e.g. right after joining, falls
+   * back to its own clock, so an old message can't be replayed to it.
+   */
+  private _messageFloor(from: string): number {
+    const newest = Math.max(
+      this._messageNonces.get(from)?.newest ?? -Infinity,
+      this.presence?.nonceOf(from) ?? -Infinity
+    )
+    return (Number.isFinite(newest) ? newest : Date.now()) - REPLAY_WINDOW
+  }
+
+  private _rememberMessage(from: string, nonce: number) {
+    let nonces = this._messageNonces.get(from)
+    if (!nonces) {
+      nonces = { newest: nonce, seen: new Set() }
+      this._messageNonces.set(from, nonces)
+    }
+    nonces.seen.add(nonce)
+    if (nonce > nonces.newest) {
+      nonces.newest = nonce
+      for (const seen of nonces.seen) {
+        if (seen < nonce - REPLAY_WINDOW) nonces.seen.delete(seen)
       }
     }
-    this.update('message', msg)
   }
 
   /**
    * Stops the peer, cleans up resources.
    */
   stop = (): void => {
+    if (this._stopped) return
     LOG('stopping peer')
+    this._stopped = true
     if (heartbeatID) {
       clearInterval(heartbeatID)
       heartbeatID = null
     }
+    clearTimeout(this._graceTimer)
 
     window.removeEventListener('beforeunload', this.stop)
+    window.removeEventListener('pagehide', this.stop)
 
-    if (this.isStation()) {
-      // Fire-and-forget; sign+write happens before teardown when possible.
-      this._stationShutdown().finally(() => this._finishStop())
-      return
-    }
-
-    this.y.doc.transact(() => {
-      this.y.users.delete(this.peerID)
-      this.y.userSigs.delete(this.peerID)
-    }, 'stop')
-
+    // Our signed leave replaces our presence and goes out with the disconnect
+    // flush, so peers hide us at once; a station's room goes with it.
+    this.presence?.stop()
     this._finishStop()
-  }
-
-  private async _stationShutdown(): Promise<void> {
-    const stationID = this.peerID
-    try {
-      const [userTomb, roomTomb] = await Promise.all([
-        signEntry('users', stationID, Peer.TOMBSTONE_PAYLOAD),
-        signEntry('rooms', stationID, Peer.TOMBSTONE_PAYLOAD),
-      ])
-      this.y.doc.transact(() => {
-        this.y.users.delete(stationID)
-        this.y.userSigs.set(stationID, userTomb)
-        this.y.rooms.delete(stationID)
-        this.y.roomSigs.set(stationID, roomTomb)
-      }, 'stationShutdown')
-      this._lastGoodUser.delete(stationID)
-      this._lastGoodRoom.delete(stationID)
-    } catch (e) {
-      LOG('stationShutdown sign failed', e)
-      this.y.doc.transact(() => {
-        this.y.users.delete(stationID)
-        this.y.userSigs.delete(stationID)
-      }, 'stop')
-    }
   }
 
   private _finishStop(): void {
@@ -1561,30 +1455,13 @@ export default class Peer {
   }
 
   /**
-   * Adds a new room.
-   * @param name Optional name of the room.
+   * Adds a room. Numbered rooms ("Room N") only show while N is within the
+   * setup's defaultNumberOfRooms, so they are added by raising that.
+   * @param name The name of the room.
    */
-  addRoom(name?: string) {
+  addRoom(name: string) {
     if (!this.canManageRooms()) return
-    if (name) {
-      if (!this.y.rooms.has(name)) this._writeAndSignRoom(name, 'addRoom')
-      return
-    }
-    const roomIDs: number[] = Object.keys(this.y.rooms.toJSON())
-      .filter((e) => e.match(/Room/))
-      .map((e) => e.split(' ')[1])
-      .map((e) => parseInt(e))
-      .sort((a, b) => a - b)
-
-    let newRoomID = 1
-    for (const id of roomIDs) {
-      if (id !== newRoomID) {
-        break
-      }
-      newRoomID++
-    }
-
-    this.addRoom('Room ' + newRoomID)
+    if (!(name in this._viewRooms())) this._writeAndSignRoom(name, 'addRoom')
   }
 
   /**
@@ -1594,11 +1471,7 @@ export default class Peer {
   gotoRoom(room: string) {
     const current = this.user()
     if (!current) return
-    const next = this._nextUserPayload(this.peerID, {
-      room,
-      logicalClock: (current.get('logicalClock') || 0) + 1,
-    })
-    if (next) this._writeAndSignUser(this.peerID, next, 'gotoRoom')
+    this.presence.publish({ ...current, room })
   }
 
 
@@ -1625,25 +1498,118 @@ export default class Peer {
   }
 
   /**
-   * Applies an update to the Y.Doc.
+   * Applies a module's update to the Y.Doc.
    * @param data The update data.
+   * @param source The sending module's window; carried in the origin so the
+   *   relay can skip only that window, not its siblings on the page.
+   * @returns Whether the update was applied.
    */
-  updateState(data: Uint8Array) {
+  updateState(data: Uint8Array, source?: unknown): boolean {
     if (!this.allowedToParticipate()) {
       debug.ts.peer(this.t('peer.feedback.notPropagated'))
-      return
+      return false
     }
 
-    Y.applyUpdate(this.y.doc, data, { transactionId: 'extern' })
+    Y.applyUpdate(this.y.doc, data, { transactionId: 'extern', source })
+    return true
   }
 
   /**
    * Y.Doc changes as encoded updates, for forwarding to module iframes.
-   * `origin` lets the caller drop echoes it just applied ('extern').
+   * `origin` is `{ transactionId: 'extern', source }` for a module's own
+   * update, so the caller can skip echoing it back to its sender.
    */
   onState(callback: (data: Uint8Array, origin: any) => void): () => void {
     this.y.doc.on('update', callback)
     return () => this.y.doc.off('update', callback)
+  }
+
+  /** The app-awareness channel (module cursors/presence), isolated from identity. */
+  getAwareness(): any {
+    return this.provider.getAwareness()
+  }
+
+  /** Every app-awareness state, encoded, to seed a module frame that just loaded. */
+  getAwarenessState(): Uint8Array {
+    const awareness = this.getAwareness()
+    return awarenessProtocol.encodeAwarenessUpdate(awareness, Array.from(awareness.getStates().keys()))
+  }
+
+  /** Client ids in an encoded awareness update, to know which a module frame published. */
+  awarenessClients(data: Uint8Array): number[] {
+    const decoder = decoding.createDecoder(data)
+    const clients: number[] = []
+    for (let n = decoding.readVarUint(decoder); n > 0; n--) {
+      clients.push(decoding.readVarUint(decoder))
+      decoding.readVarUint(decoder) // clock
+      decoding.readVarString(decoder) // state
+    }
+    return clients
+  }
+
+  /** Removes module awareness states, e.g. those of a frame that is gone. */
+  removeAwareness(clients: number[]) {
+    if (clients.length) awarenessProtocol.removeAwarenessStates(this.getAwareness(), clients, 'unload')
+  }
+
+  /**
+   * Applies a module's encoded awareness update into the shared channel.
+   * @returns Whether the update was applied.
+   */
+  updateAwareness(data: Uint8Array, source?: unknown): boolean {
+    if (!this.allowedToParticipate()) return false
+    awarenessProtocol.applyAwarenessUpdate(this.getAwareness(), data, { transactionId: 'extern', source })
+    return true
+  }
+
+  /**
+   * Removes the module awareness states (cursors) a departed peer's modules
+   * published. edrys.js tags each with `_peer` (the module's Edrys.username,
+   * i.e. our peerID format, so exact match: the same user's other tabs keep
+   * theirs). `_peer` is set inside the module's window, so a peer can only
+   * mislabel its own states; worst case they vanish when someone else leaves
+   * and come back with the module's next awareness renewal. Harmless.
+   */
+  private _dropModuleAwareness(userid: string) {
+    if (!userid || userid === this.peerID) return
+    const awareness = this.getAwareness()
+    const ids: number[] = []
+    awareness.getStates().forEach((state: any, clientID: number) => {
+      if (state?._peer === userid) ids.push(clientID)
+    })
+    if (ids.length) awarenessProtocol.removeAwarenessStates(awareness, ids, 'leave')
+  }
+
+  // Ids last visible in signed presence, to spot the ones that just left.
+  private _visiblePeers = new Set<string>()
+
+  /**
+   * Presence hides a peer at once on its signed leave (a closed tab), well
+   * before the transport's onLeave on WebSocket (heartbeat timeout); drop its
+   * module awareness then too.
+   */
+  private _dropDepartedModuleAwareness() {
+    const visible = new Set(Object.keys(this.presence?.visible ?? {}))
+    for (const id of this._visiblePeers) {
+      if (!visible.has(id)) this._dropModuleAwareness(id)
+    }
+    this._visiblePeers = visible
+  }
+
+  /**
+   * App-awareness changes as encoded updates for the changed clients.
+   * `origin` is `{ transactionId: 'extern', source }` for a module's own
+   * update, so the caller can skip echoing it back to its sender.
+   */
+  onAwareness(callback: (data: Uint8Array, origin: any) => void): () => void {
+    const awareness = this.getAwareness()
+    const handler = ({ added, updated, removed }: any, origin: any) => {
+      const changed = added.concat(updated).concat(removed)
+      if (changed.length === 0) return
+      callback(awarenessProtocol.encodeAwarenessUpdate(awareness, changed), origin)
+    }
+    awareness.on('update', handler)
+    return () => awareness.off('update', handler)
   }
 
   /**
@@ -1653,7 +1619,6 @@ export default class Peer {
   async join(role: 'student' | 'teacher' | 'station') {
     this.initUser(role)
     this.initRooms()
-    this.initChat()
 
     this.throttledUpdate()
   }
@@ -1663,56 +1628,83 @@ export default class Peer {
    * @returns The serialized state.
    */
   async toJSON() {
-    if (this.isStation() && !this.y.rooms.has(this.peerID) &&
-        this._isAuthorizedRoomSigner(this.peerID, getPeerID(false))) {
-      this.addRoom(this.peerID)
-    }
-
-    if (!this.y.users.has(this.peerID)) {
-      await this.awaitTransact(() => {
-        this.initUser(this.role, false)
-      })
-    }
-
     return {
-      rooms: this.y.rooms.toJSON(),
-      users: this.y.users.toJSON(),
+      rooms: this._viewRooms(),
+      users: this._viewUsers(),
       doc: Y.encodeStateAsUpdate(this.y.doc),
     }
   }
 
   /**
-   * Executes a function within a Yjs transaction and waits for it to complete.
-   * @param transactFn The function to execute within the transaction.
+   * Present peers as the UI and modules see them. Name and role are derived
+   * here (from the id and the signed setup), not taken from the peer.
+   * Another peer whose room is gone (a stopped station) is shown in the
+   * Lobby until it moves there itself, so it never drops out of the room
+   * list. Our own room is left as is: modules are keyed on it, and
+   * _leaveMissingRoom moves us.
    */
-  awaitTransact(transactFn: () => void): Promise<void> {
-    return new Promise((resolve) => {
-      let isTransactionDone = false
-
-      const observer = () => {
-        if (isTransactionDone) {
-          this.y.doc.off('afterTransaction', observer)
-          resolve()
-        }
+  private _viewUsers(): Record<string, any> {
+    const owner = stripPubKey(this.lab.data?.createdBy || '')
+    const teachers: string[] = (this.lab.data?.members?.teacher || []).map(stripPubKey)
+    const rooms = this._viewRooms()
+    const users: Record<string, any> = {}
+    for (const [id, payload] of Object.entries(this.presence?.visible || {})) {
+      const station = id.startsWith(STATION + ' ')
+      const base = stripPubKey(getBasePeerID(id))
+      const room = id === this.peerID || payload?.room in rooms ? payload?.room : LOBBY
+      users[id] = {
+        ...payload,
+        room,
+        displayName: station ? id : getShortPeerID(id),
+        role: station ? 'station' : base === owner || teachers.includes(base) ? 'teacher' : 'student',
       }
+    }
+    return users
+  }
 
-      this.y.doc.on('afterTransaction', observer)
-
-      this.y.doc.transact(() => {
-        try {
-          transactFn()
-        } catch (e) {
-          console.error('Error in transaction', e)
-        }
-        isTransactionDone = true
-      }, 'awaitTransact')
-    })
+  /** Whether `name` is a numbered room beyond the setup's room count. */
+  private _isRemovedRoom(name: string): boolean {
+    const n = /^Room (\d+)$/.exec(name)
+    return !!n && Number(n[1]) > this._roomCount()
   }
 
   /**
-   * Gets the WebRTC configuration.
+   * Rooms as the UI and modules see them: the Lobby, rooms with a valid
+   * record (oldest first), and the stations that are present. A room's Y.Map
+   * in the doc only holds module state. Numbered rooms beyond the setup's
+   * room count are left out, so lowering it removes them for everyone.
+   *
+   * While we wait for our station to come back (STATION_RETURN_GRACE), its
+   * room stays in our view so we still see ourselves in it; `waiting: false`
+   * leaves it out, to tell whether it is really there.
+   */
+  private _viewRooms(waiting = true): Record<string, any> {
+    const state = (name: string) => {
+      const map = this.y.rooms.get(name)
+      return map instanceof Y.Map ? map.toJSON() : {}
+    }
+    const rooms: Record<string, any> = { [LOBBY]: state(LOBBY) }
+    const records = [...this._roomRecords]
+      .filter(([name, envelope]) =>
+        this._isValidRoomRecord(name, envelope) && !this._isRemovedRoom(name))
+      .sort(([a, x], [b, y]) =>
+        x.nonce - y.nonce || a.localeCompare(b, undefined, { numeric: true }))
+    for (const [name] of records) rooms[name] = state(name)
+    for (const id of Object.keys(this.presence?.visible || {})) {
+      if (id.startsWith(STATION + ' ')) rooms[id] = state(id)
+    }
+    const own = this.user()?.room
+    if (waiting && this._ownRoomGoneAt !== null && own && !(own in rooms)) {
+      rooms[own] = state(own)
+    }
+    return rooms
+  }
+
+  /**
+   * The classroom's WebRTC configuration (e.g. its TURN servers), for module
+   * streams; the build default unless the classroom sets one.
    */
   async getWebRTCConfig(): Promise<RTCConfiguration> {
-    return RTCConfiguration
+    return this.webrtcConfig
   }
 }

@@ -10,7 +10,7 @@
     </v-container>
 
     <template v-slot:append>
-      <v-btn icon="mdi-content-copy" @click="copyUrl" variant="text"></v-btn>
+      <v-btn icon="mdi-content-copy" :aria-label="t('general.copyLink')" @click="copyUrl" variant="text"></v-btn>
     </template>
   </v-alert>
   <v-divider></v-divider>
@@ -24,7 +24,6 @@
     shaped
     style="margin-top: 2rem"
     v-model="teacher"
-    :disabled="writeProtection"
   ></v-textarea>
 
   <v-textarea
@@ -37,7 +36,6 @@
     shaped
     style="margin-top: 1rem"
     v-model="student"
-    :disabled="writeProtection"
   ></v-textarea>
 </template>
 
@@ -53,11 +51,6 @@ export default {
   props: {
     members: {
       type: Object,
-      required: true,
-    },
-
-    writeProtection: {
-      type: Boolean,
       required: true,
     },
   },

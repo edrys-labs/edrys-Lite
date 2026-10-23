@@ -23,8 +23,8 @@
 
 import * as Y from 'yjs'
 ;(window as any).Y = Y
-// import * as YP from 'y-protocols/awareness.js'
-// import { RoomAwarenessManager } from './awarenessManager'
+import * as YP from 'y-protocols/awareness'
+import { RoomAwarenessManager } from './awarenessManager'
 import { unpack, pack } from 'msgpackr'
 import {
   StreamServer,
@@ -35,14 +35,14 @@ import {
 import { debug, enableDebug, disableDebug, disableSpecificDebug } from './debugHandler'
 
 const EXTERN = 'extern'
-// var awareness: any
-// var awarenessManager: any
+var awareness: any
+var awarenessManager: any
 var liveClass = false
-// Latched when the $Edrys.ready dispatch is scheduled, so concurrent EXTERN
-// updates during the 1s window don't schedule it again.
-var readyScheduled = false
 var doc: any
 var callback = { onReady: false, onUpdate: false }
+// Latched when the $Edrys.ready dispatch is scheduled, so concurrent EXTERN
+// updates can't each queue their own.
+var readyScheduled = false
 var rtcConfig: RTCConfiguration | null = null
 
 function LOG(...args) {
@@ -82,6 +82,14 @@ function decode(value: string): any {
   }
 }
 
+// Only the edrys-Lite page that embeds the module talks to it. Any other window
+// holding a reference to this one (a child frame of the module, an opener) can
+// post here too and must neither be trusted nor pin the origin. Inlined
+// (data:/srcdoc) modules have the same parent, so this holds for them as well.
+function isFromParent(e: MessageEvent): boolean {
+  return e.source !== null && e.source === window.parent
+}
+
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -100,7 +108,7 @@ async function getWebRTCConfig(origin: string): Promise<RTCConfiguration> {
     // Wait for config response
     rtcConfig = await new Promise<RTCConfiguration>((resolve) => {
       const handler = (e: MessageEvent) => {
-        if (e.data.event === 'webrtcConfig') {
+        if (isFromParent(e) && e.data?.event === 'webrtcConfig') {
           window.removeEventListener('message', handler)
           resolve(e.data.config)
         }
@@ -111,7 +119,9 @@ async function getWebRTCConfig(origin: string): Promise<RTCConfiguration> {
   return rtcConfig
 }
 
-window.addEventListener('unload', () => {
+// pagehide, not unload: unload is being phased out (Chrome) and fires
+// unreliably on mobile.
+window.addEventListener('pagehide', () => {
   window.parent.postMessage(
   {
     event: 'reload',
@@ -154,10 +164,16 @@ window['Edrys'] = {
       LOG('READY')
       handler(window['Edrys'])
     } else
-      window.addEventListener('$Edrys.ready', (e) => {
-        LOG('READY')
-        handler(window['Edrys'])
-      })
+      // `once`: onReady is one-shot init (e.g. monaco.editor.create(), which
+      // throws on a second run against the same element).
+      window.addEventListener(
+        '$Edrys.ready',
+        (e) => {
+          LOG('READY')
+          handler(window['Edrys'])
+        },
+        { once: true }
+      )
   },
   onUpdate(handler) {
     callback.onUpdate = true
@@ -250,15 +266,20 @@ window['Edrys'] = {
       | 'XmlFragment'
       | 'XmlText'
       | 'XmlElement'
-      | 'Value',
-    // | 'Awareness',
+      | 'Value'
+      | 'Awareness',
     value?: any
   ) {
-    // if (type === 'Awareness') {
-    //   return awarenessManager.getAwareness(
-    //     window['Edrys'].liveUser.room + '.' + key
-    //   )
-    // }
+    if (type === 'Awareness') {
+      if (!awarenessManager) {
+        throw new Error(
+          "Edrys: awareness is not available yet — call getState(…, 'Awareness') from within onReady()."
+        )
+      }
+      return awarenessManager.getAwareness(
+        window['Edrys'].liveUser.room + '.' + key
+      )
+    }
 
     const map = doc.getMap('rooms').get(window['Edrys'].liveUser.room)
 
@@ -400,9 +421,12 @@ const edrysProxyValidator = (path) => ({
   },
 })
 
+// Present users, as last handed over by the parent (not part of the doc).
+var liveUsers: Record<string, any> = {}
+
 function update() {
   const liveClass = {
-    users: doc.getMap('users').toJSON(),
+    users: JSON.parse(JSON.stringify(liveUsers)),
     rooms: doc.getMap('rooms').toJSON(),
   }
 
@@ -416,7 +440,9 @@ function update() {
 
   window['Edrys'].liveClass = new Proxy(liveClass, edrysProxyValidator(''))
   window['Edrys'].liveUser = liveClass.users[window['Edrys'].username]
-  window['Edrys'].liveRoom = liveClass.rooms[window['Edrys'].liveUser.room]
+  window['Edrys'].liveRoom = window['Edrys'].liveUser
+    ? liveClass.rooms[window['Edrys'].liveUser.room]
+    : undefined
   //window['Edrys'].liveRoom.name = window['Edrys'].liveUser.room
 }
 
@@ -432,6 +458,11 @@ function dispatchUpdate() {
 window.addEventListener(
   'message',
   function (e) {
+    if (!isFromParent(e)) {
+      debug.api.general('[Edrys Security] Rejected message from a non-parent window:', e.origin);
+      return;
+    }
+
     if (!window['Edrys'].origin) {
       window['Edrys'].origin = e.origin;
       debug.api.general('[Edrys Security] Trusted origin set to:', e.origin);
@@ -448,11 +479,9 @@ window.addEventListener(
 
         if (!doc) {
           doc = new Y.Doc()
-          // awareness = new YP.Awareness(doc)
+          awareness = new YP.Awareness(doc)
+          awarenessManager = new RoomAwarenessManager(awareness)
 
-          // awarenessManager = new RoomAwarenessManager(awareness)
-
-          doc.getMap('users')
           doc.getMap('rooms')
 
           doc.on('update', (state, origin) => {
@@ -490,10 +519,6 @@ window.addEventListener(
                     dispatchUpdate()
                   })
 
-                doc.getMap('users').observeDeep((_event, _transact) => {
-                  dispatchUpdate()
-                })
-
                 // needs to be called initially
                 setTimeout(function () {
                   dispatchUpdate()
@@ -512,21 +537,18 @@ window.addEventListener(
             )
           })
 
-          // awareness.on('update', ({ added, updated, removed }, origin) => {
-          //   LOG('AWARENESS UPDATE', origin, added, updated, removed)
-          //   if (origin !== EXTERN) {
-          //     const changedClients = added.concat(updated, removed)
+          awareness.on('update', ({ added, updated, removed }, origin) => {
+            if (origin === EXTERN) return
+            const changedClients = added.concat(updated, removed)
+            window.parent.postMessage(
+              {
+                event: 'awareness',
+                data: YP.encodeAwarenessUpdate(awareness, changedClients),
+              },
+              window['Edrys'].origin
+            )
+          })
 
-          //     // Send the update to the parent window
-          //     window.parent.postMessage(
-          //       {
-          //         event: 'awareness',
-          //         data: YP.encodeAwarenessUpdate(awareness, changedClients),
-          //       },
-          //       window['Edrys'].origin
-          //     )
-          //   }
-          // })
         }
 
         try {
@@ -550,14 +572,17 @@ window.addEventListener(
 
         window['Edrys'].class_id = e.data.class_id
 
+        if (e.data.users) {
+          const changed = JSON.stringify(e.data.users) !== JSON.stringify(liveUsers)
+          liveUsers = e.data.users
+          if (changed && window['Edrys'].ready) dispatchUpdate()
+          else if (changed && liveClass) update()
+        }
+
         if (e.data.liveClass) {
           liveClass = true
           Y.applyUpdate(doc, e.data.liveClass, EXTERN)
         }
-
-        // if (e.data.awareness) {
-        //   YP.applyAwarenessUpdate(awareness, e.data.awareness, EXTERN)
-        // }
 
         break
       case 'state':
@@ -565,6 +590,11 @@ window.addEventListener(
         // doc.on('update') posting it straight back.
         if (e.data.data && doc) {
           Y.applyUpdate(doc, new Uint8Array(e.data.data), EXTERN)
+        }
+        break
+      case 'awareness':
+        if (e.data.data && awareness) {
+          YP.applyAwarenessUpdate(awareness, new Uint8Array(e.data.data), EXTERN)
         }
         break
       case 'message':

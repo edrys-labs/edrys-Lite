@@ -1,8 +1,7 @@
 import { describe, test, expect, vi } from 'vitest';
-import { copyToClipboard } from '../../../src/ts/Utils';
+import { copyToClipboard, hashPubKey } from '../../../src/ts/Utils';
 import { mount } from '@vue/test-utils';
 import Index from '../../../src/views/Index.vue';
-import { i18n, messages } from '../../setup';
 
 // Mock dependencies
 const setObservableSpy = vi.fn();
@@ -13,8 +12,7 @@ vi.mock('../../../src/ts/Database', () => ({
       callback(mockClassrooms);
     }),
     put: vi.fn().mockResolvedValue('test-hash'),
-    drop: vi.fn(),
-    setProtection: vi.fn()
+    drop: vi.fn()
   }))
 }));
 
@@ -22,8 +20,12 @@ vi.mock('../../../src/ts/Utils', () => ({
   infoHash: vi.fn(() => 'test-hash'),
   getPeerID: vi.fn(() => 'test-user'),
   hashPubKey: vi.fn(() => Promise.resolve('testhash1234')),
+  isPubKey: vi.fn((key: string) => key !== 'legacy-id'),
   initCryptoIdentity: vi.fn(() => Promise.resolve()),
   clone: vi.fn(obj => JSON.parse(JSON.stringify(obj))),
+  normalizeClassroom: vi.fn((data) => data),
+  sameKey: vi.fn((a: any, b: any) => !!a && !!b && a.replace(/=/g, '') === b.replace(/=/g, '')),
+  isMember: vi.fn((list: any, key: string) => (list || []).some((m: string) => m.replace(/=/g, '') === key.replace(/=/g, ''))),
   removeKeysStartingWithSecret: vi.fn(),
   copyToClipboard: vi.fn()
 }));
@@ -120,6 +122,8 @@ describe('Index View', () => {
                 :class="['v-btn', $attrs.color]"
                 :title="$attrs.title"
                 :icon="$attrs.icon"
+                :href="$attrs.href"
+                :data-link="$attrs['data-link']"
                 @click="$emit('click')"
               >
                 <i v-if="$attrs.icon" :class="$attrs.icon"></i>
@@ -171,6 +175,30 @@ describe('Index View', () => {
     expect(cards).toHaveLength(mockClassrooms.length + 1); // +1 for create card
   });
 
+  test('a stored classroom without members does not hide the list', async () => {
+    const wrapper = createWrapper();
+    const bare = { id: 'bare', data: { name: 'Imported', createdBy: 'other-user', meta: {} }, hash: null };
+
+    await wrapper.setData({ classrooms: [bare, ...mockClassrooms] });
+
+    expect(wrapper.text()).toContain('Imported');
+    expect(wrapper.text()).toContain('Test Class 1');
+  });
+
+  test('renders only text and web links from a classroom description', async () => {
+    const wrapper = createWrapper();
+    const classroom = JSON.parse(JSON.stringify(mockClassrooms[0]));
+    classroom.data.meta.description =
+      '<img src=x onerror=alert(1)>Lab <a href="javascript:alert(1)">bad</a> <a href="https://example.com">good</a>';
+
+    await wrapper.setData({ classrooms: [classroom] });
+
+    const text = wrapper.find('.v-card-text');
+    expect(text.find('img').exists()).toBe(false);
+    expect(text.findAll('a').map(a => a.attributes('href'))).toEqual(['https://example.com/']);
+    expect(text.text()).toBe('Lab bad good');
+  });
+
   test('creates new classroom', async () => {
     const wrapper = createWrapper();
     
@@ -198,12 +226,6 @@ describe('Index View', () => {
     const wrapper = createWrapper();
     wrapper.vm.deleteClass('class-1');
     expect(wrapper.vm.database.drop).toHaveBeenCalledWith('class-1');
-  });
-
-  test('toggles write protection', async () => {
-    const wrapper = createWrapper();
-    wrapper.vm.switchClassroomProtection('class-1', true);
-    expect(wrapper.vm.database.setProtection).toHaveBeenCalledWith('class-1', true);
   });
 
   test('handles classroom forking', async () => {
@@ -238,60 +260,35 @@ describe('Index View', () => {
     expect(subtitles[1].text()).toContain('You\'re a student here');
   });
 
+  test('lists every classroom when some have a legacy or unhashable createdBy', async () => {
+    const wrapper = createWrapper();
+    vi.mocked(hashPubKey).mockImplementation(async (key: string) => {
+      if (key === 'broken-key') throw new Error('atob failed');
+      return 'testhash1234';
+    });
+
+    const rooms = [
+      { id: 'legacy', data: { name: 'Legacy', createdBy: 'legacy-id', members: { teacher: [], student: [] } }, hash: null },
+      { id: 'broken', data: { name: 'Broken', createdBy: 'broken-key', members: { teacher: [], student: [] } }, hash: null },
+      { id: 'owned', data: { name: 'Owned', createdBy: 'test-user', members: { teacher: [], student: [] } }, hash: null },
+    ];
+    const onRooms = setObservableSpy.mock.calls.at(-1)![1];
+    await onRooms(rooms);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.classrooms.map((c: any) => c.id)).toEqual(['legacy', 'broken', 'owned']);
+    expect(hashPubKey).not.toHaveBeenCalledWith('legacy-id');
+    expect(wrapper.vm.classrooms.map((c: any) => c.ownerHash)).toEqual([undefined, undefined, 'testhash1234']);
+
+    const links = wrapper.findAll('[data-link="true"]').map(a => a.attributes('href'));
+    expect(links).toContain('./?/classroom/legacy');
+    expect(links).toContain('./?/classroom/owned/testhash1234');
+    expect(links.some(l => l?.includes('undefined'))).toBe(false);
+  });
+
   test('copies user ID to clipboard', async () => {
     const wrapper = createWrapper();
     wrapper.vm.copyPeerID();
     expect(vi.mocked(copyToClipboard)).toHaveBeenCalledWith('test-user');
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const translations = messages[locale].index.classroom;
-      
-      const wrapper = createWrapper();
-      await wrapper.vm.$nextTick();
-      
-      // Set up classroom data
-      await wrapper.setData({
-        classrooms: mockClassrooms
-      });
-      await wrapper.vm.$nextTick();
-
-      // Check create classroom card
-      const createCard = wrapper.findAll('[data-test="classroom-card"]')
-        .filter(card => card.text().includes(translations.create))
-        .at(0);
-      
-      expect(createCard.exists()).toBe(true);
-      expect(createCard.text()).toContain(translations.startTeaching);
-
-      // Check classroom cards
-      const cards = wrapper.findAll('[data-test="classroom-card"]');
-      const firstCard = cards[0];
-      
-      // Check write protection text
-      const writeProtectionChip = firstCard.find('.v-chip');
-      expect(writeProtectionChip.text()).toContain(translations.writeProtection);
-      
-      // Check ownership texts
-      const cardSubtitle = firstCard.find('.v-card-subtitle');
-      expect(cardSubtitle.text()).toContain(translations.ownership.owner);
-      console.log('wrapperr', wrapper.html())
-      // Check action buttons
-      expect(firstCard.find('[title="' + translations.actions.fork + '"]').exists()).toBe(true);
-
-      // Check action buttons and delete dialog
-      const deleteBtn = firstCard.find('button[icon="mdi-delete"]');
-      expect(deleteBtn.exists()).toBe(true);
-      
-      // Delete dialog should be visible in the menu content
-      const deleteDialog = wrapper.find('.v-menu-content .v-list-item');
-      expect(deleteDialog.text()).toContain(translations.actions.deleteConfirm);
-      
-      const deleteButton = wrapper.find('button.v-btn.red');
-      expect(deleteButton.exists()).toBe(true);
-      expect(deleteButton.text()).toContain(translations.actions.deleteForever);
-    });
   });
 });

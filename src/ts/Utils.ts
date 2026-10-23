@@ -95,26 +95,46 @@ export function copyToClipboard(str: string) {
   navigator.clipboard.writeText(str)
 }
 
+/** A classroom from a YAML/JSON text (deploy link, restored file or URL), normalized; undefined if it isn't one. */
 export function parseClassroom(config: string) {
-  let classroom
-
-  console.warn('parse Classroom', config)
-
   try {
-    classroom = parse(config)
-
-    if (classroom) {
-      // guarantees that older modules without a custom show can be loaded
-      for (let i = 0; i < classroom.modules; i++) {
-        classroom.modules[i].showInCustom =
-          classroom.modules[i].showInCustom || classroom.modules[i].showIn || ''
-      }
-    }
+    return normalizeClassroom(parse(config))
   } catch (e) {
     console.warn('could not parse classroom', e.message)
   }
+}
 
-  return classroom
+/**
+ * Fills in what an imported classroom may lack, so the rest of the app can
+ * rely on `meta`, `members` and `modules`. Undefined if `data` isn't an object.
+ */
+export function normalizeClassroom(data: any) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return undefined
+
+  const strings = (list: any) =>
+    Array.isArray(list) ? list.filter((s) => typeof s === 'string') : []
+
+  data.meta = {
+    logo: '',
+    description: '',
+    selfAssign: false,
+    defaultNumberOfRooms: 0,
+    ...(data.meta && typeof data.meta === 'object' ? data.meta : {}),
+  }
+  data.members = {
+    teacher: strings(data.members?.teacher),
+    student: strings(data.members?.student),
+  }
+  data.modules = (Array.isArray(data.modules) ? data.modules : [])
+    .filter((m: any) => m && typeof m === 'object')
+    .map((m: any) => ({
+      ...m,
+      // older modules only have showIn (a list, or a comma separated string)
+      showInCustom:
+        m.showInCustom || (Array.isArray(m.showIn) ? m.showIn.join(', ') : m.showIn) || '',
+    }))
+
+  return data
 }
 
 export function parse(config: string): any {
@@ -160,7 +180,7 @@ export async function scrapeModule(module) {
                             })
                             .join('\n')}
 
-                          <style type="module">${yaml.style || ''}</style>
+                          <style>${yaml.style || ''}</style>
                           <script>${yaml.main}</script>
                           </head>
                           <body>
@@ -185,8 +205,7 @@ export async function scrapeModule(module) {
         throw new Error('Could not load the YAML-declaration: ' + error.message)
       }
     } else {
-      const moduleEl = document.createElement('html')
-      moduleEl.innerHTML = content
+      const moduleEl = new DOMParser().parseFromString(content, 'text/html')
       const meta = Object.fromEntries(
         Object.values(moduleEl.getElementsByTagName('meta')).map((m) => [
           m.name,
@@ -245,25 +264,6 @@ function initialShow(module: any) {
   return module
 }
 
-export function download(filename, text) {
-  /**
-   * https://stackoverflow.com/questions/3665115/how-to-create-a-file-in-memory-for-user-to-download-but-not-through-server
-   */
-  const element = document.createElement('a')
-  element.setAttribute(
-    'href',
-    'data:text/plain;charset=utf-8,' + encodeURIComponent(text)
-  )
-  element.setAttribute('download', filename)
-
-  element.style.display = 'none'
-  document.body.appendChild(element)
-
-  element.click()
-
-  document.body.removeChild(element)
-}
-
 export function throttle(func, limit, options = { trailing: true }) {
   let lastFunc
   let lastRan
@@ -292,36 +292,6 @@ export function throttle(func, limit, options = { trailing: true }) {
   }
 }
 
-export function debounce(func, wait, immediate?) {
-  /**
-   * https://davidwalsh.name/javascript-debounce-function
-   */
-  let timeout
-  return function () {
-    const context = this,
-      args = arguments
-    const later = function () {
-      timeout = null
-      if (!immediate) func.apply(context, args)
-    }
-    const callNow = immediate && !timeout
-    clearTimeout(timeout)
-    timeout = setTimeout(later, wait)
-    if (callNow) func.apply(context, args)
-  }
-}
-
-export function setToValue(obj, pathArr, value) {
-  let i = 0
-
-  for (i = 0; i < pathArr.length - 1; i++) {
-    obj = obj[pathArr[i]]
-    if (!obj[pathArr[i + 1]]) obj[pathArr[i + 1]] = {}
-  }
-  obj[pathArr[i]] = value
-  // if (value == undefined)
-  //     delete obj[pathArr[i]]
-}
 
 // Rooms colour palette: 8 distinct but soft colours.
 const ROOM_PALETTE = [
@@ -403,7 +373,8 @@ function getCryptoDB(): Database {
 function _computeShortID(pubBase64: string): string {
   try {
     const bytes = Uint8Array.from(atob(pubBase64), (c) => c.charCodeAt(0))
-    return Array.from(bytes.slice(0, 4)).map((b) => b.toString(16).padStart(2, '0')).join('')
+    // Byte 0 of a raw P-256 key is always 0x04; skip it so all 8 hex digits vary.
+    return Array.from(bytes.slice(1, 5)).map((b) => b.toString(16).padStart(2, '0')).join('')
   } catch {
     // Not a base64 public key (e.g. station IDs) — fall back to first 8 alphanumeric chars
     return pubBase64.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || pubBase64.slice(0, 8)
@@ -521,14 +492,39 @@ export function stripPubKey(key: string): string {
   return key.replace(/=/g, '')
 }
 
+/** Whether two keys are the same, ignoring base64 padding (as signature checks do). */
+export function sameKey(a: string | undefined | null, b: string | undefined | null): boolean {
+  return !!a && !!b && stripPubKey(a) === stripPubKey(b)
+}
+
+/** Whether `key` is in a members list, ignoring base64 padding (as signature checks do). */
+export function isMember(list: string[] | undefined | null, key: string): boolean {
+  return (list || []).some((m) => typeof m === 'string' && sameKey(m, key))
+}
+
+/** Decode base64 or base64url, with or without padding. Throws on invalid input. */
+function _pubKeyBytes(pubKeyBase64: string): Uint8Array<ArrayBuffer> {
+  return Uint8Array.from(atob(pubKeyBase64.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(pubKeyBase64.length / 4) * 4, '=')), c => c.charCodeAt(0))
+}
+
+/** True for a raw P-256 public key (65 bytes, 0x04 prefix); false for legacy peer IDs. */
+export function isPubKey(value: string): boolean {
+  try {
+    const bytes = _pubKeyBytes(value)
+    return bytes.length === 65 && bytes[0] === 0x04
+  } catch {
+    return false
+  }
+}
+
 /** SHA-256 hash of a public key (base64), returns first 16 base64url chars (~96 bits). */
 export async function hashPubKey(pubKeyBase64: string): Promise<string> {
-  const bytes = Uint8Array.from(atob(pubKeyBase64.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(pubKeyBase64.length / 4) * 4, '=')), c => c.charCodeAt(0))
+  const bytes = _pubKeyBytes(pubKeyBase64)
   const digest = await crypto.subtle.digest('SHA-256', bytes)
   return b64ToB64Url(btoa(String.fromCharCode(...new Uint8Array(digest)))).slice(0, 16)
 }
 
-function _b64ToBytes(b64: string): Uint8Array {
+function _b64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
 }
 
@@ -577,23 +573,16 @@ export async function verifySetup(
   }
 }
 
-// --- Signed live-state primitives (y.users / y.rooms) ---
-
-// Sentinel origin for local-only revert transactions; provider wrappers drop
-// outgoing updates tagged with this so reverts don't propagate.
-export const REVERT_INVALID_ORIGIN = 'revert-invalid'
+// --- Signed live-state primitives (presence, room records, chat) ---
 
 // Bound into signed bodies so a signature for `users[k]` can't be replayed as `rooms[k]`.
-export type SignedContainer = 'users' | 'rooms' | 'chat'
+export type SignedContainer = 'users' | 'rooms' | 'chat' | 'messages'
 
 export interface Envelope {
   signer: string
   nonce: number
   signature: string
 }
-
-// Envelope replay window (must be long enough to tolerate network delays).
-export const ENVELOPE_REPLAY_WINDOW_MS = 60_000
 
 // Deterministic JSON: keys sorted recursively, arrays preserve order. Must be
 // byte-identical across peers so signatures verify.
@@ -612,7 +601,7 @@ function buildSignedBody(
   nonce: number,
   key: string,
   container: SignedContainer
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
   const body = canonicalize({ payload, signer, nonce, key, container })
   return new TextEncoder().encode(body)
 }
@@ -631,18 +620,17 @@ export async function signEntry(
   return { signer, nonce, signature: _bytesToB64(sig) }
 }
 
-// Proves integrity + freshness only; authorization (is signer allowed to write this entry?) is the caller's job.
+// Proves integrity only. Freshness (newest nonce wins, stale presence) and
+// authorization (may this signer write this entry?) are the caller's job.
 export async function verifyEntry(
   container: SignedContainer,
   key: string,
   payload: any,
-  envelope: Envelope | null | undefined,
-  replayWindowMs: number = ENVELOPE_REPLAY_WINDOW_MS
+  envelope: Envelope | null | undefined
 ): Promise<boolean> {
   if (!envelope || typeof envelope !== 'object') return false
   if (typeof envelope.signer !== 'string' || typeof envelope.signature !== 'string') return false
   if (typeof envelope.nonce !== 'number' || !Number.isFinite(envelope.nonce)) return false
-  if (Math.abs(Date.now() - envelope.nonce) > replayWindowMs) return false
   try {
     const pubKey = await crypto.subtle.importKey(
       'raw',
@@ -783,14 +771,6 @@ export function deepEqual(object1, object2) {
 }
 function isObject(object) {
   return object != null && typeof object === 'object'
-}
-
-export async function hashJsonObject(jsonObject: any) {
-  const msgUint8 = new TextEncoder().encode(JSON.stringify(jsonObject))
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
-  return hashHex
 }
 
 /**

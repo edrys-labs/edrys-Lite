@@ -21,17 +21,19 @@ import {
   cleanUrlAfterCommConfigExtraction,
   updateUrlWithCommConfig,
   encodeCommConfig,
-  decodeCommConfig
+  decodeCommConfig,
+  sameKey,
+  isMember,
 } from "../ts/Utils";
-import { onMounted } from "vue";
-import Peer from "../ts/Peer";
+import { markRaw, onMounted } from "vue";
+import Peer, { MAX_ROOMS } from "../ts/Peer";
 
 import { copyToClipboard, deepEqual, roomColor } from "../ts/Utils";
 
 import { debug } from "../api/debugHandler";
 
 export default {
-  props: ["id", "station", "owner", "hash"],
+  props: ["id", "station", "owner"],
 
   setup() {
     const { t, locale } = useI18n();
@@ -94,6 +96,7 @@ export default {
       showSettings: false,
 
       scrapedModules: [] as any[],
+      isLoadingModules: false,
 
       liveClassProxy: liveClassProxy,
 
@@ -110,6 +113,7 @@ export default {
         messages: [],
         truncated: false,
         new: false,
+        since: Date.now(),
       },
 
       stationNameInput: stationName,
@@ -118,11 +122,16 @@ export default {
         (v: string) => !this.isNameTaken(v) || this.t("classroom.station.rules.2"),
       ],
 
+      // Hidden for now: the Logger is moving into a separate edrys module.
+      isLoggerEnabled: false,
       isLoggerVisible: false,
       isLoggerMinimized: false,
       isLoggerRunning: false,
 
       urlCommunicationConfig: null, // Stores URL-provided communication config 
+
+      // False while the connection to the class is lost (the transport reconnects).
+      online: true,
     };
   },
   watch: {
@@ -131,6 +140,11 @@ export default {
         this.data = clone(this.configuration.data);
       }
     },
+  },
+  // The router remounts the app on popstate (back/forward, hash-only
+  // navigation); without this the old Peer stays live in the room.
+  beforeUnmount() {
+    this.communication?.stop();
   },
 
   methods: {
@@ -155,7 +169,6 @@ export default {
       // Extract communication config from URL and decode it if needed
       const urlCommConfig = extractCommunicationConfigFromUrl();
       
-      await this.database.setProtection(this.id, !!this.hash);
       const config = await this.database.get(this.id);
       
       if (urlCommConfig) {
@@ -171,17 +184,7 @@ export default {
           !deepEqual(this.configuration?.data?.modules, config?.data.modules));
 
       this.configuration =
-        config || { id: this.id, data: null, timestamp: 0, hash: this.hash };
-
-      if (!!this.hash && this.configuration?.hash !== this.hash) {
-        debug.views.classroom("Hash mismatch, resetting configuration");
-        this.configuration = {
-          id: this.id,
-          data: null,
-          timestamp: 0,
-          hash: this.hash,
-        };
-      }
+        config || { id: this.id, data: null, timestamp: 0, hash: null };
       
       // Create a minimal valid configuration structure if needed
       if (!this.configuration.data) {
@@ -192,6 +195,9 @@ export default {
           meta: { defaultNumberOfRooms: 0 },
           createdBy: ""
         };
+      } else {
+        // A real configuration: its (possibly empty) module list is authoritative.
+        this.states.receivedConfiguration = true;
       }
 
       const configurationCopy = JSON.parse(JSON.stringify(this.configuration));
@@ -215,20 +221,25 @@ export default {
         cleanUrlAfterCommConfigExtraction(true);
       }
 
-      if (!this.communication) {                
-        this.communication = new Peer(
+      if (!this.communication) {
+        // markRaw: a reactive Proxy around the Peer would also wrap its Yjs doc.
+        // Yjs compares items by identity while merging, so writes made through
+        // the proxy can be merged wrongly and lose concurrent updates (e.g. the
+        // class configuration vanishing when a station joins).
+        this.communication = markRaw(new Peer(
           configurationCopy,
           this.stationName,
           this.t,
           null, // password
           this.owner || undefined
-        );
+        ));
         
         this.communication.on("setup", async (configuration: DatabaseItem) => {
           const previousModules = self.data?.modules;
           await self.database.put(clone(configuration));
           await self.init();
           self.data = clone(configuration.data);
+          self.states.receivedConfiguration = true;
           if (!deepEqual(previousModules, configuration.data?.modules)) {
             self.scrapeModules();
           }
@@ -240,6 +251,9 @@ export default {
         });
 
         this.communication.on("popup", this.addPopup);
+        this.communication.on("online", (online: boolean) => {
+          self.online = online;
+        });
       }
 
       this.database.setObservable(this.id, (config: DatabaseItem) => {
@@ -292,13 +306,13 @@ export default {
         return "station";
       }
 
-      if (this.configuration.data.createdBy && this.peerID.startsWith(this.configuration.data.createdBy)) {
+      if (sameKey(getPeerID(false), this.configuration.data.createdBy)) {
         this.isOwner = true;
         this.isTeacher = true;
         return "teacher";
       }
 
-      if (this.configuration?.data?.members?.teacher?.includes(getPeerID(false))) {
+      if (isMember(this.configuration?.data?.members?.teacher, getPeerID(false))) {
         this.isOwner = false;
         this.isTeacher = true;
         return "teacher";
@@ -312,13 +326,23 @@ export default {
     async scrapeModules() {
       if (!this.data) return;
 
-      this.states.receivedConfiguration = true;
+      // Calls can overlap (e.g. saving Settings while the class's first modules
+      // are still loading); only the newest may set the list, or a slow older
+      // scrape overwrites it with the previous modules.
+      const run = (this._scrapeRun = (this._scrapeRun || 0) + 1);
 
-      const scrapedModules: any[] = [];
-      for (let i = 0; i < this.data.modules.length; i++) {
-        let module = await scrapeModule(this.data.modules[i]);
-        scrapedModules.push(module);
+      // Each scrapeModule() is a network round-trip; run them together so the
+      // loading window is one RTT rather than one per module.
+      this.isLoadingModules = true;
+      let scrapedModules: any[];
+      try {
+        scrapedModules = await Promise.all(
+          this.data.modules.map((module: any) => scrapeModule(module))
+        );
+      } finally {
+        if (run === this._scrapeRun) this.isLoadingModules = false;
       }
+      if (run !== this._scrapeRun) return;
 
       this.componentKey++;
       this.scrapedModules = scrapedModules;
@@ -330,10 +354,17 @@ export default {
       });
 
       this.communication.on("chat", (chat: { messages: any; truncated: boolean }) => {
+        // Only messages new to us and written since we opened the class: the
+        // history arrives in parts (the doc, then its writers' presence).
+        const known = new Set(self.chat.messages.map((m: any) => m.signature));
+        const fresh = chat.messages.some(
+          (m: any) => !known.has(m.signature) && m.timestamp >= self.chat.since
+        );
+
         self.chat.messages = chat.messages;
         self.chat.truncated = chat.truncated;
 
-        if (!self.chat.open) {
+        if (fresh && !self.chat.open) {
           self.chat.new = true;
         }
       });
@@ -349,7 +380,8 @@ export default {
     },
 
     saveClass(configuration: any) {
-      this.$refs.Settings.close = true;
+      // Settings is only mounted while its dialog is open.
+      if (this.$refs.Settings) this.$refs.Settings.close = true;
 
       // Get the current encoded config
       const oldEncodedConfig = this.configuration?.data?.communicationConfig || null;
@@ -386,8 +418,8 @@ export default {
       }
     },
 
-    usersInRoom(name: string): [string, string, string][] {
-      const users: [string, "black" | "grey", string][] = [];
+    usersInRoom(name: string): [string, string, string, string][] {
+      const users: [string, "black" | "dimgray", string, string][] = [];
 
       const icon = {
         teacher: "mdi-account-star-outline",
@@ -407,10 +439,16 @@ export default {
             }
           }
 
+          // Role and "you" are only shown by icon and color; spell them out
+          // for screen readers.
+          let label = this.t(`general.roles.${userRole}`);
+          if (this.peerID === id) label += ", " + this.t("general.you");
+
           users.push([
             displayName,
-            this.peerID === id ? "black" : "grey",
+            this.peerID === id ? "black" : "dimgray",
             icon[userRole],
+            label,
           ]);
         }
       }
@@ -435,8 +473,23 @@ export default {
       }, 1000);
     },
 
+    roomCount(): number {
+      return Number(this.configuration?.data?.meta?.defaultNumberOfRooms) || 0;
+    },
+
+    canAddRoom(): boolean {
+      return this.roomCount() < MAX_ROOMS;
+    },
+
+    // Rooms come from the room count in the setup, so a new room is a saved +1.
     addRoom() {
-      this.communication?.addRoom();
+      if (!this.canAddRoom()) return;
+      const configuration = clone(this.configuration.data);
+      configuration.meta = {
+        ...configuration.meta,
+        defaultNumberOfRooms: this.roomCount() + 1,
+      };
+      this.saveClass(configuration);
     },
 
     deleteClass() {
@@ -495,18 +548,31 @@ export default {
     <v-layout>
       <v-app-bar color="surface-variant">
         <template v-slot:prepend>
-          <v-app-bar-nav-icon @click="showSideMenu = !showSideMenu"></v-app-bar-nav-icon>
+          <v-app-bar-nav-icon
+            :aria-label="t('classroom.sideMenu.rooms')"
+            :aria-expanded="showSideMenu"
+            @click="showSideMenu = !showSideMenu"
+          ></v-app-bar-nav-icon>
 
-          <v-app-bar-title
-            tag="a"
-            style="color: white; text-decoration: none"
-            title="Back to index-page"
-          >
-            <a href="./" style="color: white; text-decoration: none">edrys-lite</a>
+          <v-app-bar-title style="color: white; text-decoration: none">
+            <a href="./" title="Back to index-page" style="color: white; text-decoration: none">edrys-lite</a>
           </v-app-bar-title>
         </template>
 
         <v-spacer></v-spacer>
+
+        <!-- The live region must exist before the chip appears to be announced -->
+        <div role="status">
+          <v-chip
+            v-if="!online"
+            color="warning"
+            prepend-icon="mdi-wifi-off"
+            class="mr-2"
+            data-test="offline-chip"
+          >
+            {{ t("classroom.reconnecting") }}
+          </v-chip>
+        </div>
 
         <v-tooltip text="Open Logger" location="bottom">
           <template v-slot:activator="{ props }">
@@ -514,7 +580,7 @@ export default {
               icon="mdi-console"
               :style="{ animation: isLoggerRunning ? 'blink 1.5s linear infinite' : '' }"
               v-bind="props"
-              v-if="isStation"
+              v-if="isLoggerEnabled && isStation"
               @click="
                 isLoggerVisible = true;
                 isLoggerMinimized = false;
@@ -533,6 +599,8 @@ export default {
 
         <v-btn
           icon
+          :aria-label="chat.new ? t('classroom.chatUnread') : t('classroom.chat')"
+          :aria-expanded="chat.open"
           @click="
             chat.open = !chat.open;
             chat.new = false;
@@ -649,13 +717,14 @@ export default {
                     : 'mdi-arrow-right-circle'
                 "
                 variant="text"
+                :aria-label="t('classroom.sideMenu.gotoRoom', { room: translateRoomName(name) })"
                 @click="gotoRoom(name)"
               ></v-btn>
             </template>
           </v-list-item>
 
           <v-list-item
-            v-for="([user, color, icon], j) in usersInRoom(name)"
+            v-for="([user, color, icon, label], j) in usersInRoom(name)"
             :key="j"
             :style="'min-height: 1.25rem; color: ' + color"
           >
@@ -667,13 +736,13 @@ export default {
               user && user.includes("Station")
                 ? user.replace("Station", t("classroom.sideMenu.station"))
                 : user
-            }}</v-list-item-title>
+            }}<span class="d-sr-only">, {{ label }}</span></v-list-item-title>
           </v-list-item>
         </v-list>
 
         <template v-slot:append>
           <div class="pa-2">
-            <v-btn depressed block class="mb-2" @click="addRoom" v-if="isOwner">
+            <v-btn depressed block class="mb-2" @click="addRoom" v-if="isOwner" :disabled="!canAddRoom()">
               <v-icon left>mdi-forum</v-icon>
               {{ t("classroom.sideMenu.newRoom") }}
             </v-btn>
@@ -696,6 +765,7 @@ export default {
             :username_="peerID"
             :liveClassProxy="liveClassProxy"
             :scrapedModules_="scrapedModules"
+            :isLoading="isLoadingModules || !states.receivedConfiguration"
             :communication="communication"
             v-if="liveClassProxy !== null"
             :key="componentKey"
@@ -723,12 +793,11 @@ export default {
         @saveClass="saveClass"
         @deleteClass="deleteClass"
         @updateClass="updateClass"
-        :writeProtection="!!hash"
-        :membersWriteProtection="!!hash && !isTeacher"
       ></Settings>
     </v-dialog>
 
     <v-dialog
+      v-if="isLoggerEnabled"
       v-model="isLoggerVisible"
       max-width="1200px"
       width="90%"

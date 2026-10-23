@@ -1,8 +1,14 @@
-import { createApp } from 'vue'
+import { createApp, watch } from 'vue'
 import Index from './views/Index.vue'
 import Classroom from './views/Classroom.vue'
 import Deploy from './views/Deploy.vue'
 import { initCryptoIdentity, runMigrationIfNeeded } from './ts/Utils'
+import { installWorkerTimers } from './ts/WorkerTimers'
+
+// Keep presence and heartbeats on time while the tab is in the background.
+// Runs after all imports have loaded: fine as long as none starts a timer at
+// load time, since those would stay on the native (throttled) timers.
+installWorkerTimers()
 
 // Vuetify
 import { createVuetify } from 'vuetify'
@@ -23,6 +29,7 @@ import {
   VChip,
   VCheckbox,
   VCol,
+  VCombobox,
   VContainer,
   VDialog,
   VDivider,
@@ -131,6 +138,15 @@ const i18n = createI18n({
   },
 })
 
+// Screen readers pick their voice from <html lang>
+watch(
+  i18n.global.locale,
+  (lang) => {
+    document.documentElement.lang = lang
+  },
+  { immediate: true }
+)
+
 const vuetify = createVuetify({
   components: {
     VApp,
@@ -148,6 +164,7 @@ const vuetify = createVuetify({
     VCheckbox,
     VChip,
     VCol,
+    VCombobox,
     VContainer,
     VDialog,
     VDivider,
@@ -301,6 +318,9 @@ const router = async () => {
   }
 
   const params = getParams(match)
+  // Links from the removed write protection carry a content hash after the
+  // owner; the routes still match them so the owner segment parses, but it's unused.
+  delete params.hash
   const view = match.route.view
 
   app?.unmount()
@@ -316,6 +336,12 @@ const router = async () => {
 }
 
 window.addEventListener('popstate', router)
+
+// Leaving the page (pagehide) stops the classroom's connection; a page the
+// browser restores from its back/forward cache would come back without one.
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) location.reload()
+})
 
 document.addEventListener('DOMContentLoaded', () => {
   document.body.addEventListener('click', (e) => {

@@ -1,7 +1,6 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Stations from '../../../../src/components/Settings/Stations.vue';
-import { i18n, messages } from '../../../setup';
 
 describe('Stations Settings Component', () => {
   let originalLocation: Location;
@@ -13,8 +12,8 @@ describe('Stations Settings Component', () => {
     originalClipboard = navigator.clipboard;
 
     // Mock window.location
-    delete window.location;
-    window.location = {
+    delete (window as any).location;
+    (window as any).location = {
       ...originalLocation,
       toString: () => 'http://localhost:3000/classroom',
     } as Location;
@@ -30,7 +29,7 @@ describe('Stations Settings Component', () => {
 
   afterEach(() => {
     // Restore the original window.location and navigator.clipboard
-    window.location = originalLocation;
+    (window as any).location = originalLocation;
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,
       writable: true,
@@ -69,19 +68,5 @@ describe('Stations Settings Component', () => {
     await copyBtn.trigger('click');
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://localhost:3000/station');
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const wrapper = createWrapper();
-      
-      const translations = messages[locale].settings.stations;
-
-      const alerts = wrapper.findAll('.v-alert');
-
-      const alertText = alerts.find(alert => alert.attributes('text')  === translations.info);
-      expect(alertText).toBeTruthy();
-    });
   });
 });

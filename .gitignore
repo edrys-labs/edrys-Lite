@@ -8,9 +8,8 @@ parcel-bundle-reports/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
-e2e-tests/
+tests/e2e-tests/exploits/
 tests-examples/
-playwright.config.ts
 .env
 .vscode/
 .playwright-cli

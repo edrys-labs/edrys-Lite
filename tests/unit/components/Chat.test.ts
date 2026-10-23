@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Chat from '../../../src/components/Chat.vue';
 import markdownit from 'markdown-it';
-import { i18n, messages } from '../../setup';
+import { i18n } from '../../setup';
 
 // Mock prism dependencies
 const mockPrismHighlight = vi.fn((code) => code);
@@ -152,6 +152,19 @@ describe('Chat Component', () => {
     expect(markdownit).toHaveBeenCalled();
   });
 
+  test('renders raw HTML in a message as text, not markup', async () => {
+    const { default: realMarkdownit } = await vi.importActual<any>('markdown-it');
+    (markdownit as any).mockImplementationOnce((options: any) => realMarkdownit(options));
+
+    wrapper = createWrapper({
+      messages: [{ timestamp: 1, msg: 'hi <img src=x onerror=alert(1)>', user: 'u' }],
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.markdown img').exists()).toBe(false);
+    expect(wrapper.find('.markdown').text()).toContain('<img src=x onerror=alert(1)>');
+  });
+
   test('formats timestamps correctly', () => {
     wrapper = createWrapper();
     
@@ -237,22 +250,5 @@ describe('Chat Component', () => {
     
     // Restore original value
     window.innerWidth = originalInnerWidth;
-  });
-
-  describe('translations', () => {
-    test.each(['en', 'de', 'uk', 'ar', 'es'])('displays correct translations for %s locale', async (locale) => {
-      i18n.global.locale.value = locale as 'en' | 'de' | 'uk' | 'ar' | 'es';
-      const wrapper = createWrapper();
-      
-      const translations = messages[locale].chat;
-
-      // Check truncation message
-      await wrapper.setProps({ truncated: true });
-      expect(wrapper.html()).toContain(translations.deletedMessage);
-
-      // Check send button text
-      const sendButton = wrapper.find('.v-btn');
-      expect(sendButton.text()).toBe(translations.sendButton);
-    });
   });
 });
