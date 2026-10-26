@@ -31,6 +31,7 @@ import Peer, { MAX_ROOMS } from "../ts/Peer";
 import { copyToClipboard, deepEqual, roomColor } from "../ts/Utils";
 
 import { debug } from "../api/debugHandler";
+import { devClassId, startDevBridge } from "../ts/DevBridge";
 
 export default {
   props: ["id", "station", "owner"],
@@ -56,8 +57,9 @@ export default {
       window.webkitRTCPeerConnection
     );
 
-    onMounted(() => {
-      this.init();
+    onMounted(async () => {
+      await this.init();
+      this.startDevMode();
     });
 
     let stationName: string | null = "";
@@ -145,6 +147,7 @@ export default {
   // navigation); without this the old Peer stays live in the room.
   beforeUnmount() {
     this.communication?.stop();
+    this._stopDevBridge?.();
   },
 
   methods: {
@@ -416,6 +419,25 @@ export default {
       if (modulesChanged && !communicationChanged) {
         this.scrapeModules();
       }
+    },
+
+    // Served by edrys-dev and opened with `?dev`: the lab file drives this class.
+    startDevMode() {
+      if (devClassId() !== this.id || !this.isOwner) return;
+
+      this._stopDevBridge = startDevBridge((lab: any) => {
+        const current = this.configuration.data;
+        const configuration = {
+          ...lab,
+          id: current.id,
+          createdBy: current.createdBy,
+        };
+        if (!configuration.communicationConfig && current.communicationConfig) {
+          configuration.communicationConfig = current.communicationConfig;
+        }
+
+        if (!deepEqual(configuration, current)) this.saveClass(configuration);
+      });
     },
 
     usersInRoom(name: string): [string, string, string, string][] {

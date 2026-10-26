@@ -4,6 +4,7 @@ import Classroom from './views/Classroom.vue'
 import Deploy from './views/Deploy.vue'
 import { initCryptoIdentity, runMigrationIfNeeded } from './ts/Utils'
 import { installWorkerTimers } from './ts/WorkerTimers'
+import { isDevEntry, openDevLab } from './ts/DevBridge'
 
 // Keep presence and heartbeats on time while the tab is in the background.
 // Runs after all imports have loaded: fine as long as none starts a timer at
@@ -257,6 +258,16 @@ const router = async () => {
 
   const migrated = await runMigrationIfNeeded()
   if (migrated) sessionStorage.setItem('showMigrationBanner', '1')
+
+  // Opened by edrys-dev: show the class of the lab file it serves.
+  if (isDevEntry()) {
+    try {
+      navigateTo(await openDevLab(), true)
+      return
+    } catch (error) {
+      console.error('edrys-dev: could not open the lab', error)
+    }
+  }
 
   const routes = [
     { path: '/', view: Index },
