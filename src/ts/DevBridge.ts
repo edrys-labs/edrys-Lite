@@ -100,6 +100,33 @@ export type DevCommands = {
   goto?: (command: { room?: string }) => void
   /** A file of a local module changed: load the modules whose url starts with `url` again. */
   reloadModule?: (command: { url: string }) => void
+  /** The shared state of a room's modules as JSON, now; undefined if there is no such room. */
+  readState?: (room: string) => Record<string, any> | undefined
+}
+
+// strings of the state are cut to this many characters, or to KEY_MAX when
+// only one key is asked for
+const STATE_MAX = 1000
+const KEY_MAX = 50000
+
+/** A state value fit to send: long strings cut, binary data as its size. */
+export function trimState(value: any, max: number): any {
+  if (typeof value === 'string') return value.length > max ? value.slice(0, max) + `…(${value.length})` : value
+  if (value instanceof Uint8Array) return { binary: value.length }
+  if (Array.isArray(value)) return value.map((item) => trimState(item, max))
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, trimState(v, max)]))
+  }
+  return value
+}
+
+/** Answers `read-state` {room, key?}: the room's state, or one key of it. */
+function readState(commands: DevCommands, { room, key }: { room: string; key?: string }) {
+  const state = commands.readState?.(room)
+  if (!state) throw new Error(`no room ${room}`)
+  if (key === undefined) return { room, state: trimState(state, STATE_MAX) }
+  if (!Object.prototype.hasOwnProperty.call(state, key)) throw new Error(`no key ${key} in ${room}; keys: ${Object.keys(state).join(', ')}`)
+  return { room, key, value: trimState(state[key], KEY_MAX) }
 }
 
 /**
@@ -127,6 +154,15 @@ export function startDevBridge(apply: (data: any) => boolean, commands: DevComma
   events.addEventListener('reload-module', (event: MessageEvent) =>
     commands.reloadModule?.(JSON.parse(event.data))
   )
+  // a question of edrys-dev, answered with a `reply` of the same id
+  events.addEventListener('read-state', (event: MessageEvent) => {
+    const { id, ...command } = JSON.parse(event.data)
+    try {
+      report('reply', { id, value: readState(commands, command) })
+    } catch (error: any) {
+      report('reply', { id, error: error.message })
+    }
+  })
 
   return () => events.close()
 }

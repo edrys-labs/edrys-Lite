@@ -319,6 +319,16 @@ describe('Peer Class', () => {
       expect(roomMap.size).toEqual(2);
     });
 
+    test('roomState reads a room\'s module state from the doc, at once', () => {
+      const lobby = (peer['y'].rooms as Y.Map<any>).get('Lobby');
+      const text = new Y.Text();
+      lobby.set('note', text);
+      text.insert(0, 'hi');
+
+      expect(peer.roomState('Lobby')).toEqual({ note: 'hi' });
+      expect(peer.roomState('Room 9')).toBeUndefined();
+    });
+
     // e.g. a room added right after creating the class, before join() seeded the rooms
     test('creates the Lobby state when a room was added before join()', async () => {
       const early = new Peer(setup, undefined, i18n.global.t);

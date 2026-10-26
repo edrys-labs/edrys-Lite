@@ -247,6 +247,36 @@ describe('DevBridge', () => {
       );
       expect(apply).not.toHaveBeenCalled();
     });
+
+    test('answers read-state with a reply of the same id', () => {
+      const fetchMock = serveLab();
+      const rooms: Record<string, any> = {
+        'Room 1': { code: 'x'.repeat(1500), frame: new Uint8Array(4), list: [{ n: 1 }] },
+      };
+      startDevBridge(vi.fn(), { readState: (room) => rooms[room] });
+      const replies = () =>
+        (fetchMock.mock.calls as any[])
+          .map(([, init]) => JSON.parse(init.body))
+          .filter((body) => body.type === 'reply');
+
+      source.listeners['read-state']({ data: JSON.stringify({ id: 'a', room: 'Room 1' }) });
+      source.listeners['read-state']({ data: JSON.stringify({ id: 'b', room: 'Room 1', key: 'code' }) });
+      source.listeners['read-state']({ data: JSON.stringify({ id: 'c', room: 'Room 1', key: 'nope' }) });
+      source.listeners['read-state']({ data: JSON.stringify({ id: 'd', room: 'Room 9' }) });
+
+      const [a, b, c, d] = replies();
+      expect(a).toEqual({
+        type: 'reply',
+        id: 'a',
+        value: {
+          room: 'Room 1',
+          state: { code: 'x'.repeat(1000) + '…(1500)', frame: { binary: 4 }, list: [{ n: 1 }] },
+        },
+      });
+      expect(b.value).toEqual({ room: 'Room 1', key: 'code', value: 'x'.repeat(1500) });
+      expect(c).toEqual({ type: 'reply', id: 'c', error: 'no key nope in Room 1; keys: code, frame, list' });
+      expect(d).toEqual({ type: 'reply', id: 'd', error: 'no room Room 9' });
+    });
   });
 });
 

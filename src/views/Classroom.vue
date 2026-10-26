@@ -460,7 +460,11 @@ export default {
         if (this.scrapedModules === scraped) this.scrapedModules = fresh;
       };
 
-      const stopBridge = startDevBridge(apply, { goto, reloadModule });
+      // a room of the class, its state read from the doc (the live class's copy lags)
+      const readState = (room: string) =>
+        this.liveClassProxy?.rooms?.[room] ? this.communication.roomState(room) ?? {} : undefined;
+
+      const stopBridge = startDevBridge(apply, { goto, reloadModule, readState });
 
       // what the agent sees of the class: rooms, who is where, the modules
       const unwatch = this.$watch(

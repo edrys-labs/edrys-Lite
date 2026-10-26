@@ -1524,6 +1524,15 @@ export default class Peer {
     return () => this.y.doc.off('update', callback)
   }
 
+  /**
+   * A room's module state as JSON, as it is now: the rooms of the `room`
+   * update are rebuilt only when users or rooms change, not on module writes.
+   */
+  roomState(name: string): Record<string, any> | undefined {
+    const map = this.y.rooms.get(name)
+    return map instanceof Y.Map ? map.toJSON() : undefined
+  }
+
   /** The app-awareness channel (module cursors/presence), isolated from identity. */
   getAwareness(): any {
     return this.provider.getAwareness()
