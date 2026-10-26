@@ -6,9 +6,9 @@
  *  Edrys.username
  *  Edrys.module
  *  Edrys.debug (set to true/false to enable/disable module debugging)
- *  Edrys.liveClass (this is reactive, meaning setting a property on it will also update it in real time)
- *  Edrys.liveRoom (also reactive)
- *  Edrys.liveUser (also reactive)
+ *  Edrys.liveClass (read-only snapshot, rebuilt on every update; use Edrys.getState to share data)
+ *  Edrys.liveRoom
+ *  Edrys.liveUser
  * Functions:
  *  Edrys.sendMessage(subject, body)
  *  Edrys.onMessage(({from, subject, body}) => { // Called when a message is received in your room })
@@ -395,32 +395,6 @@ window['Edrys'] = {
   },
 }
 
-const edrysProxyValidator = (path) => ({
-  get(target, key) {
-    if (key == 'isProxy') return true
-    const prop = target[key]
-    if (typeof prop == 'undefined') return
-    if (!prop.isProxy && typeof prop === 'object')
-      target[key] = new Proxy(prop, edrysProxyValidator([...path, key]))
-    return target[key]
-  },
-  set(target, key, value) {
-    if (!path.includes('__ob__')) {
-      const path_ = [...path, key]
-      window.parent.postMessage(
-        {
-          event: 'update',
-          path: path_,
-          value: value,
-        },
-        window['Edrys'].origin
-      )
-    }
-    target[key] = value
-    return true
-  },
-})
-
 // Present users, as last handed over by the parent (not part of the doc).
 var liveUsers: Record<string, any> = {}
 
@@ -438,7 +412,7 @@ function update() {
     ;(u as any).name = n
   })
 
-  window['Edrys'].liveClass = new Proxy(liveClass, edrysProxyValidator(''))
+  window['Edrys'].liveClass = liveClass
   window['Edrys'].liveUser = liveClass.users[window['Edrys'].username]
   window['Edrys'].liveRoom = window['Edrys'].liveUser
     ? liveClass.rooms[window['Edrys'].liveUser.room]

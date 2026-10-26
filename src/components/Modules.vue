@@ -354,9 +354,6 @@ export default {
         case "message":
           this.sendMessage(e.data.subject, e.data.body, e.data.user, e.data.module);
           break;
-        case "update":
-          this.setToValue(this.liveClassProxy, e.data.path, e.data.value);
-          break;
         case "state":
           this.communication.updateState(e.data.data, e.source);
           break;
