@@ -8,6 +8,7 @@ import {
   classState,
   reportClass,
   reportMessage,
+  runInModule,
 } from '../../../src/ts/DevBridge';
 
 vi.mock('../../../src/ts/Database', () => ({ Database: vi.fn() }));
@@ -248,7 +249,7 @@ describe('DevBridge', () => {
       expect(apply).not.toHaveBeenCalled();
     });
 
-    test('answers read-state with a reply of the same id', () => {
+    test('answers read-state with a reply of the same id', async () => {
       const fetchMock = serveLab();
       const rooms: Record<string, any> = {
         'Room 1': { code: 'x'.repeat(1500), frame: new Uint8Array(4), list: [{ n: 1 }] },
@@ -264,7 +265,8 @@ describe('DevBridge', () => {
       source.listeners['read-state']({ data: JSON.stringify({ id: 'c', room: 'Room 1', key: 'nope' }) });
       source.listeners['read-state']({ data: JSON.stringify({ id: 'd', room: 'Room 9' }) });
 
-      const [a, b, c, d] = replies();
+      await vi.waitFor(() => expect(replies()).toHaveLength(4));
+      const [a, b, c, d] = ['a', 'b', 'c', 'd'].map((id) => replies().find((reply) => reply.id === id));
       expect(a).toEqual({
         type: 'reply',
         id: 'a',
@@ -277,6 +279,62 @@ describe('DevBridge', () => {
       expect(c).toEqual({ type: 'reply', id: 'c', error: 'no key nope in Room 1; keys: code, frame, list' });
       expect(d).toEqual({ type: 'reply', id: 'd', error: 'no room Room 9' });
     });
+  });
+});
+
+describe('runInModule', () => {
+  const URL_ = 'http://localhost:3211/term/';
+
+  function frame(url: string, answer?: (data: any) => any) {
+    const iframe = document.createElement('iframe');
+    iframe.dataset.moduleUrl = url;
+    document.body.appendChild(iframe);
+    const win = iframe.contentWindow!;
+    vi.spyOn(win, 'postMessage').mockImplementation((data: any) => {
+      const reply = answer?.(data);
+      if (reply) {
+        window.dispatchEvent(
+          new MessageEvent('message', { data: { event: 'dev-ran', id: data.id, ...reply }, source: win })
+        );
+      }
+    });
+    return win;
+  }
+
+  afterEach(() => (document.body.innerHTML = ''));
+
+  test('runs the code in every frame of the module and collects the answers', async () => {
+    const first = frame(URL_, (data) => ({ value: `ran ${data.code}` }));
+    frame(URL_, () => ({ error: 'ReferenceError: x is not defined' }));
+    const other = frame('http://localhost:3211/clock/');
+
+    const results = await runInModule({ url: URL_, code: '1 + 1', ms: 1000 });
+
+    expect(results).toEqual([{ value: 'ran 1 + 1' }, { error: 'ReferenceError: x is not defined' }]);
+    expect(first.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'dev-run', code: '1 + 1' }),
+      '*'
+    );
+    expect(other.postMessage).not.toHaveBeenCalled();
+  });
+
+  test('ignores answers from other frames, and gives up after ms', async () => {
+    const silent = frame(URL_);
+    const stranger = frame('http://localhost:3211/clock/');
+    (silent.postMessage as any).mockImplementation((data: any) =>
+      // a forged answer from another frame
+      window.dispatchEvent(
+        new MessageEvent('message', { data: { event: 'dev-ran', id: data.id, value: 'forged' }, source: stranger })
+      )
+    );
+
+    expect(await runInModule({ url: URL_, code: 'x', ms: 50 })).toEqual([
+      { error: 'no answer within 0.05 s: not loaded yet, or still running' },
+    ]);
+  });
+
+  test('a module not shown in the room is an error', async () => {
+    await expect(runInModule({ url: URL_, code: 'x', ms: 50 })).rejects.toThrow("not shown in this tab's room");
   });
 });
 

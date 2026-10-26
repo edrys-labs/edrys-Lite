@@ -4,6 +4,7 @@
     <iframe
       style="height: 100%; width: 100%"
       :title="scrapedModule.name"
+      :data-module-url="scrapedModule.url"
       :key="liveClassProxy.users[username].room"
       :src="
         scrapedModule.srcdoc

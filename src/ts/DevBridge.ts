@@ -130,6 +130,42 @@ function readState(commands: DevCommands, { room, key }: { room: string; key?: s
 }
 
 /**
+ * Answers `run-module` {url, code, ms}: runs `code` in every frame of the
+ * module at `url` in this tab's room. Only local modules served by edrys-dev
+ * listen for it (edrys-dev puts the listener into their pages).
+ */
+export async function runInModule({ url, code, ms }: { url: string; code: string; ms: number }) {
+  const frames = [...document.querySelectorAll<HTMLIFrameElement>('iframe[data-module-url]')].filter(
+    (frame) => frame.dataset.moduleUrl === url && frame.contentWindow
+  )
+  if (!frames.length) throw new Error(`${url} is not shown in this tab's room`)
+  return Promise.all(frames.map((frame) => runInFrame(frame.contentWindow!, code, ms)))
+}
+
+function runInFrame(frame: Window, code: string, ms: number): Promise<{ value: string } | { error: string }> {
+  return new Promise((resolve) => {
+    const id = infoHash(8)
+    const done = (result: { value: string } | { error: string }) => {
+      clearTimeout(timer)
+      removeEventListener('message', listen)
+      resolve(result)
+    }
+    const listen = (event: MessageEvent) => {
+      const data = event.data
+      if (event.source !== frame || data?.event !== 'dev-ran' || data.id !== id) return
+      done(data.error !== undefined ? { error: String(data.error) } : { value: String(data.value) })
+    }
+    const timer = setTimeout(
+      () => done({ error: `no answer within ${ms / 1000} s: not loaded yet, or still running` }),
+      ms
+    )
+    addEventListener('message', listen)
+    // an inlined module runs on a data: URL, whose origin is "null"
+    frame.postMessage({ event: 'dev-run', id, code }, '*')
+  })
+}
+
+/**
  * Passes the lab to `apply` on connect (also after edrys-dev restarts) and on
  * every change of the file; `apply` returns whether the class changed.
  * `commands` handles what edrys-dev asks of this tab. Returns a function that
@@ -154,15 +190,18 @@ export function startDevBridge(apply: (data: any) => boolean, commands: DevComma
   events.addEventListener('reload-module', (event: MessageEvent) =>
     commands.reloadModule?.(JSON.parse(event.data))
   )
-  // a question of edrys-dev, answered with a `reply` of the same id
-  events.addEventListener('read-state', (event: MessageEvent) => {
-    const { id, ...command } = JSON.parse(event.data)
-    try {
-      report('reply', { id, value: readState(commands, command) })
-    } catch (error: any) {
-      report('reply', { id, error: error.message })
-    }
-  })
+  // questions of edrys-dev, answered with a `reply` of the same id
+  const answer = (event: string, handle: (command: any) => any) =>
+    events.addEventListener(event, async (event: MessageEvent) => {
+      const { id, ...command } = JSON.parse(event.data)
+      try {
+        report('reply', { id, value: await handle(command) })
+      } catch (error: any) {
+        report('reply', { id, error: error.message })
+      }
+    })
+  answer('read-state', (command) => readState(commands, command))
+  answer('run-module', runInModule)
 
   return () => events.close()
 }
