@@ -43,6 +43,8 @@ export default {
       count: 0,
       isResizing: false,
       isMoving: false,
+      // itemKey -> size the user resized that item to
+      itemSizes: {} as Record<string, { width: string; height: string }>,
     };
   },
 
@@ -158,48 +160,11 @@ export default {
       broadcast({ event: "awareness", data }, exceptSender(origin));
     });
 
-    this.$nextTick(() => {
-      setTimeout(() => {
-        this.scrapedModulesFilter.forEach((m, index) => {
-          const element = this.$refs[`resizableItem_${index}`][0];
-
-          element.addEventListener(
-            "mousedown",
-            (event) => {
-              const rect = element.getBoundingClientRect();
-              const nearBottom = rect.bottom - event.clientY < 16;
-              const nearRight  = rect.right  - event.clientX < 16;
-
-              if (nearBottom || nearRight) {
-                this.isResizing = true;
-                element.style.setProperty("z-index", "100");
-              } else {
-                this.isMoving = true;
-              }
-            },
-            true
-          );
-        });
-
-        const onMouseUp = () => {
-          if (this.isResizing) {
-            this.isResizing = false;
-            if (this.grid) {
-              this.grid.refreshItems().layout();
-            }
-          }
-          this.isMoving = false;
-        };
-        window.addEventListener("mouseup", onMouseUp);
-        this._resizeMouseUpHandler = onMouseUp;
-      }, 1000);
-    });
+    window.addEventListener("mouseup", this.onMouseUp);
   },
   beforeUnmount() {
     window.removeEventListener("message", this.messageHandler);
-    if (this._resizeMouseUpHandler) {
-      window.removeEventListener("mouseup", this._resizeMouseUpHandler);
-    }
+    window.removeEventListener("mouseup", this.onMouseUp);
     this.communication.on("message", undefined);
     this._stateUnsub?.();
     this._awarenessUnsub?.();
@@ -216,6 +181,53 @@ export default {
   },
 
   methods: {
+    // Each room has its own item elements (see the v-for key), so the size a
+    // module was resized to in one room stays in that room.
+    itemKey(m: { url: string }, i: number | string): string {
+      return `${this.roomName}|${i}|${m.url}`;
+    },
+
+    // Delegated on the root, so it also covers items created after a room
+    // switch or a module reload.
+    onMouseDown(event: MouseEvent) {
+      const element = (event.target as HTMLElement)?.closest?.(".item") as HTMLElement;
+      if (!element) return;
+
+      const rect = element.getBoundingClientRect();
+      const nearBottom = rect.bottom - event.clientY < 16;
+      const nearRight = rect.right - event.clientX < 16;
+
+      if (nearBottom || nearRight) {
+        this.isResizing = true;
+        this._resizingItem = element;
+        element.style.setProperty("z-index", "100");
+      } else {
+        this.isMoving = true;
+      }
+    },
+
+    onMouseUp() {
+      if (this.isResizing) {
+        this.isResizing = false;
+        const element = this._resizingItem;
+        this._resizingItem = null;
+        if (element) {
+          element.style.removeProperty("z-index");
+          const key = element.dataset.itemKey;
+          if (key) {
+            this.itemSizes[key] = {
+              width: element.style.width,
+              height: element.style.height,
+            };
+          }
+        }
+        if (this.grid) {
+          this.grid.refreshItems().layout();
+        }
+      }
+      this.isMoving = false;
+    },
+
     gridUpdate() {
       if (this.grid !== null) this.grid.destroy();
 
@@ -256,15 +268,22 @@ export default {
       }
     },
 
-    styling(height: string, width: string): string {
-      let style = "";
+    // An object, not a string: Vue patches it per property, a string would
+    // replace cssText and drop the transform Muuri positions the item with.
+    styling(height: string, width: string, key?: string): Record<string, string> {
+      const style: Record<string, string> = {};
+      const resized = key ? this.itemSizes[key] : undefined;
 
-      if (typeof width === "number") {
-        style += `width: ${width}px;`;
+      if (resized?.width) {
+        style.width = resized.width;
+      } else if (typeof width === "number") {
+        style.width = `${width}px`;
       }
 
-      if (typeof height === "number") {
-        style += `height: ${height}px;`;
+      if (resized?.height) {
+        style.height = resized.height;
+      } else if (typeof height === "number") {
+        style.height = `${height}px`;
       }
 
       return style;
@@ -455,7 +474,7 @@ export default {
 </script>
 
 <template>
-  <div :key="role">
+  <div :key="role" @mousedown.capture="onMouseDown">
     <div
       class="grid"
       :v-show="liveClassProxy !== null ? true : false"
@@ -464,11 +483,12 @@ export default {
       <div
         class="item"
         v-for="(m, i) in scrapedModulesFilter"
+        :key="itemKey(m, i)"
+        :data-item-key="itemKey(m, i)"
         :class="size(m.height, m.width)"
         :width="width(m.width)"
         :height="height(m.height)"
-        :style="styling(m.height, m.width)"
-        :ref="'resizableItem_' + i"
+        :style="styling(m.height, m.width, itemKey(m, i))"
       >
         <span class="item-title">{{ m.name }}</span>
         <div v-show="isMoving || isResizing" class="item-overlay-protection"></div>

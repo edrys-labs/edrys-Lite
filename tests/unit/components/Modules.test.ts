@@ -9,6 +9,7 @@ vi.mock('muuri', () => {
     default: vi.fn().mockImplementation(() => ({
       destroy: vi.fn(),
       layout: vi.fn(),
+      refreshItems: vi.fn().mockReturnThis(),
     })),
   };
 });
@@ -436,6 +437,61 @@ describe('Modules Component', () => {
     
     expect(removeEventListenerSpy).toHaveBeenCalledWith('message', expect.any(Function));
     expect(mockCommunication.on).toHaveBeenCalledWith('message', undefined);
+  });
+
+  describe('resizing a module', () => {
+    const everywhere = [{ name: 'M', url: 'https://example.com/m', showInCustom: '*' }];
+    const inRoom = (room: string) => ({ users: { 'test-user': { room } } });
+
+    // The item is 250x200 at the origin; its resize handle is within 16px of
+    // the bottom or right edge.
+    const press = (item: HTMLElement, x: number, y: number) => {
+      item.getBoundingClientRect = () =>
+        ({ top: 0, left: 0, bottom: 200, right: 250, width: 250, height: 200 }) as DOMRect;
+      item.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: x, clientY: y }));
+    };
+    const release = () => window.dispatchEvent(new MouseEvent('mouseup'));
+
+    test('keeps the size in the room it was resized in', async () => {
+      wrapper = createWrapper({ scrapedModules_: everywhere, liveClassProxy: inRoom('Room 1') });
+
+      // What the browser's native resize does: an inline size on the item.
+      const item = wrapper.find('.item').element as HTMLElement;
+      press(item, 245, 195);
+      item.style.width = '321px';
+      item.style.height = '123px';
+      release();
+      await wrapper.vm.$nextTick();
+
+      await wrapper.setProps({ liveClassProxy: inRoom('Room 2') });
+      const other = wrapper.find('.item').element as HTMLElement;
+      expect(other).not.toBe(item);
+      expect(other.style.width).toBe('');
+      expect(other.style.height).toBe('');
+
+      await wrapper.setProps({ liveClassProxy: inRoom('Room 1') });
+      const back = wrapper.find('.item').element as HTMLElement;
+      expect(back.style.width).toBe('321px');
+      expect(back.style.height).toBe('123px');
+    });
+
+    test('tells resizing from moving on items created after a room switch', async () => {
+      wrapper = createWrapper({ scrapedModules_: everywhere, liveClassProxy: inRoom('Room 1') });
+      await wrapper.setProps({ liveClassProxy: inRoom('Room 2') });
+      const item = wrapper.find('.item').element as HTMLElement;
+
+      press(item, 245, 195);
+      expect(wrapper.vm.isResizing).toBe(true);
+      expect(wrapper.vm.isMoving).toBe(false);
+      release();
+      expect(wrapper.vm.isResizing).toBe(false);
+
+      press(item, 100, 100);
+      expect(wrapper.vm.isMoving).toBe(true);
+      expect(wrapper.vm.isResizing).toBe(false);
+      release();
+      expect(wrapper.vm.isMoving).toBe(false);
+    });
   });
 
   describe('showIn room names', () => {
