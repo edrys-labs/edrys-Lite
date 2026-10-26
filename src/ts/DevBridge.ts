@@ -94,16 +94,20 @@ function shareLink(data: any): string {
   return url.toString()
 }
 
+export type DevCommands = {
+  /** Move this tab into a room. */
+  goto?: (command: { room?: string }) => void
+  /** A file of a local module changed: load the modules whose url starts with `url` again. */
+  reloadModule?: (command: { url: string }) => void
+}
+
 /**
  * Passes the lab to `apply` on connect (also after edrys-dev restarts) and on
  * every change of the file; `apply` returns whether the class changed.
- * `goto` gets edrys-dev's commands, e.g. {room}. Returns a function that
+ * `commands` handles what edrys-dev asks of this tab. Returns a function that
  * stops listening.
  */
-export function startDevBridge(
-  apply: (data: any) => boolean,
-  goto: (command: { room?: string }) => void = () => {}
-): () => void {
+export function startDevBridge(apply: (data: any) => boolean, commands: DevCommands = {}): () => void {
   const reload = (connected = false) =>
     fetchLab()
       .then(({ data }) => {
@@ -118,7 +122,10 @@ export function startDevBridge(
   const events = new EventSource(API + '/events')
   events.onopen = () => reload(true)
   events.addEventListener('reload-lab', () => reload())
-  events.addEventListener('goto', (event: MessageEvent) => goto(JSON.parse(event.data)))
+  events.addEventListener('goto', (event: MessageEvent) => commands.goto?.(JSON.parse(event.data)))
+  events.addEventListener('reload-module', (event: MessageEvent) =>
+    commands.reloadModule?.(JSON.parse(event.data))
+  )
 
   return () => events.close()
 }

@@ -445,7 +445,17 @@ export default {
         if (room && this.liveClassProxy?.rooms?.[room]) this.gotoRoom(room);
       };
 
-      const stopBridge = startDevBridge(apply, goto);
+      // only the changed modules, scraped again: their meta tags may have changed too
+      const reloadModule = async ({ url }: { url: string }) => {
+        await Promise.all(
+          this.data.modules.map(async (module: any, i: number) => {
+            if (!module.url.startsWith(url)) return;
+            this.scrapedModules[i] = { ...(await scrapeModule(module)), devReload: Date.now() };
+          })
+        );
+      };
+
+      const stopBridge = startDevBridge(apply, { goto, reloadModule });
 
       // what the agent sees of the class: rooms, who is where, the modules
       const unwatch = this.$watch("liveClassProxy", (live: any) => {

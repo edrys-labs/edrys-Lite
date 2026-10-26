@@ -1,5 +1,6 @@
 <template>
-  <div style="height: 100%; width: 100%" :key="scrapedModule.url">
+  <!-- devReload: edrys-dev reloaded this module after a change of its files -->
+  <div style="height: 100%; width: 100%" :key="scrapedModule.url + (scrapedModule.devReload ?? '')">
     <iframe
       style="height: 100%; width: 100%"
       :title="scrapedModule.name"

@@ -218,13 +218,16 @@ describe('DevBridge', () => {
       ]);
     });
 
-    test('passes goto commands on', () => {
+    test('passes goto and reload-module commands on', () => {
       serveLab();
       const goto = vi.fn();
-      startDevBridge(vi.fn(), goto);
+      const reloadModule = vi.fn();
+      startDevBridge(vi.fn(), { goto, reloadModule });
 
       source.listeners['goto']({ data: JSON.stringify({ room: 'Room 1' }) });
       expect(goto).toHaveBeenCalledWith({ room: 'Room 1' });
+      source.listeners['reload-module']({ data: JSON.stringify({ url: 'http://localhost:3211/term/' }) });
+      expect(reloadModule).toHaveBeenCalledWith({ url: 'http://localhost:3211/term/' });
     });
 
     test('reports a lab that does not parse instead of applying it', async () => {
