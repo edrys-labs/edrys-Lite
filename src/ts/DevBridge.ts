@@ -13,6 +13,7 @@ import { Database } from './Database'
 import {
   infoHash,
   getPeerID,
+  getShortPeerID,
   hashPubKey,
   parseClassroom,
   encodeCommConfig,
@@ -130,8 +131,12 @@ export function startDevBridge(apply: (data: any) => boolean, commands: DevComma
   return () => events.close()
 }
 
-/** The class as the agent needs it: own room, who is in which room, the modules. */
-export function classState(live: any, peerID: string, data: any) {
+/**
+ * The class as the agent needs it: own room, who is in which room, the
+ * modules ({name, url}, and error if it could not be loaded; `scraped` are
+ * the loaded modules, in the order of the lab's).
+ */
+export function classState(live: any, peerID: string, data: any, scraped: any[] = []) {
   const rooms: Record<string, { name: string; role: string; me?: true }[]> = {}
   for (const name of Object.keys(live?.rooms || {})) rooms[name] = []
 
@@ -141,11 +146,57 @@ export function classState(live: any, peerID: string, data: any) {
     ;(rooms[user.room] ??= []).push(entry)
   }
 
-  return {
-    room: live?.users?.[peerID]?.room ?? null,
-    rooms,
-    modules: (data?.modules || []).map((module: any) => module.name || module.url),
+  const modules = (data?.modules || []).map((module: any, i: number) => {
+    const loaded = scraped[i]
+    // scrapeModule names a module it could not load like this
+    const failed = loaded?.url === module.url && String(loaded.name).startsWith('<Error')
+    return {
+      name: (!failed && loaded?.name) || module.name || module.url,
+      url: module.url,
+      ...(failed ? { error: String(loaded.description) } : {}),
+    }
+  })
+
+  return { room: live?.users?.[peerID]?.room ?? null, rooms, modules }
+}
+
+// A body larger than this many characters is not passed on. edrys.js sends
+// bodies MessagePack-encoded; edrys-dev decodes and shortens them, a cut one
+// could not be decoded.
+const BODY_MAX = 20000
+// at most this many messages per report; a terminal may send hundreds
+const MESSAGES_MAX = 50
+let messages: any[] = []
+let dropped = 0
+let messageTimer: ReturnType<typeof setTimeout> | undefined
+
+/**
+ * Passes a module message the ?dev tab sees (sent or received) on to
+ * edrys-dev, in batches every 500 ms. Does nothing in other tabs.
+ */
+export function reportMessage(classId: string, msg: any) {
+  if (devClassId() !== classId) return
+
+  if (messages.length >= MESSAGES_MAX) {
+    dropped++
+  } else {
+    const size = typeof msg.body === 'string' ? msg.body.length : JSON.stringify(msg.body ?? null)?.length ?? 0
+    messages.push({
+      t: msg.date ?? Date.now(),
+      subject: msg.subject,
+      body: size > BODY_MAX ? { tooLarge: size } : msg.body,
+      module: msg.module,
+      // as the class shows it, not the whole key
+      from: typeof msg.from === 'string' && !msg.from.startsWith('Station ') ? getShortPeerID(msg.from) : msg.from,
+    })
   }
+
+  messageTimer ??= setTimeout(() => {
+    report('messages', { messages, dropped })
+    messages = []
+    dropped = 0
+    messageTimer = undefined
+  }, 500)
 }
 
 let lastClass = ''

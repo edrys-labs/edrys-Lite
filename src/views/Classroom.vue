@@ -446,21 +446,29 @@ export default {
       };
 
       // only the changed modules, scraped again: their meta tags may have changed too
+      // (a new list, so the class report sees the change too)
       const reloadModule = async ({ url }: { url: string }) => {
-        await Promise.all(
-          this.data.modules.map(async (module: any, i: number) => {
-            if (!module.url.startsWith(url)) return;
-            this.scrapedModules[i] = { ...(await scrapeModule(module)), devReload: Date.now() };
-          })
+        const scraped = this.scrapedModules;
+        const fresh = await Promise.all(
+          this.data.modules.map(async (module: any, i: number) =>
+            module.url.startsWith(url)
+              ? { ...(await scrapeModule(module)), devReload: Date.now() }
+              : scraped[i]
+          )
         );
+        // a newer scrape of the whole class (e.g. a lab change) came first
+        if (this.scrapedModules === scraped) this.scrapedModules = fresh;
       };
 
       const stopBridge = startDevBridge(apply, { goto, reloadModule });
 
       // what the agent sees of the class: rooms, who is where, the modules
-      const unwatch = this.$watch("liveClassProxy", (live: any) => {
-        if (live) reportClass(classState(live, this.peerID, this.configuration.data));
-      });
+      const unwatch = this.$watch(
+        () => [this.liveClassProxy, this.scrapedModules],
+        ([live, scraped]: any[]) => {
+          if (live) reportClass(classState(live, this.peerID, this.configuration.data, scraped));
+        }
+      );
 
       this._stopDevBridge = () => {
         unwatch();

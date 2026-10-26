@@ -10,6 +10,7 @@ import ar from '../locales/ar.yaml';
 import es from '../locales/es.yaml';
 
 import { debug } from "../api/debugHandler";
+import { reportMessage } from "../ts/DevBridge";
 
 export default {
   components: { Module },
@@ -143,6 +144,7 @@ export default {
       "message",
       (msg: { subject: string; body: any; module_url: string; date: number }) => {
         broadcast({ event: "message", ...msg });
+        reportMessage(this.class_id, msg);
       }
     );
 

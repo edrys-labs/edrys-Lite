@@ -7,6 +7,7 @@ import {
   startDevBridge,
   classState,
   reportClass,
+  reportMessage,
 } from '../../../src/ts/DevBridge';
 
 vi.mock('../../../src/ts/Database', () => ({ Database: vi.fn() }));
@@ -271,8 +272,27 @@ describe('classState', () => {
         'Room 1': [{ name: 'owner', role: 'teacher', me: true }],
         'Station abc': [{ name: 'Station abc', role: 'station' }],
       },
-      modules: ['Terminal', 'https://editor'],
+      modules: [
+        { name: 'Terminal', url: 'https://t' },
+        { name: 'https://editor', url: 'https://editor' },
+      ],
     });
+  });
+
+  test('names modules as loaded, and says which could not be loaded', () => {
+    const data = {
+      modules: [{ url: 'https://t' }, { url: 'https://gone' }, { url: 'https://later' }],
+    };
+    const scraped = [
+      { url: 'https://t', name: 'Terminal' },
+      { url: 'https://gone', name: '<Error: exception scraping module>', description: 'TypeError: Failed to fetch' },
+    ];
+
+    expect(classState(live, 'owner-key-s1', data, scraped).modules).toEqual([
+      { name: 'Terminal', url: 'https://t' },
+      { name: 'https://gone', url: 'https://gone', error: 'TypeError: Failed to fetch' },
+      { name: 'https://later', url: 'https://later' },
+    ]);
   });
 
   test('empty before the class is live', () => {
@@ -303,5 +323,63 @@ describe('reportClass', () => {
       type: 'class',
       ...state('Room 1'),
     });
+  });
+});
+
+describe('reportMessage', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sessionStorage.clear();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const bodies = (fetchMock: any) =>
+    (fetchMock.mock.calls as any[]).map(([, init]) => JSON.parse(init.body));
+
+  test('batches what the ?dev tab sees, leaves out huge bodies, counts what it drops', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    sessionStorage.setItem('edrys-dev', 'class-1');
+
+    // edrys-dev decodes the (MessagePack) body, so it comes as it is
+    reportMessage('class-1', { subject: 'run', body: '3gABpGNvZGU=', module: 'https://t', from: 'Station 1', date: 1 });
+    reportMessage('class-1', { subject: 'out', body: 'y'.repeat(30000), module: 'https://t', date: 2 });
+    for (let i = 0; i < 60; i++) reportMessage('class-1', { subject: 'tick', body: i, date: 3 });
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [report] = bodies(fetchMock);
+    expect(report.type).toBe('messages');
+    expect(report.messages).toHaveLength(50);
+    expect(report.dropped).toBe(12);
+    expect(report.messages[0]).toEqual({ t: 1, subject: 'run', body: '3gABpGNvZGU=', module: 'https://t', from: 'Station 1' });
+    expect(report.messages[1].body).toEqual({ tooLarge: 30000 });
+  });
+
+  test('names a sender as the class shows it, not by its whole key', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    sessionStorage.setItem('edrys-dev', 'class-1');
+    const key = 'BKo1pJWK0euTpIiBPwvR5iSFR05bzz1wXt3sHbaW/ElsUmolB1+O+zxFSVa/ZMKFwtPO3QzbNB/yq/hvoPxFaeM=';
+
+    reportMessage('class-1', { subject: 'run', body: 1, from: key + '_session' });
+    await vi.advanceTimersByTimeAsync(500);
+
+    const from = bodies(fetchMock)[0].messages[0].from;
+    expect(from.length).toBeLessThan(20);
+    expect(from).not.toContain('_session');
+  });
+
+  test('does nothing outside the ?dev tab', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    sessionStorage.setItem('edrys-dev', 'class-1');
+
+    reportMessage('another-class', { subject: 'run', body: 1 });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
