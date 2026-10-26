@@ -96,14 +96,19 @@ function shareLink(data: any): string {
 
 /**
  * Passes the lab to `apply` on connect (also after edrys-dev restarts) and on
- * every change of the file. Returns a function that stops listening.
+ * every change of the file; `apply` returns whether the class changed.
+ * `goto` gets edrys-dev's commands, e.g. {room}. Returns a function that
+ * stops listening.
  */
-export function startDevBridge(apply: (data: any) => void): () => void {
+export function startDevBridge(
+  apply: (data: any) => boolean,
+  goto: (command: { room?: string }) => void = () => {}
+): () => void {
   const reload = (connected = false) =>
     fetchLab()
       .then(({ data }) => {
         if (connected) report('open', { url: shareLink(data) })
-        apply(data)
+        report('applied', { changed: apply(data) })
       })
       .catch((error) => {
         console.warn('edrys-dev: could not load the lab', error)
@@ -113,6 +118,39 @@ export function startDevBridge(apply: (data: any) => void): () => void {
   const events = new EventSource(API + '/events')
   events.onopen = () => reload(true)
   events.addEventListener('reload-lab', () => reload())
+  events.addEventListener('goto', (event: MessageEvent) => goto(JSON.parse(event.data)))
 
   return () => events.close()
+}
+
+/** The class as the agent needs it: own room, who is in which room, the modules. */
+export function classState(live: any, peerID: string, data: any) {
+  const rooms: Record<string, { name: string; role: string; me?: true }[]> = {}
+  for (const name of Object.keys(live?.rooms || {})) rooms[name] = []
+
+  for (const [id, user] of Object.entries<any>(live?.users || {})) {
+    const entry: { name: string; role: string; me?: true } = { name: user.displayName, role: user.role }
+    if (id === peerID) entry.me = true
+    ;(rooms[user.room] ??= []).push(entry)
+  }
+
+  return {
+    room: live?.users?.[peerID]?.room ?? null,
+    rooms,
+    modules: (data?.modules || []).map((module: any) => module.name || module.url),
+  }
+}
+
+let lastClass = ''
+let classTimer: ReturnType<typeof setTimeout> | undefined
+
+/** Reports the class state to edrys-dev, only when it changed and at most every 500 ms. */
+export function reportClass(state: ReturnType<typeof classState>) {
+  clearTimeout(classTimer)
+  classTimer = setTimeout(() => {
+    const json = JSON.stringify(state)
+    if (json === lastClass) return
+    lastClass = json
+    report('class', state)
+  }, 500)
 }

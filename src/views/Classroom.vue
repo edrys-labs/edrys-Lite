@@ -31,7 +31,7 @@ import Peer, { MAX_ROOMS } from "../ts/Peer";
 import { copyToClipboard, deepEqual, roomColor } from "../ts/Utils";
 
 import { debug } from "../api/debugHandler";
-import { devClassId, startDevBridge } from "../ts/DevBridge";
+import { devClassId, startDevBridge, classState, reportClass } from "../ts/DevBridge";
 
 export default {
   props: ["id", "station", "owner"],
@@ -425,7 +425,7 @@ export default {
     startDevMode() {
       if (devClassId() !== this.id || !this.isOwner) return;
 
-      this._stopDevBridge = startDevBridge((lab: any) => {
+      const apply = (lab: any) => {
         const current = this.configuration.data;
         const configuration = {
           ...lab,
@@ -436,8 +436,26 @@ export default {
           configuration.communicationConfig = current.communicationConfig;
         }
 
-        if (!deepEqual(configuration, current)) this.saveClass(configuration);
+        const changed = !deepEqual(configuration, current);
+        if (changed) this.saveClass(configuration);
+        return changed;
+      };
+
+      const goto = ({ room }: { room?: string }) => {
+        if (room && this.liveClassProxy?.rooms?.[room]) this.gotoRoom(room);
+      };
+
+      const stopBridge = startDevBridge(apply, goto);
+
+      // what the agent sees of the class: rooms, who is where, the modules
+      const unwatch = this.$watch("liveClassProxy", (live: any) => {
+        if (live) reportClass(classState(live, this.peerID, this.configuration.data));
       });
+
+      this._stopDevBridge = () => {
+        unwatch();
+        stopBridge();
+      };
     },
 
     usersInRoom(name: string): [string, string, string, string][] {
