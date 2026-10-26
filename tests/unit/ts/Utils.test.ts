@@ -117,13 +117,29 @@ describe('Utils', () => {
 
   describe('scrapeModule', () => {
     test("applies a YAML module's style (a typed <style> would be ignored)", async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ text: () => Promise.resolve('yaml') }));
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve('yaml') }));
       (YAML.load as any).mockReturnValue({ name: 'Y', style: 'body { color: red }', main: '', body: '' });
 
       const module = await scrapeModule({ url: 'https://example.com/module.yml' });
       const html = unescape(module.srcdoc.replace('data:text/html,', ''));
 
       expect(html).toContain('<style>body { color: red }</style>');
+      vi.unstubAllGlobals();
+    });
+
+    test('a URL that answers with an error page is no module', async () => {
+      const notFound = '<!doctype html><title>404 Not Found</title><h1>404</h1>';
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        text: () => Promise.resolve(notFound),
+      }));
+
+      const module = await scrapeModule({ url: 'https://example.com/typo/index.html' });
+
+      expect(module.name).toBe('<Error: exception scraping module>');
+      expect(String(module.description)).toBe('Error: 404 Not Found');
       vi.unstubAllGlobals();
     });
   });

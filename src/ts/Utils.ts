@@ -156,6 +156,8 @@ export function stringify(config: any): string {
 export async function scrapeModule(module) {
   try {
     const response = await fetch(module.url)
+    // a 404 page has a <title> too, and would load as a module named after it
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim())
     const content = await response.text()
 
     if (module.url.match(/\.ya?ml$/i)) {
