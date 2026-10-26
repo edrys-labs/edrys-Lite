@@ -87,25 +87,32 @@ export function report(type: string, payload: any = {}) {
   }).catch(() => {})
 }
 
+/** This class's link for others: without `#comm=` they would not find edrys-dev's sync server. */
+function shareLink(data: any): string {
+  const url = new URL(location.href)
+  url.hash = data.communicationConfig ? `comm=${data.communicationConfig}` : ''
+  return url.toString()
+}
+
 /**
  * Passes the lab to `apply` on connect (also after edrys-dev restarts) and on
  * every change of the file. Returns a function that stops listening.
  */
 export function startDevBridge(apply: (data: any) => void): () => void {
-  const reload = () =>
+  const reload = (connected = false) =>
     fetchLab()
-      .then(({ data }) => apply(data))
+      .then(({ data }) => {
+        if (connected) report('open', { url: shareLink(data) })
+        apply(data)
+      })
       .catch((error) => {
         console.warn('edrys-dev: could not load the lab', error)
         report('error', { message: error.message })
       })
 
   const events = new EventSource(API + '/events')
-  events.onopen = () => {
-    report('open', { url: location.href })
-    reload()
-  }
-  events.addEventListener('reload-lab', reload)
+  events.onopen = () => reload(true)
+  events.addEventListener('reload-lab', () => reload())
 
   return () => events.close()
 }

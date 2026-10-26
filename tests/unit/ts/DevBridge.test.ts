@@ -163,13 +163,36 @@ describe('DevBridge', () => {
       source.onopen();
       await vi.waitFor(() => expect(apply).toHaveBeenCalledTimes(1));
       expect(apply.mock.calls[0][0].name).toBe('Dev Lab');
-      expect(fetchMock).toHaveBeenCalledWith('/edrys-dev/bridge', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/edrys-dev/bridge',
+        expect.objectContaining({ body: expect.stringContaining('"type":"open"') })
+      );
 
       source.listeners['reload-lab']();
       await vi.waitFor(() => expect(apply).toHaveBeenCalledTimes(2));
 
       stop();
       expect(source.close).toHaveBeenCalled();
+    });
+
+    test('reports a share link that carries the sync server', async () => {
+      const fetchMock = serveLab({
+        path: '/labs/lab.yml',
+        text: LAB,
+        communication: { communicationMethod: 'Websocket', websocketUrl: 'ws://localhost:3210' },
+      });
+      history.replaceState(null, '', '/?/classroom/abc/owner');
+
+      startDevBridge(vi.fn());
+      source.onopen();
+
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/edrys-dev/bridge', expect.anything()));
+      const body = JSON.parse(
+        (fetchMock.mock.calls as any[]).find(([url]) => url === '/edrys-dev/bridge')[1].body
+      );
+      const link = new URL(body.url);
+      expect(link.search).toBe('?/classroom/abc/owner');
+      expect(link.hash).toMatch(/^#comm=./);
     });
 
     test('reports a lab that does not parse instead of applying it', async () => {
