@@ -1,6 +1,6 @@
 <script lang="ts">
 import { Database } from "../ts/Database";
-import { infoHash, getPeerID, parseClassroom, copyToClipboard } from "../ts/Utils";
+import { infoHash, getPeerID, parseClassroom, copyToClipboard, hashPubKey } from "../ts/Utils";
 
 import Footer from "../components/Footer.vue";
 import UserMenu from '../components/UserMenu.vue';
@@ -77,11 +77,13 @@ export default {
       data.createdBy = this.peerID;
       this.database.put({ id, data, timestamp: Date.now() });
 
-      this.classroom =
-        window.location.origin + window.location.pathname + "?/classroom/" + id;
+      // Include the /:owner segment, as Index.vue does: it is the trust anchor
+      // newcomers use to check that the setup comes from the owner.
+      const path = `?/classroom/${id}/${await hashPubKey(this.peerID)}`;
+      this.classroom = window.location.origin + window.location.pathname + path;
 
       if (this.checkboxValue) {
-        window.location.search = `?/classroom/${id}`;
+        window.location.search = path;
       } else {
         this.ready = true;
       }

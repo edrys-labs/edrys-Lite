@@ -18,7 +18,8 @@ vi.mock('../../../src/ts/Utils', () => ({
   infoHash: vi.fn(() => 'test-hash'),
   getPeerID: vi.fn(() => 'test-user'),
   parseClassroom: vi.fn((data) => JSON.parse(data)),
-  copyToClipboard: vi.fn()
+  copyToClipboard: vi.fn(),
+  hashPubKey: vi.fn(async (key) => `hash-of-${key}`)
 }));
 
 describe('Deploy View', () => {
@@ -151,7 +152,7 @@ describe('Deploy View', () => {
     await flushPromises();
     
     expect(wrapper.vm.ready).toBe(false); // Should not show overlay when redirecting
-    expect(locationMock.search).toBe('?/classroom/test-hash');
+    expect(locationMock.search).toBe('?/classroom/test-hash/hash-of-test-user');
     
     // Reset mock
     locationMock.search = '';
@@ -166,6 +167,18 @@ describe('Deploy View', () => {
     
     // Cleanup
     window.location.search = originalSearch;
+  });
+
+  test('links the deployed class with its owner hash', async () => {
+    // Like a class made with "Create a class", the link carries /:owner, the
+    // trust anchor newcomers check the setup against.
+    localStorage.setItem('deployed', 'false');
+    const wrapper = createWrapper();
+    await flushPromises();
+
+    const link = window.location.origin + window.location.pathname + '?/classroom/test-hash/hash-of-test-user';
+    expect(wrapper.vm.classroom).toBe(link);
+    expect(wrapper.find('.v-overlay a').attributes('href')).toBe(link);
   });
 
   test('copies user ID to clipboard', async () => {
