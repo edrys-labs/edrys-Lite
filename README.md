@@ -66,7 +66,7 @@ Requires Node.js and npm.
 npm install
 npm run watch             # dev server on http://localhost:6999
 npm run build             # production build into dist/
-npm run websocket-server  # local WebSocket relay, for classrooms using the WebSocket transport
+npm run websocket-server  # local edrys WebSocket relay on ws://localhost:1234 (the class's WebSocket URL)
 ```
 
 Tests:

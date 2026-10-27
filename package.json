@@ -22,7 +22,7 @@
     "build:edrys": "npx parcel build src/api/edrys.ts --no-scope-hoist --no-source-maps && mv dist/edrys.* dist/module/",
     "watch:edrys": "npx parcel build src/api/edrys.ts --no-scope-hoist && mv dist/edrys.* dist/module/",
     "analyze": "rm -rf dist && npx parcel build --no-source-maps --reporter @parcel/reporter-bundle-analyzer src/index.html && firefox parcel-bundle-reports/default.html",
-    "websocket-server": "npx @y/websocket-server"
+    "websocket-server": "edrys-websocket-server --host 127.0.0.1"
   },
   "author": "André Dietrich",
   "contributors": [
@@ -34,6 +34,7 @@
   "license": "MPL-2.0",
   "devDependencies": {
     "@edryslabs/genericprovider": "^2.0.3",
+    "@edryslabs/websocket-server": "1.1.0",
     "@parcel/reporter-bundle-analyzer": "^2.15.2",
     "@parcel/transformer-sass": "^2.15.2",
     "@parcel/transformer-vue": "^2.15.2",
@@ -45,7 +46,6 @@
     "@vitejs/plugin-vue": "^5.2.4",
     "@vitest/coverage-v8": "^3.2.3",
     "@vue/test-utils": "^2.4.6",
-    "@y/websocket-server": "^0.1.1",
     "assert": "^2.1.0",
     "buffer": "^6.0.3",
     "dexie": "^4.0.11",
