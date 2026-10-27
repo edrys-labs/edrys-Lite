@@ -39,9 +39,10 @@ function serveLab(lab: any = { path: '/labs/lab.yml', text: LAB }) {
   return fetchMock;
 }
 
-function fakeDatabase(existing: string[] = []) {
+// classes by id, each owned by `createdBy` (this browser's key by default)
+function fakeDatabase(existing: string[] = [], createdBy = 'owner-key') {
   return {
-    exists: vi.fn(async (id: string) => existing.includes(id)),
+    get: vi.fn(async (id: string) => (existing.includes(id) ? { id, data: { id, createdBy } } : null)),
     put: vi.fn(async () => {}),
   } as any;
 }
@@ -100,6 +101,11 @@ describe('DevBridge', () => {
       serveLab({ path: '/labs/lab.yml', text: '42' });
       await expect(fetchLab()).rejects.toThrow('not a classroom');
     });
+
+    test('passes the parser\'s message on, with line and column', async () => {
+      serveLab({ path: '/labs/lab.yml', text: 'name: Lab\nmodules:\n  - url: a\n   bad: indent\n' });
+      await expect(fetchLab()).rejects.toThrow(/could not parse \/labs\/lab\.yml: .*\(4:\d+\)/);
+    });
   });
 
   describe('openDevLab', () => {
@@ -139,6 +145,18 @@ describe('DevBridge', () => {
 
       expect(await openDevLab(database)).toBe('?/classroom/new-class-id/hash-of-owner-key');
       expect(database.put).toHaveBeenCalled();
+    });
+
+    test('imports again when the remembered class belongs to another key', async () => {
+      serveLab();
+      localStorage.setItem('edrys-dev:/labs/lab.yml', 'old-identity-id');
+      const database = fakeDatabase(['old-identity-id'], 'previous-key');
+
+      expect(await openDevLab(database)).toBe('?/classroom/new-class-id/hash-of-owner-key');
+      expect(database.put).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ createdBy: 'owner-key' }) })
+      );
+      expect(localStorage.getItem('edrys-dev:/labs/lab.yml')).toBe('new-class-id');
     });
   });
 
@@ -284,6 +302,23 @@ describe('DevBridge', () => {
       expect(b.value).toEqual({ room: 'Room 1', key: 'code', value: 'x'.repeat(1500) });
       expect(c).toEqual({ type: 'reply', id: 'c', error: 'no key nope in Room 1; keys: code, frame, list' });
       expect(d).toEqual({ type: 'reply', id: 'd', error: 'no room Room 9' });
+    });
+
+    // browsers drop keepalive bodies over 64 KiB without an error
+    test('sends a reply over 60 kB without keepalive', async () => {
+      const fetchMock = serveLab();
+      // 50000 characters, 100000 bytes
+      const rooms: Record<string, any> = { 'Room 1': { code: 'é'.repeat(50000) } };
+      startDevBridge(vi.fn(), { readState: (room) => rooms[room] });
+      const reply = (id: string) =>
+        (fetchMock.mock.calls as any[]).find(([, init]) => init?.body?.includes(`"id":"${id}"`))?.[1];
+
+      source.listeners['read-state']({ data: JSON.stringify({ id: 'big', room: 'Room 1', key: 'code' }) });
+      source.listeners['read-state']({ data: JSON.stringify({ id: 'small', room: 'Room 1' }) });
+
+      await vi.waitFor(() => expect(reply('big') && reply('small')).toBeTruthy());
+      expect(reply('big').keepalive).toBe(false);
+      expect(reply('small').keepalive).toBe(true);
     });
   });
 });
@@ -470,6 +505,36 @@ describe('reportClass', () => {
       type: 'class',
       ...state('Room 1'),
     });
+  });
+
+  // edrys-dev keeps the class only in memory, and the tab would not report
+  // an unchanged one
+  test('sends the last state again when edrys-dev comes back', async () => {
+    const fetchMock = serveLab();
+    let source: any;
+    vi.stubGlobal(
+      'EventSource',
+      vi.fn(function (this: any) {
+        source = this;
+        this.addEventListener = () => {};
+      })
+    );
+    const classReports = () =>
+      (fetchMock.mock.calls as any[])
+        .filter(([url]) => url === '/edrys-dev/bridge')
+        .map(([, init]) => JSON.parse(init.body))
+        .filter((body) => body.type === 'class');
+
+    reportClass({ room: 'Room 2', rooms: {}, modules: [] });
+    await vi.advanceTimersByTimeAsync(500);
+    startDevBridge(vi.fn());
+    source.onopen();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(classReports()).toEqual([
+      { type: 'class', room: 'Room 2', rooms: {}, modules: [] },
+      { type: 'class', room: 'Room 2', rooms: {}, modules: [] },
+    ]);
   });
 });
 

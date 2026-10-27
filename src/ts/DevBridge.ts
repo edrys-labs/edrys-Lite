@@ -15,7 +15,8 @@ import {
   getPeerID,
   getShortPeerID,
   hashPubKey,
-  parseClassroom,
+  parse,
+  normalizeClassroom,
   encodeCommConfig,
 } from './Utils'
 
@@ -47,7 +48,14 @@ export async function fetchLab(): Promise<{ path: string; data: any }> {
   if (!response.ok) throw new Error(`${API}/lab: ${response.status}`)
 
   const lab = await response.json()
-  const data = parseClassroom(lab.text)
+  let parsed: any
+  try {
+    parsed = parse(lab.text)
+  } catch (error: any) {
+    // the agent fixes the file from this: js-yaml names line and column
+    throw new Error(`could not parse ${lab.path}: ${error.message}`)
+  }
+  const data = normalizeClassroom(parsed)
   if (!data) throw new Error('not a classroom: ' + lab.path)
 
   delete data.id
@@ -66,7 +74,10 @@ export async function openDevLab(database = new Database()): Promise<string> {
   const peerID = getPeerID(false)
 
   let id = localStorage.getItem(labKey(path))
-  if (!id || !(await database.exists(id))) {
+  // a class of another key (this browser's identity changed) would not take
+  // the lab's changes: only its owner can save it
+  const stored = id ? await database.get(id) : null
+  if (!stored || stored.data?.createdBy !== peerID) {
     id = infoHash(16)
     data.id = id
     data.createdBy = peerID
@@ -78,13 +89,18 @@ export async function openDevLab(database = new Database()): Promise<string> {
   return `?/classroom/${id}/${await hashPubKey(peerID)}`
 }
 
+// Browsers refuse keepalive requests whose bodies add up to more than 64 KiB,
+// without an error to see; a larger report goes without keepalive.
+const KEEPALIVE_MAX = 60000
+
 /** Tells edrys-dev what this tab sees; best effort, edrys-dev may be gone. */
 export function report(type: string, payload: any = {}) {
+  const body = JSON.stringify({ type, ...payload })
   fetch(API + '/bridge', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type, ...payload }),
-    keepalive: true,
+    body,
+    keepalive: new TextEncoder().encode(body).length < KEEPALIVE_MAX,
   }).catch(() => {})
 }
 
@@ -217,7 +233,11 @@ export function startDevBridge(apply: (data: any) => boolean, commands: DevComma
       })
 
   const events = new EventSource(API + '/events')
-  events.onopen = () => reload(true)
+  events.onopen = () => {
+    reload(true)
+    // a restarted edrys-dev knows nothing of the class yet
+    resendClass()
+  }
   events.addEventListener('reload-lab', () => reload())
   events.addEventListener('goto', (event: MessageEvent) => commands.goto?.(JSON.parse(event.data)))
   events.addEventListener('reload-module', (event: MessageEvent) => {
@@ -321,4 +341,9 @@ export function reportClass(state: ReturnType<typeof classState>) {
     lastClass = json
     report('class', state)
   }, 500)
+}
+
+/** Reports the last class state again, if there is one. */
+export function resendClass() {
+  if (lastClass) report('class', JSON.parse(lastClass))
 }
