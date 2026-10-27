@@ -98,10 +98,43 @@ function shareLink(data: any): string {
 export type DevCommands = {
   /** Move this tab into a room. */
   goto?: (command: { room?: string }) => void
-  /** A file of a local module changed: load the modules whose url starts with `url` again. */
-  reloadModule?: (command: { url: string }) => void
+  /**
+   * A file of a local module changed: load the modules whose url starts with
+   * one of `urls` again (the module's folder under each local address).
+   */
+  reloadModule?: (command: { urls: string[] }) => void
   /** The shared state of a room's modules as JSON, now; undefined if there is no such room. */
   readState?: (room: string) => Record<string, any> | undefined
+}
+
+/**
+ * The modules of the lab (`modules`, as in its file) whose url starts with one
+ * of `urls`, scraped again: their meta tags may have changed too, and a module
+ * edrys-Lite inlines would show its old copy on a mere reload. Each is marked
+ * with `devReload`, so Module.vue mounts it anew. Resolves with them by index,
+ * empty when none matches.
+ */
+export async function rescrapeModules(
+  modules: any[],
+  urls: string[],
+  scrape: (module: any) => Promise<any>
+): Promise<Map<number, any>> {
+  const fresh = new Map<number, any>()
+  await Promise.all(
+    modules.map(async (module, i) => {
+      if (!urls.some((url) => module.url?.startsWith(url))) return
+      fresh.set(i, { ...(await scrape(module)), devReload: Date.now() })
+    })
+  )
+  return fresh
+}
+
+/**
+ * `scraped` with the modules of `fresh` (by index) in place. A module whose
+ * url differs at that index is kept: the list changed in the meantime.
+ */
+export function withFresh(scraped: any[], fresh: Map<number, any>): any[] {
+  return scraped.map((module, i) => (fresh.get(i)?.url === module?.url ? fresh.get(i) : module))
 }
 
 // strings of the state are cut to this many characters, or to KEY_MAX when
@@ -187,9 +220,11 @@ export function startDevBridge(apply: (data: any) => boolean, commands: DevComma
   events.onopen = () => reload(true)
   events.addEventListener('reload-lab', () => reload())
   events.addEventListener('goto', (event: MessageEvent) => commands.goto?.(JSON.parse(event.data)))
-  events.addEventListener('reload-module', (event: MessageEvent) =>
-    commands.reloadModule?.(JSON.parse(event.data))
-  )
+  events.addEventListener('reload-module', (event: MessageEvent) => {
+    // edrys-dev 0.1 sent one event per address, with `url`
+    const { url, urls = [url] } = JSON.parse(event.data)
+    commands.reloadModule?.({ urls })
+  })
   // questions of edrys-dev, answered with a `reply` of the same id
   const answer = (event: string, handle: (command: any) => any) =>
     events.addEventListener(event, async (event: MessageEvent) => {

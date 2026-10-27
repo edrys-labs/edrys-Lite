@@ -9,6 +9,8 @@ import {
   reportClass,
   reportMessage,
   runInModule,
+  rescrapeModules,
+  withFresh,
 } from '../../../src/ts/DevBridge';
 
 vi.mock('../../../src/ts/Database', () => ({ Database: vi.fn() }));
@@ -228,8 +230,12 @@ describe('DevBridge', () => {
 
       source.listeners['goto']({ data: JSON.stringify({ room: 'Room 1' }) });
       expect(goto).toHaveBeenCalledWith({ room: 'Room 1' });
-      source.listeners['reload-module']({ data: JSON.stringify({ url: 'http://localhost:3211/term/' }) });
-      expect(reloadModule).toHaveBeenCalledWith({ url: 'http://localhost:3211/term/' });
+      const urls = ['http://localhost:3211/term/', 'http://127.0.0.1:3211/term/'];
+      source.listeners['reload-module']({ data: JSON.stringify({ urls }) });
+      expect(reloadModule).toHaveBeenLastCalledWith({ urls });
+      // edrys-dev 0.1: one event per address
+      source.listeners['reload-module']({ data: JSON.stringify({ url: urls[0] }) });
+      expect(reloadModule).toHaveBeenLastCalledWith({ urls: [urls[0]] });
     });
 
     test('reports a lab that does not parse instead of applying it', async () => {
@@ -279,6 +285,59 @@ describe('DevBridge', () => {
       expect(c).toEqual({ type: 'reply', id: 'c', error: 'no key nope in Room 1; keys: code, frame, list' });
       expect(d).toEqual({ type: 'reply', id: 'd', error: 'no room Room 9' });
     });
+  });
+});
+
+describe('rescrapeModules and withFresh', () => {
+  const TERM = ['http://localhost:3211/term/', 'http://127.0.0.1:3211/term/'];
+  const CLOCK = ['http://localhost:3211/clock/', 'http://127.0.0.1:3211/clock/'];
+  const lab = [
+    { url: 'http://localhost:3211/term/index.html' },
+    { url: 'https://example.com/editor.html' },
+    { url: 'http://127.0.0.1:3211/clock/' },
+  ];
+  const loaded = lab.map((m) => ({ ...m, name: 'old' }));
+
+  test('scrapes again only the modules under the urls, under either local address', async () => {
+    const scrape = vi.fn(async (m: any) => ({ ...m, name: 'new' }));
+
+    const term = await rescrapeModules(lab, TERM, scrape);
+    expect([...term.keys()]).toEqual([0]);
+    expect(term.get(0)).toEqual({ ...lab[0], name: 'new', devReload: expect.any(Number) });
+
+    expect([...(await rescrapeModules(lab, CLOCK, scrape)).keys()]).toEqual([2]);
+    expect((await rescrapeModules(lab, ['http://localhost:3211/gone/'], scrape)).size).toBe(0);
+    expect(scrape).toHaveBeenCalledTimes(2);
+  });
+
+  test('withFresh swaps in the fresh modules, unless the list changed under them', () => {
+    const fresh = new Map([[0, { ...lab[0], name: 'new' }]]);
+    expect(withFresh(loaded, fresh).map((m) => m.name)).toEqual(['new', 'old', 'old']);
+
+    const reordered = [loaded[1], loaded[0], loaded[2]];
+    expect(withFresh(reordered, fresh)).toEqual(reordered);
+  });
+
+  // Classroom's reloadModule, as two saves in a row run it: the second must
+  // not throw away the first's fresh module (it once did, with one event per
+  // local address, the second matching nothing)
+  test('reloads that overlap keep each other\'s modules', async () => {
+    let list = loaded;
+    const reload = async (urls: string[], scrape: (m: any) => Promise<any>) => {
+      const fresh = await rescrapeModules(lab, urls, scrape);
+      if (fresh.size) list = withFresh(list, fresh);
+    };
+    let finishTerm!: () => void;
+    const slow = (m: any) => new Promise((resolve) => (finishTerm = () => resolve({ ...m, name: 'term v2' })));
+    const fast = async (m: any) => ({ ...m, name: 'clock v2' });
+
+    const term = reload(TERM, slow);
+    await reload(CLOCK, fast);
+    await reload(['http://localhost:3211/gone/'], fast);
+    finishTerm();
+    await term;
+
+    expect(list.map((m) => m.name)).toEqual(['term v2', 'old', 'clock v2']);
   });
 });
 

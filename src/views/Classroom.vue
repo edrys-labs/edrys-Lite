@@ -31,7 +31,14 @@ import Peer, { MAX_ROOMS } from "../ts/Peer";
 import { copyToClipboard, deepEqual, roomColor } from "../ts/Utils";
 
 import { debug } from "../api/debugHandler";
-import { devClassId, startDevBridge, classState, reportClass } from "../ts/DevBridge";
+import {
+  devClassId,
+  startDevBridge,
+  classState,
+  reportClass,
+  rescrapeModules,
+  withFresh,
+} from "../ts/DevBridge";
 
 export default {
   props: ["id", "station", "owner"],
@@ -445,19 +452,15 @@ export default {
         if (room && this.liveClassProxy?.rooms?.[room]) this.gotoRoom(room);
       };
 
-      // only the changed modules, scraped again: their meta tags may have changed too
-      // (a new list, so the class report sees the change too)
-      const reloadModule = async ({ url }: { url: string }) => {
-        const scraped = this.scrapedModules;
-        const fresh = await Promise.all(
-          this.data.modules.map(async (module: any, i: number) =>
-            module.url.startsWith(url)
-              ? { ...(await scrapeModule(module)), devReload: Date.now() }
-              : scraped[i]
-          )
-        );
-        // a newer scrape of the whole class (e.g. a lab change) came first
-        if (this.scrapedModules === scraped) this.scrapedModules = fresh;
+      // only the changed modules, scraped again, merged into the list as it is
+      // then: another reload may have set it meanwhile (a new list, so the
+      // class report sees the change too)
+      const reloadModule = async ({ urls }: { urls: string[] }) => {
+        const run = this._scrapeRun;
+        const fresh = await rescrapeModules(this.data.modules, urls, scrapeModule);
+        // none of ours, or a newer scrape of the whole class (e.g. a lab change) came first
+        if (!fresh.size || run !== this._scrapeRun) return;
+        this.scrapedModules = withFresh(this.scrapedModules, fresh);
       };
 
       // a room of the class, its state read from the doc (the live class's copy lags)
