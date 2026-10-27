@@ -58,6 +58,17 @@ https://github.com/edrys-labs/edrys-Lite/assets/3089101/b7188ba0-b91e-469c-8a9f-
 
 For more information, please refer to the [official documentation](https://github.com/edrys-labs/documentation), also available as a [LiaScript course](https://liascript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md).
 
+## 🧪 Building labs and modules locally
+
+[edrys-dev](https://www.npmjs.com/package/@edryslabs/edrys-dev) runs edrys-Lite on your own machine and keeps a class in step with a lab file: save `lab.yml` and the class updates in every open tab. Modules you are writing reload on save, too.
+
+```bash
+npm install -g @edryslabs/edrys-dev
+edrys-dev lab.yml --open
+```
+
+An AI agent such as Claude Code can start it too (`edrys-dev --mcp`, from the lab folder's `.mcp.json`; see the edrys-dev README). The agent then edits the lab, sees the live class (rooms, users, module messages, errors) and talks to you in a chat panel on top of it. The [edrys skills](https://github.com/edrys-labs/skills) teach the agent how to write labs and modules.
+
 ## 🛠️ Development
 
 Requires Node.js and npm.
