@@ -15,6 +15,7 @@ import {
   getPeerID,
   getShortPeerID,
   hashPubKey,
+  sameKey,
   parse,
   normalizeClassroom,
   encodeCommConfig,
@@ -77,7 +78,7 @@ export async function openDevLab(database = new Database()): Promise<string> {
   // a class of another key (this browser's identity changed) would not take
   // the lab's changes: only its owner can save it
   const stored = id ? await database.get(id) : null
-  if (!stored || stored.data?.createdBy !== peerID) {
+  if (!stored || !sameKey(stored.data?.createdBy, peerID)) {
     id = infoHash(16)
     data.id = id
     data.createdBy = peerID
@@ -221,16 +222,21 @@ function runInFrame(frame: Window, code: string, ms: number): Promise<{ value: s
  * stops listening.
  */
 export function startDevBridge(apply: (data: any) => boolean, commands: DevCommands = {}): () => void {
-  const reload = (connected = false) =>
-    fetchLab()
+  // two saves in a row fetch the lab twice; the older answer may come last
+  let reloads = 0
+  const reload = (connected = false) => {
+    const run = ++reloads
+    return fetchLab()
       .then(({ data }) => {
         if (connected) report('open', { url: shareLink(data) })
-        report('applied', { changed: apply(data) })
+        if (run === reloads) report('applied', { changed: apply(data) })
       })
       .catch((error) => {
+        if (run !== reloads) return
         console.warn('edrys-dev: could not load the lab', error)
         report('error', { message: error.message })
       })
+  }
 
   const events = new EventSource(API + '/events')
   events.onopen = () => {
@@ -240,11 +246,7 @@ export function startDevBridge(apply: (data: any) => boolean, commands: DevComma
   }
   events.addEventListener('reload-lab', () => reload())
   events.addEventListener('goto', (event: MessageEvent) => commands.goto?.(JSON.parse(event.data)))
-  events.addEventListener('reload-module', (event: MessageEvent) => {
-    // edrys-dev 0.1 sent one event per address, with `url`
-    const { url, urls = [url] } = JSON.parse(event.data)
-    commands.reloadModule?.({ urls })
-  })
+  events.addEventListener('reload-module', (event: MessageEvent) => commands.reloadModule?.(JSON.parse(event.data)))
   // questions of edrys-dev, answered with a `reply` of the same id
   const answer = (event: string, handle: (command: any) => any) =>
     events.addEventListener(event, async (event: MessageEvent) => {
@@ -330,16 +332,21 @@ export function reportMessage(classId: string, msg: any) {
 }
 
 let lastClass = ''
+let nextClass: ReturnType<typeof classState> | undefined
 let classTimer: ReturnType<typeof setTimeout> | undefined
 
-/** Reports the class state to edrys-dev, only when it changed and at most every 500 ms. */
+/**
+ * Reports the class state to edrys-dev, only when it changed and at most every
+ * 500 ms; the newest state of those 500 ms counts.
+ */
 export function reportClass(state: ReturnType<typeof classState>) {
-  clearTimeout(classTimer)
-  classTimer = setTimeout(() => {
-    const json = JSON.stringify(state)
+  nextClass = state
+  classTimer ??= setTimeout(() => {
+    classTimer = undefined
+    const json = JSON.stringify(nextClass)
     if (json === lastClass) return
     lastClass = json
-    report('class', state)
+    report('class', nextClass)
   }, 500)
 }
 

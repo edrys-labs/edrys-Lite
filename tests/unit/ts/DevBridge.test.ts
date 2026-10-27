@@ -158,6 +158,15 @@ describe('DevBridge', () => {
       );
       expect(localStorage.getItem('edrys-dev:/labs/lab.yml')).toBe('new-class-id');
     });
+
+    test('keeps a class whose key differs only in base64 padding', async () => {
+      serveLab();
+      localStorage.setItem('edrys-dev:/labs/lab.yml', 'padded-id');
+      const database = fakeDatabase(['padded-id'], 'owner-key==');
+
+      expect(await openDevLab(database)).toBe('?/classroom/padded-id/hash-of-owner-key');
+      expect(database.put).not.toHaveBeenCalled();
+    });
   });
 
   describe('startDevBridge', () => {
@@ -251,9 +260,29 @@ describe('DevBridge', () => {
       const urls = ['http://localhost:3211/term/', 'http://127.0.0.1:3211/term/'];
       source.listeners['reload-module']({ data: JSON.stringify({ urls }) });
       expect(reloadModule).toHaveBeenLastCalledWith({ urls });
-      // edrys-dev 0.1: one event per address
-      source.listeners['reload-module']({ data: JSON.stringify({ url: urls[0] }) });
-      expect(reloadModule).toHaveBeenLastCalledWith({ urls: [urls[0]] });
+    });
+
+    test('applies only the newest lab when an older fetch answers last', async () => {
+      const labs: ((lab: any) => void)[] = [];
+      const fetchMock = vi.fn((url: string) =>
+        url === '/edrys-dev/lab'
+          ? new Promise((resolve) => labs.push((lab) => resolve({ ok: true, json: async () => lab })))
+          : Promise.resolve({ ok: true })
+      );
+      vi.stubGlobal('fetch', fetchMock);
+      const apply = vi.fn();
+      const lab = (name: string) => ({ path: '/labs/lab.yml', text: JSON.stringify({ name, modules: [] }) });
+      startDevBridge(apply);
+
+      source.listeners['reload-lab']();
+      source.listeners['reload-lab']();
+      labs[1](lab('second save'));
+      await vi.waitFor(() => expect(apply).toHaveBeenCalledTimes(1));
+      labs[0](lab('first save'));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(apply).toHaveBeenCalledTimes(1);
+      expect(apply.mock.calls[0][0].name).toBe('second save');
     });
 
     test('reports a lab that does not parse instead of applying it', async () => {
@@ -505,6 +534,21 @@ describe('reportClass', () => {
       type: 'class',
       ...state('Room 1'),
     });
+  });
+
+  // the room updates of a busy class come about every 500 ms
+  test('reports while the class keeps changing', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    for (let i = 0; i < 5; i++) {
+      reportClass({ room: `Busy ${i}`, rooms: {}, modules: [] });
+      await vi.advanceTimersByTimeAsync(400);
+    }
+    await vi.advanceTimersByTimeAsync(500);
+
+    const rooms = (fetchMock.mock.calls as any[]).map(([, init]) => JSON.parse(init.body).room);
+    expect(rooms).toEqual(['Busy 1', 'Busy 3', 'Busy 4']);
   });
 
   // edrys-dev keeps the class only in memory, and the tab would not report
