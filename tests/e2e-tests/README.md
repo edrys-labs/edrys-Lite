@@ -91,12 +91,18 @@ Failing tests in `messaging`/`station` attach `transport-log.txt`
 | --------------------- | ------------------------------------------------------------------------ |
 | `app.modules.spec.ts` | modules in iframes via `$Edrys`: messages both ways + targeted, awareness + removal, shared `Y.Text` both ways and across a guest reload |
 | `app.setup.spec.ts`   | owner configures name/rooms/module in the Settings UI (WS: + "keep in URL"); guest joins from the Communication tab's Shareable Link: owner trust anchor enforced, signed setup applied (name, meta, module running, student role); promote to teacher via Members without reloading the owner; guest keeps the setup after the owner leaves |
+| `app.tutor.spec.ts`   | the student tutor of edrys-dev `--tutor`: the owner's `?dev` tab offers it, a student asks in its drawer and gets the answer through the owner tab; switched off in edrys-dev, the button goes, and comes back |
 
 [`probe-module.ts`](app/probe-module.ts) serves a minimal module from the fake
 origin `http://e2e-module.test` (Playwright `context.route`; pass
 `prepare: routeProbeModule` to `createClassroom`/`joinClassroom`). It loads
 the app's built `module/edrys.js`, so it runs cross-origin like a real module;
 sends and assertions run inside the frame (`inProbe`).
+
+[`edrys-dev.ts`](edrys-dev.ts) stands in for edrys-dev: `openDevClass` opens an
+owner tab with `?dev` against routed `/edrys-dev/lab` and `/edrys-dev/bridge`
+and a fake `/edrys-dev/events` stream, and answers every tutor question with
+`Echo: <question>`. No edrys-dev and no agent needed.
 
 Notes:
 

@@ -148,10 +148,13 @@ export default {
     };
   },
   computed: {
-    // the class owner's tab with edrys-dev's tutor, for everyone but that owner and stations
-    tutorId(): string | null {
+    // the class owner's tab with edrys-dev's tutor and its key, for everyone but that owner and stations
+    tutorTab(): { id: string; key: string } | null {
       if (this.isOwner || this.isStation) return null;
       return tutorPeer(this.liveClassProxy?.users, this.configuration?.data?.createdBy);
+    },
+    tutorId(): string | null {
+      return this.tutorTab?.id ?? null;
     },
   },
   watch: {
@@ -484,7 +487,13 @@ export default {
         (base: string) => this.communication.allowedToParticipate(base),
         (id: string) => this.liveClassProxy?.users?.[id]?.room ?? ""
       );
-      const tutor = (on: boolean) => this.communication.setTutor(on);
+      // the key is made once per tab; the last switch wins
+      let switches = 0;
+      const tutor = async (on: boolean) => {
+        const run = ++switches;
+        const key = on ? await relay.publicKey() : null;
+        if (run === switches) this.communication.setTutor(key);
+      };
 
       const stopBridge = startDevBridge(apply, {
         goto,
@@ -873,6 +882,7 @@ export default {
         v-model:show="tutor.open"
         :communication="communication"
         :tutorId="tutorId"
+        :tutorKey="tutorTab?.key"
         :owner="configuration?.data?.createdBy"
         :classId="id"
         @answered="if (!tutor.open) tutor.new = true;"

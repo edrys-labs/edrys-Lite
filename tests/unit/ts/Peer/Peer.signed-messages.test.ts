@@ -309,9 +309,9 @@ describe('Signed module messages', () => {
   test('setTutor announces the tutor in the signed presence and withdraws it', async () => {
     const { peer } = await bootPeer()
     const room = peer.user().room
-    peer.setTutor(true)
-    expect(peer.user()).toMatchObject({ tutor: true, room })
-    peer.setTutor(false)
+    peer.setTutor('ownerTutorKey')
+    expect(peer.user()).toMatchObject({ tutor: 'ownerTutorKey', room })
+    peer.setTutor(null)
     expect(peer.user().tutor).toBeUndefined()
     expect(peer.user().room).toBe(room)
     peer.stop()

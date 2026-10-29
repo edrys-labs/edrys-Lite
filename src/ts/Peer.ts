@@ -921,7 +921,7 @@ export default class Peer {
       dateJoined: current?.dateJoined || Date.now(),
       handRaised: false,
       connections: [{ id: '', target: {} }],
-      ...(this._tutor ? { tutor: true } : {}),
+      ...(this._tutor ? { tutor: this._tutor } : {}),
     })
 
     heartbeatID = setInterval(() => {
@@ -1472,18 +1472,18 @@ export default class Peer {
     if (!(name in this._viewRooms())) this._writeAndSignRoom(name, 'addRoom')
   }
 
-  // whether this tab offers the student tutor (an owner tab of edrys-dev --tutor)
-  private _tutor = false
+  // the public key of the student tutor this tab offers (an owner tab of edrys-dev --tutor)
+  private _tutor: string | null = null
   private _onTutor: ((msg: { from: string; tutor: any }) => void) | null = null
 
-  /** Announces the tutor in our signed presence, or withdraws it. */
-  setTutor(on: boolean) {
-    if (on === this._tutor) return
-    this._tutor = on
+  /** Announces the tutor with its public `key` in our signed presence, or withdraws it (null). */
+  setTutor(key: string | null) {
+    if (key === this._tutor) return
+    this._tutor = key
     const current = this.user()
     if (!current) return
     const { tutor, ...rest } = current
-    this.presence.publish(on ? { ...rest, tutor: true } : rest)
+    this.presence.publish(key ? { ...rest, tutor: key } : rest)
   }
 
   /** Tutor messages addressed to us, signed by their `from`. */

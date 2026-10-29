@@ -1,8 +1,9 @@
 <script lang="ts">
 import markdownit from "markdown-it";
+import { markRaw } from "vue";
 import { useI18n } from "vue-i18n";
 import { infoHash } from "../ts/Utils";
-import { TEXT_MAX, tutorAnswer } from "../ts/Tutor";
+import { TEXT_MAX, sealQuestion, tutorAnswer } from "../ts/Tutor";
 
 // a question without an answer by then gets an error; edrys-dev gives up after 2 minutes
 const ANSWER_MS = 3 * 60_000;
@@ -15,7 +16,7 @@ type Entry = { id: string; from: "student" | "tutor"; text: string; error?: bool
  */
 export default {
   name: "TutorChat",
-  props: ["show", "communication", "tutorId", "owner", "classId"],
+  props: ["show", "communication", "tutorId", "tutorKey", "owner", "classId"],
   emits: ["update:show", "answered"],
 
   setup() {
@@ -27,8 +28,9 @@ export default {
     return {
       message: "",
       entries: this.load() as Entry[],
-      // the question waiting for its answer, by id
+      // the question waiting for its answer, by id, and the key the answer comes under
       pending: null as string | null,
+      answerKey: null as CryptoKey | null,
       timer: undefined as ReturnType<typeof setTimeout> | undefined,
       max: TEXT_MAX,
       // no typographer: it turns the (R) of a formula into ®
@@ -48,8 +50,10 @@ export default {
   },
 
   mounted() {
-    this.communication.onTutor((msg: any) => {
-      const answer = tutorAnswer(msg, this.owner);
+    this.communication.onTutor(async (msg: any) => {
+      const { pending, answerKey } = this;
+      if (!pending || !answerKey) return;
+      const answer = await tutorAnswer(msg, this.owner, this.communication.peerID, pending, answerKey);
       if (!answer || answer.id !== this.pending) return;
       this.done();
       this.add(answer.text !== undefined
@@ -94,20 +98,34 @@ export default {
     done() {
       clearTimeout(this.timer);
       this.pending = null;
+      this.answerKey = null;
     },
 
-    send() {
+    async send() {
       const text = this.message.trim();
-      if (!text || this.pending || !this.tutorId) return;
+      if (!text || this.pending || !this.tutorId || !this.tutorKey) return;
       const id = infoHash(12);
+      const to = this.tutorId;
       this.add({ id, from: "student", text });
       this.message = "";
       this.pending = id;
-      this.communication.sendTutor(this.tutorId, { ask: { id, text } });
-      this.timer = setTimeout(() => {
+      const failed = () => {
         this.done();
         this.add({ id, from: "tutor", text: this.t("tutor.noAnswer"), error: true });
-      }, ANSWER_MS);
+      };
+      this.timer = setTimeout(failed, ANSWER_MS);
+      // sealed for the teacher's tab: the class may relay it to everyone
+      let sealed;
+      try {
+        sealed = await sealQuestion(this.tutorKey, this.communication.peerID, id, text);
+      } catch (error) {
+        console.warn("tutor: could not seal the question", error);
+        return failed();
+      }
+      if (this.pending !== id) return;
+      // a CryptoKey must stay as it is: Vue's proxy would break crypto.subtle
+      this.answerKey = markRaw(sealed.key);
+      this.communication.sendTutor(to, sealed.tutor);
     },
   },
 };
