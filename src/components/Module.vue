@@ -13,7 +13,7 @@
           ? null
           : scrapedModule.url
       "
-      allow="camera; microphone; fullscreen *; display-capture; accelerometer; autoplay; encrypted-media; geolocation; gyroscope; magnetometer; midi; serial; vr; clipboard-read; clipboard-write"
+      allow="camera; microphone; fullscreen *; display-capture; accelerometer; autoplay; encrypted-media; geolocation; gyroscope; magnetometer; midi; serial; xr-spatial-tracking; clipboard-read; clipboard-write; local-network-access; local-network; loopback-network"
       @load="loadFrame"
       ref="iframe"
       frameborder="0"
