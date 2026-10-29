@@ -5,7 +5,8 @@ import { useI18n } from "vue-i18n";
 import { infoHash } from "../ts/Utils";
 import { TEXT_MAX, sealQuestion, tutorAnswer } from "../ts/Tutor";
 
-// a question without an answer by then gets an error; edrys-dev gives up after 2 minutes
+// a question without an answer by then gets an error; edrys-dev answers or
+// gives up within about 160 s (30 s waiting for a run, 10 s room state, 120 s run)
 const ANSWER_MS = 3 * 60_000;
 
 type Entry = { id: string; from: "student" | "tutor"; text: string; error?: boolean };
