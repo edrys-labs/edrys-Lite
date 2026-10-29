@@ -207,6 +207,18 @@ settings:
       label: "Keep communication settings in URL"
       hint: "When checked, the communication configuration will remain in the URL after loading. When unchecked, the URL will be cleaned automatically."
 
+tutor:
+  title: "Tutor"
+  button: "Ask the tutor"
+  buttonUnread: "Ask the tutor, new answer"
+  close: "Close"
+  intro: "Ask about the lab. The tutor gives hints and explanations, not the solutions."
+  placeholder: "Your question (Enter to send)"
+  thinking: "The tutor is thinking…"
+  noAnswer: "No answer came. Try again, or ask your teacher."
+  offline: "The tutor is not online right now."
+  privacy: "An AI on your teacher's computer answers. Your teacher can read this chat."
+
 chat:
   deletedMessage: "previous messages have been deleted ..."
   sendButton: "Send"

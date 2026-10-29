@@ -921,6 +921,7 @@ export default class Peer {
       dateJoined: current?.dateJoined || Date.now(),
       handRaised: false,
       connections: [{ id: '', target: {} }],
+      ...(this._tutor ? { tutor: true } : {}),
     })
 
     heartbeatID = setInterval(() => {
@@ -1355,11 +1356,18 @@ export default class Peer {
       .catch((e) => LOG('message not sent', e))
   }
 
-  /** Deliver a received message to the modules if it is signed for its `from`; in arrival order. */
+  /**
+   * Deliver a received message to the modules if it is signed for its `from`;
+   * in arrival order. A tutor message goes to the tutor handler instead:
+   * modules build their messages from fixed fields, so they can neither send
+   * nor see one.
+   */
   private _receive(msg: any) {
     this._receiveQueue = this._receiveQueue
       .then(async () => {
-        if (await this._isValidMessage(msg)) this.update('message', msg)
+        if (!(await this._isValidMessage(msg))) return
+        if (msg.tutor === undefined) this.update('message', msg)
+        else if (msg.user) this._onTutor?.(msg)
       })
       .catch((e) => LOG('message dropped', e))
   }
@@ -1462,6 +1470,31 @@ export default class Peer {
   addRoom(name: string) {
     if (!this.canManageRooms()) return
     if (!(name in this._viewRooms())) this._writeAndSignRoom(name, 'addRoom')
+  }
+
+  // whether this tab offers the student tutor (an owner tab of edrys-dev --tutor)
+  private _tutor = false
+  private _onTutor: ((msg: { from: string; tutor: any }) => void) | null = null
+
+  /** Announces the tutor in our signed presence, or withdraws it. */
+  setTutor(on: boolean) {
+    if (on === this._tutor) return
+    this._tutor = on
+    const current = this.user()
+    if (!current) return
+    const { tutor, ...rest } = current
+    this.presence.publish(on ? { ...rest, tutor: true } : rest)
+  }
+
+  /** Tutor messages addressed to us, signed by their `from`. */
+  onTutor(callback: ((msg: { from: string; tutor: any }) => void) | null) {
+    this._onTutor = callback
+  }
+
+  /** Signs a tutor message and sends it to the peer `to` only. */
+  sendTutor(to: string, tutor: any) {
+    if (!this.connected) return
+    this._sendSigned({ from: this.peerID, user: to, tutor }, this.user()?.room || LOBBY, [to])
   }
 
   /**

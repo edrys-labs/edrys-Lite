@@ -207,6 +207,18 @@ settings:
       label: "Kommunikationseinstellungen in URL behalten"
       hint: "Wenn aktiviert, bleiben die Kommunikationseinstellungen nach dem Laden in der URL. Wenn deaktiviert, wird die URL automatisch bereinigt."
 
+tutor:
+  title: "Tutor"
+  button: "Tutor fragen"
+  buttonUnread: "Tutor fragen, neue Antwort"
+  close: "Schließen"
+  intro: "Frag zum Labor. Der Tutor gibt Hinweise und Erklärungen, keine Lösungen."
+  placeholder: "Deine Frage (Enter zum Senden)"
+  thinking: "Der Tutor denkt nach…"
+  noAnswer: "Es kam keine Antwort. Versuch es noch einmal oder frag deine Lehrkraft."
+  offline: "Der Tutor ist gerade nicht online."
+  privacy: "Eine KI auf dem Rechner deiner Lehrkraft antwortet. Deine Lehrkraft kann diesen Chat lesen."
+
 chat:
   deletedMessage: "vorherige Nachrichten wurden gelöscht ..."
   sendButton: "Senden"

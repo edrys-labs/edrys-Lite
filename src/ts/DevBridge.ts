@@ -5,8 +5,9 @@
  * (signed), republishes it whenever the file changes.
  *
  * edrys-dev endpoints (same origin):
- *   GET  /edrys-dev/lab     { path, text, communication? }
- *   GET  /edrys-dev/events  server-sent events, `reload-lab` when the file changed
+ *   GET  /edrys-dev/lab     { path, text, communication?, tutor? }
+ *   GET  /edrys-dev/events  server-sent events, `reload-lab` when the file changed,
+ *                           `tutor-answer` for a student's question
  *   POST /edrys-dev/bridge  JSON reports from this tab
  */
 import { Database } from './Database'
@@ -44,7 +45,7 @@ export function devClassId(): string | null {
 }
 
 /** The lab as classroom data, without id and createdBy: those belong to the class, not the file. */
-export async function fetchLab(): Promise<{ path: string; data: any }> {
+export async function fetchLab(): Promise<{ path: string; data: any; tutor: boolean }> {
   const response = await fetch(API + '/lab')
   if (!response.ok) throw new Error(`${API}/lab: ${response.status}`)
 
@@ -66,7 +67,7 @@ export async function fetchLab(): Promise<{ path: string; data: any }> {
   const communicationConfig = encodeCommConfig(lab.communication)
   if (communicationConfig) data.communicationConfig = communicationConfig
 
-  return { path: lab.path, data }
+  return { path: lab.path, data, tutor: lab.tutor === true }
 }
 
 /** Reopens the lab's class, importing it as Deploy does on first use; returns the class route. */
@@ -122,6 +123,10 @@ export type DevCommands = {
   reloadModule?: (command: { urls: string[] }) => void
   /** The shared state of a room's modules as JSON, now; undefined if there is no such room. */
   readState?: (room: string) => Record<string, any> | undefined
+  /** edrys-dev answers students' questions (--tutor), or no longer does (it is gone). */
+  tutor?: (on: boolean) => void
+  /** edrys-dev's answer to a question passed on with `tutor-ask`. */
+  tutorAnswer?: (answer: { id: string; student: string; text?: string; error?: string }) => void
 }
 
 /**
@@ -227,8 +232,9 @@ export function startDevBridge(apply: (data: any) => boolean, commands: DevComma
   const reload = (connected = false) => {
     const run = ++reloads
     return fetchLab()
-      .then(({ data }) => {
+      .then(({ data, tutor }) => {
         if (connected) report('open', { url: shareLink(data) })
+        commands.tutor?.(tutor)
         if (run === reloads) report('applied', { changed: apply(data) })
       })
       .catch((error) => {
@@ -244,7 +250,10 @@ export function startDevBridge(apply: (data: any) => boolean, commands: DevComma
     // a restarted edrys-dev knows nothing of the class yet
     resendClass()
   }
+  // no edrys-dev, no tutor; onopen announces it again
+  events.onerror = () => commands.tutor?.(false)
   events.addEventListener('reload-lab', () => reload())
+  events.addEventListener('tutor-answer', (event: MessageEvent) => commands.tutorAnswer?.(JSON.parse(event.data)))
   events.addEventListener('goto', (event: MessageEvent) => commands.goto?.(JSON.parse(event.data)))
   events.addEventListener('reload-module', (event: MessageEvent) => commands.reloadModule?.(JSON.parse(event.data)))
   // questions of edrys-dev, answered with a `reply` of the same id

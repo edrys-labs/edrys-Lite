@@ -5,6 +5,7 @@ import Checks from "../components/Checks.vue";
 import Modules from "../components/Modules.vue";
 import Logger from "../components/Logger.vue";
 import UserMenu from "../components/UserMenu.vue";
+import TutorChat from "../components/TutorChat.vue";
 import { useI18n } from "vue-i18n";
 
 import { Database, DatabaseItem } from "../ts/Database";
@@ -39,6 +40,7 @@ import {
   rescrapeModules,
   withFresh,
 } from "../ts/DevBridge";
+import { startTutorRelay, tutorPeer } from "../ts/Tutor";
 
 export default {
   props: ["id", "station", "owner"],
@@ -117,6 +119,8 @@ export default {
 
       componentKey: 0,
 
+      tutor: { open: false, new: false },
+
       chat: {
         open: false,
         messages: [],
@@ -142,6 +146,13 @@ export default {
       // False while the connection to the class is lost (the transport reconnects).
       online: true,
     };
+  },
+  computed: {
+    // the class owner's tab with edrys-dev's tutor, for everyone but that owner and stations
+    tutorId(): string | null {
+      if (this.isOwner || this.isStation) return null;
+      return tutorPeer(this.liveClassProxy?.users, this.configuration?.data?.createdBy);
+    },
   },
   watch: {
     showSettings() {
@@ -467,7 +478,21 @@ export default {
       const readState = (room: string) =>
         this.liveClassProxy?.rooms?.[room] ? this.communication.roomState(room) ?? {} : undefined;
 
-      const stopBridge = startDevBridge(apply, { goto, reloadModule, readState });
+      // students' questions to edrys-dev's tutor, and its answers back
+      const relay = startTutorRelay(
+        this.communication,
+        (base: string) => this.communication.allowedToParticipate(base),
+        (id: string) => this.liveClassProxy?.users?.[id]?.room ?? ""
+      );
+      const tutor = (on: boolean) => this.communication.setTutor(on);
+
+      const stopBridge = startDevBridge(apply, {
+        goto,
+        reloadModule,
+        readState,
+        tutor,
+        tutorAnswer: relay.answer,
+      });
 
       // what the agent sees of the class: rooms, who is where, the modules
       const unwatch = this.$watch(
@@ -480,6 +505,7 @@ export default {
       this._stopDevBridge = () => {
         unwatch();
         stopBridge();
+        relay.stop();
       };
     },
 
@@ -602,6 +628,7 @@ export default {
     Modules,
     Logger,
     UserMenu,
+    TutorChat,
   },
 };
 </script>
@@ -661,6 +688,24 @@ export default {
           thickness="2"
           vertical
         ></v-divider>
+
+        <v-btn
+          icon
+          v-if="tutorId || tutor.open"
+          :aria-label="tutor.new ? t('tutor.buttonUnread') : t('tutor.button')"
+          :aria-expanded="tutor.open"
+          :title="t('tutor.title')"
+          data-test="tutor-button"
+          @click="
+            tutor.open = !tutor.open;
+            tutor.new = false;
+          "
+        >
+          <v-badge dot color="red" v-if="tutor.new">
+            <v-icon icon="mdi-robot-outline"></v-icon>
+          </v-badge>
+          <v-icon icon="mdi-robot-outline" v-else></v-icon>
+        </v-btn>
 
         <v-btn
           icon
@@ -822,6 +867,16 @@ export default {
         @sendMessage="sendMessage"
       >
       </Chat>
+
+      <TutorChat
+        v-if="tutorId || tutor.open"
+        v-model:show="tutor.open"
+        :communication="communication"
+        :tutorId="tutorId"
+        :owner="configuration?.data?.createdBy"
+        :classId="id"
+        @answered="if (!tutor.open) tutor.new = true;"
+      ></TutorChat>
 
       <v-main style="overflow-y: scroll">
         <v-col>

@@ -262,6 +262,23 @@ describe('DevBridge', () => {
       expect(reloadModule).toHaveBeenLastCalledWith({ urls });
     });
 
+    test('announces the tutor while edrys-dev offers it, and passes its answers on', async () => {
+      serveLab({ path: '/labs/lab.yml', text: LAB, tutor: true });
+      const tutor = vi.fn();
+      const tutorAnswer = vi.fn();
+      startDevBridge(vi.fn(), { tutor, tutorAnswer });
+
+      source.onopen();
+      await vi.waitFor(() => expect(tutor).toHaveBeenLastCalledWith(true));
+      // edrys-dev gone
+      source.onerror();
+      expect(tutor).toHaveBeenLastCalledWith(false);
+
+      const answer = { id: 'r1', student: 'key', text: 'Try Ohm' };
+      source.listeners['tutor-answer']({ data: JSON.stringify(answer) });
+      expect(tutorAnswer).toHaveBeenCalledWith(answer);
+    });
+
     test('applies only the newest lab when an older fetch answers last', async () => {
       const labs: ((lab: any) => void)[] = [];
       const fetchMock = vi.fn((url: string) =>

@@ -207,6 +207,18 @@ settings:
       label: "Mantener configuración de comunicación en URL"
       hint: "Cuando está marcado, la configuración de comunicación permanecerá en la URL después de cargar. Cuando no está marcado, la URL se limpiará automáticamente."
 
+tutor:
+  title: "Tutor"
+  button: "Preguntar al tutor"
+  buttonUnread: "Preguntar al tutor, respuesta nueva"
+  close: "Cerrar"
+  intro: "Pregunta sobre el laboratorio. El tutor da pistas y explicaciones, no las soluciones."
+  placeholder: "Tu pregunta (Enter para enviar)"
+  thinking: "El tutor está pensando…"
+  noAnswer: "No llegó ninguna respuesta. Inténtalo de nuevo o pregunta a tu docente."
+  offline: "El tutor no está en línea ahora."
+  privacy: "Responde una IA en el ordenador de tu docente. Tu docente puede leer este chat."
+
 chat:
   deletedMessage: "mensajes anteriores han sido eliminados ..."
   sendButton: "Enviar"

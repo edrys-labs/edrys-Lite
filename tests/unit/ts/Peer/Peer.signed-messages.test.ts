@@ -268,4 +268,52 @@ describe('Signed module messages', () => {
     expect(delivered.map((m) => m.body)).toEqual([1, 2])
     peer.stop()
   })
+  test('a tutor message addressed to us goes to the tutor handler, never to the modules', async () => {
+    const { peer, delivered } = await bootPeer()
+    const tutor: any[] = []
+    peer.onTutor((msg: any) => tutor.push(msg))
+    const other = await otherPeer()
+
+    await receive(peer, await other.sign({ from: other.id, user: peer.peerID, tutor: { ask: { id: 'q1', text: 'hi' } } }))
+    // to a room: not for the tutor, and still not for the modules
+    await receive(peer, await other.sign({ ...toRoom(peer, other.id, undefined), tutor: { ask: { id: 'q2', text: 'x' } } }))
+    // claiming the owner as sender: dropped by the signature check
+    await receive(peer, await other.sign({ from: peer.peerID, user: peer.peerID, tutor: { answer: { id: 'q1', text: 'fake' } } }))
+
+    expect(tutor.map((m) => m.tutor.ask.id)).toEqual(['q1'])
+    expect(tutor[0].from).toBe(other.id)
+    expect(delivered).toEqual([])
+    peer.stop()
+  })
+
+  test('sendTutor signs a tutor message for one peer only; the addressee accepts it', async () => {
+    const { peer } = await bootPeer()
+    peer['connected'] = true
+    const sendMessage = vi.mocked(peer['provider'].sendMessage)
+
+    peer.sendTutor('x_s1', { answer: { id: 'q1', text: 'Try Ohm' } })
+    await peer['_sendQueue']
+
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+    const [sent, target] = sendMessage.mock.calls[0] as any[]
+    expect(target).toBe('x_s1')
+    expect(sent.tutor).toEqual({ answer: { id: 'q1', text: 'Try Ohm' } })
+    const tutor: any[] = []
+    peer.onTutor((msg: any) => tutor.push(msg.tutor))
+    peer.peerID = 'x_s1'
+    await receive(peer, sent)
+    expect(tutor).toEqual([{ answer: { id: 'q1', text: 'Try Ohm' } }])
+    peer.stop()
+  })
+
+  test('setTutor announces the tutor in the signed presence and withdraws it', async () => {
+    const { peer } = await bootPeer()
+    const room = peer.user().room
+    peer.setTutor(true)
+    expect(peer.user()).toMatchObject({ tutor: true, room })
+    peer.setTutor(false)
+    expect(peer.user().tutor).toBeUndefined()
+    expect(peer.user().room).toBe(room)
+    peer.stop()
+  })
 })
