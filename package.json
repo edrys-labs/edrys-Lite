@@ -1,6 +1,6 @@
 {
   "name": "@edryslabs/edrys-lite",
-  "version": "3.2.0-dev.1",
+  "version": "3.2.0-dev.2",
   "description": "Browser-based, peer-to-peer remote labs and live classrooms (WebRTC or WebSocket, synced with Yjs)",
   "files": [
     "dist"
