@@ -11,6 +11,7 @@ import {
   runInModule,
   rescrapeModules,
   withFresh,
+  studentLink,
 } from '../../../src/ts/DevBridge';
 
 vi.mock('../../../src/ts/Database', () => ({ Database: vi.fn() }));
@@ -105,6 +106,33 @@ describe('DevBridge', () => {
     test('passes the parser\'s message on, with line and column', async () => {
       serveLab({ path: '/labs/lab.yml', text: 'name: Lab\nmodules:\n  - url: a\n   bad: indent\n' });
       await expect(fetchLab()).rejects.toThrow(/could not parse \/labs\/lab\.yml: .*\(4:\d+\)/);
+    });
+  });
+
+  describe('studentLink', () => {
+    const local = 'http://localhost:3210/?/classroom/class-1/hash#comm=xyz';
+
+    test('moves the dev class\'s link onto the site students join on', async () => {
+      // before edrys-dev said anything: as it is
+      expect(studentLink(local, 'class-1')).toBe(local);
+
+      serveLab({ path: '/labs/lab.yml', text: LAB, studentSite: 'https://edrys-labs.github.io/' });
+      await fetchLab();
+      sessionStorage.setItem('edrys-dev', 'class-1');
+      expect(studentLink(local, 'class-1')).toBe('https://edrys-labs.github.io/?/classroom/class-1/hash#comm=xyz');
+      // another class, or a tab that does not follow the lab: as it is
+      expect(studentLink(local, 'class-2')).toBe(local);
+      sessionStorage.clear();
+      expect(studentLink(local, 'class-1')).toBe(local);
+    });
+
+    test('null when students cannot join (--local), also for a site that is no http(s) address', async () => {
+      sessionStorage.setItem('edrys-dev', 'class-1');
+      for (const studentSite of [null, 'javascript:alert(1)']) {
+        serveLab({ path: '/labs/lab.yml', text: LAB, studentSite });
+        await fetchLab();
+        expect(studentLink(local, 'class-1')).toBeNull();
+      }
     });
   });
 

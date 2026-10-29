@@ -152,6 +152,7 @@ export default {
         <v-window-item>
           <Members
             :members="configClone.members"
+            :classId="configClone.id || ''"
             @updateMembers="updateMembers"
           ></Members>
         </v-window-item>

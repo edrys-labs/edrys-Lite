@@ -5,7 +5,7 @@
  * (signed), republishes it whenever the file changes.
  *
  * edrys-dev endpoints (same origin):
- *   GET  /edrys-dev/lab     { path, text, communication?, tutor? }
+ *   GET  /edrys-dev/lab     { path, text, communication?, tutor?, studentSite? }
  *   GET  /edrys-dev/events  server-sent events, `reload-lab` when the file changed,
  *                           `tutor-answer` for a student's question
  *   POST /edrys-dev/bridge  JSON reports from this tab
@@ -44,12 +44,34 @@ export function devClassId(): string | null {
   return sessionStorage.getItem(SESSION_KEY)
 }
 
+// The hosted edrys-Lite students join on, as edrys-dev says (--student-url);
+// null: they cannot (--local); undefined: not known (an older edrys-dev).
+let studentSite: string | null | undefined
+
+/**
+ * A link to `classId` for students. In the class this tab follows the lab
+ * file for, a link to this page only works on this machine: it moves to the
+ * site students join on, null if they cannot. Elsewhere `link` as it is.
+ */
+export function studentLink(link: string, classId: string): string | null {
+  if (studentSite === undefined || !classId || devClassId() !== classId) return link
+  if (studentSite === null) return null
+  const from = new URL(link)
+  const url = new URL(studentSite)
+  url.search = from.search
+  url.hash = from.hash
+  return url.toString()
+}
+
 /** The lab as classroom data, without id and createdBy: those belong to the class, not the file. */
 export async function fetchLab(): Promise<{ path: string; data: any; tutor: boolean }> {
   const response = await fetch(API + '/lab')
   if (!response.ok) throw new Error(`${API}/lab: ${response.status}`)
 
   const lab = await response.json()
+  if ('studentSite' in lab) {
+    studentSite = typeof lab.studentSite === 'string' && /^https?:\/\//.test(lab.studentSite) ? lab.studentSite : null
+  }
   let parsed: any
   try {
     parsed = parse(lab.text)

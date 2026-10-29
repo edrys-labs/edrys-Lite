@@ -74,8 +74,9 @@
 import { encodeCommConfig, 
   decodeCommConfig, 
   updateUrlWithCommConfig, 
-  cleanUrlAfterCommConfigExtraction 
+  cleanUrlAfterCommConfigExtraction
 } from "../../ts/Utils";
+import { studentLink } from "../../ts/DevBridge";
 
 export default {
   name: "Settings-Communication",
@@ -202,7 +203,9 @@ export default {
         const link = `${urlBase}?/classroom/${this.classId}${anchor}`;
 
         // Only append comm parameter if there's actually encoded config
-        this.shareableLink = encodedConfig ? `${link}#comm=${encodedConfig}` : link;
+        const shared = encodedConfig ? `${link}#comm=${encodedConfig}` : link;
+        // edrys-dev: on the site students join on (with --local, nobody else can)
+        this.shareableLink = studentLink(shared, this.classId) ?? shared;
       } catch (e) {
         console.error('Error generating shareable link:', e);
         this.shareableLink = this.$t('settings.communication.shareLink.error');

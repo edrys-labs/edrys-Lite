@@ -119,6 +119,8 @@ settings:
     teacherIds: "Lehrer-IDs (vollständige öffentliche Schlüssel), durch Kommas getrennt. Jeder Lehrer kann den Kurs ändern."
     studentIds: "Schüler-IDs (vollständige öffentliche Schlüssel), durch Kommas getrennt. Leer lassen oder * für alle. Schüler können mit Modulen interagieren."
     fullKeyHint: "Den vollständigen öffentlichen Schlüssel verwenden — über das Benutzermenü (⋮) kopieren."
+    devLocalOnly: "Nur auf diesem Computer, um die Klasse als Schüler auszuprobieren:"
+    devNoStudents: "edrys-dev läuft mit --local: Schüler an anderen Computern können nicht beitreten."
   modules:
     delete: "Modul und Konfiguration löschen?"
     deleteConfirm: "Ja"

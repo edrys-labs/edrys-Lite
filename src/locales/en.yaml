@@ -119,6 +119,8 @@ settings:
     teacherIds: "Teacher IDs (full public keys), separated by commas. Each teacher can modify the course."
     studentIds: "Student IDs (full public keys), separated by commas. Leave empty or add * for all. Students can interact with modules."
     fullKeyHint: "Use the full public key — copy it from the user menu (⋮)"
+    devLocalOnly: "Only on this computer, to try the class as a student:"
+    devNoStudents: "edrys-dev runs with --local: students on other computers cannot join."
   modules:
     delete: "Delete the module and its configuration?"
     deleteConfirm: "Yes"

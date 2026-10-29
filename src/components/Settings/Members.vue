@@ -7,6 +7,12 @@
     :text="t('settings.members.info')">
     <v-container>
       <a :href="url" class="info-link">{{ url }}</a>
+      <!-- edrys-dev: the link above is on the students' site, this page's only works here -->
+      <div v-if="url !== localUrl" class="text-caption mt-2">
+        {{ t('settings.members.devLocalOnly') }}
+        <a :href="localUrl" class="info-link">{{ localUrl }}</a>
+      </div>
+      <div v-if="noStudents" class="text-caption mt-2">{{ t('settings.members.devNoStudents') }}</div>
     </v-container>
 
     <template v-slot:append>
@@ -41,6 +47,7 @@
 
 <script lang="ts">
 import { copyToClipboard } from "../../ts/Utils";
+import { studentLink } from "../../ts/DevBridge";
 import { useI18n } from 'vue-i18n';
 
 export default {
@@ -53,6 +60,10 @@ export default {
       type: Object,
       required: true,
     },
+    classId: {
+      type: String,
+      default: "",
+    },
   },
 
   setup() {
@@ -63,9 +74,14 @@ export default {
   data() {
     const teacher = this.members.teacher.join(", ");
     const student = this.members.student.join(", ");
+    const localUrl = window.location.toString();
+    const forStudents = studentLink(localUrl, this.classId);
 
     return {
-      url: window.location.toString(),
+      url: forStudents ?? localUrl,
+      localUrl,
+      // edrys-dev --local: nobody on another machine can join
+      noStudents: forStudents === null,
       teacher,
       student,
     };
