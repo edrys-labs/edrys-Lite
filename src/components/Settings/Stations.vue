@@ -1,17 +1,16 @@
 <template>
-  <v-alert
-    variant="tonal"
-    dense
-    color="#1565c0"
-    icon="mdi-information"
-    :text="t('settings.stations.info')"
-  >
-    <v-container>
-      <a :href="url" target="_blank" class="info-link">{{ url }}</a>
-    </v-container>
+  <v-alert color="info" icon="mdi-information-outline" :text="t('settings.stations.info')">
+    <a :href="url" target="_blank" class="alert-link">{{ url }}</a>
 
     <template v-slot:append>
-      <v-btn icon="mdi-content-copy" :aria-label="t('general.copyLink')" @click="copyUrl" variant="text"></v-btn>
+      <v-btn
+        icon="mdi-content-copy"
+        size="30"
+        variant="text"
+        class="alert-copy"
+        :aria-label="t('general.copyLink')"
+        @click="copyUrl"
+      ></v-btn>
     </template>
   </v-alert>
 </template>
@@ -48,12 +47,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-.info-link,
-.info-link:visited,
-.info-link:hover,
-.info-link:active {
-  color: rgb(var(--v-theme-link));
-}
-</style>

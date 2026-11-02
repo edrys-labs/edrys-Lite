@@ -221,21 +221,35 @@ export default {
   color: rgb(var(--v-theme-muted));
 }
 .tutor-entry {
+  align-self: flex-start;
   padding: 10px 12px;
-  border-radius: 10px;
-  max-width: 90%;
-  font-size: 14px;
-  line-height: 1.5;
+  /* the corner towards the sender stays sharp */
+  border-radius: 12px;
+  border-end-start-radius: 4px;
+  max-width: 92%;
+  font-size: 13px;
+  line-height: 1.55;
   overflow-wrap: anywhere;
   background: rgb(var(--v-theme-message));
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.06), 0 0 0 1px rgb(var(--v-theme-message-edge));
 }
-:global(.v-theme--dark) .tutor-entry {
+.v-theme--dark .tutor-entry {
   box-shadow: none;
 }
 .tutor-entry.student {
-  margin-inline-start: auto;
-  background: rgb(var(--v-theme-own-message));
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border-end-end-radius: 4px;
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+  line-height: 1.5;
+  box-shadow: none;
+}
+
+.tutor-entry.student :deep(a) {
+  color: inherit;
 }
 .tutor-entry :deep(.markdown > :last-child) {
   margin-bottom: 0;

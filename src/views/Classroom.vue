@@ -748,15 +748,10 @@ export default {
 
         <!-- The live region must exist before the chip appears to be announced -->
         <div role="status">
-          <v-chip
-            v-if="!online"
-            color="warning"
-            prepend-icon="mdi-wifi-off"
-            class="mr-2"
-            data-test="offline-chip"
-          >
+          <span v-if="!online" class="offline-chip" data-test="offline-chip">
+            <v-icon icon="mdi-wifi-off" size="14" aria-hidden="true"></v-icon>
             <span :class="{ 'd-sr-only': phone }">{{ t("classroom.reconnecting") }}</span>
-          </v-chip>
+          </span>
         </div>
 
         <v-tooltip text="Open Logger" location="bottom">
@@ -840,7 +835,10 @@ export default {
               >
                 <v-icon icon="mdi-router-wireless" size="20"></v-icon>
               </span>
-              <h3 class="station-card-title">{{ t("classroom.station.mode") }}</h3>
+              <div>
+                <h3 class="station-card-title">{{ t("classroom.station.mode") }}</h3>
+                <div class="station-card-sub">{{ t("classroom.station.ready") }}</div>
+              </div>
             </div>
 
             <v-form @submit.prevent="setStationName">
@@ -1105,11 +1103,13 @@ export default {
       v-model="popup.open"
       :multi-line="true"
       :timeout="500000"
+      color="toast"
+      class="edrys-toast"
     >
       {{ popup.message }}
 
       <template v-slot:actions>
-        <v-btn variant="text" color="pink" @click="closePopup(popup.id)">
+        <v-btn variant="text" height="32" class="toast-action" @click="closePopup(popup.id)">
           {{ t("classroom.popup.close") }}
         </v-btn>
       </template>
@@ -1136,6 +1136,22 @@ export default {
   height: 24px;
   margin: 0 4px;
   background: rgb(var(--v-theme-bar-divider));
+}
+
+/* lost connection; on phones only the icon shows */
+.offline-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  margin-inline-end: 8px;
+  padding-inline: 10px 12px;
+  border-radius: 999px;
+  background: rgb(var(--v-theme-warning-tint));
+  color: rgb(var(--v-theme-warning));
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* phones: menu, the room pill across the bar, chat and the user menu */
@@ -1473,6 +1489,12 @@ export default {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
+}
+
+.station-card-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgb(var(--v-theme-muted));
 }
 
 .station-card-label {

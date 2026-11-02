@@ -564,27 +564,26 @@ export default {
       </div>
     </div>
 
-    <v-card v-if="isLoading">
-      <v-card-text class="d-flex align-center">
-        <v-progress-circular indeterminate size="20" width="2" class="mr-3" :aria-label="t('modules.loading')" />
-        {{ t('modules.loading') }}
-      </v-card-text>
-    </v-card>
+    <div v-if="isLoading" role="status" class="modules-note modules-note--loading">
+      <svg width="20" height="20" viewBox="0 0 22 22" aria-hidden="true" class="ring">
+        <circle cx="11" cy="11" r="8" fill="none" stroke-width="2.5" class="ring-track"></circle>
+        <path d="M11 3a8 8 0 0 1 8 8" fill="none" stroke-width="2.5" stroke-linecap="round" class="ring-arc"></path>
+      </svg>
+      {{ t('modules.loading') }}
+    </div>
 
-    <v-card v-else-if="!scrapedModules_.length">
-      <v-card-text v-if="role == 'teacher' || role == 'station'">
+    <div v-else-if="!scrapedModules_.length" class="modules-note">
+      <template v-if="role == 'teacher' || role == 'station'">
         {{ t('modules.noModules.1') }} {{ modulesType }} {{ t('modules.noModules.2') }}
-      </v-card-text>
-      <v-card-text v-if="role == 'student'">
+      </template>
+      <template v-if="role == 'student'">
         {{ t('modules.noModules.3') }}
-      </v-card-text>
-    </v-card>
+      </template>
+    </div>
 
-    <v-card v-else-if="!scrapedModulesFilter.length">
-      <v-card-text>
-        {{ t('modules.noModulesInRoom') }}
-      </v-card-text>
-    </v-card>
+    <div v-else-if="!scrapedModulesFilter.length" class="modules-note">
+      {{ t('modules.noModulesInRoom') }}
+    </div>
   </div>
 </template>
 
@@ -605,7 +604,7 @@ export default {
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
 }
 
-:global(.v-theme--dark) .item {
+.v-theme--dark .item {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), 0 0 0 1px rgb(var(--v-theme-module-edge));
 }
 
@@ -742,6 +741,52 @@ export default {
   max-height: none;
   margin: 0;
   transform: none !important;
+}
+
+.modules-note {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-text-2));
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
+}
+
+.v-theme--dark .modules-note {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), 0 0 0 1px rgb(var(--v-theme-panel-line));
+}
+
+.modules-note--loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.ring {
+  flex-shrink: 0;
+  animation: ring-spin 0.9s linear infinite;
+}
+
+.ring-track {
+  stroke: rgb(var(--v-theme-track));
+}
+
+.ring-arc {
+  stroke: currentColor;
+}
+
+@keyframes ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring {
+    animation-duration: 3s;
+  }
 }
 
 .item-overlay-protection {

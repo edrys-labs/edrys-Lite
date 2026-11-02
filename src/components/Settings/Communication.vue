@@ -56,13 +56,7 @@
       ></v-checkbox>
     </div>
 
-    <v-alert
-      variant="tonal"
-      density="compact"
-      color="#1565c0"
-      icon="mdi-information"
-      class="my-4"
-    >
+    <v-alert color="info" icon="mdi-information-outline" class="my-4">
       {{ $t("settings.communication.alert.first") }}
       <br />
       {{ $t("settings.communication.alert.second") }}

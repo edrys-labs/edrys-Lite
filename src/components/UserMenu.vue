@@ -130,7 +130,7 @@ export default defineComponent({
   box-shadow: 0 12px 32px rgba(20, 25, 35, 0.14), 0 0 0 1px rgb(var(--v-theme-module-edge));
 }
 
-:global(.v-theme--dark) .user-menu {
+.v-theme--dark .user-menu {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgb(var(--v-theme-line));
 }
 
@@ -255,7 +255,7 @@ section:last-child {
   color: rgb(var(--v-theme-on-surface));
 }
 
-:global(.v-theme--light) .segment:has(input:checked) {
+.v-theme--light .segment:has(input:checked) {
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.12);
 }
 </style>

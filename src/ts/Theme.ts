@@ -70,6 +70,9 @@ const light: ThemeDefinition = {
     'menu-line': '#e4e4e4', // between its sections
     'field-line': '#c4c4c4', // outline of a select in a menu
     segment: '#ffffff', // the chosen option of a segmented switch
+    toast: '#1b2029', // short notices at the bottom
+    'on-toast': '#eef0f3',
+    'toast-action': '#9dc9f7',
   },
   variables: {
     'border-color': '#1b2029',
@@ -139,6 +142,9 @@ const dark: ThemeDefinition = {
     'menu-line': '#39414c',
     'field-line': '#465060',
     segment: '#465060',
+    toast: '#eef0f3',
+    'on-toast': '#1b2029',
+    'toast-action': '#00579a',
   },
   variables: {
     'border-color': '#eef0f3',

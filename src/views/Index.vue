@@ -391,7 +391,7 @@ export default {
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
 }
 
-:global(.v-theme--dark) .class-card {
+.v-theme--dark .class-card {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), 0 0 0 1px rgb(var(--v-theme-panel-line));
 }
 

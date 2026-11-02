@@ -138,3 +138,67 @@ code, kbd, pre, samp {
     background: rgb(var(--v-theme-badge));
     box-shadow: 0 0 0 2px rgb(var(--v-theme-surface));
 }
+
+// Notes in Settings: <v-alert color="info"> with a link (.alert-link) and a copy button (.alert-copy)
+.v-alert.text-info {
+    padding: 12px 10px 12px 14px;
+    border-radius: 10px;
+    background: rgb(var(--v-theme-info-tint));
+    font-size: 13px;
+    line-height: 1.5;
+
+    .v-alert__underlay {
+        display: none;
+    }
+
+    .v-alert__prepend {
+        margin-inline-end: 10px;
+    }
+
+    .v-alert__prepend .v-icon {
+        font-size: 18px;
+    }
+}
+
+.alert-link,
+.alert-link:visited {
+    display: block;
+    overflow: hidden;
+    margin-top: 4px;
+    color: inherit;
+    font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.alert-more {
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.alert-copy.v-btn {
+    border-radius: 7px;
+    color: inherit;
+
+    .v-icon {
+        font-size: 15px;
+    }
+}
+
+// Toasts (<v-snackbar color="toast" class="edrys-toast">)
+.edrys-toast .v-snackbar__wrapper {
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.edrys-toast .v-snackbar__content {
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.toast-action.v-btn {
+    border-radius: 7px;
+    color: rgb(var(--v-theme-toast-action));
+}

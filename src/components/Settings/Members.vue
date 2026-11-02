@@ -1,22 +1,22 @@
 <template>
-  <v-alert 
-    variant="tonal" 
-    dense 
-    color="#1565c0" 
-    icon="mdi-information" 
-    :text="t('settings.members.info')">
-    <v-container>
-      <a :href="url" class="info-link">{{ url }}</a>
-      <!-- edrys-dev: the link above is on the students' site, this page's only works here -->
-      <div v-if="url !== localUrl" class="text-caption mt-2">
-        {{ t('settings.members.devLocalOnly') }}
-        <a :href="localUrl" class="info-link">{{ localUrl }}</a>
-      </div>
-      <div v-if="noStudents" class="text-caption mt-2">{{ t('settings.members.devNoStudents') }}</div>
-    </v-container>
+  <v-alert color="info" icon="mdi-information-outline" :text="t('settings.members.info')">
+    <a :href="url" class="alert-link">{{ url }}</a>
+    <!-- edrys-dev: the link above is on the students' site, this page's only works here -->
+    <div v-if="url !== localUrl" class="alert-more">
+      {{ t('settings.members.devLocalOnly') }}
+      <a :href="localUrl" class="alert-link">{{ localUrl }}</a>
+    </div>
+    <div v-if="noStudents" class="alert-more">{{ t('settings.members.devNoStudents') }}</div>
 
     <template v-slot:append>
-      <v-btn icon="mdi-content-copy" :aria-label="t('general.copyLink')" @click="copyUrl" variant="text"></v-btn>
+      <v-btn
+        icon="mdi-content-copy"
+        size="30"
+        variant="text"
+        class="alert-copy"
+        :aria-label="t('general.copyLink')"
+        @click="copyUrl"
+      ></v-btn>
     </template>
   </v-alert>
   <v-divider></v-divider>
@@ -116,12 +116,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-.info-link,
-.info-link:visited,
-.info-link:hover,
-.info-link:active {
-  color: rgb(var(--v-theme-link));
-}
-</style>

@@ -72,6 +72,7 @@ classroom:
   chatUnread: "Chat, neue Nachrichten"
   station:
     mode: "Station-Modus aktiv"
+    ready: "Bereit für Studierende"
     label: "Station-Name"
     modeDescription: "Dieser Browser läuft jetzt als Station und ist bereit, Studenten zu bedienen"
     exit: "Station-Modus beenden"

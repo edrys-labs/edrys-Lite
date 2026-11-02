@@ -10,7 +10,7 @@
     </v-toolbar>
 
     <v-card-text v-if="!hasAnySchema">
-      <v-alert type="info" variant="tonal" color="red-darken-1">
+      <v-alert color="info" icon="mdi-information-outline">
         {{ t("settings.modules.moduleConfig.noSchema") }}
       </v-alert>
     </v-card-text>

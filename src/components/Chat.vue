@@ -328,7 +328,7 @@ ol li {
   background: rgb(var(--v-theme-own-message));
 }
 
-:global(.v-theme--dark) .chat-message {
+.v-theme--dark .chat-message {
   box-shadow: none;
 }
 
