@@ -68,6 +68,7 @@ html:root {
   --edrys-line: #eef0f2; /* below a toolbar, above a footer */
   --edrys-footer: #fafbfc;
   --edrys-code-bg: #f0f1f4;
+  --edrys-media: #e9ebef; /* behind video and camera pictures */
   --edrys-primary: #3664be;
   --edrys-on-primary: #ffffff;
   --edrys-button: #f0f1f4;
@@ -114,6 +115,7 @@ html:root {
     --edrys-line: #2c333d;
     --edrys-footer: #1a1f26;
     --edrys-code-bg: #2c333d;
+    --edrys-media: #161a21;
     --edrys-primary: #3e6dc8;
     --edrys-on-primary: #ffffff;
     --edrys-button: #2c333d;
@@ -158,6 +160,7 @@ html:root[data-theme='dark'] {
   --edrys-line: #2c333d;
   --edrys-footer: #1a1f26;
   --edrys-code-bg: #2c333d;
+  --edrys-media: #161a21;
   --edrys-primary: #3e6dc8;
   --edrys-on-primary: #ffffff;
   --edrys-button: #2c333d;
