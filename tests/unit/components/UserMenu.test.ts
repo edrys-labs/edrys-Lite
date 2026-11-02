@@ -25,18 +25,6 @@ describe('UserMenu Component', () => {
               </div>
             `
           },
-          'v-list': {
-            template: '<div class="v-list"><slot /></div>'
-          },
-          'v-list-item': {
-            template: '<div class="v-list-item"><slot /></div>'
-          },
-          'v-list-item-title': {
-            template: '<div class="v-list-item-title"><slot /></div>'
-          },
-          'v-list-item-subtitle': {
-            template: '<div class="v-list-item-subtitle"><slot /></div>'
-          },
           'v-tooltip': {
             template: `<div class="v-tooltip"><slot name="activator" :props="{}" /></div>`
           },
@@ -59,34 +47,6 @@ describe('UserMenu Component', () => {
           'v-divider': {
             template: '<hr class="v-divider" />'
           },
-          // Like Vuetify's: a click on one of its buttons selects that button's value
-          'v-btn-toggle': {
-            emits: ['update:model-value'],
-            template: `
-              <div
-                class="v-btn-toggle"
-                @click="$event.target.closest('[data-value]') && $emit('update:model-value', $event.target.closest('[data-value]').dataset.value)"
-              ><slot /></div>
-            `
-          },
-          'v-select': {
-            template: `
-              <select 
-                class="v-select" 
-                :value="modelValue"
-                @change="$emit('update:model-value', $event.target.value)"
-              >
-                <option 
-                  v-for="item in items" 
-                  :key="item.value" 
-                  :value="item.value"
-                >
-                  {{ item.title }}
-                </option>
-              </select>
-            `,
-            props: ['modelValue', 'items']
-          }
         }
       }
     });
@@ -95,7 +55,7 @@ describe('UserMenu Component', () => {
   test('renders correctly', () => {
     const wrapper = createWrapper();
     expect(wrapper.find('.v-menu').exists()).toBe(true);
-    expect(wrapper.find('.v-list').exists()).toBe(true);
+    expect(wrapper.find('.user-menu').exists()).toBe(true);
   });
 
   test('displays user ID', () => {
@@ -113,8 +73,8 @@ describe('UserMenu Component', () => {
 
   test('changes locale', async () => {
     const wrapper = createWrapper();
-    const select = wrapper.find('.v-select');
-    
+    const select = wrapper.find('#user-menu-language');
+
     await select.setValue('de');
     expect(wrapper.vm.locale).toBe('de');
     expect(localStorage.getItem('locale')).toBe('de');
@@ -123,14 +83,29 @@ describe('UserMenu Component', () => {
   test('switches and saves the theme', async () => {
     const wrapper = createWrapper();
 
-    await wrapper.find('.v-btn-toggle button[data-value="dark"]').trigger('click');
+    await wrapper.find('input[type="radio"][value="dark"]').setValue();
     expect(wrapper.vm.themePreference).toBe('dark');
     expect(localStorage.getItem('theme')).toBe('dark');
   });
 
+  test('marks the chosen theme', () => {
+    const wrapper = createWrapper();
+    const checked = wrapper.findAll('input[type="radio"]').filter((r) => (r.element as HTMLInputElement).checked);
+    expect(checked.map((r) => r.attributes('value'))).toEqual([wrapper.vm.themePreference]);
+  });
+
+  test('shows the role section only when given one', () => {
+    expect(createWrapper().find('.value').exists()).toBe(false);
+    const withRole = mount(UserMenu, {
+      slots: { 'user-role': 'Teacher' },
+      global: { stubs: { 'v-menu': { template: '<div><slot /></div>' } } },
+    });
+    expect(withRole.find('.value').text()).toBe('Teacher');
+  });
+
   test('offers every supported language', () => {
     const wrapper = createWrapper();
-    const options = wrapper.find('.v-select').findAll('option').map((o) => o.text());
+    const options = wrapper.find('#user-menu-language').findAll('option').map((o) => o.text());
     expect(options.sort()).toEqual(['Deutsch', 'English', 'Español', 'Українська', 'العربية'].sort());
   });
 });

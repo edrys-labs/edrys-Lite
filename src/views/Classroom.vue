@@ -818,20 +818,7 @@ export default {
           </v-btn>
 
           <UserMenu>
-            <template v-slot:user-role>
-              <v-list-item>
-                <v-list-item-title>{{ t("general.userRole") }}:</v-list-item-title>
-                <v-list-item-subtitle>
-                  {{
-                    getRole() === "teacher"
-                      ? t("general.roles.teacher")
-                      : getRole() === "student"
-                      ? t("general.roles.student")
-                      : t("general.roles.station")
-                  }}
-                </v-list-item-subtitle>
-              </v-list-item>
-            </template>
+            <template v-slot:user-role>{{ t(`general.roles.${getRole()}`) }}</template>
           </UserMenu>
         </div>
       </v-app-bar>

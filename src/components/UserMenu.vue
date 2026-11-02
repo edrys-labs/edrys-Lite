@@ -12,61 +12,62 @@
       ></v-btn>
     </template>
 
-    <v-list>
-      <v-list-item>
-        <v-list-item-title>{{ t('general.userId') }}:</v-list-item-title>
-        <v-list-item-subtitle>
-          {{ peerID }}
+    <div class="user-menu">
+      <section>
+        <div class="label">{{ t('general.userId') }}</div>
+        <div class="user-id">
+          <span>{{ peerID }}</span>
           <v-tooltip :text="copied ? t('general.copied') : t('general.copyFullId')" location="top">
             <template v-slot:activator="{ props: tooltipProps }">
               <v-btn
                 v-bind="tooltipProps"
                 :icon="copied ? 'mdi-check' : 'mdi-content-copy'"
-                :color="copied ? 'success' : undefined"
-                size="small"
+                size="30"
                 variant="flat"
+                color="tonal"
+                class="copy-btn"
                 :aria-label="t('general.copyFullId')"
                 @click.stop="copyPeerID()"
-              >
-              </v-btn>
+              ></v-btn>
             </template>
           </v-tooltip>
-        </v-list-item-subtitle>
-      </v-list-item>
-      <v-divider></v-divider>
-      <slot name="user-role"></slot>
-      <v-divider class="mt-1"></v-divider>
-      <v-list-item>
-        <v-list-item-title class="mb-1">{{ t('general.language') }}:</v-list-item-title>
-        <v-select
-          v-model="locale"
-          :items="languages"
-          item-title="title"
-          item-value="value"
-          variant="outlined"
-          density="compact"
-          @update:model-value="changeLocale"
-          @click.stop
-        ></v-select>
-      </v-list-item>
-      <v-list-item>
-        <v-list-item-title class="mb-1" id="theme-label">{{ t('general.theme.title') }}:</v-list-item-title>
-        <v-btn-toggle
-          :model-value="themePreference"
-          @update:model-value="setThemePreference"
-          mandatory
-          divided
-          density="compact"
-          variant="outlined"
-          role="radiogroup"
-          aria-labelledby="theme-label"
-        >
-          <v-btn value="light" prepend-icon="mdi-white-balance-sunny" role="radio" :aria-checked="themePreference === 'light'">{{ t('general.theme.light') }}</v-btn>
-          <v-btn value="dark" prepend-icon="mdi-weather-night" role="radio" :aria-checked="themePreference === 'dark'">{{ t('general.theme.dark') }}</v-btn>
-          <v-btn value="system" prepend-icon="mdi-monitor" role="radio" :aria-checked="themePreference === 'system'">{{ t('general.theme.system') }}</v-btn>
-        </v-btn-toggle>
-      </v-list-item>
-    </v-list>
+        </div>
+      </section>
+
+      <section v-if="$slots['user-role']">
+        <div class="label">{{ t('general.userRole') }}</div>
+        <div class="value"><slot name="user-role"></slot></div>
+      </section>
+
+      <section class="gap">
+        <label for="user-menu-language" class="label">{{ t('general.language') }}</label>
+        <div class="select">
+          <select id="user-menu-language" :value="locale" @change="onLocaleChange">
+            <option v-for="language in languages" :key="language.value" :value="language.value">
+              {{ language.title }}
+            </option>
+          </select>
+          <v-icon icon="mdi-chevron-down" size="16" aria-hidden="true"></v-icon>
+        </div>
+      </section>
+
+      <section class="gap">
+        <div class="label" id="theme-label">{{ t('general.theme.title') }}</div>
+        <div class="segments" role="radiogroup" aria-labelledby="theme-label">
+          <label v-for="option in themeOptions" :key="option.value" class="segment">
+            <input
+              type="radio"
+              name="theme"
+              :value="option.value"
+              :checked="themePreference === option.value"
+              @change="setThemePreference(option.value)"
+            />
+            <v-icon :icon="option.icon" size="14" aria-hidden="true"></v-icon>
+            {{ t(`general.theme.${option.value}`) }}
+          </label>
+        </div>
+      </section>
+    </div>
   </v-menu>
 </template>
 
@@ -74,7 +75,7 @@
 import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { copyToClipboard, getDisplayPeerID, getPeerID } from '../ts/Utils';
-import { themePreference, setThemePreference } from '../ts/Theme';
+import { themePreference, setThemePreference, type ThemePreference } from '../ts/Theme';
 
 export default defineComponent({
   name: 'UserMenu',
@@ -93,6 +94,11 @@ export default defineComponent({
         { title: 'العربية', value: 'ar' },
         { title: 'Español', value: 'es' },
       ],
+      themeOptions: [
+        { value: 'light', icon: 'mdi-white-balance-sunny' },
+        { value: 'dark', icon: 'mdi-weather-night' },
+        { value: 'system', icon: 'mdi-monitor' },
+      ] as { value: ThemePreference; icon: string }[],
     };
   },
   methods: {
@@ -103,6 +109,9 @@ export default defineComponent({
         this.copied = false;
       }, 2000);
     },
+    onLocaleChange(event: Event) {
+      this.changeLocale((event.target as HTMLSelectElement).value);
+    },
     changeLocale(newLocale: string) {
       this.locale = newLocale;
       localStorage.setItem('locale', newLocale);
@@ -110,3 +119,143 @@ export default defineComponent({
   },
 });
 </script>
+
+<style scoped>
+.user-menu {
+  width: 300px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-menu));
+  color: rgb(var(--v-theme-on-surface));
+  box-shadow: 0 12px 32px rgba(20, 25, 35, 0.14), 0 0 0 1px rgb(var(--v-theme-module-edge));
+}
+
+:global(.v-theme--dark) .user-menu {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgb(var(--v-theme-line));
+}
+
+section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+}
+
+section + section {
+  border-top: 1px solid rgb(var(--v-theme-menu-line));
+}
+
+section.gap {
+  gap: 8px;
+}
+
+section:last-child {
+  padding-bottom: 16px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-muted));
+}
+
+.value {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.user-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-id span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.copy-btn {
+  border-radius: 7px;
+  color: rgb(var(--v-theme-text-2)) !important;
+}
+
+.copy-btn :deep(.v-icon) {
+  font-size: 15px;
+}
+
+.select {
+  position: relative;
+}
+
+.select select {
+  box-sizing: border-box;
+  width: 100%;
+  height: 38px;
+  padding-inline: 12px 32px;
+  border: 1px solid rgb(var(--v-theme-field-line));
+  border-radius: 8px;
+  background: rgb(var(--v-theme-field));
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.select .v-icon {
+  position: absolute;
+  top: 11px;
+  inset-inline-end: 10px;
+  color: rgb(var(--v-theme-muted));
+  pointer-events: none;
+}
+
+.select select:focus-visible,
+.segment:has(input:focus-visible) {
+  outline: 2px solid rgb(var(--v-theme-focus));
+  outline-offset: 2px;
+}
+
+/* Light / Dark / System: the chosen one is raised out of a tonal track */
+.segments {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgb(var(--v-theme-tonal));
+}
+
+.segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  border-radius: 7px;
+  color: rgb(var(--v-theme-muted));
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segment input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segment:has(input:checked) {
+  background: rgb(var(--v-theme-segment));
+  color: rgb(var(--v-theme-on-surface));
+}
+
+:global(.v-theme--light) .segment:has(input:checked) {
+  box-shadow: 0 1px 2px rgba(20, 25, 35, 0.12);
+}
+</style>

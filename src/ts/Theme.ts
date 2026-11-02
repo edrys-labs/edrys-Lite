@@ -66,6 +66,10 @@ const light: ThemeDefinition = {
     subtle: '#f7f7f7', // a check row while connecting
     track: '#dedede', // behind a spinner's arc
     spinner: '#3664be',
+    menu: '#ffffff', // user menu and other pop-ups
+    'menu-line': '#e4e4e4', // between its sections
+    'field-line': '#c4c4c4', // outline of a select in a menu
+    segment: '#ffffff', // the chosen option of a segmented switch
   },
   variables: {
     'border-color': '#1b2029',
@@ -131,6 +135,10 @@ const dark: ThemeDefinition = {
     subtle: '#262c35',
     track: '#39414c',
     spinner: '#77a4f6',
+    menu: '#262c35',
+    'menu-line': '#39414c',
+    'field-line': '#465060',
+    segment: '#465060',
   },
   variables: {
     'border-color': '#eef0f3',
