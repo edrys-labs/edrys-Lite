@@ -1012,7 +1012,7 @@ export default {
 
     <v-dialog
       v-model="showSettings"
-      max-width="1200px"
+      max-width="1000px"
       width="90%"
       scrollable
       persistent
@@ -1024,6 +1024,7 @@ export default {
         v-if="data"
         :config="data"
         :scrapedModules="scrapedModules"
+        :rooms="orderedRooms()"
         @saveClass="saveClass"
         @deleteClass="deleteClass"
         @updateClass="updateClass"

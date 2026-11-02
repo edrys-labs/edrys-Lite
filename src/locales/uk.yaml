@@ -114,11 +114,13 @@ settings:
     Stations: "Станції"
     Share: "Поділитися"
     Communication: "Спілкування"
+    unsaved: "Незбережені зміни"
     actions:
       save: "Зберегти"
       delete: "Видалити клас"
       deleteConfirm: "Ви впевнені?"
       deleteForever: "Так, видалити назавжди"
+      cancel: "Скасувати"
   main:
     className: "Назва класу"
     logoUrl: "URL логотипу"

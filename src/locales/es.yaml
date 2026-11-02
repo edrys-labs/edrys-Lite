@@ -114,11 +114,13 @@ settings:
     Stations: "Estaciones"
     Share: "Compartir"
     Communication: "Comunicación"
+    unsaved: "Cambios sin guardar"
     actions:
       save: "Guardar"
       delete: "Eliminar Clase"
       deleteConfirm: "¿Estás seguro?"
       deleteForever: "Sí, eliminar para siempre"
+      cancel: "Cancelar"
   main:
     className: "Nombre de la Clase"
     logoUrl: "URL del Logo"

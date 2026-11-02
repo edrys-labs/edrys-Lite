@@ -56,6 +56,13 @@ const light: ThemeDefinition = {
     'module-line': '#e1e1e1', // below the header strip
     'module-edge': '#e4e6ea', // around the frame
     'module-icon': '#6b727c',
+    row: '#ffffff', // a module row in Settings
+    'row-edge': '#e4e4e4',
+    'icon-tile': '#f0f0f0', // behind a module's icon
+    tonal: '#ebebeb', // quiet filled button
+    faint: '#a0a6ae', // drag handles
+    'danger-tint': '#ffe7e4', // error pill
+    'danger-line': '#f3bfba', // outline of a delete button
   },
   variables: {
     'border-color': '#1b2029',
@@ -111,6 +118,13 @@ const dark: ThemeDefinition = {
     'module-line': '#2c333d',
     'module-edge': '#2c333d',
     'module-icon': '#9aa3b0',
+    row: '#262c35',
+    'row-edge': '#262c35',
+    'icon-tile': '#39414c',
+    tonal: '#2c333d',
+    faint: '#6b7480',
+    'danger-tint': '#512320',
+    'danger-line': '#843c38',
   },
   variables: {
     'border-color': '#eef0f3',

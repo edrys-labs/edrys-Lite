@@ -1,5 +1,5 @@
 <template>
-  <v-list lines="three">
+  <div class="module-list">
     <draggable
       :list="config.modules"
       item-key="id"
@@ -19,102 +19,95 @@
         <div>
         <div
           v-if="groupHeaderAt[index] !== undefined"
-          class="room-group-header"
-          :style="{ borderLeftColor: roomColor(element.showInCustom, orderedRooms) }"
+          :class="['room-group-header', { first: index === 0 }]"
         >
-          {{ element.showInCustom || "*" }}
+          <span
+            v-for="dot in groupDots(element.showInCustom)"
+            :key="dot.key"
+            :class="['group-dot', { hollow: !dot.color }]"
+            :style="dot.color ? { background: dot.color } : {}"
+          ></span>
+          <h3>
+            {{ t('settings.modules.module.showIn.title') }}:
+            <span class="group-name">{{ element.showInCustom || "*" }}</span>
+          </h3>
         </div>
-        <v-list-item
-          :key="element.id"
-          class="list-group-item"
-          :style="borderStyle(element, index)"
-        >
-          <template v-slot:prepend>
-            <v-icon :icon="localScrapedModules[index].icon || 'mdi-package'"></v-icon>
-          </template>
+        <div :key="element.id" class="list-group-item">
+          <svg class="drag-handle" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle>
+            <circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle>
+            <circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle>
+          </svg>
 
-          <v-list-item-title>
-            {{ localScrapedModules[index].name }}
-          </v-list-item-title>
+          <div class="icon-tile">
+            <v-icon :icon="localScrapedModules[index].icon || 'mdi-package-variant-closed'" size="18"></v-icon>
+          </div>
 
-          <v-list-item-subtitle style="white-space: break-spaces">
-            <LinkedText :text="localScrapedModules[index]?.description || t('settings.modules.noDescription')" />
-          </v-list-item-subtitle>
+          <div class="module-text">
+            <div class="module-name">{{ localScrapedModules[index].name }}</div>
+            <div class="module-description">
+              <LinkedText :text="localScrapedModules[index]?.description || t('settings.modules.noDescription')" />
+            </div>
+          </div>
 
-          <template v-slot:append>
-            <v-tooltip location="top">
-              <template v-slot:activator="{ props }">
-                <v-btn
-                  :icon="validate_config(index) ? 'mdi-cog' : 'mdi-alert-circle'"
-                  variant="text"
-                  v-bind="props"
-                  :aria-label="configLabel(index)"
-                  :style="validate_config(index) ? '' : 'color: red'"
-                  @click="openModuleDialog(index)"
-                ></v-btn>
-              </template>
-              <span>{{ configLabel(index) }}</span>
-            </v-tooltip>
+          <div v-if="!validate_config(index)" class="error-pill">
+            <v-icon icon="mdi-alert-circle-outline" size="14"></v-icon>
+            {{ t('settings.modules.tooltip.invalidConfig') }}
+          </div>
 
-            <v-tooltip location="top">
-              <template v-slot:activator="{ props: tooltipProps }">
-                <v-menu>
-                  <template v-slot:activator="{ props: menuProps }">
-                    <v-btn
-                      v-bind="{ ...tooltipProps, ...menuProps }"
-                      icon="mdi-delete"
-                      variant="text"
-                      :aria-label="t('settings.modules.tooltip.delete')"
-                    ></v-btn>
-                  </template>
+          <v-btn
+            icon="mdi-tune-variant"
+            size="34"
+            variant="text"
+            class="row-btn"
+            :aria-label="configLabel(index)"
+            :title="configLabel(index)"
+            @click="openModuleDialog(index)"
+          ></v-btn>
 
-                  <v-list>
-                    <v-list-item>
-                      <v-list-item-title>
-                        {{ t('settings.modules.delete') }}
-                      </v-list-item-title>
+          <v-menu location="top end">
+            <template v-slot:activator="{ props }">
+              <v-btn
+                v-bind="props"
+                icon="mdi-delete-outline"
+                size="34"
+                variant="text"
+                class="row-btn"
+                :aria-label="t('settings.modules.tooltip.delete')"
+                :title="t('settings.modules.tooltip.delete')"
+              ></v-btn>
+            </template>
 
-                      <v-btn
-                        color="red"
-                        depressed
-                        @click="deleteModule(index)"
-                        class="float-right"
-                        style="margin-top: 10px"
-                      >
-                        {{ t('settings.modules.deleteConfirm') }}
-                      </v-btn>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
-              </template>
-              <span>{{ t('settings.modules.tooltip.delete') }}</span>
-            </v-tooltip>
-          </template>
-        </v-list-item>
+            <v-card class="confirm">
+              <p>{{ t('settings.modules.delete') }}</p>
+              <div class="confirm-actions">
+                <v-btn variant="text" height="34">{{ t('settings.modules.moduleConfig.cancel') }}</v-btn>
+                <v-btn color="danger-fill" variant="flat" height="34" @click="deleteModule(index)">
+                  {{ t('settings.modules.deleteConfirm') }}
+                </v-btn>
+              </div>
+            </v-card>
+          </v-menu>
+        </div>
         </div>
       </template>
     </draggable>
-    <v-list-item>
-      <template v-slot:prepend>
-        <v-icon icon="mdi-link"></v-icon>
-      </template>
 
+    <div class="add-row">
       <v-text-field
         v-model="moduleImportUrl"
         :label="t('settings.modules.url')"
-        variant="underlined"
-        required
-        style="width: calc(100% - 40px)"
+        placeholder="https://edrys-labs.github.io/module-…"
+        hide-details
       ></v-text-field>
-
-      <template v-slot:append>
-        <v-btn @click="loadURL" :disabled="!validate_url(moduleImportUrl)">
-          <v-icon left> mdi-view-grid-plus </v-icon>
-          {{ t('settings.modules.add') }}
-        </v-btn>
-      </template>
-    </v-list-item>
-  </v-list>
+      <v-btn variant="outlined" height="40" :disabled="!validate_url(moduleImportUrl)" @click="loadURL">
+        {{ t('settings.modules.add') }}
+      </v-btn>
+      <v-btn color="tonal" variant="flat" height="40" prepend-icon="mdi-magnify" @click="isOpenModulesExplorer = true">
+        {{ t('settings.modules.explore') }}
+      </v-btn>
+    </div>
+  </div>
 
   <v-dialog
     v-model="isModuleDialogOpen"
@@ -123,15 +116,20 @@
     persistent
   >
     <v-card v-if="moduleDialogIndex !== null" style="display: flex; flex-direction: column; max-height: 90vh">
-      <v-toolbar color="grey-darken-4" density="comfortable">
-        <v-icon class="ml-4 mr-1">{{ localScrapedModules[moduleDialogIndex]?.icon || 'mdi-package' }}</v-icon>
-        <v-toolbar-title class="text-h6 font-weight-medium">
-          {{ localScrapedModules[moduleDialogIndex]?.name }}
-        </v-toolbar-title>
-        <v-btn icon :aria-label="t('classroom.popup.close')" @click="closeModuleDialog">
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
-      </v-toolbar>
+      <div class="dialog-head">
+        <div class="icon-tile">
+          <v-icon :icon="localScrapedModules[moduleDialogIndex]?.icon || 'mdi-package-variant-closed'" size="18"></v-icon>
+        </div>
+        <h2>{{ localScrapedModules[moduleDialogIndex]?.name }}</h2>
+        <v-btn
+          icon="mdi-close"
+          size="36"
+          variant="text"
+          class="row-btn"
+          :aria-label="t('classroom.popup.close')"
+          @click="closeModuleDialog"
+        ></v-btn>
+      </div>
 
       <v-card-text style="overflow-y: auto; flex: 1 1 auto; padding: 0">
         <v-expansion-panels variant="accordion" mandatory v-model="activeEditor">
@@ -182,33 +180,17 @@
         </v-expansion-panels>
       </v-card-text>
 
-      <v-divider></v-divider>
-      <v-card-actions>
-        <v-btn variant="outlined" color="grey-darken-4" @click="closeModuleDialog">
+      <div class="dialog-foot">
+        <v-btn variant="outlined" @click="closeModuleDialog">
           {{ t('settings.modules.moduleConfig.cancel') }}
         </v-btn>
-        <v-btn
-          variant="flat"
-          color="grey-darken-4"
-          @click="saveModuleDialog"
-        >
+        <v-btn color="primary" variant="flat" class="save" @click="saveModuleDialog">
           {{ t('settings.modules.moduleConfig.save') }}
-          <v-badge
-            v-if="dialogHasChanges"
-            color="red"
-            dot
-            style="position: absolute; top: 0; right: 0"
-          ></v-badge>
+          <span v-if="dialogHasChanges" class="save-dot" aria-hidden="true"></span>
         </v-btn>
-      </v-card-actions>
+      </div>
     </v-card>
   </v-dialog>
-
-  <v-divider class="pb-2"></v-divider>
-  <v-btn variant="outlined" @click="isOpenModulesExplorer = true">
-    <v-icon class="mr-2" left> mdi-compass </v-icon>
-    {{ t('settings.modules.explore') }}
-  </v-btn>
 
   <ModulesExplorer
     v-if="isOpenModulesExplorer"
@@ -218,7 +200,8 @@
 </template>
 
 <script lang="ts">
-import { scrapeModule, validateUrl, parse, roomColor } from "../../ts/Utils";
+import { scrapeModule, validateUrl, parse, roomSlot } from "../../ts/Utils";
+import { activeTheme, roomTile } from "../../ts/Theme";
 import draggable from "vuedraggable";
 import Module from "./Module.vue";
 import { useI18n } from 'vue-i18n';
@@ -243,11 +226,17 @@ export default {
       type: Object,
       required: true,
     },
+
+    // the class's rooms, in the drawer's order, so a room has the same color here
+    rooms: {
+      type: Array,
+      default: () => [],
+    },
   },
 
   setup() {
     const { t, locale } = useI18n();
-    return { t, locale, roomColor };
+    return { t, locale, activeTheme };
   },
 
   data() {
@@ -305,14 +294,6 @@ export default {
       return JSON.stringify(this.moduleDialogDraft) !== JSON.stringify(this.moduleDialogOriginal);
     },
 
-    orderedRooms(): string[] {
-      const seen = new Set<string>(this.config.modules.map(roomOf));
-
-      return Array.from(seen).sort((a, b) =>
-        a.localeCompare(b, undefined, { numeric: true })
-      );
-    },
-
     // Index → room name, only at the first module of each room group.
     groupHeaderAt() {
       const headers: Record<number, string> = {};
@@ -325,16 +306,32 @@ export default {
   },
 
   methods: {
-    borderStyle(element: any, index: number) {
-      const color = roomColor(element.showInCustom, this.orderedRooms);
-      const isFirst = roomOf(element) !== roomOf(this.config.modules[index - 1]);
-      const isLast = roomOf(element) !== roomOf(this.config.modules[index + 1]);
-      return [
-        `border-left: 4px solid ${color}`,
-        `background-color: ${color}14`,
-        isFirst ? `border-top: 1px solid ${color}40` : '',
-        isLast ? `border-bottom: 1px solid ${color}40; margin-bottom: 10px;` : '',
-      ].filter(Boolean).join('; ');
+    // One dot per room a "Show in" value names, in that room's drawer color;
+    // "station" names every station that is online. "*", stations that are
+    // offline and rooms that don't exist yet get a hollow ring. Role values
+    // (teacher-only, station-only) narrow who sees a module, so add no dot.
+    groupDots(showIn: string) {
+      const rooms = this.rooms as string[];
+      const dots: { key: string; color: string | null }[] = [];
+      const add = (room: string | undefined) => {
+        const key = room ?? "other";
+        if (dots.some((dot) => dot.key === key)) return;
+        const color = room ? roomTile(roomSlot(room, rooms), this.activeTheme).dot : null;
+        dots.push({ key, color });
+      };
+
+      for (const token of (showIn || "*").split(",").map((r) => r.trim().toLowerCase())) {
+        if (token.endsWith("-only")) continue;
+        if (token === "station") {
+          const stations = rooms.filter((r) => r.startsWith("Station "));
+          stations.forEach(add);
+          if (!stations.length) add(undefined);
+          continue;
+        }
+        add(rooms.find((r) => r.toLowerCase() === token));
+      }
+      if (!dots.length) add(undefined);
+      return dots;
     },
 
     // Only allow reordering within the same room.
@@ -518,55 +515,180 @@ export default {
 </script>
 
 <style scoped>
-.editor-panel-title {
-  font-size: 0.8rem;
+.room-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+  margin: 18px 0 6px;
+}
+
+.room-group-header.first {
+  margin-top: 0;
+}
+
+.group-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.group-dot + .group-dot {
+  margin-inline-start: -4px;
+}
+
+.group-dot.hollow {
+  border: 1.5px solid rgb(var(--v-theme-muted));
+}
+
+.room-group-header h3 {
+  margin: 0;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  min-height: 48px;
+  color: rgb(var(--v-theme-muted));
 }
 
-.editor-panel-title :deep(.v-icon) {
-  opacity: 1;
+.group-name {
+  font-family: "JetBrains Mono Variable", monospace;
+  font-weight: 500;
+  color: rgb(var(--v-theme-text-2));
 }
 
-.editor-panel-title,
-.editor-panel-title :deep(.v-icon) {
-  color: #757575 !important;
+.list-group-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  padding: 8px 8px 8px 6px;
+  border-radius: 10px;
+  background: rgb(var(--v-theme-row));
+  box-shadow: 0 0 0 1px rgb(var(--v-theme-row-edge));
+  cursor: grab;
 }
 
-.editor-panel-title.v-expansion-panel-title--active,
-.editor-panel-title.v-expansion-panel-title--active :deep(.v-icon) {
-  color: #1565c0 !important;
-}
-
-.editor-panel-title.v-expansion-panel-title--active {
-  background-color: rgba(21, 101, 192, 0.08);
+.list-group-item:hover {
+  box-shadow: 0 0 0 1px rgb(var(--v-theme-line));
 }
 
 .drag-ghost {
   opacity: 0;
 }
 
-.list-group-item {
-  transition: box-shadow 0.3s ease, transform 0.3s ease;
-  background-color: white;
+.drag-handle {
+  width: 16px;
+  flex-shrink: 0;
+  color: rgb(var(--v-theme-faint));
 }
 
-.list-group-item:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 3px 10px rgba(0, 0, 0, 0.19);
-  transform: translateY(-2px);
+.icon-tile {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgb(var(--v-theme-icon-tile));
+  color: rgb(var(--v-theme-text-2));
 }
 
-.room-group-header {
-  padding: 4px 16px 2px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #555;
-  border-left: 4px solid transparent;
-  margin-top: 16px;
+.module-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
+.module-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.module-description {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgb(var(--v-theme-muted));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.module-description :deep(a) {
+  color: rgb(var(--v-theme-link));
+}
+
+.error-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgb(var(--v-theme-danger-tint));
+  color: rgb(var(--v-theme-error));
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.row-btn {
+  color: rgb(var(--v-theme-muted));
+}
+
+.add-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.add-row .v-text-field {
+  flex: 1;
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px 12px 24px;
+  border-bottom: 1px solid rgb(var(--v-theme-panel-line));
+}
+
+.dialog-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 24px;
+  border-top: 1px solid rgb(var(--v-theme-panel-line));
+}
+
+.editor-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 48px;
+}
+
+.editor-panel-title,
+.editor-panel-title :deep(.v-icon) {
+  color: rgb(var(--v-theme-muted)) !important;
+  opacity: 1;
+}
+
+.editor-panel-title.v-expansion-panel-title--active,
+.editor-panel-title.v-expansion-panel-title--active :deep(.v-icon) {
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+.editor-panel-title.v-expansion-panel-title--active {
+  background-color: rgba(var(--v-theme-primary), 0.08);
+}
 </style>

@@ -9,8 +9,10 @@ html, body {
     background: rgb(var(--v-theme-background));
 }
 
-// Vuetify's typography classes (text-h6, text-caption, …) name Roboto
-.v-application [class*='text-'] {
+// Vuetify's typography classes (text-h6, text-caption, …) name Roboto; menus
+// and dialogs mount in the overlay container, outside .v-application
+.v-application [class*='text-'],
+.v-overlay-container [class*='text-'] {
     font-family: inherit !important;
 }
 
@@ -88,3 +90,36 @@ code, kbd, pre, samp {
     cursor: -moz-grabbing;
     cursor: -webkit-grabbing;
   }
+
+// "Are you sure?" card in a v-menu, before deleting something
+.confirm {
+    padding: 14px 14px 10px;
+}
+
+.confirm p {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+// unsaved-changes dot on a Save button (class "save")
+.v-btn.save {
+    overflow: visible;
+}
+
+.save-dot {
+    position: absolute;
+    top: -3px;
+    inset-inline-end: -3px;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgb(var(--v-theme-badge));
+    box-shadow: 0 0 0 2px rgb(var(--v-theme-surface));
+}

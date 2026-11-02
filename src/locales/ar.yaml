@@ -114,11 +114,13 @@ settings:
     Stations: "المحطات"
     Share: "مشاركة"
     Communication: "الاتصال"
+    unsaved: "تغييرات غير محفوظة"
     actions:
       save: "حفظ"
       delete: "حذف الفصل الدراسي"
       deleteConfirm: "هل أنت متأكد؟"
       deleteForever: "نعم، احذف بشكل دائم"
+      cancel: "إلغاء"
   main:
     className: "اسم الفصل الدراسي"
     logoUrl: "رابط الشعار"

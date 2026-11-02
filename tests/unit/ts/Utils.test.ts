@@ -18,7 +18,6 @@ import {
   stripPubKey,
   removeKeysStartingWithSecret,
   roomSlot,
-  roomColor,
   classSlot,
   classInitials,
 } from '../../../src/ts/Utils';
@@ -85,12 +84,6 @@ describe('Utils', () => {
     test('rooms take palette slots by position, without a slot for the Lobby', () => {
       expect(roomSlot('Room 1', rooms)).toBe(roomSlot('Room 1', ['Room 1']));
       expect(new Set(rooms.slice(1).map(r => roomSlot(r, rooms))).size).toBe(3);
-    });
-
-    test('roomColor is a 6-digit hex, so callers can append an alpha', () => {
-      for (const room of [...rooms, '*']) {
-        expect(roomColor(room, rooms)).toMatch(/^#[0-9a-fA-F]{6}$/);
-      }
     });
   });
 

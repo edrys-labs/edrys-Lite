@@ -296,20 +296,18 @@ export function throttle(func, limit, options = { trailing: true }) {
 }
 
 
-const ROOM_NEUTRAL_COLORS: Record<string, string> = {
-  lobby: "#5C7A8A", // cool blue-grey
-  "*": "#A1887F", // warm taupe-grey
-};
+// The Lobby and "all rooms" have no palette slot.
+const NEUTRAL_ROOMS = new Set(["lobby", "*"]);
 
 /** A room's slot in the colour palette, or null for the neutral ones (Lobby, all rooms). */
 export function roomSlot(name: string, orderedRooms: string[]): number | null {
   const key = (name || "*").toLowerCase();
-  if (ROOM_NEUTRAL_COLORS[key]) return null;
+  if (NEUTRAL_ROOMS.has(key)) return null;
   // Colour by position among the non-neutral rooms only, so a neutral Lobby
   // doesn't consume (and shift) a palette slot.
   const idx = orderedRooms
     .map(r => (r || "*").toLowerCase())
-    .filter(r => !ROOM_NEUTRAL_COLORS[r])
+    .filter(r => !NEUTRAL_ROOMS.has(r))
     .indexOf(key);
   return Math.max(0, idx) % ROOM_COLORS.length;
 }
@@ -325,13 +323,6 @@ export function classSlot(id: string): number {
 export function classInitials(name: string): string {
   const words = (name || "").split(/\s+/).filter((w) => /^[\p{L}\p{N}]/u.test(w));
   return words.slice(0, 2).map((w) => Array.from(w)[0].toUpperCase()).join("") || "?";
-}
-
-/** A mid-tone hex color of a room, for borders and tints. */
-export function roomColor(name: string, orderedRooms: string[]): string {
-  const slot = roomSlot(name, orderedRooms);
-  if (slot === null) return ROOM_NEUTRAL_COLORS[(name || "*").toLowerCase()];
-  return ROOM_COLORS[slot].border;
 }
 
 export function validateUrl(string: string) {

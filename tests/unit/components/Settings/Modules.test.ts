@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Modules from '../../../../src/components/Settings/Modules.vue';
+import { roomTile } from '../../../../src/ts/Theme';
 
 describe('Modules Settings Component', () => {
   let mockConfig;
@@ -88,11 +89,11 @@ describe('Modules Settings Component', () => {
   };
 
   // Mock the scrapeModule function
-  vi.mock('../../../../src/ts/Utils', () => ({
+  vi.mock('../../../../src/ts/Utils', async (importOriginal) => ({
+    roomSlot: (await importOriginal()).roomSlot,
     scrapeModule: vi.fn().mockResolvedValue({ name: 'New Module', description: 'New Description' }),
     validateUrl: vi.fn().mockReturnValue(true),
     parse: vi.fn().mockReturnValue({}),
-    roomColor: vi.fn().mockReturnValue('#1E88E5')
   }));
 
   test('renders module list', () => {
@@ -106,7 +107,7 @@ describe('Modules Settings Component', () => {
       'See <img src=x onerror=alert(1)><br/><a href="https://example.com/m" onclick="alert(1)">docs</a>';
     const wrapper = createWrapper();
 
-    const subtitle = wrapper.find('.v-list-item-subtitle');
+    const subtitle = wrapper.find('.module-description');
     expect(subtitle.find('img').exists()).toBe(false);
     const link = subtitle.find('a');
     expect(link.attributes()).toEqual({
@@ -131,6 +132,30 @@ describe('Modules Settings Component', () => {
     await wrapper.vm.loadURL();
     expect(wrapper.vm.config.modules).toHaveLength(3);
     expect(wrapper.vm.moduleImportUrl).toBe('');
+  });
+
+  test("colors a group's dots like the drawer's rooms", () => {
+    const wrapper = createWrapper({ rooms: ['Lobby', 'Room 1', 'Room 2'] });
+    const dots = (showIn) => wrapper.vm.groupDots(showIn);
+
+    expect(dots('Room 2')).toEqual([{ key: 'Room 2', color: roomTile(1, 'light').dot }]);
+    expect(dots('room 1, Room 2').map((d) => d.key)).toEqual(['Room 1', 'Room 2']);
+    // all rooms and rooms not created yet share one hollow ring
+    expect(dots('*')).toEqual([{ key: 'other', color: null }]);
+    expect(dots('Room 9')).toEqual([{ key: 'other', color: null }]);
+    // "station" with no station online
+    expect(dots('station, station-only')).toEqual([{ key: 'other', color: null }]);
+  });
+
+  test('"station" gets a dot per online station, role values none', () => {
+    const rooms = ['Lobby', 'Room 1', 'Station A', 'Station B'];
+    const wrapper = createWrapper({ rooms });
+
+    expect(wrapper.vm.groupDots('station, station-only')).toEqual([
+      { key: 'Station A', color: roomTile(1, 'light').dot },
+      { key: 'Station B', color: roomTile(2, 'light').dot },
+    ]);
+    expect(wrapper.vm.groupDots('Room 1, teacher-only').map((d) => d.key)).toEqual(['Room 1']);
   });
 
   test('validates module configuration', () => {

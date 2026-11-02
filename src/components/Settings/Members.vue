@@ -122,6 +122,6 @@ export default {
 .info-link:visited,
 .info-link:hover,
 .info-link:active {
-  color: #1e88e5;
+  color: rgb(var(--v-theme-link));
 }
 </style>

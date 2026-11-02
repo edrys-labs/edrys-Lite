@@ -426,22 +426,6 @@ img.banner {
   font-size: 20px;
 }
 
-.confirm {
-  padding: 14px 14px 10px;
-}
-
-.confirm p {
-  margin: 0 0 10px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.confirm-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
 .create-card {
   display: flex;
   flex-direction: column;
