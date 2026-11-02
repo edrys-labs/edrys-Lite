@@ -1,0 +1,419 @@
+/*
+ * The shared look of edrys-Lite modules, in the theme of the classroom.
+ *
+ * Load it after water.css:
+ *   <link rel="stylesheet" href="https://edrys-labs.github.io/module/vendor/water.min.css" />
+ *   <link rel="stylesheet" href="https://edrys-labs.github.io/module/edrys-module.css" />
+ *   <script src="https://edrys-labs.github.io/module/edrys.js"></script>
+ *
+ * edrys.js puts the classroom's theme on <html data-theme="light|dark">.
+ * Without it (the page opened on its own) the system setting decides. The
+ * --edrys-* variables are there for modules without water.css, and for
+ * editors and terminals that take colors in JavaScript
+ * (getComputedStyle(document.documentElement).getPropertyValue('--edrys-bg')).
+ *
+ * Parts for the module layout (no title inside the module, the frame shows
+ * its name): .edrys-toolbar (status pill left, secondary actions right),
+ * .edrys-footer (main actions), .edrys-pill (.ok, .warn, .error),
+ * button.primary, .edrys-terminal.
+ */
+
+@font-face {
+  font-family: 'Noto Sans Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url(./vendor/fonts/noto-sans-latin-ext-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Noto Sans Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url(./vendor/fonts/noto-sans-latin-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url(./vendor/fonts/jetbrains-mono-latin-ext-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url(./vendor/fonts/jetbrains-mono-latin-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* html:root outranks water's own :root, wherever this file is linked */
+html:root {
+  color-scheme: light;
+  --edrys-font: 'Noto Sans Variable', system-ui, sans-serif;
+  --edrys-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  --edrys-bg: #ffffff;
+  --edrys-text: #3b424d;
+  --edrys-heading: #1b2029;
+  --edrys-muted: #5f6773;
+  --edrys-link: #00579a;
+  --edrys-line: #eef0f2; /* below a toolbar, above a footer */
+  --edrys-footer: #fafbfc;
+  --edrys-code-bg: #f0f1f4;
+  --edrys-primary: #3664be;
+  --edrys-on-primary: #ffffff;
+  --edrys-button: #f0f1f4;
+  --edrys-on-button: #1b2029;
+  --edrys-button-hover: #e1e1e1;
+  --edrys-field: #ffffff;
+  --edrys-field-line: #cecece;
+  --edrys-focus: #3664be;
+  --edrys-selected: #1b2029; /* the chosen option of a scale */
+  --edrys-on-selected: #ffffff;
+  --edrys-pill: #f0f1f4;
+  --edrys-on-pill: #3b424d;
+  --edrys-ok-pill: #e4f8e7;
+  --edrys-on-ok-pill: #005725;
+  --edrys-warn-pill: #fee5b3;
+  --edrys-on-warn-pill: #5d3904;
+  --edrys-error-pill: #ffe7e4;
+  --edrys-on-error-pill: #b71824;
+  --edrys-ok: #399d57; /* status dots */
+  --edrys-warn: #e1b75c;
+  --edrys-error: #e64343;
+  --edrys-scrollbar: #a0a6ae;
+  --edrys-selection: #e0f1ff;
+  --edrys-highlight: #fee5b3;
+  /* code editors */
+  --edrys-code-text: #1b2029;
+  --edrys-line-number: #b0b5bc;
+  --edrys-keyword: #345fb2;
+  --edrys-number: #21763c;
+  /* terminals stay dark in both themes */
+  --edrys-terminal: #1b2029;
+  --edrys-on-terminal: #e4e7eb;
+  --edrys-select-arrow: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='63' width='117' fill='%235f6773'%3E%3Cpath d='M115 2c-1-2-4-2-5 0L59 53 7 2a4 4 0 00-5 5l54 54 2 2 3-2 54-54c2-1 2-4 0-5z'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  html:root:not([data-theme]) {
+    color-scheme: dark;
+    --edrys-bg: #20252d;
+    --edrys-text: #d4d8de;
+    --edrys-heading: #eef0f3;
+    --edrys-muted: #9aa3b0;
+    --edrys-link: #91c3f6;
+    --edrys-line: #2c333d;
+    --edrys-footer: #1a1f26;
+    --edrys-code-bg: #2c333d;
+    --edrys-primary: #3e6dc8;
+    --edrys-on-primary: #ffffff;
+    --edrys-button: #2c333d;
+    --edrys-on-button: #eef0f3;
+    --edrys-button-hover: #39414c;
+    --edrys-field: #161a21;
+    --edrys-field-line: #39414c;
+    --edrys-focus: #8db7ff;
+    --edrys-selected: #eef0f3;
+    --edrys-on-selected: #1b2029;
+    --edrys-pill: #2c333d;
+    --edrys-on-pill: #d4d8de;
+    --edrys-ok-pill: #1f4127;
+    --edrys-on-ok-pill: #a8ebb5;
+    --edrys-warn-pill: #523709;
+    --edrys-on-warn-pill: #fde1a7;
+    --edrys-error-pill: #512320;
+    --edrys-on-error-pill: #fa8880;
+    --edrys-ok: #399d57;
+    --edrys-warn: #e1b75c;
+    --edrys-error: #f66d67;
+    --edrys-scrollbar: #6b7480;
+    --edrys-selection: #1d456b;
+    --edrys-highlight: #523709;
+    --edrys-code-text: #d4d8de;
+    --edrys-line-number: #5c6470;
+    --edrys-keyword: #87b1fd;
+    --edrys-number: #8ed09c;
+    --edrys-terminal: #14171c;
+    --edrys-on-terminal: #e4e7eb;
+    --edrys-select-arrow: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='63' width='117' fill='%239aa3b0'%3E%3Cpath d='M115 2c-1-2-4-2-5 0L59 53 7 2a4 4 0 00-5 5l54 54 2 2 3-2 54-54c2-1 2-4 0-5z'/%3E%3C/svg%3E");
+  }
+}
+
+html:root[data-theme='dark'] {
+  color-scheme: dark;
+  --edrys-bg: #20252d;
+  --edrys-text: #d4d8de;
+  --edrys-heading: #eef0f3;
+  --edrys-muted: #9aa3b0;
+  --edrys-link: #91c3f6;
+  --edrys-line: #2c333d;
+  --edrys-footer: #1a1f26;
+  --edrys-code-bg: #2c333d;
+  --edrys-primary: #3e6dc8;
+  --edrys-on-primary: #ffffff;
+  --edrys-button: #2c333d;
+  --edrys-on-button: #eef0f3;
+  --edrys-button-hover: #39414c;
+  --edrys-field: #161a21;
+  --edrys-field-line: #39414c;
+  --edrys-focus: #8db7ff;
+  --edrys-selected: #eef0f3;
+  --edrys-on-selected: #1b2029;
+  --edrys-pill: #2c333d;
+  --edrys-on-pill: #d4d8de;
+  --edrys-ok-pill: #1f4127;
+  --edrys-on-ok-pill: #a8ebb5;
+  --edrys-warn-pill: #523709;
+  --edrys-on-warn-pill: #fde1a7;
+  --edrys-error-pill: #512320;
+  --edrys-on-error-pill: #fa8880;
+  --edrys-ok: #399d57;
+  --edrys-warn: #e1b75c;
+  --edrys-error: #f66d67;
+  --edrys-scrollbar: #6b7480;
+  --edrys-selection: #1d456b;
+  --edrys-highlight: #523709;
+  --edrys-code-text: #d4d8de;
+  --edrys-line-number: #5c6470;
+  --edrys-keyword: #87b1fd;
+  --edrys-number: #8ed09c;
+  --edrys-terminal: #14171c;
+  --edrys-on-terminal: #e4e7eb;
+  --edrys-select-arrow: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='63' width='117' fill='%239aa3b0'%3E%3Cpath d='M115 2c-1-2-4-2-5 0L59 53 7 2a4 4 0 00-5 5l54 54 2 2 3-2 54-54c2-1 2-4 0-5z'/%3E%3C/svg%3E");
+}
+
+/* water.css reads its colors from these, in both of its color schemes */
+html:root {
+  --background-body: var(--edrys-bg);
+  --background: var(--edrys-code-bg);
+  --background-alt: var(--edrys-footer);
+  --selection: var(--edrys-selection);
+  --text-main: var(--edrys-text);
+  --text-bright: var(--edrys-heading);
+  --text-muted: var(--edrys-muted);
+  --links: var(--edrys-link);
+  --focus: var(--edrys-focus);
+  --border: var(--edrys-field-line);
+  --code: var(--edrys-code-text);
+  --button-base: var(--edrys-button);
+  --button-hover: var(--edrys-button-hover);
+  --scrollbar-thumb: var(--edrys-scrollbar);
+  --scrollbar-thumb-hover: var(--edrys-muted);
+  --form-placeholder: var(--edrys-muted);
+  --form-text: var(--edrys-heading);
+  --variable: var(--edrys-number);
+  --highlight: var(--edrys-highlight);
+  --select-arrow: var(--edrys-select-arrow);
+}
+
+html {
+  scrollbar-color: var(--edrys-scrollbar) var(--edrys-bg);
+}
+
+body {
+  background: var(--edrys-bg);
+  color: var(--edrys-text);
+  font: 400 14px/1.6 var(--edrys-font);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--edrys-heading);
+  font-family: var(--edrys-font);
+}
+
+h2 {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+code, kbd, pre, samp, var {
+  font-family: var(--edrys-mono);
+  font-size: 12px;
+}
+
+code, pre {
+  background: var(--edrys-code-bg);
+  color: var(--edrys-code-text);
+}
+
+code {
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+pre {
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+button,
+input[type='button'],
+input[type='submit'],
+input[type='reset'] {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--edrys-button);
+  color: var(--edrys-on-button);
+  font: 600 13px var(--edrys-font);
+}
+
+button:hover:not(:disabled),
+input[type='button']:hover:not(:disabled),
+input[type='submit']:hover:not(:disabled),
+input[type='reset']:hover:not(:disabled) {
+  background: var(--edrys-button-hover);
+}
+
+button.primary,
+input[type='submit'].primary {
+  background: var(--edrys-primary);
+  color: var(--edrys-on-primary);
+}
+
+button.primary:hover:not(:disabled),
+input[type='submit'].primary:hover:not(:disabled) {
+  background: var(--edrys-primary);
+  filter: brightness(1.1);
+}
+
+button[aria-pressed='true'] {
+  background: var(--edrys-selected);
+  color: var(--edrys-on-selected);
+}
+
+input:not([type='button'], [type='submit'], [type='reset'], [type='checkbox'], [type='radio'], [type='range'], [type='color']),
+select,
+textarea {
+  border: 1px solid var(--edrys-field-line);
+  border-radius: 7px;
+  background-color: var(--edrys-field);
+  color: var(--edrys-heading);
+  font-family: var(--edrys-font);
+}
+
+:focus-visible {
+  outline: 2px solid var(--edrys-focus);
+  outline-offset: 2px;
+}
+
+label, legend {
+  color: var(--edrys-text);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.edrys-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--edrys-line);
+  font-size: 12px;
+}
+
+.edrys-toolbar > .edrys-spacer {
+  flex: 1;
+}
+
+/* the gap spaces them, not water's margins */
+.edrys-toolbar > *,
+.edrys-footer > * {
+  margin: 0;
+}
+
+.edrys-toolbar button {
+  padding: 5px 12px;
+}
+
+.edrys-toolbar label {
+  color: var(--edrys-muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.edrys-toolbar select,
+.edrys-toolbar input {
+  height: 30px;
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 8px;
+  font-size: 12px;
+}
+
+.edrys-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--edrys-line);
+  background: var(--edrys-footer);
+}
+
+.edrys-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--edrys-pill);
+  color: var(--edrys-on-pill);
+  font: 600 12px var(--edrys-font);
+}
+
+.edrys-pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--edrys-muted);
+}
+
+.edrys-pill.ok {
+  background: var(--edrys-ok-pill);
+  color: var(--edrys-on-ok-pill);
+}
+
+.edrys-pill.ok::before {
+  background: var(--edrys-ok);
+}
+
+.edrys-pill.warn {
+  background: var(--edrys-warn-pill);
+  color: var(--edrys-on-warn-pill);
+}
+
+.edrys-pill.warn::before {
+  background: var(--edrys-warn);
+}
+
+.edrys-pill.error {
+  background: var(--edrys-error-pill);
+  color: var(--edrys-on-error-pill);
+}
+
+.edrys-pill.error::before {
+  background: var(--edrys-error);
+}
+
+.edrys-terminal {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--edrys-terminal);
+  color: var(--edrys-on-terminal);
+  font: 400 12px/1.55 var(--edrys-mono);
+}

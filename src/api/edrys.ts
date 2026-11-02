@@ -9,11 +9,13 @@
  *  Edrys.liveClass (read-only snapshot, rebuilt on every update; use Edrys.getState to share data)
  *  Edrys.liveRoom
  *  Edrys.liveUser
+ *  Edrys.theme ('light' or 'dark', the classroom's theme; also on <html data-theme>)
  * Functions:
  *  Edrys.sendMessage(subject, body)
  *  Edrys.onMessage(({from, subject, body}) => { // Called when a message is received in your room })
  *  Edrys.onUpdate(() => { // Called when any Edrys properties change })
  *  Edrys.onReady(() => { // Called when Edrys is ready })
+ *  Edrys.onTheme((theme) => { // Called when the classroom's theme changes }), returns an unsubscribe function
  *  Edrys.getState(key, type, value) // Get a state from the live class
  *  Edrys.updateState(() => { // Update the state of the live class })
  *  Edrys.clearState(key) // Clear a state from the live class
@@ -90,6 +92,23 @@ function isFromParent(e: MessageEvent): boolean {
   return e.source !== null && e.source === window.parent
 }
 
+// The parent sends its theme with every update and on each change. The
+// attribute lets edrys-module.css follow it; the event is for modules that
+// color things in JavaScript (editors, terminals).
+function applyTheme(theme: any) {
+  if (theme !== 'light' && theme !== 'dark') return
+  if (window['Edrys'].theme === theme) return
+
+  window['Edrys'].theme = theme
+  document.documentElement.dataset.theme = theme
+  dispatchEvent(
+    new CustomEvent('$Edrys.theme', {
+      bubbles: false,
+      detail: { theme },
+    })
+  )
+}
+
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -142,6 +161,7 @@ window['Edrys'] = {
   liveUser: undefined,
   module: undefined,
   class_id: undefined,
+  theme: undefined,
   _debug: false,
 
   get debug() {
@@ -183,6 +203,12 @@ window['Edrys'] = {
         handler(window['Edrys'])
       }
     })
+  },
+
+  onTheme(handler) {
+    const listener = (e: Event) => handler((e as CustomEvent).detail.theme)
+    window.addEventListener('$Edrys.theme', listener)
+    return () => window.removeEventListener('$Edrys.theme', listener)
   },
 
   onMessage(handler, promiscuous = false) {
@@ -545,6 +571,7 @@ window.addEventListener(
         } catch (e) {}
 
         window['Edrys'].class_id = e.data.class_id
+        applyTheme(e.data.theme)
 
         if (e.data.users) {
           const changed = JSON.stringify(e.data.users) !== JSON.stringify(liveUsers)
@@ -580,12 +607,16 @@ window.addEventListener(
       case 'webrtcConfig':
         rtcConfig = e.data.config
         break
+      case 'theme':
+        applyTheme(e.data.theme)
+        break
       default:
         break
     }
 
-    // update events are only triggered internally, if the state changes.
-    if (e.data.event !== 'update') {
+    // update events are only triggered internally, if the state changes;
+    // theme events only by applyTheme, when the theme is a new one.
+    if (e.data.event !== 'update' && e.data.event !== 'theme') {
       dispatchEvent(
         new CustomEvent('$Edrys.' + e.data.event, {
           bubbles: false,

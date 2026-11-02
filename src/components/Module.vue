@@ -23,6 +23,7 @@
 
 <script lang="ts">
 import { debug } from "../api/debugHandler";
+import { activeTheme } from "../ts/Theme";
 
 export default {
   name: "Module",
@@ -60,10 +61,24 @@ export default {
     iframeOrigin() {
       return new URL(this.scrapedModule.url).origin;
     },
+    theme() {
+      return activeTheme.value;
+    },
   },
   watch: {
     liveClassProxy() {
       if (this.loaded) this.updateIframe();
+    },
+    theme(theme) {
+      if (!this.loaded) return;
+      try {
+        this.$refs.iframe.contentWindow.postMessage(
+          { event: "theme", theme },
+          this.targetOrigin()
+        );
+      } catch (e) {
+        console.error("Module theme", e);
+      }
     },
   },
 
@@ -92,6 +107,7 @@ export default {
             users: JSON.parse(JSON.stringify(this.liveClassProxy.users)),
             module: JSON.parse(JSON.stringify(this.scrapedModule)),
             class_id: this.class_id,
+            theme: this.theme,
           },
           this.targetOrigin()
         );

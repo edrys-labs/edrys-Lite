@@ -235,6 +235,43 @@ describe('edrys.ts (module API bridge)', () => {
     ).toBe(false);
   });
 
+  test('takes the theme from the update and puts it on <html>', () => {
+    sendInitialUpdate({ theme: 'dark' });
+
+    expect(window['Edrys'].theme).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+  });
+
+  test('a theme event switches the theme and calls onTheme once per change', () => {
+    const changed = vi.fn();
+    window['Edrys'].onTheme(changed);
+    sendInitialUpdate({ theme: 'light' });
+    changed.mockClear();
+
+    sendFromParent({ event: 'theme', theme: 'dark' });
+    sendFromParent({ event: 'theme', theme: 'dark' });
+    sendInitialUpdate({ theme: 'dark' });
+
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect(changed).toHaveBeenCalledWith('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+  });
+
+  test('ignores unknown themes and themes from other windows', () => {
+    sendInitialUpdate({ theme: 'light' });
+    const changed = vi.fn();
+    const stop = window['Edrys'].onTheme(changed);
+
+    sendFromParent({ event: 'theme', theme: 'url(evil)' });
+    sendFromParent({ event: 'theme', theme: 'dark' }, 'null', childFrameWindow());
+    expect(window['Edrys'].theme).toBe('light');
+
+    stop();
+    sendFromParent({ event: 'theme', theme: 'dark' });
+    expect(window['Edrys'].theme).toBe('dark');
+    expect(changed).not.toHaveBeenCalled();
+  });
+
   test('init runs once and each change fires onUpdate once, however many updates arrive first', () => {
     vi.useFakeTimers();
     try {

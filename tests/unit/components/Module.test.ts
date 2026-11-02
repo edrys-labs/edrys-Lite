@@ -1,6 +1,8 @@
-import { describe, test, expect, vi, beforeEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import Module from '../../../src/components/Module.vue';
+import { activeTheme } from '../../../src/ts/Theme';
 
 describe('Module Component', () => {
   let wrapper: any;
@@ -35,6 +37,9 @@ describe('Module Component', () => {
     });
     console.error = mockConsoleError;
   });
+
+  // a mounted wrapper keeps watching the theme
+  afterEach(() => wrapper?.unmount());
 
   const createWrapper = (props = {}) => {
     return mount(Module, {
@@ -128,6 +133,31 @@ describe('Module Component', () => {
     expect(origin).toBe('https://example.com');
     // the frame got its update (which creates its awareness) before the parent may seed it
     expect(mockPostMessage).toHaveBeenCalledWith(expect.objectContaining({ event: 'update' }), 'https://example.com');
+  });
+
+  test('sends the theme with the update and again when it changes', async () => {
+    activeTheme.value = 'light';
+    wrapper = createWrapper();
+    await wrapper.find('iframe').trigger('load');
+    expect(mockPostMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'update', theme: 'light' }),
+      'https://example.com'
+    );
+
+    mockPostMessage.mockClear();
+    activeTheme.value = 'dark';
+    await nextTick();
+    expect(mockPostMessage).toHaveBeenCalledWith({ event: 'theme', theme: 'dark' }, 'https://example.com');
+    activeTheme.value = 'light';
+  });
+
+  test('sends no theme before the frame has loaded', async () => {
+    activeTheme.value = 'light';
+    wrapper = createWrapper();
+    activeTheme.value = 'dark';
+    await nextTick();
+    expect(mockPostMessage).not.toHaveBeenCalled();
+    activeTheme.value = 'light';
   });
 
   test('reacts to room changes', async () => {
