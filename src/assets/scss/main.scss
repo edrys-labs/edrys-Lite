@@ -60,6 +60,14 @@ code, kbd, pre, samp {
     }
 }
 
+// phones: 44px touch targets on the bars
+@media (max-width: 599.98px) {
+    .bar-btn.v-btn {
+        width: 44px !important;
+        height: 44px !important;
+    }
+}
+
 .bar-btn--active.v-btn {
     background: rgb(var(--v-theme-bar-active));
 }
@@ -74,6 +82,13 @@ code, kbd, pre, samp {
     border-radius: 999px;
     background: rgb(var(--v-theme-badge));
     box-shadow: 0 0 0 2px rgb(var(--v-theme-surface-variant));
+}
+
+@media (max-width: 599.98px) {
+    .bar-dot {
+        top: 11px;
+        inset-inline-end: 11px;
+    }
 }
 
 

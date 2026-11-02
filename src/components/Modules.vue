@@ -2,6 +2,7 @@
 import Module from "./Module.vue";
 import Muuri from "muuri";
 import { useI18n } from 'vue-i18n';
+import { useDisplay } from 'vuetify';
 
 import en from '../locales/en.yaml';
 import de from '../locales/de.yaml';
@@ -29,10 +30,13 @@ export default {
 
   setup() {
     const { t, locale } = useI18n();
+    // phones stack the modules in the page, without dragging or resizing
+    const { xs: phone } = useDisplay();
 
     return {
       t,
       locale,
+      phone,
     };
   },
 
@@ -48,7 +52,15 @@ export default {
       itemSizes: {} as Record<string, { width: string; height: string }>,
       // itemKey of the module shown full screen
       fullscreenKey: null as string | null,
+      // itemKey of the module filling the window, where elements can't go full screen (iPhone)
+      expandedKey: null as string | null,
     };
+  },
+
+  watch: {
+    phone() {
+      this.$nextTick(() => this.gridUpdate());
+    },
   },
 
   computed: {
@@ -179,7 +191,7 @@ export default {
       this.communication.removeAwareness([...clients]);
     }
     this._frameAwareness.clear();
-    this.grid.destroy();
+    this.grid?.destroy();
   },
 
   async mounted() {
@@ -196,6 +208,7 @@ export default {
     // Delegated on the root, so it also covers items created after a room
     // switch or a module reload.
     onMouseDown(event: MouseEvent) {
+      if (this.phone) return;
       const target = event.target as HTMLElement;
       // The drag overlay would cover the button before mouseup and swallow its click.
       if (target?.closest?.("button")) return;
@@ -242,9 +255,17 @@ export default {
       const item = (event.currentTarget as HTMLElement).closest(".item") as HTMLElement;
       if (document.fullscreenElement) {
         document.exitFullscreen?.();
+      } else if (this.expandedKey) {
+        this.expandedKey = null;
+      } else if (item?.requestFullscreen) {
+        item.requestFullscreen().catch((e) => debug.components.modules("Full screen refused", e));
       } else {
-        item?.requestFullscreen?.().catch((e) => debug.components.modules("Full screen refused", e));
+        this.expandedKey = item?.dataset.itemKey ?? null;
       }
+    },
+
+    isExpanded(key: string): boolean {
+      return this.fullscreenKey === key || this.expandedKey === key;
     },
 
     onFullscreenChange() {
@@ -254,6 +275,8 @@ export default {
 
     gridUpdate() {
       if (this.grid !== null) this.grid.destroy();
+      this.grid = null;
+      if (this.phone) return;
 
       this.grid = new Muuri(".grid", {
         dragEnabled: true,
@@ -498,6 +521,7 @@ export default {
   <div :key="role" @mousedown.capture="onMouseDown">
     <div
       class="grid"
+      :class="{ 'grid--stacked': phone }"
       :v-show="liveClassProxy !== null ? true : false"
       style="width: 100%"
     >
@@ -506,7 +530,7 @@ export default {
         v-for="(m, i) in scrapedModulesFilter"
         :key="itemKey(m, i)"
         :data-item-key="itemKey(m, i)"
-        :class="size(m.height, m.width)"
+        :class="[size(m.height, m.width), { 'item--expanded': expandedKey === itemKey(m, i) }]"
         :width="width(m.width)"
         :height="height(m.height)"
         :style="styling(m.height, m.width, itemKey(m, i))"
@@ -516,11 +540,11 @@ export default {
           <button
             type="button"
             class="item-expand"
-            :aria-label="fullscreenKey === itemKey(m, i) ? t('modules.collapse') : t('modules.expand')"
+            :aria-label="isExpanded(itemKey(m, i)) ? t('modules.collapse') : t('modules.expand')"
             @click="toggleFullscreen($event)"
           >
             <v-icon
-              :icon="fullscreenKey === itemKey(m, i) ? 'mdi-arrow-collapse' : 'mdi-arrow-expand'"
+              :icon="isExpanded(itemKey(m, i)) ? 'mdi-arrow-collapse' : 'mdi-arrow-expand'"
               size="16"
             ></v-icon>
           </button>
@@ -672,9 +696,52 @@ export default {
 }
 
 /* full screen: no corner radius, no resize grip */
-.item:fullscreen {
+.item:fullscreen,
+.item--expanded {
   border-radius: 0;
   resize: none;
+}
+
+/* phones: one module under the other, full width, at most 70% of the screen tall */
+.grid--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.grid--stacked .item {
+  position: relative;
+  width: 100% !important;
+  max-width: 100%;
+  max-height: 70vh;
+  margin: 0;
+  resize: none;
+  transform: none !important;
+}
+
+.grid--stacked .item-header {
+  height: 40px;
+  padding-inline-end: 4px;
+  cursor: default;
+}
+
+.grid--stacked .item-expand {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+/* filling the window instead of full screen (on phones too) */
+.grid .item.item--expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  width: 100% !important;
+  max-width: none;
+  height: 100% !important;
+  max-height: none;
+  margin: 0;
+  transform: none !important;
 }
 
 .item-overlay-protection {

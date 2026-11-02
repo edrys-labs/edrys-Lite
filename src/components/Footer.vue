@@ -1,15 +1,18 @@
 <script lang="ts">
 import { useI18n } from "vue-i18n";
+import { useDisplay } from "vuetify";
 
 export default {
   name: "Footer",
 
   setup() {
     const { t, locale } = useI18n();
+    const { xs: phone } = useDisplay();
 
     return {
       t,
       locale,
+      phone,
     };
   },
 
@@ -20,7 +23,7 @@ export default {
 </script>
 
 <template>
-  <v-footer color="surface-variant" :app="true" height="48" class="edrys-bar footer">
+  <v-footer color="surface-variant" :app="true" :height="phone ? 52 : 48" class="edrys-bar footer">
     <v-row justify="center" align="center" no-gutters class="ga-2">
       <v-tooltip :text="t('footer.github')" location="top">
         <template v-slot:activator="{ props }">

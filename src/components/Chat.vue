@@ -2,25 +2,29 @@
 import { inject } from "vue";
 import markdownit from "markdown-it";
 import { useI18n } from 'vue-i18n';
+import { useDisplay } from "vuetify";
 import { isMember, sameKey } from "../ts/Utils";
 
 export default {
   name: "Chat",
   // me: this user's public key; teachers: the owner's and the teachers' keys
-  props: ["show", "messages", "truncated", "me", "teachers"],
-  emits: ["sendMessage"],
+  props: ["show", "messages", "truncated", "me", "teachers", "className"],
+  emits: ["sendMessage", "close"],
 
   setup() {
     const prismHighlight = inject("prismHighlight");
     const prismLanguages = inject("prismLanguages");
 
     const { t, locale } = useI18n();
+    // on phones the chat is a page of its own
+    const { xs: phone } = useDisplay();
 
     return {
       prismHighlight,
       prismLanguages,
       t,
       locale,
+      phone,
     };
   },
 
@@ -67,6 +71,12 @@ export default {
     },
   },
 
+  computed: {
+    rtl(): boolean {
+      return ["ar", "he", "fa", "ur"].includes(this.locale);
+    },
+  },
+
   methods: {
     highlighter(code) {
       // Use fallback-safe values
@@ -84,6 +94,17 @@ export default {
 
     permanent() {
       return window.innerWidth > 1000 + 360;
+    },
+
+    panelProps() {
+      return this.phone
+        ? { fullscreen: true, transition: "dialog-bottom-transition" }
+        : { width: 360, permanent: this.permanent(), location: "right", color: "panel" };
+    },
+
+    // closed by its scrim, Escape or the back button
+    onToggle(open: boolean) {
+      if (!open) this.$emit("close");
     },
 
     isMine(msg: { signer?: string }): boolean {
@@ -129,54 +150,75 @@ export default {
 </script>
 
 <template>
-  <v-navigation-drawer
-    :width="360"
-    :permanent="permanent()"
+  <component
+    :is="phone ? 'v-dialog' : 'v-navigation-drawer'"
+    v-bind="panelProps()"
     v-model="open"
-    location="right"
-    color="panel"
-    class="chat-panel"
-    @click="focusEditor"
+    :class="['chat-panel', { 'chat-panel--phone': phone }]"
+    @update:modelValue="onToggle"
+    @click="phone || focusEditor()"
   >
-    <template v-slot:prepend>
+    <div class="chat-box">
       <div class="chat-title">
-        <h2>{{ t('classroom.chat') }}</h2>
-      </div>
-    </template>
-
-    <div role="log" class="chat-log">
-      <div v-if="deletedMessages" class="chat-note">{{ t('chat.deletedMessage') }}</div>
-      <div
-        v-for="msg in history"
-        :key="msg.signature"
-        :class="['chat-message', { mine: isMine(msg) }]"
-      >
-        <div class="markdown" v-html="render(msg.id, msg.msg)"></div>
-        <div class="chat-meta">
-          <span class="chat-user">{{ msg.user }}</span>
-          <span v-if="isMine(msg)" class="chat-you">{{ t('general.you') }}</span>
-          <span v-if="isFromTeacher(msg)" class="chat-teacher">{{ t('general.roles.teacher') }}</span>
-          <span aria-hidden="true">·</span>
-          <time :title="toDate(msg.timestamp)">
-            {{ shortTime(msg.timestamp) }}
-          </time>
+        <v-btn
+          v-if="phone"
+          :icon="rtl ? 'mdi-arrow-right' : 'mdi-arrow-left'"
+          size="44"
+          rounded="lg"
+          variant="text"
+          :aria-label="t('chat.back')"
+          @click="open = false; onToggle(false)"
+        ></v-btn>
+        <div class="chat-title-text">
+          <h2>{{ t('classroom.chat') }}</h2>
+          <div v-if="phone && className" class="chat-class">{{ className }}</div>
         </div>
       </div>
-    </div>
 
-    <template v-slot:append>
+      <div role="log" class="chat-log">
+        <div v-if="deletedMessages" class="chat-note">{{ t('chat.deletedMessage') }}</div>
+        <div
+          v-for="msg in history"
+          :key="msg.signature"
+          :class="['chat-message', { mine: isMine(msg) }]"
+        >
+          <div class="markdown" v-html="render(msg.id, msg.msg)"></div>
+          <div class="chat-meta">
+            <span class="chat-user">{{ msg.user }}</span>
+            <span v-if="isMine(msg)" class="chat-you">{{ t('general.you') }}</span>
+            <span v-if="isFromTeacher(msg)" class="chat-teacher">{{ t('general.roles.teacher') }}</span>
+            <span aria-hidden="true">·</span>
+            <time :title="toDate(msg.timestamp)">
+              {{ shortTime(msg.timestamp) }}
+            </time>
+          </div>
+        </div>
+      </div>
+
       <div class="chat-compose">
-        <label for="chat-message">{{ t('chat.messagePlaceholder') }}</label>
+        <label for="chat-message" :class="{ 'd-sr-only': phone }">{{ t('chat.messagePlaceholder') }}</label>
         <textarea
           id="chat-message"
           v-model="message"
-          rows="3"
+          :rows="phone ? 1 : 3"
           maxlength="2000"
+          :placeholder="phone ? t('chat.message') : undefined"
           @keydown.enter.exact.prevent="send()"
           @keyup.ctrl.enter="send()"
         ></textarea>
 
         <v-btn
+          v-if="phone"
+          icon="mdi-send-outline"
+          color="primary"
+          variant="flat"
+          size="44"
+          rounded="circle"
+          :aria-label="t('chat.sendButton')"
+          @click="send()"
+        ></v-btn>
+        <v-btn
+          v-else
           append-icon="mdi-send-outline"
           color="primary"
           variant="flat"
@@ -189,8 +231,8 @@ export default {
           {{ t('chat.sendButton') }}
         </v-btn>
       </div>
-    </template>
-  </v-navigation-drawer>
+    </div>
+  </component>
 </template>
 
 <style>
@@ -212,13 +254,23 @@ ol li {
 </style>
 
 <style scoped>
-.chat-panel {
+.chat-panel:not(.chat-panel--phone) {
   border-inline-start: 1px solid rgb(var(--v-theme-panel-line)) !important;
+}
+
+.chat-box {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: rgb(var(--v-theme-panel));
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .chat-title {
   display: flex;
   align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
   height: 48px;
   padding: 0 16px;
   border-bottom: 1px solid rgb(var(--v-theme-panel-line));
@@ -230,11 +282,26 @@ ol li {
   font-weight: 600;
 }
 
+.chat-title-text {
+  min-width: 0;
+}
+
+.chat-class {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: rgb(var(--v-theme-muted));
+}
+
 .chat-log {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 8px;
+  min-height: 0;
   padding: 12px;
+  overflow-y: auto;
 }
 
 .chat-note {
@@ -300,6 +367,7 @@ ol li {
 .chat-compose {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   gap: 8px;
   padding: 12px;
   border-top: 1px solid rgb(var(--v-theme-panel-line));
@@ -327,5 +395,39 @@ ol li {
 .chat-compose textarea:focus-visible {
   outline: 2px solid rgb(var(--v-theme-focus));
   outline-offset: 2px;
+}
+
+/* phones: a full-screen page with a back button and a one-line message field */
+.chat-panel--phone .chat-title {
+  height: 56px;
+  padding: 0 4px;
+}
+
+.chat-panel--phone .chat-title h2 {
+  font-size: 16px;
+}
+
+.chat-panel--phone .chat-log {
+  justify-content: flex-end;
+}
+
+.chat-panel--phone .chat-message {
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+.chat-panel--phone .chat-compose {
+  flex-direction: row;
+  align-items: flex-end;
+  padding: 10px 12px 14px;
+}
+
+.chat-panel--phone .chat-compose textarea {
+  flex: 1;
+  min-height: 44px;
+  padding: 11px 14px;
+  border-radius: 22px;
+  font-size: 15px;
+  line-height: 1.4;
 }
 </style>

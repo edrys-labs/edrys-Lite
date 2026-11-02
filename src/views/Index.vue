@@ -21,6 +21,7 @@ import Footer from "../components/Footer.vue";
 import UserMenu from '../components/UserMenu.vue';
 import LinkedText from '../components/LinkedText.vue';
 import { useI18n } from 'vue-i18n';
+import { useDisplay } from 'vuetify';
 
 export default {
   name: "Index",
@@ -29,7 +30,9 @@ export default {
 
   setup() {
     const { t, locale } = useI18n();
-    return { t, locale, sameKey, isMember, activeTheme, initials: classInitials };
+    // phones list the classes as compact rows
+    const { xs: phone } = useDisplay();
+    return { t, locale, sameKey, isMember, activeTheme, initials: classInitials, phone };
   },
 
   data() {
@@ -56,6 +59,8 @@ export default {
       showMigrationBanner: sessionStorage.getItem('showMigrationBanner') === '1',
       // classroom id -> its logo failed to load, show the initials instead
       brokenLogos: {} as Record<string, boolean>,
+      // phones: the class whose "More actions" menu asks before deleting
+      confirmDelete: null as string | null,
     };
   },
 
@@ -157,7 +162,7 @@ export default {
     </v-app-bar>
 
     <v-main>
-      <div class="class-list">
+      <div class="class-list" :class="{ 'class-list--phone': phone }">
         <div v-if="showMigrationBanner" role="status" class="migration">
           <v-icon icon="mdi-information-outline" size="20"></v-icon>
           <div class="migration-text">
@@ -208,45 +213,87 @@ export default {
             </div>
 
             <div class="class-actions">
-              <v-btn
-                icon="mdi-source-fork"
-                size="36"
-                variant="text"
-                class="card-icon-btn"
-                :aria-label="t('index.classroom.actions.fork')"
-                :title="t('index.classroom.actions.fork')"
-                @click="forkClass(classroom)"
-              ></v-btn>
-
-              <v-menu location="top start">
+              <v-menu
+                v-if="phone"
+                location="bottom end"
+                @update:modelValue="(open) => open || (confirmDelete = null)"
+              >
                 <template v-slot:activator="{ props }">
                   <v-btn
                     v-bind="props"
-                    icon="mdi-delete-outline"
-                    size="36"
+                    icon="mdi-dots-horizontal"
+                    size="44"
+                    rounded="lg"
                     variant="text"
                     class="card-icon-btn"
-                    :aria-label="t('index.classroom.actions.delete')"
-                    :title="t('index.classroom.actions.delete')"
+                    :aria-label="t('index.classroom.actions.more')"
                   ></v-btn>
                 </template>
 
-                <v-card class="confirm">
+                <v-card v-if="confirmDelete === classroom.id" class="confirm">
                   <p>{{ t('index.classroom.actions.deleteConfirm') }}</p>
                   <div class="confirm-actions">
-                    <v-btn variant="text" height="34">{{ t('index.classroom.actions.cancel') }}</v-btn>
-                    <v-btn color="danger-fill" variant="flat" height="34" @click="deleteClass(classroom.id)">
+                    <v-btn variant="text" height="40">{{ t('index.classroom.actions.cancel') }}</v-btn>
+                    <v-btn color="danger-fill" variant="flat" height="40" @click="deleteClass(classroom.id)">
                       {{ t('index.classroom.actions.deleteForever') }}
                     </v-btn>
                   </div>
                 </v-card>
+                <v-list v-else>
+                  <v-list-item
+                    prepend-icon="mdi-source-fork"
+                    :title="t('index.classroom.actions.fork')"
+                    @click="forkClass(classroom)"
+                  ></v-list-item>
+                  <v-list-item
+                    prepend-icon="mdi-delete-outline"
+                    :title="t('index.classroom.actions.delete')"
+                    @click.stop="confirmDelete = classroom.id"
+                  ></v-list-item>
+                </v-list>
               </v-menu>
 
-              <v-spacer></v-spacer>
+              <template v-else>
+                <v-btn
+                  icon="mdi-source-fork"
+                  size="36"
+                  variant="text"
+                  class="card-icon-btn"
+                  :aria-label="t('index.classroom.actions.fork')"
+                  :title="t('index.classroom.actions.fork')"
+                  @click="forkClass(classroom)"
+                ></v-btn>
+
+                <v-menu location="top start">
+                  <template v-slot:activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      icon="mdi-delete-outline"
+                      size="36"
+                      variant="text"
+                      class="card-icon-btn"
+                      :aria-label="t('index.classroom.actions.delete')"
+                      :title="t('index.classroom.actions.delete')"
+                    ></v-btn>
+                  </template>
+
+                  <v-card class="confirm">
+                    <p>{{ t('index.classroom.actions.deleteConfirm') }}</p>
+                    <div class="confirm-actions">
+                      <v-btn variant="text" height="34">{{ t('index.classroom.actions.cancel') }}</v-btn>
+                      <v-btn color="danger-fill" variant="flat" height="34" @click="deleteClass(classroom.id)">
+                        {{ t('index.classroom.actions.deleteForever') }}
+                      </v-btn>
+                    </div>
+                  </v-card>
+                </v-menu>
+
+                <v-spacer></v-spacer>
+              </template>
               <v-btn
                 color="primary"
                 variant="flat"
-                size="36"
+                :size="phone ? 40 : 36"
                 rounded="circle"
                 data-link="true"
                 :icon="['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left' : 'mdi-arrow-right'"
@@ -468,5 +515,86 @@ img.banner {
 .create-sub {
   font-size: 13px;
   color: rgb(var(--v-theme-muted));
+}
+
+/* phones: one compact row per class */
+.class-list--phone {
+  gap: 12px;
+  padding: 16px;
+}
+
+.class-list--phone .list-heading h1 {
+  font-size: 20px;
+}
+
+.class-list--phone .class-grid {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.class-list--phone .class-card {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+}
+
+.class-list--phone .banner {
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.class-list--phone .initials {
+  width: auto;
+  height: auto;
+  background: none;
+  font-size: 15px;
+}
+
+.class-list--phone .class-body {
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
+}
+
+.class-list--phone .class-body h2 {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 15px;
+}
+
+.class-list--phone .class-body p {
+  display: none;
+}
+
+.class-list--phone .class-actions {
+  gap: 0;
+  padding: 0;
+}
+
+.class-list--phone .create-card {
+  flex-direction: row;
+  min-height: 56px;
+}
+
+.class-list--phone .create-icon {
+  width: auto;
+  height: auto;
+  background: none;
+  box-shadow: none;
+}
+
+.class-list--phone .create-title {
+  font-size: 14px;
+}
+
+.class-list--phone .create-sub {
+  display: none;
 }
 </style>

@@ -64,6 +64,7 @@ index:
       deleteForever: "Так, видалити назавжди"
       fork: "Копіювати"
       open: "Відкрити"
+      more: "Більше дій"
 
 classroom:
   reconnecting: "Повторне з’єднання…"
@@ -87,6 +88,7 @@ classroom:
     rooms: "Кімнати"
     gotoRoom: "Перейти до {room}"
     people: "Людей: {n}"
+    close: "Закрити кімнати"
   popup:
     close: "Закрити"
 
@@ -238,6 +240,8 @@ chat:
   deletedMessage: "попередні повідомлення були видалені ..."
   sendButton: "Надіслати"
   messagePlaceholder: "Повідомлення (Enter для надсилання, Ctrl+Enter для нового рядка)"
+  back: "Назад до класу"
+  message: "Повідомлення"
 
 checks:
   webRTCSupport: "Підтримка WebRTC"

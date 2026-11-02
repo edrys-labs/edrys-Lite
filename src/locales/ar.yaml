@@ -64,6 +64,7 @@ index:
       deleteForever: "نعم، احذف بشكل دائم"
       fork: "نسخ"
       open: "فتح"
+      more: "مزيد من الإجراءات"
 
 classroom:
   reconnecting: "جارٍ إعادة الاتصال…"
@@ -87,6 +88,7 @@ classroom:
     rooms: "الغرف"
     gotoRoom: "الانتقال إلى {room}"
     people: "عدد الأشخاص: {n}"
+    close: "إغلاق الغرف"
   popup:
     close: "إغلاق"
 
@@ -238,6 +240,8 @@ chat:
   deletedMessage: "تم حذف الرسائل السابقة ..."
   sendButton: "إرسال"
   messagePlaceholder: "رسالة (Enter للإرسال، Ctrl+Enter لسطر جديد)"
+  back: "العودة إلى الفصل"
+  message: "رسالة"
 
 checks:
   webRTCSupport: "دعم WebRTC"

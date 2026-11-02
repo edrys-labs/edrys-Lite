@@ -8,6 +8,7 @@ import UserMenu from "../components/UserMenu.vue";
 import TutorChat from "../components/TutorChat.vue";
 import AppBrand from "../components/AppBrand.vue";
 import { useI18n } from "vue-i18n";
+import { useDisplay } from "vuetify";
 
 import { Database, DatabaseItem } from "../ts/Database";
 import {
@@ -49,7 +50,8 @@ export default {
 
   setup() {
     const { t, locale } = useI18n();
-    return { t, locale, activeTheme };
+    const { xs: phone } = useDisplay();
+    return { t, locale, activeTheme, phone };
   },
 
   data() {
@@ -171,6 +173,9 @@ export default {
     },
     rtl(): boolean {
       return ["ar", "he", "fa", "ur"].includes(this.locale);
+    },
+    drawerWidth(): number {
+      return this.phone ? 312 : 264;
     },
   },
   watch: {
@@ -693,7 +698,7 @@ export default {
 
   <v-app>
     <v-layout>
-      <v-app-bar color="surface-variant" height="56" flat class="edrys-bar">
+      <v-app-bar color="surface-variant" height="56" flat class="edrys-bar" :class="{ 'edrys-bar--phone': phone }">
         <div class="bar-start">
           <v-btn
             icon="mdi-menu"
@@ -707,10 +712,11 @@ export default {
             @click="showSideMenu = !showSideMenu"
           ></v-btn>
 
-          <AppBrand />
+          <AppBrand v-if="!phone" />
 
+          <!-- on phones the pill takes the brand's place and stays -->
           <button
-            v-if="!showSideMenu && currentRoom"
+            v-if="currentRoom && (phone || !showSideMenu)"
             type="button"
             class="room-pill"
             :aria-label="
@@ -720,7 +726,7 @@ export default {
               ', ' +
               peopleLabel(peopleInRoom(currentRoom))
             "
-            :aria-expanded="false"
+            :aria-expanded="showSideMenu"
             data-test="room-pill"
             @click="showSideMenu = true"
           >
@@ -738,7 +744,7 @@ export default {
           </button>
         </div>
 
-        <v-spacer></v-spacer>
+        <v-spacer v-if="!phone"></v-spacer>
 
         <!-- The live region must exist before the chip appears to be announced -->
         <div role="status">
@@ -749,7 +755,7 @@ export default {
             class="mr-2"
             data-test="offline-chip"
           >
-            {{ t("classroom.reconnecting") }}
+            <span :class="{ 'd-sr-only': phone }">{{ t("classroom.reconnecting") }}</span>
           </v-chip>
         </div>
 
@@ -769,7 +775,7 @@ export default {
           </template>
         </v-tooltip>
 
-        <div class="bar-divider" aria-hidden="true"></div>
+        <div v-if="!phone" class="bar-divider" aria-hidden="true"></div>
 
         <div class="bar-end">
           <v-btn
@@ -830,8 +836,15 @@ export default {
         </div>
       </v-app-bar>
 
-      <v-navigation-drawer temporary v-model="showSideMenu" width="264" color="panel" class="rooms-drawer">
-        <v-overlay v-model="showSideMenu" style="width: 264px" v-if="isStation">
+      <v-navigation-drawer
+        temporary
+        v-model="showSideMenu"
+        :width="drawerWidth"
+        color="panel"
+        class="rooms-drawer"
+        :class="{ 'rooms-drawer--phone': phone }"
+      >
+        <v-overlay v-model="showSideMenu" :style="{ width: drawerWidth + 'px' }" v-if="isStation">
           <v-card class="station-card" style="margin-top: calc(50vh - 150px)">
             <div class="station-card-head">
               <span
@@ -892,7 +905,17 @@ export default {
               </div>
             </div>
             <v-btn
-              v-if="isOwner || isTeacher"
+              v-if="phone"
+              :icon="rtl ? 'mdi-menu-close' : 'mdi-menu-open'"
+              size="44"
+              rounded="lg"
+              variant="text"
+              class="drawer-settings"
+              :aria-label="t('classroom.sideMenu.close')"
+              @click="showSideMenu = false"
+            ></v-btn>
+            <v-btn
+              v-else-if="isOwner || isTeacher"
               icon="mdi-cog-outline"
               size="32"
               rounded="lg"
@@ -953,10 +976,38 @@ export default {
         </div>
 
         <template v-slot:append>
-          <div class="drawer-foot" v-if="isOwner">
+          <div class="drawer-foot" v-if="isOwner || phone">
+            <!-- phones hide the brand, the bar's link to the list -->
             <v-btn
+              v-if="phone"
               block
-              height="40"
+              :height="44"
+              rounded="lg"
+              variant="flat"
+              color="surface"
+              :prepend-icon="rtl ? 'mdi-arrow-right' : 'mdi-arrow-left'"
+              href="./"
+              class="drawer-btn"
+            >
+              {{ t("index.classroom.title") }}
+            </v-btn>
+            <v-btn
+              v-if="phone && (isOwner || isTeacher)"
+              block
+              :height="44"
+              rounded="lg"
+              variant="flat"
+              color="surface"
+              prepend-icon="mdi-cog-outline"
+              class="drawer-btn"
+              @click="showSettings = true"
+            >
+              {{ t("classroom.sideMenu.settings") }}
+            </v-btn>
+            <v-btn
+              v-if="isOwner"
+              block
+              :height="phone ? 44 : 40"
               rounded="lg"
               variant="flat"
               color="surface"
@@ -977,7 +1028,9 @@ export default {
         :truncated="chat.truncated"
         :me="myKey"
         :teachers="teacherKeys"
+        :className="configuration?.data?.name"
         @sendMessage="sendMessage"
+        @close="chat.open = false"
       >
       </Chat>
 
@@ -1016,6 +1069,7 @@ export default {
       width="90%"
       scrollable
       persistent
+      :fullscreen="phone"
       :id="'settings' + componentKey"
     >
       <Settings
@@ -1095,6 +1149,33 @@ export default {
   height: 24px;
   margin: 0 4px;
   background: rgb(var(--v-theme-bar-divider));
+}
+
+/* phones: menu, the room pill across the bar, chat and the user menu */
+.edrys-bar--phone .bar-start {
+  flex: 1;
+  gap: 4px;
+  padding-inline: 4px 0;
+}
+
+.edrys-bar--phone .bar-end {
+  padding-inline: 0 4px;
+}
+
+.edrys-bar--phone .room-pill {
+  flex: 1;
+  height: 36px;
+  font-size: 14px;
+}
+
+.edrys-bar--phone .room-pill-name {
+  flex: 1;
+  text-align: start;
+}
+
+.edrys-bar--phone .room-pill .room-tile--small {
+  width: 22px;
+  height: 22px;
 }
 
 /* The room you are in, while the drawer is closed */
@@ -1344,8 +1425,27 @@ export default {
 }
 
 .drawer-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   padding: 12px;
   border-top: 1px solid rgb(var(--v-theme-panel-line));
+}
+
+.rooms-drawer--phone .drawer-head {
+  margin-inline-end: 4px;
+}
+
+.rooms-drawer--phone .drawer-class-name {
+  font-size: 15px;
+}
+
+.rooms-drawer--phone .room-row {
+  min-height: 52px;
+}
+
+.rooms-drawer--phone .room-name {
+  font-size: 15px;
 }
 
 .drawer-btn {

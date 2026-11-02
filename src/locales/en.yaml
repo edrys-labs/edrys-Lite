@@ -64,6 +64,7 @@ index:
       deleteForever: "Yes, delete forever"
       fork: "Fork"
       open: "Open"
+      more: "More actions"
 
 classroom:
   reconnecting: "Reconnecting…"
@@ -87,6 +88,7 @@ classroom:
     rooms: "Rooms"
     gotoRoom: "Go to {room}"
     people: "{n} person | {n} people"
+    close: "Close rooms"
   popup:
     close: "Close"
 
@@ -238,6 +240,8 @@ chat:
   deletedMessage: "previous messages have been deleted ..."
   sendButton: "Send"
   messagePlaceholder: "Message (Enter to send, Ctrl+Enter for newline)"
+  back: "Back to the classroom"
+  message: "Message"
 
 checks:
   webRTCSupport: "WebRTC-support"
