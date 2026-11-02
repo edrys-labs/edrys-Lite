@@ -214,6 +214,16 @@ const vuetify = createVuetify({
     VColorPicker,
   },
   directives: { ...directives },
+  // 8px corners, outlined 40px fields, tinted alerts (main.scss does the rest)
+  defaults: {
+    VBtn: { rounded: 'lg' },
+    VTextField: { variant: 'outlined', density: 'compact', rounded: 'lg' },
+    VTextarea: { variant: 'outlined', density: 'compact', rounded: 'lg' },
+    VSelect: { variant: 'outlined', density: 'compact', rounded: 'lg' },
+    VCombobox: { variant: 'outlined', density: 'compact', rounded: 'lg' },
+    VFileInput: { variant: 'outlined', density: 'compact', rounded: 'lg' },
+    VAlert: { variant: 'tonal', rounded: 'lg' },
+  },
   icons: {
     defaultSet: 'mdi',
     sets: {

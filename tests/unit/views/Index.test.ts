@@ -16,7 +16,9 @@ vi.mock('../../../src/ts/Database', () => ({
   }))
 }));
 
-vi.mock('../../../src/ts/Utils', () => ({
+vi.mock('../../../src/ts/Utils', async (importOriginal) => ({
+  classSlot: (await importOriginal<any>()).classSlot,
+  classInitials: (await importOriginal<any>()).classInitials,
   infoHash: vi.fn(() => 'test-hash'),
   getPeerID: vi.fn(() => 'test-user'),
   hashPubKey: vi.fn(() => Promise.resolve('testhash1234')),
@@ -172,8 +174,36 @@ describe('Index View', () => {
       classrooms: mockClassrooms
     });
     
-    const cards = wrapper.findAll('[data-test="classroom-card"]');
-    expect(cards).toHaveLength(mockClassrooms.length + 1); // +1 for create card
+    expect(wrapper.findAll('.class-card')).toHaveLength(mockClassrooms.length);
+    expect(wrapper.find('.create-card').exists()).toBe(true);
+    expect(wrapper.text()).toContain(`${mockClassrooms.length} saved in this browser`);
+  });
+
+  test('a class without a logo shows its initials on a tint, one with a logo its image', async () => {
+    const wrapper = createWrapper();
+    const plain = { id: 'plain', data: { name: 'Linux Basics', createdBy: 'x', meta: {} }, hash: null };
+    const logo = { id: 'logo', data: { name: 'Pictured', createdBy: 'x', meta: { logo: 'https://example.com/l.png' } }, hash: null };
+
+    await wrapper.setData({ classrooms: [plain, logo] });
+
+    const [first, second] = wrapper.findAll('.class-card');
+    expect(first.find('.initials').text()).toBe('LB');
+    expect(first.find('.banner').attributes('style')).toContain('background');
+    expect(first.find('img').exists()).toBe(false);
+    expect(second.find('img.banner').attributes('src')).toBe('https://example.com/l.png');
+    expect(second.find('.initials').exists()).toBe(false);
+  });
+
+  test('a logo that fails to load gives way to the initials', async () => {
+    const wrapper = createWrapper();
+    const logo = { id: 'gone', data: { name: 'Lost Logo', createdBy: 'x', meta: { logo: 'https://example.com/404.png' } }, hash: null };
+    await new Promise((resolve) => setTimeout(resolve)); // the mocked database's first list
+    await wrapper.setData({ classrooms: [logo] });
+
+    await wrapper.find('img.banner').trigger('error');
+
+    expect(wrapper.find('img.banner').exists()).toBe(false);
+    expect(wrapper.find('.initials').text()).toBe('LL');
   });
 
   test('a stored classroom without members does not hide the list', async () => {
@@ -194,7 +224,7 @@ describe('Index View', () => {
 
     await wrapper.setData({ classrooms: [classroom] });
 
-    const text = wrapper.find('.v-card-text');
+    const text = wrapper.find('.class-body p');
     expect(text.find('img').exists()).toBe(false);
     expect(text.findAll('a').map(a => a.attributes('href'))).toEqual(['https://example.com/']);
     expect(text.text()).toBe('Lab bad good');
@@ -203,9 +233,8 @@ describe('Index View', () => {
   test('creates new classroom', async () => {
     const wrapper = createWrapper();
     
-    const createCard = wrapper.findAll('[data-test="classroom-card"]')
-      .filter(card => card.text().includes('Create a class'))
-      .at(0);
+    const createCard = wrapper.find('.create-card');
+    expect(createCard.text()).toContain('Create a class');
     
     // Mock window.location
     const locationMock = { search: '' };
@@ -253,10 +282,7 @@ describe('Index View', () => {
       classrooms: mockClassrooms
     });
     
-    const cards = wrapper.findAll('[data-test="classroom-card"]');
-    expect(cards).toHaveLength(mockClassrooms.length + 1);
-    
-    const subtitles = wrapper.findAll('.v-card-subtitle');
+    const subtitles = wrapper.findAll('.class-role');
     expect(subtitles[0].text()).toContain('You own this class');
     expect(subtitles[1].text()).toContain('You\'re a student here');
   });

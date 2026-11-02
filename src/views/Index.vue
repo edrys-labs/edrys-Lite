@@ -11,7 +11,10 @@ import {
   copyToClipboard,
   sameKey,
   isMember,
+  classSlot,
+  classInitials,
 } from "../ts/Utils";
+import { activeTheme, roomTile } from "../ts/Theme";
 
 import AppBrand from "../components/AppBrand.vue";
 import Footer from "../components/Footer.vue";
@@ -26,7 +29,7 @@ export default {
 
   setup() {
     const { t, locale } = useI18n();
-    return { t, locale, sameKey, isMember };
+    return { t, locale, sameKey, isMember, activeTheme, initials: classInitials };
   },
 
   data() {
@@ -51,6 +54,8 @@ export default {
       classrooms,
       peerID: getPeerID(false),
       showMigrationBanner: sessionStorage.getItem('showMigrationBanner') === '1',
+      // classroom id -> its logo failed to load, show the initials instead
+      brokenLogos: {} as Record<string, boolean>,
     };
   },
 
@@ -58,6 +63,11 @@ export default {
     dismissMigrationBanner() {
       this.showMigrationBanner = false;
       sessionStorage.removeItem('showMigrationBanner');
+    },
+
+    // a class without a logo gets its initials on a tint of its own
+    tileOf(id: string) {
+      return roomTile(classSlot(id), this.activeTheme);
     },
 
     copyPeerID() {
@@ -146,117 +156,333 @@ export default {
       </div>
     </v-app-bar>
 
-    <v-main class="d-flex">
-      <v-container fluid class="align-start">
-        <v-row v-if="showMigrationBanner">
-          <v-col cols="12">
-            <v-alert
-              type="info"
-              closable
-              @click:close="dismissMigrationBanner"
-            >
-              {{ t('index.migration.title') }}
-              <br />
-              {{ t('index.migration.body') }}
-            </v-alert>
-          </v-col>
-        </v-row>
+    <v-main>
+      <div class="class-list">
+        <div v-if="showMigrationBanner" role="status" class="migration">
+          <v-icon icon="mdi-information-outline" size="20"></v-icon>
+          <div class="migration-text">
+            <strong>{{ t('index.migration.title') }}</strong>
+            <span>{{ t('index.migration.body') }}</span>
+          </div>
+          <v-btn
+            icon="mdi-close"
+            size="28"
+            variant="text"
+            :aria-label="t('index.migration.dismiss')"
+            @click="dismissMigrationBanner"
+          ></v-btn>
+        </div>
 
-        <v-row>
-          <v-col
-            cols="12"
-            sm="6"
-            md="4"
-            lg="3"
-            v-for="classroom in classrooms"
-            :key="classroom.id"
-          >
-            <v-card class="item" color="surface-variant" elevation="4">
-              <v-img
-                :src="
-                  classroom?.data?.meta?.logo ||
-                  'https://repository-images.githubusercontent.com/453979926/ab6bf9d7-a4bc-4a47-97b7-c8bc8bb4654d'
-                "
-                height="200px"
-                cover
-              ></v-img>
-              <v-card-title>{{ classroom.data?.name }}</v-card-title>
-              <v-card-subtitle>
+        <div class="list-heading">
+          <h1>{{ t('index.classroom.title') }}</h1>
+          <span v-if="classrooms.length">{{ t('index.classroom.saved', { n: classrooms.length }) }}</span>
+        </div>
+
+        <div class="class-grid">
+          <article v-for="classroom in classrooms" :key="classroom.id" class="class-card">
+            <img
+              v-if="classroom?.data?.meta?.logo && !brokenLogos[classroom.id]"
+              class="banner"
+              :src="classroom.data.meta.logo"
+              alt=""
+              @error="brokenLogos[classroom.id] = true"
+            />
+            <div
+              v-else
+              class="banner"
+              :style="{ background: tileOf(classroom.id).bg, color: tileOf(classroom.id).fg }"
+            >
+              <span class="initials" aria-hidden="true">{{ initials(classroom.data?.name) }}</span>
+            </div>
+
+            <div class="class-body">
+              <h2>{{ classroom.data?.name }}</h2>
+              <div class="class-role">
                 <span v-if="sameKey(classroom?.data?.createdBy, peerID)">{{ t('index.classroom.ownership.owner') }}</span>
                 <span v-else-if="isMember(classroom?.data?.members?.teacher, peerID)">{{ t('index.classroom.ownership.teacher') }}</span>
                 <span v-else>{{ t('index.classroom.ownership.student') }}</span>
-              </v-card-subtitle>
+              </div>
+              <p :title="classroom?.data?.meta?.description">
+                <LinkedText :text="classroom?.data?.meta?.description || t('index.classroom.noDescription')" />
+              </p>
+            </div>
 
-              <v-card-text>
-                <span style="white-space: pre-line"><LinkedText
-                  :text="classroom?.data?.meta?.description || 'No description'"
-                /></span>
-              </v-card-text>
+            <div class="class-actions">
+              <v-btn
+                icon="mdi-source-fork"
+                size="36"
+                variant="text"
+                class="card-icon-btn"
+                :aria-label="t('index.classroom.actions.fork')"
+                :title="t('index.classroom.actions.fork')"
+                @click="forkClass(classroom)"
+              ></v-btn>
 
-              <v-card-actions>
-                <v-btn icon :title="t('index.classroom.actions.fork')" @click="forkClass(classroom)">
-                  <v-icon>mdi-source-fork</v-icon>
-                </v-btn>
+              <v-menu location="top start">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon="mdi-delete-outline"
+                    size="36"
+                    variant="text"
+                    class="card-icon-btn"
+                    :aria-label="t('index.classroom.actions.delete')"
+                    :title="t('index.classroom.actions.delete')"
+                  ></v-btn>
+                </template>
 
-                <v-menu>
-                  <template v-slot:activator="{ props }">
-                    <v-btn color="" v-bind="props" icon="mdi-delete" :title="t('index.classroom.actions.delete')"> </v-btn>
-                  </template>
+                <v-card class="confirm">
+                  <p>{{ t('index.classroom.actions.deleteConfirm') }}</p>
+                  <div class="confirm-actions">
+                    <v-btn variant="text" height="34">{{ t('index.classroom.actions.cancel') }}</v-btn>
+                    <v-btn color="danger-fill" variant="flat" height="34" @click="deleteClass(classroom.id)">
+                      {{ t('index.classroom.actions.deleteForever') }}
+                    </v-btn>
+                  </div>
+                </v-card>
+              </v-menu>
 
-                  <v-list>
-                    <v-list-item>
-                      <v-list-item-title> {{ t('index.classroom.actions.deleteConfirm') }} </v-list-item-title>
+              <v-spacer></v-spacer>
+              <v-btn
+                color="primary"
+                variant="flat"
+                size="36"
+                rounded="circle"
+                data-link="true"
+                :icon="['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left' : 'mdi-arrow-right'"
+                :href="`./?/classroom/${classroom.id}${
+                  classroom.ownerHash ? `/${classroom.ownerHash}` : ''
+                }`"
+                :aria-label="t('index.classroom.actions.open')"
+                :title="t('index.classroom.actions.open')"
+              ></v-btn>
+            </div>
+          </article>
 
-                      <v-btn
-                        color="red"
-                        depressed
-                        @click="deleteClass(classroom.id)"
-                        class="float-right"
-                        style="margin-top: 10px"
-                      >
-                      {{ t('index.classroom.actions.deleteForever') }}</v-btn
-                      >
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
-
-                <v-spacer></v-spacer>
-                <v-btn
-                  icon
-                  data-link="true"
-                  :href="`./?/classroom/${classroom.id}${
-                    classroom.ownerHash ? `/${classroom.ownerHash}` : ''
-                  }`"
-                  :title="t('index.classroom.actions.open')"
-                >
-                  <v-icon>{{ ['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left-bold' : 'mdi-arrow-right-bold' }}</v-icon>
-                </v-btn>
-              </v-card-actions>
-            </v-card>
-          </v-col>
-
-          <v-col cols="12" sm="6" md="4" lg="3">
-            <v-card
-              class="item"
-              color="surface-variant"
-              elevation="4"
-              @click="createClass()"
-              variant="elevated"
-            >
-              <v-card-title>{{ t('index.classroom.create') }}</v-card-title>
-              <v-card-subtitle>{{ t('index.classroom.startTeaching') }}</v-card-subtitle>
-              <v-card-actions>
-                <v-spacer></v-spacer>
-                <v-btn icon :aria-label="t('index.classroom.create')">
-                  <v-icon icon="mdi-plus"></v-icon>
-                </v-btn>
-              </v-card-actions>
-            </v-card>
-          </v-col>
-        </v-row>
-      </v-container>
+          <button type="button" class="create-card" @click="createClass()">
+            <span class="create-icon"><v-icon icon="mdi-plus" size="22"></v-icon></span>
+            <span class="create-title">{{ t('index.classroom.create') }}</span>
+            <span class="create-sub">{{ t('index.classroom.startTeaching') }}</span>
+          </button>
+        </div>
+      </div>
     </v-main>
 
     <Footer></Footer>
   </v-app>
 </template>
+
+<style scoped>
+.class-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 28px;
+}
+
+.migration {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 12px 12px 16px;
+  border-radius: 10px;
+  background: rgb(var(--v-theme-info-tint));
+  color: rgb(var(--v-theme-info));
+}
+
+.migration .v-icon {
+  margin-top: 1px;
+}
+
+.migration-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.migration-text strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.list-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.list-heading h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.list-heading span {
+  font-size: 13px;
+  color: rgb(var(--v-theme-muted));
+}
+
+.class-grid {
+  display: grid;
+  /* four to a row at most, fewer once a card would get narrower than 260px */
+  grid-template-columns: repeat(auto-fill, minmax(max(260px, calc((100% - 60px) / 4)), 1fr));
+  gap: 20px;
+}
+
+.class-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgb(var(--v-theme-surface));
+  box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
+}
+
+:global(.v-theme--dark) .class-card {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), 0 0 0 1px rgb(var(--v-theme-panel-line));
+}
+
+.banner {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  /* the logo height of the cards before the restyle, so logos aren't cropped harder */
+  height: 200px;
+  padding: 14px 16px;
+  object-fit: cover;
+}
+
+img.banner {
+  padding: 0;
+}
+
+.initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgb(var(--v-theme-surface));
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.class-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px 4px;
+}
+
+.class-body h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.class-role {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-muted));
+}
+
+.class-body p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgb(var(--v-theme-text-2));
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  /* long descriptions stop after four lines (the whole text is the tooltip) */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+
+.class-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 12px 12px;
+}
+
+.card-icon-btn {
+  color: rgb(var(--v-theme-muted));
+}
+
+.card-icon-btn :deep(.v-icon) {
+  font-size: 20px;
+}
+
+.confirm {
+  padding: 14px 14px 10px;
+}
+
+.confirm p {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.create-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 320px;
+  border: 1.5px dashed rgb(var(--v-theme-dashed));
+  border-radius: 12px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-background));
+  cursor: pointer;
+}
+
+.create-card:hover {
+  border-color: rgb(var(--v-theme-muted));
+}
+
+.create-card:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-focus));
+  outline-offset: 2px;
+}
+
+.create-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: rgb(var(--v-theme-surface));
+  box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
+}
+
+.create-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.create-sub {
+  font-size: 13px;
+  color: rgb(var(--v-theme-muted));
+}
+</style>

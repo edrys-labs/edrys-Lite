@@ -314,6 +314,19 @@ export function roomSlot(name: string, orderedRooms: string[]): number | null {
   return Math.max(0, idx) % ROOM_COLORS.length;
 }
 
+/** A classroom's palette slot, the same for its id everywhere. */
+export function classSlot(id: string): number {
+  let hash = 0;
+  for (const char of id || "") hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return hash % ROOM_COLORS.length;
+}
+
+/** Up to two initials of a class name: "Komplexaufgabe 3 – Interrupts" is "K3". */
+export function classInitials(name: string): string {
+  const words = (name || "").split(/\s+/).filter((w) => /^[\p{L}\p{N}]/u.test(w));
+  return words.slice(0, 2).map((w) => Array.from(w)[0].toUpperCase()).join("") || "?";
+}
+
 /** A mid-tone hex color of a room, for borders and tints. */
 export function roomColor(name: string, orderedRooms: string[]): string {
   const slot = roomSlot(name, orderedRooms);

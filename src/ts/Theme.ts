@@ -35,6 +35,7 @@ const light: ThemeDefinition = {
     avatar: '#e6e8ec', // behind a user's dot in the drawer
     'text-2': '#3b424d',
     line: '#d7d7d7', // outlines of buttons and fields
+    dashed: '#bebebe', // dashed outline of an empty slot (create a class)
     muted: '#5f6773',
     focus: '#3664be',
     link: '#00579a',
@@ -89,6 +90,7 @@ const dark: ThemeDefinition = {
     avatar: '#39414c',
     'text-2': '#d4d8de',
     line: '#39414c',
+    dashed: '#465060',
     muted: '#9aa3b0',
     focus: '#8db7ff',
     link: '#91c3f6',

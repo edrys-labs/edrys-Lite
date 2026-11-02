@@ -20,9 +20,13 @@ general:
 
 index:
   migration:
+    dismiss: "إغلاق"
     title: "تم ترقية حسابك إلى نظام الهوية الجديد."
     body: "فصولك الدراسية جاهزة للاستخدام. تم إعادة تعيين قوائم المعلمين — يرجى إعادة إضافة معلميك."
   classroom:
+    title: "فصولك الدراسية"
+    saved: "المحفوظة في هذا المتصفح: {n}"
+    noDescription: "لا يوجد وصف"
     create: "إنشاء فصل دراسي"
     startTeaching: "ابدأ التدريس الآن"
     newClass: "فصلي الجديد"
@@ -54,6 +58,7 @@ index:
       teacher: "أنت معلم هنا"
       student: "أنت طالب هنا"
     actions:
+      cancel: "إلغاء"
       delete: "حذف"
       deleteConfirm: "هل أنت متأكد؟"
       deleteForever: "نعم، احذف بشكل دائم"

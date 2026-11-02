@@ -4,6 +4,9 @@
 // linked in index.html; the browser loads only the scripts a page uses.
 html, body {
     font-family: 'Noto Sans Variable', 'Noto Sans', system-ui, sans-serif !important;
+    // body is the scroll box: content taller than the window runs past the
+    // app's own background
+    background: rgb(var(--v-theme-background));
 }
 
 // Vuetify's typography classes (text-h6, text-caption, …) name Roboto
@@ -13,6 +16,23 @@ html, body {
 
 code, kbd, pre, samp {
     font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+}
+
+// Buttons in sentence case (doubled class: menus and dialogs sit outside .v-application)
+.v-btn.v-btn {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 600;
+}
+
+// Cards 12px, dialogs 16px, unless a component asks for other corners
+.v-card:not([class*='rounded']) {
+    border-radius: 12px;
+}
+
+.v-dialog > .v-overlay__content > .v-card:not([class*='rounded']),
+.v-dialog > .v-overlay__content > form > .v-card:not([class*='rounded']) {
+    border-radius: 16px;
 }
 
 // App bar and footer: flat, with a hairline towards the page

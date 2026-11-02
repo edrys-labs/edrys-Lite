@@ -20,9 +20,13 @@ general:
 
 index:
   migration:
+    dismiss: "Schließen"
     title: "Ihr Konto wurde auf das neue Identitätssystem aktualisiert."
     body: "Ihre Unterrichtsräume sind bereit. Die Lehrerlisten wurden zurückgesetzt — bitte fügen Sie Ihre Lehrer erneut hinzu."
   classroom:
+    title: "Ihre Unterrichtsräume"
+    saved: "{n} in diesem Browser gespeichert"
+    noDescription: "Keine Beschreibung"
     create: "Klasse erstellen"
     startTeaching: "Jetzt unterrichten"
     newClass: "Meine neue Klasse"
@@ -54,6 +58,7 @@ index:
       teacher: "Sie sind hier Lehrer"
       student: "Sie sind hier Student"
     actions:
+      cancel: "Abbrechen"
       delete: "Löschen"
       deleteConfirm: "Sind Sie sicher?"
       deleteForever: "Ja, für immer löschen"

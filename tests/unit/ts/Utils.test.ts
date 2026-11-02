@@ -19,6 +19,8 @@ import {
   removeKeysStartingWithSecret,
   roomSlot,
   roomColor,
+  classSlot,
+  classInitials,
 } from '../../../src/ts/Utils';
 
 vi.mock('js-yaml', () => ({
@@ -867,5 +869,24 @@ describe('runMigrationIfNeeded', () => {
       myPubKey
     )
     expect(valid).toBe(true)
+  })
+})
+
+describe('classroom cards', () => {
+  test('initials come from the first two words that start with a letter or digit', () => {
+    expect(classInitials('Komplexaufgabe 3 – Interrupts')).toBe('K3')
+    expect(classInitials('linux basics')).toBe('LB')
+    expect(classInitials('Arduino')).toBe('A')
+    expect(classInitials('  Ünterricht  ölig ')).toBe('ÜÖ')
+    expect(classInitials('')).toBe('?')
+    expect(classInitials(undefined as any)).toBe('?')
+  })
+
+  test('a class keeps its slot, within the palette', () => {
+    expect(classSlot('abc')).toBe(classSlot('abc'))
+    const slots = new Set(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'].map(classSlot))
+    expect(slots.size).toBeGreaterThan(1)
+    for (const slot of slots) expect(slot).toBeGreaterThanOrEqual(0)
+    for (const slot of slots) expect(slot).toBeLessThan(8)
   })
 })

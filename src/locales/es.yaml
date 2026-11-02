@@ -20,9 +20,13 @@ general:
 
 index:
   migration:
+    dismiss: "Cerrar"
     title: "Tu cuenta ha sido actualizada al nuevo sistema de identidad."
     body: "Tus clases están listas para usar. Las listas de profesores han sido restablecidas — por favor, vuelve a añadir a tus profesores."
   classroom:
+    title: "Tus aulas"
+    saved: "Guardadas en este navegador: {n}"
+    noDescription: "Sin descripción"
     create: "Crear una clase"
     startTeaching: "Empieza a enseñar ahora"
     newClass: "Mi Nueva Clase"
@@ -54,6 +58,7 @@ index:
       teacher: "Eres profesor aquí"
       student: "Eres estudiante aquí"
     actions:
+      cancel: "Cancelar"
       delete: "Eliminar"
       deleteConfirm: "¿Estás seguro?"
       deleteForever: "Sí, eliminar para siempre"

@@ -20,9 +20,13 @@ general:
 
 index:
   migration:
+    dismiss: "Dismiss"
     title: "Your account has been upgraded to the new identity system."
     body: "Your classrooms are ready to use. Teacher lists have been reset — please re-add your teachers."
   classroom:
+    title: "Your classrooms"
+    saved: "{n} saved in this browser"
+    noDescription: "No description"
     create: "Create a class"
     startTeaching: "Start teaching now"
     newClass: "My New Class"
@@ -54,6 +58,7 @@ index:
       teacher: "You're a teacher here"
       student: "You're a student here"
     actions:
+      cancel: "Cancel"
       delete: "Delete"
       deleteConfirm: "Are you sure?"
       deleteForever: "Yes, delete forever"
