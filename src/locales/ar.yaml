@@ -242,8 +242,10 @@ chat:
 checks:
   webRTCSupport: "دعم WebRTC"
   configLoaded: "تم تحميل التكوين"
-  usingWebsocket: "استخدام اتصال WebSocket"
   connecting: "جارٍ الاتصال…"
+  note:
+    webrtc: "اتصال مباشر بين الأقران عبر WebRTC. يعيش فصلك في هذا المتصفح؛ لا يُخزَّن شيء على أي خادم."
+    websocket: "تمر الرسائل عبر خادم WebSocket. يعيش فصلك في هذا المتصفح."
   status:
     ok: "تم"
     failed: "فشل"

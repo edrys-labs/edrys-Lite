@@ -689,7 +689,7 @@ export default {
 </script>
 
 <template>
-  <Checks :states="states" />
+  <Checks :states="states" :className="configuration?.data?.name" />
 
   <v-app>
     <v-layout>

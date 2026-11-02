@@ -103,62 +103,118 @@ export default {
       </div>
     </v-app-bar>
 
-    <v-main class="d-flex">
-      <v-container fluid class="align-start">
-        <div v-for="(message, index) in state" :key="index">
-          {{ message }}
-        </div>
-      </v-container>
+    <v-main>
+      <ul class="deploy-log" aria-live="polite">
+        <li v-for="(message, index) in state" :key="index">{{ message }}</li>
+      </ul>
     </v-main>
 
     <Footer></Footer>
 
-    <v-overlay v-model="ready" style="width: 100%">
-      <v-card
-        tile
-        width="70%"
-        style="
-          top: 50%;
-          left: 50%;
-          right: 50%;
-          transform: translate(-50%, 50%);
-          max-width: 800px;
-          direction: inherit;
-        "
-      >
-        <v-card-text class="white--text">
-          {{ t('deploy.overlay.isReady') }}
-        </v-card-text>
+    <v-overlay v-model="ready" class="align-center justify-center" scrim="rgb(20, 25, 35)">
+      <v-card class="ready" role="dialog" aria-labelledby="ready-title">
+        <div class="ready-head">
+          <div class="ok-badge">
+            <v-icon icon="mdi-check" size="20"></v-icon>
+          </div>
+          <h2 id="ready-title">{{ t('deploy.overlay.isReady') }}</h2>
+        </div>
 
-        <v-divider></v-divider>
+        <p>{{ t('deploy.overlay.redirect') }}</p>
+        <a :href="classroom" class="classroom-link">{{ classroom }}</a>
+        <p class="info">{{ t('deploy.overlay.info') }}</p>
 
-        <v-card-text>
-          {{ t('deploy.overlay.redirect') }}
-          <br />
-          <br />
-
-          <a :href="classroom">{{ classroom }}</a>
-
-          <br />
-          <br />
-
-          {{ t('deploy.overlay.info') }}
-        </v-card-text>
-        <v-divider></v-divider>
-
-        <v-checkbox
-          v-model="checkboxValue"
-          :label="t('deploy.overlay.checkbox')"
-        ></v-checkbox>
-        <v-divider></v-divider>
-        <v-card-text>
-          <v-btn :href="classroom">
-            <v-icon left>mdi-export-variant</v-icon>
-
+        <div class="ready-foot">
+          <v-checkbox
+            v-model="checkboxValue"
+            :label="t('deploy.overlay.checkbox')"
+            hide-details
+            density="compact"
+          ></v-checkbox>
+          <v-btn :href="classroom" color="primary" variant="flat" append-icon="mdi-arrow-right">
             {{ t('deploy.overlay.goto') }}
           </v-btn>
-        </v-card-text>
+        </div>
       </v-card>
     </v-overlay>
   </v-app>
 </template>
+
+<style scoped>
+.deploy-log {
+  list-style: none;
+  margin: 0;
+  padding: 24px 28px;
+  font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.8;
+  color: rgb(var(--v-theme-muted));
+  overflow-wrap: anywhere;
+}
+
+.ready {
+  width: 560px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+}
+
+.ready-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ready h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ok-badge {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgb(var(--v-theme-success-tint));
+  color: rgb(var(--v-theme-success));
+}
+
+.ready p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgb(var(--v-theme-text-2));
+}
+
+.ready .info {
+  font-size: 13px;
+  color: rgb(var(--v-theme-muted));
+}
+
+.classroom-link {
+  font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-link));
+  overflow-wrap: anywhere;
+}
+
+.ready-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.ready-foot .v-checkbox {
+  flex: 1;
+  min-width: 200px;
+}
+</style>

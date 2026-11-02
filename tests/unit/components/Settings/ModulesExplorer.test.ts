@@ -175,7 +175,7 @@ describe('ModulesExplorer Component', () => {
     wrapper = createWrapper();
     
     // Click the close button
-    await wrapper.find('.v-toolbar .v-btn').trigger('click');
+    await wrapper.find('button[aria-label="Close"]').trigger('click');
     
     // Should emit close event
     expect(wrapper.emitted('close')).toBeTruthy();
@@ -191,8 +191,7 @@ describe('ModulesExplorer Component', () => {
     await flushPromises();
     
     // Find all buttons and click the first add button (first module, first button)
-    const buttons = wrapper.findAll('.v-btn');
-    await buttons[1].trigger('click');
+    await wrapper.findAll('button[aria-label="Add Module"]')[0].trigger('click');
     
     // Should emit add-module event with correct URL
     expect(wrapper.emitted('add-module')).toBeTruthy();
@@ -210,8 +209,7 @@ describe('ModulesExplorer Component', () => {
     await flushPromises();
     
     // Find all buttons and click the second button (info) of the first module
-    const buttons = wrapper.findAll('.v-btn');
-    await buttons[2].trigger('click');
+    await wrapper.findAll('button[aria-label="Learn more"]')[0].trigger('click');
     
     // Should open module URL in new tab
     expect(window.open).toHaveBeenCalledWith(

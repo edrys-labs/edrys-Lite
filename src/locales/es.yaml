@@ -242,8 +242,10 @@ chat:
 checks:
   webRTCSupport: "Soporte WebRTC"
   configLoaded: "Configuración cargada"
-  usingWebsocket: "Usando conexión WebSocket"
   connecting: "Conectando…"
+  note:
+    webrtc: "De igual a igual mediante WebRTC. Tu aula vive en este navegador; no se guarda nada en ningún servidor."
+    websocket: "Los mensajes pasan por un servidor WebSocket. Tu aula vive en este navegador."
   status:
     ok: "Correcto"
     failed: "Error"

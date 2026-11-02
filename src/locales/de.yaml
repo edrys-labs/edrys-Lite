@@ -242,8 +242,10 @@ chat:
 checks:
   webRTCSupport: "WebRTC-Unterstützung"
   configLoaded: "Konfiguration geladen"
-  usingWebsocket: "Verwende WebSocket-Verbindung"
   connecting: "Verbindung wird hergestellt…"
+  note:
+    webrtc: "Peer-to-Peer über WebRTC. Ihr Klassenzimmer lebt in diesem Browser; auf keinem Server wird etwas gespeichert."
+    websocket: "Nachrichten laufen über einen WebSocket-Server. Ihr Klassenzimmer lebt in diesem Browser."
   status:
     ok: "OK"
     failed: "Fehlgeschlagen"

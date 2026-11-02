@@ -117,9 +117,8 @@ describe('Checks Component', () => {
       expect(wrapper.vm.communicationMethod).toBe('Websocket');
       expect(wrapper.vm.showWebRTCCheck).toBe(false);
       
-      const chip = wrapper.find('.v-chip');
-      expect(chip.exists()).toBe(true);
-      expect(chip.text()).toContain('Using WebSocket Connection');
+      expect(wrapper.text()).not.toContain('WebRTC-support');
+      expect(wrapper.text()).toContain('Messages go through a WebSocket server');
     });
 
     test('updates method when parent configuration changes', async () => {
@@ -363,8 +362,37 @@ describe('Checks Component', () => {
 
     await nextTick();
 
-    expect(wrapper.findAll('i[color="success"]').length).toBeGreaterThan(0);
-    expect(wrapper.findAll('i[color="error"]')).toHaveLength(0);
-    expect(wrapper.findAll('.d-sr-only').map(s => s.text())).not.toContain('checks.status.pending');
+    expect(wrapper.findAll('.state--ok')).toHaveLength(3);
+    expect(wrapper.findAll('.status').map(s => s.text())).toEqual(['OK', 'OK', 'OK']);
+  });
+
+  test('shows each check as done, failed or still running', async () => {
+    wrapper = createWrapper(
+      {
+        webRTCSupport: true,
+        receivedConfiguration: false,
+        connectedToNetwork: undefined
+      },
+      'WebRTC'
+    );
+
+    await nextTick();
+
+    expect(wrapper.findAll('.state').map(s => s.classes())).toEqual([
+      ['state', 'state--ok'],
+      ['state', 'state--failed'],
+      ['state', 'state--pending'],
+    ]);
+    expect(wrapper.findAll('.status').map(s => s.text())).toEqual(['OK', 'Failed', 'In progress']);
+  });
+
+  test('names the class it connects to', () => {
+    wrapper = createWrapper();
+    wrapper.unmount();
+    wrapper = mount(Checks, {
+      props: { states: {}, className: 'Komplexaufgabe 3' },
+      global: { stubs: { 'v-overlay': { template: '<div><slot /></div>' }, 'v-card': { template: '<div><slot /></div>' } } },
+    });
+    expect(wrapper.find('.class-name').text()).toBe('Komplexaufgabe 3');
   });
 });

@@ -242,8 +242,10 @@ chat:
 checks:
   webRTCSupport: "WebRTC-support"
   configLoaded: "Configuration loaded"
-  usingWebsocket: "Using WebSocket Connection"
   connecting: "Connecting…"
+  note:
+    webrtc: "Peer-to-peer over WebRTC. Your classroom lives in this browser; nothing is stored on a server."
+    websocket: "Messages go through a WebSocket server. Your classroom lives in this browser."
   status:
     ok: "OK"
     failed: "Failed"

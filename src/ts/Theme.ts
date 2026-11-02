@@ -63,6 +63,9 @@ const light: ThemeDefinition = {
     faint: '#a0a6ae', // drag handles
     'danger-tint': '#ffe7e4', // error pill
     'danger-line': '#f3bfba', // outline of a delete button
+    subtle: '#f7f7f7', // a check row while connecting
+    track: '#dedede', // behind a spinner's arc
+    spinner: '#3664be',
   },
   variables: {
     'border-color': '#1b2029',
@@ -125,6 +128,9 @@ const dark: ThemeDefinition = {
     faint: '#6b7480',
     'danger-tint': '#512320',
     'danger-line': '#843c38',
+    subtle: '#262c35',
+    track: '#39414c',
+    spinner: '#77a4f6',
   },
   variables: {
     'border-color': '#eef0f3',
