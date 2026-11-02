@@ -42,9 +42,10 @@ describe('UserMenu Component', () => {
           },
           'v-btn': {
             template: `
-              <button 
-                class="v-btn" 
+              <button
+                class="v-btn"
                 :data-icon="$attrs.icon"
+                :data-value="$attrs.value"
                 @click="$emit('click', $event)"
               >
                 <i v-if="$attrs.icon" :class="$attrs.icon"></i>
@@ -57,6 +58,16 @@ describe('UserMenu Component', () => {
           },
           'v-divider': {
             template: '<hr class="v-divider" />'
+          },
+          // Like Vuetify's: a click on one of its buttons selects that button's value
+          'v-btn-toggle': {
+            emits: ['update:model-value'],
+            template: `
+              <div
+                class="v-btn-toggle"
+                @click="$event.target.closest('[data-value]') && $emit('update:model-value', $event.target.closest('[data-value]').dataset.value)"
+              ><slot /></div>
+            `
           },
           'v-select': {
             template: `
@@ -107,6 +118,14 @@ describe('UserMenu Component', () => {
     await select.setValue('de');
     expect(wrapper.vm.locale).toBe('de');
     expect(localStorage.getItem('locale')).toBe('de');
+  });
+
+  test('switches and saves the theme', async () => {
+    const wrapper = createWrapper();
+
+    await wrapper.find('.v-btn-toggle button[data-value="dark"]').trigger('click');
+    expect(wrapper.vm.themePreference).toBe('dark');
+    expect(localStorage.getItem('theme')).toBe('dark');
   });
 
   test('offers every supported language', () => {

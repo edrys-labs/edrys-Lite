@@ -35,6 +35,8 @@
   "devDependencies": {
     "@edryslabs/genericprovider": "^2.0.3",
     "@edryslabs/websocket-server": "1.1.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/noto-sans": "^5.3.0",
     "@parcel/reporter-bundle-analyzer": "^2.15.2",
     "@parcel/transformer-sass": "^2.15.2",
     "@parcel/transformer-vue": "^2.15.2",

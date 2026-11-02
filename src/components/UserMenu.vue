@@ -41,6 +41,23 @@
           @click.stop
         ></v-select>
       </v-list-item>
+      <v-list-item>
+        <v-list-item-title class="mb-1" id="theme-label">{{ t('general.theme.title') }}:</v-list-item-title>
+        <v-btn-toggle
+          :model-value="themePreference"
+          @update:model-value="setThemePreference"
+          mandatory
+          divided
+          density="compact"
+          variant="outlined"
+          role="radiogroup"
+          aria-labelledby="theme-label"
+        >
+          <v-btn value="light" prepend-icon="mdi-white-balance-sunny" role="radio" :aria-checked="themePreference === 'light'">{{ t('general.theme.light') }}</v-btn>
+          <v-btn value="dark" prepend-icon="mdi-weather-night" role="radio" :aria-checked="themePreference === 'dark'">{{ t('general.theme.dark') }}</v-btn>
+          <v-btn value="system" prepend-icon="mdi-monitor" role="radio" :aria-checked="themePreference === 'system'">{{ t('general.theme.system') }}</v-btn>
+        </v-btn-toggle>
+      </v-list-item>
     </v-list>
   </v-menu>
 </template>
@@ -49,12 +66,13 @@
 import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { copyToClipboard, getDisplayPeerID, getPeerID } from '../ts/Utils';
+import { themePreference, setThemePreference } from '../ts/Theme';
 
 export default defineComponent({
   name: 'UserMenu',
   setup() {
     const { t, locale } = useI18n();
-    return { t, locale };
+    return { t, locale, themePreference, setThemePreference };
   },
   data() {
     return {

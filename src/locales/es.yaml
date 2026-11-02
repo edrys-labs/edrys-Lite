@@ -4,6 +4,11 @@ general:
   copied: "¡Copiado!"
   userRole: "Rol de Usuario"
   language: "Idioma"
+  theme:
+    title: "Tema"
+    light: "Claro"
+    dark: "Oscuro"
+    system: "Sistema"
   menu: "Menú de usuario"
   copyLink: "Copiar enlace"
   you: "tú"

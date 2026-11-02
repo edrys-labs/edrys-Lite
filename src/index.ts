@@ -5,6 +5,7 @@ import Deploy from './views/Deploy.vue'
 import { initCryptoIdentity, runMigrationIfNeeded } from './ts/Utils'
 import { installWorkerTimers } from './ts/WorkerTimers'
 import { isDevEntry, openDevLab } from './ts/DevBridge'
+import { themes, themePreference, resolveTheme, followThemePreference } from './ts/Theme'
 
 // Keep presence and heartbeats on time while the tab is in the background.
 // Runs after all imports have loaded: fine as long as none starts a timer at
@@ -22,6 +23,7 @@ import {
   VAlert,
   VBadge,
   VBtn,
+  VBtnToggle,
   VCard,
   VCardActions,
   VCardSubtitle,
@@ -157,6 +159,7 @@ const vuetify = createVuetify({
     VAlert,
     VBadge,
     VBtn,
+    VBtnToggle,
     VCard,
     VCardActions,
     VCardSubtitle,
@@ -220,7 +223,13 @@ const vuetify = createVuetify({
   locale: {
     adapter: createVueI18nAdapter({ i18n, useI18n }),
   },
+  theme: {
+    defaultTheme: resolveTheme(themePreference.value),
+    themes,
+  },
 })
+
+followThemePreference(vuetify.theme.global.name)
 
 const pathToRegex = (path) =>
   new RegExp('^' + path.replace(/\//g, '\\/').replace(/:\w+/g, '(.+)') + '$')

@@ -1,12 +1,18 @@
 @import './materialdesignicons.min.css';
 
-@font-face {
-    font-family: MainFont;
-    src: url('../fonts/IBMPlexSans-Medium.ttf');
+// Noto Sans and JetBrains Mono come from the @fontsource-variable packages,
+// linked in index.html; the browser loads only the scripts a page uses.
+html, body {
+    font-family: 'Noto Sans Variable', 'Noto Sans', system-ui, sans-serif !important;
 }
 
-html, body {
-    font-family: MainFont !important;
+// Vuetify's typography classes (text-h6, text-caption, …) name Roboto
+.v-application [class*='text-'] {
+    font-family: inherit !important;
+}
+
+code, kbd, pre, samp {
+    font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
 }
 
 

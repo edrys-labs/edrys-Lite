@@ -4,6 +4,11 @@ general:
   copied: "Скопійовано!"
   userRole: "Роль користувача"
   language: "Мова"
+  theme:
+    title: "Тема"
+    light: "Світла"
+    dark: "Темна"
+    system: "Системна"
   menu: "Меню користувача"
   copyLink: "Копіювати посилання"
   you: "ви"

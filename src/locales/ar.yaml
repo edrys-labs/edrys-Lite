@@ -4,6 +4,11 @@ general:
   copied: "تم النسخ!"
   userRole: "دور المستخدم"
   language: "لغة"
+  theme:
+    title: "المظهر"
+    light: "فاتح"
+    dark: "داكن"
+    system: "النظام"
   menu: "قائمة المستخدم"
   copyLink: "نسخ الرابط"
   you: "أنت"

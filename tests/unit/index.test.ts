@@ -31,7 +31,8 @@ vi.mock("vue", async (importOriginal) => {
 });
 
 vi.mock("vuetify", () => ({
-  createVuetify: vi.fn()
+  // index.ts keeps the theme name in step with the user's theme choice
+  createVuetify: vi.fn(() => ({ theme: { global: { name: { value: "light" } } } }))
 }));
 
 describe("Router", () => {

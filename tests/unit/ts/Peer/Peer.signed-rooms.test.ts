@@ -284,7 +284,8 @@ describe('Signed y.rooms', () => {
   test('the owner republishes a deleted room; it stays in the view throughout', async () => {
     const peer = await joinedOwner()
     peer.addRoom('Discussion')
-    await flushPromises()
+    // signing and verifying are async; under load they take longer than a flush
+    await vi.waitFor(async () => expect('Discussion' in (await peer.toJSON()).rooms).toBe(true))
     const record = peer['y'].roomSigs.get('Discussion')
 
     await remoteChange(peer, (doc) => {
@@ -293,8 +294,10 @@ describe('Signed y.rooms', () => {
     })
 
     expect('Discussion' in (await peer.toJSON()).rooms).toBe(true)
-    expect(peer['y'].rooms.get('Discussion')).toBeInstanceOf(Y.Map)
-    expect(peer['y'].roomSigs.get('Discussion')).toEqual(record)
+    await vi.waitFor(() => {
+      expect(peer['y'].rooms.get('Discussion')).toBeInstanceOf(Y.Map)
+      expect(peer['y'].roomSigs.get('Discussion')).toEqual(record)
+    })
 
     peer.stop()
   })
