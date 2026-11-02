@@ -94,12 +94,13 @@
     </draggable>
 
     <div class="add-row">
-      <v-text-field
-        v-model="moduleImportUrl"
-        :label="t('settings.modules.url')"
-        placeholder="https://edrys-labs.github.io/module-…"
-        hide-details
-      ></v-text-field>
+      <FieldLabel :label="t('settings.modules.url')" class="add-url">
+        <v-text-field
+          v-model="moduleImportUrl"
+          placeholder="https://edrys-labs.github.io/module-…"
+          hide-details
+        ></v-text-field>
+      </FieldLabel>
       <v-btn variant="outlined" height="40" :disabled="!validate_url(moduleImportUrl)" @click="loadURL">
         {{ t('settings.modules.add') }}
       </v-btn>
@@ -208,6 +209,7 @@ import { useI18n } from 'vue-i18n';
 import ModulesExplorer from "./ModulesExplorer.vue";
 import ModuleConfigForm from "./ModuleConfigForm.vue";
 import LinkedText from "../LinkedText.vue";
+import FieldLabel from "../FieldLabel.vue";
 
 // A module's room key. Missing modules (list edges) get a unique sentinel so
 // group-boundary checks treat them as "no neighbour".
@@ -509,7 +511,8 @@ export default {
     draggable,
     ModulesExplorer,
     ModuleConfigForm,
-    LinkedText
+    LinkedText,
+    FieldLabel
   },
 };
 </script>
@@ -639,12 +642,12 @@ export default {
 
 .add-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 10px;
   padding-top: 12px;
 }
 
-.add-row .v-text-field {
+.add-url {
   flex: 1;
 }
 

@@ -9,11 +9,9 @@
         </template>
       </v-expansion-panel-title>
       <v-expansion-panel-text>
-        <v-text-field
-          variant="underlined"
-          :label="t('settings.modules.module.url.urlLabel')"
-          v-model="module.url"
-        ></v-text-field>
+        <FieldLabel :label="t('settings.modules.module.url.urlLabel')">
+          <v-text-field v-model="module.url"></v-text-field>
+        </FieldLabel>
       </v-expansion-panel-text>
     </v-expansion-panel>
 
@@ -30,7 +28,7 @@
           <!-- Width Configuration -->
           <v-col cols="6">
             <v-container fluid>
-              <p>{{ t('settings.modules.module.design.width.title') }}</p>
+              <p class="field-label">{{ t('settings.modules.module.design.width.title') }}</p>
               <v-radio-group v-model="widthSelection">
                 <v-radio :label="t('settings.modules.module.design.width.full')" value="full"></v-radio>
                 <v-radio :label="t('settings.modules.module.design.width.half')" value="half"></v-radio>
@@ -38,23 +36,26 @@
                 <v-radio :label="t('settings.modules.module.design.width.custom.title')" value="custom"></v-radio>
               </v-radio-group>
               <!-- Conditional Input for Custom Width -->
-              <v-text-field
+              <FieldLabel
                 v-if="widthSelection === 'custom'"
-                variant="underlined"
                 :label="t('settings.modules.module.design.width.custom.label')"
-                v-model.number="customWidth"
-                type="number"
-                min="1"
-                :hint="t('settings.modules.module.design.width.custom.hint')"
-                persistent-hint
-              ></v-text-field>
+               
+              >
+                <v-text-field
+                  v-model.number="customWidth"
+                  type="number"
+                  min="1"
+                  :hint="t('settings.modules.module.design.width.custom.hint')"
+                  persistent-hint
+                ></v-text-field>
+              </FieldLabel>
             </v-container>
           </v-col>
 
           <!-- Height Configuration -->
           <v-col cols="6">
             <v-container fluid>
-              <p>{{ t('settings.modules.module.design.height.title') }}</p>
+              <p class="field-label">{{ t('settings.modules.module.design.height.title') }}</p>
               <v-radio-group v-model="heightSelection">
                 <v-radio :label="t('settings.modules.module.design.height.huge')" value="huge"></v-radio>
                 <v-radio :label="t('settings.modules.module.design.height.tall')"  value="tall"></v-radio>
@@ -63,16 +64,19 @@
                 <v-radio :label="t('settings.modules.module.design.height.custom.title')"  value="custom"></v-radio>
               </v-radio-group>
               <!-- Conditional Input for Custom Height -->
-              <v-text-field
+              <FieldLabel
                 v-if="heightSelection === 'custom'"
-                variant="underlined"
                 :label="t('settings.modules.module.design.height.custom.label')"
-                v-model.number="customHeight"
-                type="number"
-                min="1"
-                :hint="t('settings.modules.module.design.height.custom.hint')"
-                persistent-hint
-              ></v-text-field>
+               
+              >
+                <v-text-field
+                  v-model.number="customHeight"
+                  type="number"
+                  min="1"
+                  :hint="t('settings.modules.module.design.height.custom.hint')"
+                  persistent-hint
+                ></v-text-field>
+              </FieldLabel>
             </v-container>
           </v-col>
         </v-row>
@@ -117,11 +121,9 @@
         </template>
       </v-expansion-panel-title>
       <v-expansion-panel-text>
-        <v-text-field
-          variant="underlined"
-          :label="t('settings.modules.module.showIn.label')"
-          v-model="module.showInCustom"
-        ></v-text-field>
+        <FieldLabel :label="t('settings.modules.module.showIn.label')">
+          <v-text-field v-model="module.showInCustom"></v-text-field>
+        </FieldLabel>
       </v-expansion-panel-text>
     </v-expansion-panel>
   </v-expansion-panels>
@@ -129,6 +131,7 @@
 
 <script lang="ts">
 import Editor from "./Editor.vue";
+import FieldLabel from "../FieldLabel.vue";
 import { useI18n } from 'vue-i18n';
 
 export default {
@@ -279,6 +282,6 @@ export default {
     }
   },
 
-  components: { Editor },
+  components: { Editor, FieldLabel },
 };
 </script>

@@ -1,50 +1,59 @@
 <template>
-  <v-container>
-    <v-select
-      v-model="communicationMethod"
-      :items="['WebRTC', 'Websocket']"
-      :label="$t('settings.communication.labels.method')"
-      @change="updateConfig"
-    ></v-select>
+  <div>
+    <FieldLabel :label="$t('settings.communication.labels.method')">
+      <v-select
+        v-model="communicationMethod"
+        :items="['WebRTC', 'Websocket']"
+        @change="updateConfig"
+      ></v-select>
+    </FieldLabel>
 
-    <v-text-field
+    <FieldLabel
       v-if="communicationMethod === 'Websocket'"
-      v-model="websocketUrl"
       :label="$t('settings.communication.labels.websocketServer')"
-      placeholder="wss://demos.yjs.dev"
-      @change="updateConfig"
-    ></v-text-field>
+     
+    >
+      <v-text-field
+        v-model="websocketUrl"
+        placeholder="wss://demos.yjs.dev"
+        @change="updateConfig"
+      ></v-text-field>
+    </FieldLabel>
 
     <template v-if="communicationMethod === 'WebRTC'">
-      <v-text-field
-        v-model="signalingServer"
-        :label="$t('settings.communication.labels.webrtcSignaling')"
-        placeholder="wss://rooms.deno.dev"
-        @change="updateConfig"
-      ></v-text-field>
+      <FieldLabel :label="$t('settings.communication.labels.webrtcSignaling')">
+        <v-text-field
+          v-model="signalingServer"
+          placeholder="wss://rooms.deno.dev"
+          @change="updateConfig"
+        ></v-text-field>
+      </FieldLabel>
 
-      <v-textarea
-        v-model="webrtcConfig"
-        :label="$t('settings.communication.labels.webrtcConfig')"
-        placeholder='{"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}'
-        rows="5"
-        @change="updateConfig"
-      ></v-textarea>
+      <FieldLabel :label="$t('settings.communication.labels.webrtcConfig')">
+        <v-textarea
+          v-model="webrtcConfig"
+          placeholder='{"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}'
+          rows="5"
+          @change="updateConfig"
+        ></v-textarea>
+      </FieldLabel>
     </template>
     
-    <v-divider class="my-4 border-opacity-50" color="primary"></v-divider>
-    
+
+    <v-divider class="my-5"></v-divider>
+
     <div>
-      <h3 class="text-h6 mb-2 font-weight-bold">{{ $t('settings.communication.shareLink.title') }}</h3>
-      <p class="text-body-2 mb-3">{{ $t('settings.communication.shareLink.description') }}</p>
-      
-      <v-text-field
-        v-model="shareableLink"
-        :label="$t('settings.communication.shareLink.linkLabel')"
-        readonly
-        :append-icon="copied ? 'mdi-check' : 'mdi-content-copy'"
-        @click:append="copyShareableLink"
-      ></v-text-field>
+      <h3 class="section-title">{{ $t('settings.communication.shareLink.title') }}</h3>
+      <p class="section-text">{{ $t('settings.communication.shareLink.description') }}</p>
+
+      <FieldLabel :label="$t('settings.communication.shareLink.linkLabel')">
+        <v-text-field
+          v-model="shareableLink"
+          readonly
+          :append-inner-icon="copied ? 'mdi-check' : 'mdi-content-copy'"
+          @click:append-inner="copyShareableLink"
+        ></v-text-field>
+      </FieldLabel>
 
       <v-checkbox
         v-model="keepConfigInUrl"
@@ -61,7 +70,7 @@
       <br />
       {{ $t("settings.communication.alert.second") }}
     </v-alert>
-  </v-container>
+  </div>
 </template>
 
 <script lang="ts">
@@ -71,9 +80,11 @@ import { encodeCommConfig,
   cleanUrlAfterCommConfigExtraction
 } from "../../ts/Utils";
 import { studentLink } from "../../ts/DevBridge";
+import FieldLabel from "../FieldLabel.vue";
 
 export default {
   name: "Settings-Communication",
+  components: { FieldLabel },
 
   props: {
     config: {
@@ -257,3 +268,18 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.section-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.section-text {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgb(var(--v-theme-text-2));
+}
+</style>

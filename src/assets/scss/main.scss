@@ -27,6 +27,13 @@ code, kbd, pre, samp {
     font-weight: 600;
 }
 
+// Neutral outlined buttons (Add, Cancel, Download) sit on the field color with
+// the field outline; colored ones (Delete Class: color="error") keep theirs
+.v-btn.v-btn--variant-outlined:not([class*='text-']) {
+    border-color: rgb(var(--v-theme-field-line));
+    background: rgb(var(--v-theme-field));
+}
+
 // Cards 12px, dialogs 16px, unless a component asks for other corners
 .v-card:not([class*='rounded']) {
     border-radius: 12px;
@@ -201,4 +208,36 @@ code, kbd, pre, samp {
 .toast-action.v-btn {
     border-radius: 7px;
     color: rgb(var(--v-theme-toast-action));
+}
+
+// Form fields: the label above (components/FieldLabel.vue, or .field-label on
+// a group), the outline in field-line and in the focus color while focused
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgb(var(--v-theme-muted));
+}
+
+.v-field--variant-outlined {
+    background: rgb(var(--v-theme-field));
+}
+
+.v-field--variant-outlined:not(.v-field--error) .v-field__outline {
+    --v-field-border-opacity: 1;
+    color: rgb(var(--v-theme-field-line));
+}
+
+.v-field--variant-outlined.v-field--focused:not(.v-field--error) .v-field__outline {
+    color: rgb(var(--v-theme-focus));
+}
+
+// hints and counters line up with the label
+.field .v-input__details {
+    padding-inline: 0;
 }

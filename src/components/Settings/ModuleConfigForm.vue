@@ -59,7 +59,7 @@
 
                 <!-- Checkbox group fields -->
                 <div v-else-if="fieldConfig.type === 'checkboxes'" class="mt-3">
-                  <div class="mb-1 custom-label">{{ field }}</div>
+                  <div class="mb-1 field-label">{{ field }}</div>
                   <div>
                     <v-checkbox
                       v-for="option in fieldConfig.options"
@@ -76,7 +76,7 @@
 
                 <!-- Radio Button fields -->
                 <div v-else-if="fieldConfig.type === 'radio-button'" class="mt-3">
-                  <div class="mb-1 custom-label">{{ field }}</div>
+                  <div class="mb-1 field-label">{{ field }}</div>
                   <v-radio-group
                     v-model="formValues[configType][field]"
                     :hint="fieldConfig.hint"
@@ -96,12 +96,15 @@
                 </div>
 
                 <!-- Select fields (fixed list of options) -->
-                <div v-else-if="fieldConfig.type === 'select'" class="mt-3">
+                <FieldLabel
+                  v-else-if="fieldConfig.type === 'select'"
+                  :label="String(field)"
+                 
+                  class="mt-3"
+                >
                   <v-select
                     v-model="formValues[configType][field]"
                     :items="fieldConfig.options || []"
-                    :label="String(field)"
-                    variant="outlined"
                     :hint="fieldConfig.hint"
                     persistent-hint
                     clearable
@@ -116,62 +119,71 @@
                   >
                     {{ t("settings.modules.moduleConfig.presetHint") }}
                   </div>
-                </div>
+                </FieldLabel>
 
                 <!-- Combobox fields (suggestions, but free text is allowed) -->
-                <v-combobox
+                <FieldLabel
                   v-else-if="fieldConfig.type === 'combobox'"
-                  v-model="formValues[configType][field]"
-                  :items="fieldOptions(configType, field, fieldConfig)"
                   :label="String(field)"
-                  variant="outlined"
-                  :hint="fieldConfig.hint"
-                  persistent-hint
-                  clearable
-                  density="compact"
+                 
                   class="mt-3"
-                ></v-combobox>
+                >
+                  <v-combobox
+                    v-model="formValues[configType][field]"
+                    :items="fieldOptions(configType, field, fieldConfig)"
+                    :hint="fieldConfig.hint"
+                    persistent-hint
+                    clearable
+                  ></v-combobox>
+                </FieldLabel>
 
                 <!-- Number fields -->
-                <v-text-field
+                <FieldLabel
                   v-else-if="fieldConfig.type === 'number'"
-                  v-model.number="formValues[configType][field]"
                   :label="String(field)"
-                  type="number"
-                  variant="outlined"
-                  :hint="fieldConfig.hint"
-                  density="compact"
+                 
                   class="mt-3"
-                  max-width="200px"
-                ></v-text-field>
+                >
+                  <v-text-field
+                    v-model.number="formValues[configType][field]"
+                    type="number"
+                    :hint="fieldConfig.hint"
+                    max-width="200px"
+                  ></v-text-field>
+                </FieldLabel>
 
                 <!-- Text area fields -->
-                <v-textarea
+                <FieldLabel
                   v-else-if="fieldConfig.type === 'text-area'"
-                  v-model="formValues[configType][field]"
                   :label="String(field)"
-                  variant="outlined"
-                  :hint="fieldConfig.hint"
-                  rows="5"
+                 
                   class="mt-3"
-                ></v-textarea>
+                >
+                  <v-textarea
+                    v-model="formValues[configType][field]"
+                    :hint="fieldConfig.hint"
+                    rows="5"
+                  ></v-textarea>
+                </FieldLabel>
 
                 <!-- Date fields -->
-                <v-text-field
+                <FieldLabel
                   v-else-if="fieldConfig.type === 'date'"
-                  v-model="formValues[configType][field]"
                   :label="String(field)"
-                  type="date"
-                  variant="outlined"
-                  :hint="fieldConfig.hint"
-                  density="compact"
+                 
                   class="mt-3"
-                  max-width="200px"
-                ></v-text-field>
+                >
+                  <v-text-field
+                    v-model="formValues[configType][field]"
+                    type="date"
+                    :hint="fieldConfig.hint"
+                    max-width="200px"
+                  ></v-text-field>
+                </FieldLabel>
 
                 <!-- Color picker fields -->
                 <div v-else-if="fieldConfig.type === 'color'" class="pl-1">
-                  <div class="mb-2 custom-label">{{ field }}</div>
+                  <div class="mb-2 field-label">{{ field }}</div>
                   <div class="d-flex align-center">
                     <v-color-picker
                       v-model="formValues[configType][field]"
@@ -196,7 +208,7 @@
 
                 <!-- Code editor fields -->
                 <div v-else-if="fieldConfig.type === 'code-area'" class="mt-3">
-                  <div class="mb-2 custom-label">{{ field }}</div>
+                  <div class="mb-2 field-label">{{ field }}</div>
                   <div class="code-editor-container">
                     <prism-editor
                       v-model="formValues[configType][field]"
@@ -213,15 +225,12 @@
                 </div>
 
                 <!-- String fields -->
-                <v-text-field
-                  v-else
-                  v-model="formValues[configType][field]"
-                  :label="String(field)"
-                  variant="outlined"
-                  :hint="fieldConfig.hint"
-                  density="compact"
-                  class="mt-3"
-                ></v-text-field>
+                <FieldLabel v-else :label="String(field)" class="mt-3">
+                  <v-text-field
+                    v-model="formValues[configType][field]"
+                    :hint="fieldConfig.hint"
+                  ></v-text-field>
+                </FieldLabel>
               </div>
             </v-form>
           </v-window-item>
@@ -257,9 +266,11 @@
 import { useI18n } from "vue-i18n";
 import { parse } from "../../ts/Utils";
 import { inject } from "vue";
+import FieldLabel from "../FieldLabel.vue";
 
 export default {
   name: "ModuleConfigForm",
+  components: { FieldLabel },
 
   props: {
     moduleName: {
@@ -634,33 +645,17 @@ export default {
   font-size: 14px;
 }
 
-.custom-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #37474f;
-}
-
-:deep(.v-field-label) {
-  color: #37474f;
-  font-weight: 600;
-  opacity: 1;
-}
-
-:deep(.v-field-label--floating) {
-  font-size: 0.78rem;
-}
-
 .code-editor-container {
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 4px;
+  border: 1px solid rgb(var(--v-theme-field-line));
+  border-radius: 8px;
+  background: rgb(var(--v-theme-field));
   max-height: 300px;
   overflow: auto;
-  transition: border-color 0.2s;
 }
 
 .code-editor-container:focus-within {
-  border-color: rgba(0, 0, 0, 0.87);
-  border-width: 2px;
+  outline: 1px solid rgb(var(--v-theme-focus));
+  border-color: rgb(var(--v-theme-focus));
 }
 
 .code-editor-container :deep(.prism-editor__container) {

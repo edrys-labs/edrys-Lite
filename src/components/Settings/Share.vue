@@ -1,57 +1,56 @@
 <template>
   <v-row>
     <v-col>
-      <v-btn depressed block @click="downloadClass('yaml')">
-        <v-icon left> mdi-download </v-icon>
+      <v-btn variant="outlined" height="40" block prepend-icon="mdi-download" @click="downloadClass('yaml')">
         {{ t('settings.share.downloadYml') }}
       </v-btn>
     </v-col>
     <v-col>
-      <v-btn depressed block @click="downloadClass('json')">
-        <v-icon left> mdi-download </v-icon>
+      <v-btn variant="outlined" height="40" block prepend-icon="mdi-download" @click="downloadClass('json')">
         {{ t('settings.share.downloadJson') }}
       </v-btn>
     </v-col>
   </v-row>
   <v-row>
     <v-col>
-      <v-file-input
-        dense
-        accept=".yml,.yaml,.json,application/yaml,application/json"
-        :label="t('settings.share.restoreFromFile')"
-        v-model="selectedFile"
-        :append-icon="selectedFileIcon"
-        @click:append.self="restoreFile"
-      ></v-file-input>
+      <FieldLabel :label="t('settings.share.restoreFromFile')">
+        <v-file-input
+          accept=".yml,.yaml,.json,application/yaml,application/json"
+          prepend-icon=""
+          prepend-inner-icon="mdi-paperclip"
+          v-model="selectedFile"
+          :append-icon="selectedFileIcon"
+          @click:append.self="restoreFile"
+        ></v-file-input>
+      </FieldLabel>
     </v-col>
 
     <v-col>
-      <v-text-field
-        dense
-        :label="t('settings.share.restoreFromUrl')"
-        v-model="selectedURL"
-        prepend-icon="mdi-link"
-        :append-icon="selectedURLIcon"
-        @click:append.self="restoreURL"
-        @mouseover="showTemplate = true"
-        @mouseleave="showTemplate = false"
-      >
-        <template v-slot:append-inner>
-          <v-icon
-            @mouseover="showTemplate = true"
-            @mouseleave="showTemplate = false"
-            v-if="selectedURL.length > 0 && showTemplate"
-            @click="selectedURL = ''"
-            >mdi-close-circle</v-icon
-          >
-        </template>
-      </v-text-field>
+      <FieldLabel :label="t('settings.share.restoreFromUrl')">
+        <v-text-field
+          v-model="selectedURL"
+          prepend-inner-icon="mdi-link"
+          :append-icon="selectedURLIcon"
+          @click:append.self="restoreURL"
+          @mouseover="showTemplate = true"
+          @mouseleave="showTemplate = false"
+        >
+          <template v-slot:append-inner>
+            <v-icon
+              @mouseover="showTemplate = true"
+              @mouseleave="showTemplate = false"
+              v-if="selectedURL.length > 0 && showTemplate"
+              @click="selectedURL = ''"
+              >mdi-close-circle</v-icon
+            >
+          </template>
+        </v-text-field>
+      </FieldLabel>
     </v-col>
   </v-row>
 
   <v-divider class="pb-2"></v-divider>
-  <v-btn variant="outlined" href="https://github.com/topics/edrys-lab" target="_blank">
-    <v-icon class="mr-2" left> mdi-github </v-icon>
+  <v-btn variant="outlined" height="40" prepend-icon="mdi-github" href="https://github.com/topics/edrys-lab" target="_blank">
     {{ t('settings.share.explore') }}
   </v-btn>
 </template>
@@ -61,9 +60,11 @@ import * as yaml from "js-yaml";
 import { useI18n } from 'vue-i18n';
 import { getPeerID, parseClassroom } from "../../ts/Utils";
 import { debug } from "../../api/debugHandler";
+import FieldLabel from "../FieldLabel.vue";
 
 export default {
   name: "Settings-Share",
+  components: { FieldLabel },
 
   props: {
     config: {

@@ -19,39 +19,38 @@
       ></v-btn>
     </template>
   </v-alert>
-  <v-divider></v-divider>
-  <v-textarea
-    :label="t('settings.members.teacherIds')"
-    :hint="t('settings.members.fullKeyHint')"
-    auto-grow
-    variant="outlined"
-    rows="3"
-    row-height="25"
-    shaped
-    style="margin-top: 2rem"
-    v-model="teacher"
-  ></v-textarea>
+  <FieldLabel :label="t('settings.members.teacherIds')" class="mt-6">
+    <v-textarea
+      :hint="t('settings.members.fullKeyHint')"
+      auto-grow
+      rows="3"
+      row-height="25"
+      class="ids"
+      v-model="teacher"
+    ></v-textarea>
+  </FieldLabel>
 
-  <v-textarea
-    :label="t('settings.members.studentIds')"
-    :hint="t('settings.members.fullKeyHint')"
-    auto-grow
-    variant="outlined"
-    rows="3"
-    row-height="25"
-    shaped
-    style="margin-top: 1rem"
-    v-model="student"
-  ></v-textarea>
+  <FieldLabel :label="t('settings.members.studentIds')" class="mt-2">
+    <v-textarea
+      :hint="t('settings.members.fullKeyHint')"
+      auto-grow
+      rows="3"
+      row-height="25"
+      class="ids"
+      v-model="student"
+    ></v-textarea>
+  </FieldLabel>
 </template>
 
 <script lang="ts">
 import { copyToClipboard } from "../../ts/Utils";
 import { studentLink } from "../../ts/DevBridge";
 import { useI18n } from 'vue-i18n';
+import FieldLabel from "../FieldLabel.vue";
 
 export default {
   name: "Settings-Members",
+  components: { FieldLabel },
 
   emits: ["updateMembers"],
 
