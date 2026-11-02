@@ -492,6 +492,54 @@ describe('Modules Component', () => {
       release();
       expect(wrapper.vm.isMoving).toBe(false);
     });
+
+    // The overlay shown while moving would take the mouseup and the click with it.
+    test('pressing the expand button neither moves nor resizes', () => {
+      wrapper = createWrapper({ scrapedModules_: everywhere, liveClassProxy: inRoom('Room 1') });
+      const button = wrapper.find('.item-expand').element as HTMLElement;
+
+      button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 245, clientY: 10 }));
+      expect(wrapper.vm.isMoving).toBe(false);
+      expect(wrapper.vm.isResizing).toBe(false);
+    });
+  });
+
+  describe('module header', () => {
+    const everywhere = [{ name: 'Code Editor', url: 'https://example.com/m', showInCustom: '*' }];
+
+    test('shows the module name and an expand button', () => {
+      wrapper = createWrapper({ scrapedModules_: everywhere });
+
+      expect(wrapper.find('.item-header .item-title').text()).toBe('Code Editor');
+      expect(wrapper.find('.item-expand').attributes('aria-label')).toBe('Expand module');
+    });
+
+    test('expand shows the whole item full screen, and leaves it again', async () => {
+      wrapper = createWrapper({ scrapedModules_: everywhere }, { attachTo: document.body });
+      const item = wrapper.find('.item').element as HTMLElement;
+      let fullscreen: Element | null = null;
+      Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => fullscreen });
+      item.requestFullscreen = vi.fn(async () => {
+        fullscreen = item;
+        document.dispatchEvent(new Event('fullscreenchange'));
+      });
+      document.exitFullscreen = vi.fn(async () => {
+        fullscreen = null;
+        document.dispatchEvent(new Event('fullscreenchange'));
+      });
+
+      await wrapper.find('.item-expand').trigger('click');
+      await wrapper.vm.$nextTick();
+      expect(item.requestFullscreen).toHaveBeenCalled();
+      expect(wrapper.find('.item-expand').attributes('aria-label')).toBe('Leave full screen');
+
+      await wrapper.find('.item-expand').trigger('click');
+      await wrapper.vm.$nextTick();
+      expect(document.exitFullscreen).toHaveBeenCalled();
+      expect(wrapper.find('.item-expand').attributes('aria-label')).toBe('Expand module');
+
+      delete (document as any).fullscreenElement;
+    });
   });
 
   describe('showIn room names', () => {

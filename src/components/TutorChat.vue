@@ -91,7 +91,7 @@ export default {
       // only the drawer scrolls: scrollIntoView would also scroll the page
       // sideways, to the closed class chat beside it
       this.$nextTick(() => {
-        const box = (this.$refs.log as any)?.$el?.closest(".v-navigation-drawer__content");
+        const box = (this.$refs.log as HTMLElement | undefined)?.closest(".v-navigation-drawer__content");
         if (box) box.scrollTop = box.scrollHeight;
       });
     },
@@ -133,14 +133,23 @@ export default {
 </script>
 
 <template>
-  <v-navigation-drawer :width="400" v-model="open" location="right" temporary>
-    <v-toolbar density="compact" color="surface-variant">
-      <v-toolbar-title>{{ t("tutor.title") }}</v-toolbar-title>
-      <v-btn icon="mdi-close" :aria-label="t('tutor.close')" @click="open = false"></v-btn>
-    </v-toolbar>
+  <v-navigation-drawer :width="360" v-model="open" location="right" color="panel" temporary>
+    <template v-slot:prepend>
+      <div class="tutor-title">
+        <h2>{{ t("tutor.title") }}</h2>
+        <v-btn
+          icon="mdi-close"
+          size="32"
+          rounded="lg"
+          variant="text"
+          :aria-label="t('tutor.close')"
+          @click="open = false"
+        ></v-btn>
+      </div>
+    </template>
 
-    <v-container role="log" ref="log">
-      <p class="text-medium-emphasis text-body-2 mb-2">{{ t("tutor.intro") }}</p>
+    <div role="log" ref="log" class="tutor-log">
+      <p class="tutor-intro">{{ t("tutor.intro") }}</p>
       <div
         v-for="entry in entries"
         :key="entry.id + entry.from"
@@ -152,52 +161,115 @@ export default {
       <div v-if="pending" class="tutor-entry tutor text-medium-emphasis" role="status">
         {{ t("tutor.thinking") }}
       </div>
-      <p v-if="!tutorId" class="text-medium-emphasis text-body-2" role="status">{{ t("tutor.offline") }}</p>
-    </v-container>
+      <p v-if="!tutorId" class="tutor-intro" role="status">{{ t("tutor.offline") }}</p>
+    </div>
 
     <template v-slot:append>
-      <div class="pa-2">
-        <v-textarea
+      <div class="tutor-compose">
+        <label for="tutor-message">{{ t("tutor.placeholder") }}</label>
+        <textarea
+          id="tutor-message"
           v-model="message"
-          :label="t('tutor.placeholder')"
-          variant="outlined"
-          density="compact"
-          no-resize
           rows="3"
           :maxlength="max"
-          hide-details
           :disabled="!tutorId"
           @keydown.enter.exact.prevent="send()"
-        ></v-textarea>
+        ></textarea>
         <v-btn
           append-icon="mdi-send-outline"
+          color="primary"
+          variant="flat"
           block
-          class="mt-2"
+          height="40"
+          rounded="lg"
+          class="text-none"
           :disabled="!tutorId || !!pending || !message.trim()"
           @click="send()"
         >
           {{ t("chat.sendButton") }}
         </v-btn>
-        <p class="text-caption text-medium-emphasis mt-1">{{ t("tutor.privacy") }}</p>
+        <p class="tutor-privacy">{{ t("tutor.privacy") }}</p>
       </div>
     </template>
   </v-navigation-drawer>
 </template>
 
 <style scoped>
+.tutor-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 8px 0 16px;
+  border-bottom: 1px solid rgb(var(--v-theme-panel-line));
+}
+.tutor-title h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.tutor-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+.tutor-intro,
+.tutor-privacy {
+  margin: 0;
+  font-size: 12px;
+  color: rgb(var(--v-theme-muted));
+}
 .tutor-entry {
-  margin: 6px 0;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
   max-width: 90%;
+  font-size: 14px;
+  line-height: 1.5;
   overflow-wrap: anywhere;
+  background: rgb(var(--v-theme-message));
+  box-shadow: 0 1px 2px rgba(20, 25, 35, 0.06), 0 0 0 1px rgb(var(--v-theme-message-edge));
+}
+:global(.v-theme--dark) .tutor-entry {
+  box-shadow: none;
 }
 .tutor-entry.student {
-  margin-left: auto;
-  background: rgba(var(--v-theme-primary), 0.12);
+  margin-inline-start: auto;
+  background: rgb(var(--v-theme-own-message));
 }
-.tutor-entry.tutor {
-  background: rgba(var(--v-theme-on-surface), 0.06);
+.tutor-entry :deep(.markdown > :last-child) {
+  margin-bottom: 0;
+}
+.tutor-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid rgb(var(--v-theme-panel-line));
+}
+.tutor-compose label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-muted));
+}
+.tutor-compose textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  resize: none;
+  border: 1px solid rgb(var(--v-theme-line));
+  border-radius: 8px;
+  background: rgb(var(--v-theme-field));
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 14px;
+  line-height: 1.5;
+}
+.tutor-compose textarea:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-focus));
+  outline-offset: 2px;
+}
+.tutor-compose textarea:disabled {
+  opacity: 0.6;
 }
 .tutor-entry.error {
   color: rgb(var(--v-theme-error));

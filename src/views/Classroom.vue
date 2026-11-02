@@ -161,6 +161,14 @@ export default {
     currentRoom(): string | null {
       return this.liveClassProxy?.users?.[this.peerID]?.room ?? null;
     },
+    myKey(): string {
+      return getPeerID(false);
+    },
+    // whose chat messages get the Teacher badge
+    teacherKeys(): string[] {
+      const data = this.configuration?.data;
+      return [data?.createdBy, ...(data?.members?.teacher || [])].filter(Boolean);
+    },
     rtl(): boolean {
       return ["ar", "he", "fa", "ur"].includes(this.locale);
     },
@@ -967,6 +975,8 @@ export default {
         :show="chat.open"
         :messages="chat.messages"
         :truncated="chat.truncated"
+        :me="myKey"
+        :teachers="teacherKeys"
         @sendMessage="sendMessage"
       >
       </Chat>

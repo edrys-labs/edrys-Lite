@@ -255,6 +255,8 @@ footer:
 
 modules:
   loading: "Module werden geladen…"
+  expand: "Modul vergrößern"
+  collapse: "Vollbild verlassen"
   noModulesInRoom: "Keines der Module dieser Klasse ist für diesen Raum konfiguriert."
   noModules:
     1: "Sorry, aber es sieht so aus, als hätten Sie keine "

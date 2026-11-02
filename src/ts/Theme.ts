@@ -47,6 +47,14 @@ const light: ThemeDefinition = {
     teacher: '#733d00',
     'own-message': '#eef4fe',
     you: '#2c56a8',
+    message: '#ffffff', // chat message card
+    'message-edge': '#e8eaed',
+    field: '#ffffff', // text inputs on a panel
+    module: '#ffffff', // module frame
+    'module-head': '#f3f3f3', // its header strip
+    'module-line': '#e1e1e1', // below the header strip
+    'module-edge': '#e4e6ea', // around the frame
+    'module-icon': '#6b727c',
   },
   variables: {
     'border-color': '#1b2029',
@@ -93,6 +101,14 @@ const dark: ThemeDefinition = {
     teacher: '#ffd5ae',
     'own-message': '#232e42',
     you: '#9ebef8',
+    message: '#262c35',
+    'message-edge': '#262c35',
+    field: '#161a21',
+    module: '#20252d',
+    'module-head': '#1a1f26',
+    'module-line': '#2c333d',
+    'module-edge': '#2c333d',
+    'module-icon': '#9aa3b0',
   },
   variables: {
     'border-color': '#eef0f3',

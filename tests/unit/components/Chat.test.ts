@@ -108,7 +108,7 @@ describe('Chat Component', () => {
     wrapper = createWrapper({ messages });
     await wrapper.vm.$nextTick();
 
-    const cards = wrapper.findAll('.v-card');
+    const cards = wrapper.findAll('.chat-message');
     expect(cards).toHaveLength(2);
     
     // Check message content
@@ -250,5 +250,52 @@ describe('Chat Component', () => {
     
     // Restore original value
     window.innerWidth = originalInnerWidth;
+  });
+
+  test('tags your own messages and the teachers\'', async () => {
+    const messages = [
+      { timestamp: 1, msg: 'mine', user: 'me', signer: 'KEY-ME=', signature: 'a' },
+      { timestamp: 2, msg: 'teacher', user: 'tea', signer: 'KEY-TEACHER', signature: 'b' },
+      { timestamp: 3, msg: 'other', user: 'oth', signer: 'KEY-OTHER', signature: 'c' },
+    ];
+    // padding is ignored, as in the signature checks
+    wrapper = createWrapper({ messages, me: 'KEY-ME', teachers: ['KEY-TEACHER='] });
+    await wrapper.vm.$nextTick();
+
+    const [mine, teacher, other] = wrapper.findAll('.chat-message');
+    expect(mine.classes()).toContain('mine');
+    expect(mine.find('.chat-you').text()).toBe('you');
+    expect(mine.find('.chat-teacher').exists()).toBe(false);
+
+    expect(teacher.classes()).not.toContain('mine');
+    expect(teacher.find('.chat-teacher').text()).toBe('Teacher');
+
+    expect(other.find('.chat-you').exists()).toBe(false);
+    expect(other.find('.chat-teacher').exists()).toBe(false);
+  });
+
+  test('no tags without keys', async () => {
+    wrapper = createWrapper({ messages: [{ timestamp: 1, msg: 'x', user: 'u', signature: 'a' }] });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.chat-you').exists()).toBe(false);
+    expect(wrapper.find('.chat-teacher').exists()).toBe(false);
+  });
+
+  test('shows the time of day for today, with the date before that', () => {
+    wrapper = createWrapper();
+
+    const now = new Date();
+    now.setHours(14, 2, 0, 0);
+    expect(wrapper.vm.shortTime(now.getTime())).toBe(
+      now.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })
+    );
+
+    const earlier = new Date(2026, 0, 5, 9, 30).getTime();
+    const short = wrapper.vm.shortTime(earlier);
+    expect(short).toContain('Jan');
+    expect(short).toContain('5');
+
+    expect(wrapper.vm.shortTime('invalid')).toBe('invalid');
   });
 });

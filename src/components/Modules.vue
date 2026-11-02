@@ -46,6 +46,8 @@ export default {
       isMoving: false,
       // itemKey -> size the user resized that item to
       itemSizes: {} as Record<string, { width: string; height: string }>,
+      // itemKey of the module shown full screen
+      fullscreenKey: null as string | null,
     };
   },
 
@@ -163,10 +165,12 @@ export default {
     });
 
     window.addEventListener("mouseup", this.onMouseUp);
+    document.addEventListener("fullscreenchange", this.onFullscreenChange);
   },
   beforeUnmount() {
     window.removeEventListener("message", this.messageHandler);
     window.removeEventListener("mouseup", this.onMouseUp);
+    document.removeEventListener("fullscreenchange", this.onFullscreenChange);
     this.communication.on("message", undefined);
     this._stateUnsub?.();
     this._awarenessUnsub?.();
@@ -192,7 +196,10 @@ export default {
     // Delegated on the root, so it also covers items created after a room
     // switch or a module reload.
     onMouseDown(event: MouseEvent) {
-      const element = (event.target as HTMLElement)?.closest?.(".item") as HTMLElement;
+      const target = event.target as HTMLElement;
+      // The drag overlay would cover the button before mouseup and swallow its click.
+      if (target?.closest?.("button")) return;
+      const element = target?.closest?.(".item") as HTMLElement;
       if (!element) return;
 
       const rect = element.getBoundingClientRect();
@@ -228,6 +235,21 @@ export default {
         }
       }
       this.isMoving = false;
+    },
+
+    // Shows the module (header and frame) full screen, or leaves it.
+    toggleFullscreen(event: MouseEvent) {
+      const item = (event.currentTarget as HTMLElement).closest(".item") as HTMLElement;
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.();
+      } else {
+        item?.requestFullscreen?.().catch((e) => debug.components.modules("Full screen refused", e));
+      }
+    },
+
+    onFullscreenChange() {
+      const element = document.fullscreenElement as HTMLElement | null;
+      this.fullscreenKey = element?.dataset?.itemKey ?? null;
     },
 
     gridUpdate() {
@@ -489,7 +511,20 @@ export default {
         :height="height(m.height)"
         :style="styling(m.height, m.width, itemKey(m, i))"
       >
-        <span class="item-title">{{ m.name }}</span>
+        <div class="item-header">
+          <span class="item-title">{{ m.name }}</span>
+          <button
+            type="button"
+            class="item-expand"
+            :aria-label="fullscreenKey === itemKey(m, i) ? t('modules.collapse') : t('modules.expand')"
+            @click="toggleFullscreen($event)"
+          >
+            <v-icon
+              :icon="fullscreenKey === itemKey(m, i) ? 'mdi-arrow-collapse' : 'mdi-arrow-expand'"
+              size="16"
+            ></v-icon>
+          </button>
+        </div>
         <div v-show="isMoving || isResizing" class="item-overlay-protection"></div>
         <Module
           class="item-content"
@@ -531,19 +566,28 @@ export default {
 
 <style scoped>
 .item {
-  display: block;
+  display: flex;
   position: absolute;
   width: 250px;
   height: 200px;
   margin: 5px;
   z-index: 1;
   max-width: 99%;
-  border: 1px solid #888;
-  border-top: 0.75rem solid #888;
-  border-radius: 0.25rem;
+  flex-direction: column;
+  background: rgb(var(--v-theme-module));
+  border-radius: 12px;
   resize: both;
   overflow: hidden;
-  box-shadow: 4px 4px 12px #00000080;
+  box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
+}
+
+:global(.v-theme--dark) .item {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), 0 0 0 1px rgb(var(--v-theme-module-edge));
+}
+
+.item-content {
+  flex: 1;
+  min-height: 0;
 }
 
 .item--w2 {
@@ -583,14 +627,54 @@ export default {
   z-index: 0;
 }
 
+/* the strip you drag a module by */
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  height: 36px;
+  padding-inline: 14px 6px;
+  background: rgb(var(--v-theme-module-head));
+  border-bottom: 1px solid rgb(var(--v-theme-module-line));
+  cursor: grab;
+}
+
 .item-title {
-  background-color: #888;
-  position: absolute;
-  top: -0.3rem;
-  right: 0;
-  padding: 1px 4px;
-  font-size: x-small;
-  cursor: move;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-muted));
+}
+
+.item-expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  color: rgb(var(--v-theme-module-icon));
+  cursor: pointer;
+}
+
+.item-expand:hover {
+  background: rgb(var(--v-theme-module-line));
+}
+
+.item-expand:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-focus));
+  outline-offset: 2px;
+}
+
+/* full screen: no corner radius, no resize grip */
+.item:fullscreen {
+  border-radius: 0;
+  resize: none;
 }
 
 .item-overlay-protection {
