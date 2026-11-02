@@ -241,7 +241,7 @@ describe('Classroom View', () => {
       expect(rows.map((r) => r.attributes('aria-label'))).toEqual([
         'Go to Lobby, 1 person',
         'Go to Room 1, 1 person',
-        'Go to Station abc, 1 person',
+        'Go to Station abc',
       ]);
       expect(rows[0].attributes('aria-current')).toBe('true');
       expect(rows[1].attributes('aria-current')).toBeUndefined();
@@ -249,6 +249,20 @@ describe('Classroom View', () => {
       mockCommunication.gotoRoom.mockClear();
       await rows[1].trigger('click');
       expect(mockCommunication.gotoRoom).toHaveBeenCalledWith('Room 1');
+    });
+
+    test('does not count a station as a person in its room', async () => {
+      const wrapper = await openDrawer();
+      const stationRoom = wrapper.findAll('.room')[2];
+      expect(stationRoom.find('.room-count').exists()).toBe(false);
+      expect(stationRoom.findAll('.room-user')).toHaveLength(1);
+
+      wrapper.vm.liveClassProxy = {
+        ...live,
+        users: { ...live.users, 'other-peer': { room: 'Station abc', displayName: 'other', role: 'student' } },
+      };
+      await wrapper.vm.$nextTick();
+      expect(wrapper.findAll('.room')[2].find('.room-count').text()).toBe('1');
     });
 
     test('shows numbered rooms by their number and others by their initial', async () => {

@@ -578,13 +578,18 @@ export default {
       return this.translateRoomName(name).charAt(0).toUpperCase();
     },
 
+    // People in a room: the station is the room's equipment, so a free station shows no count.
+    peopleInRoom(name: string): number {
+      return this.usersInRoom(name).filter((user) => user.role !== "station").length;
+    },
+
     peopleLabel(count: number): string {
       return this.t("classroom.sideMenu.people", { n: count }, count);
     },
 
     gotoLabel(name: string): string {
       const label = this.t("classroom.sideMenu.gotoRoom", { room: this.translateRoomName(name) });
-      const count = this.usersInRoom(name).length;
+      const count = this.peopleInRoom(name);
       return count ? label + ", " + this.peopleLabel(count) : label;
     },
 
@@ -705,7 +710,7 @@ export default {
               ': ' +
               translateRoomName(currentRoom) +
               ', ' +
-              peopleLabel(usersInRoom(currentRoom).length)
+              peopleLabel(peopleInRoom(currentRoom))
             "
             :aria-expanded="false"
             data-test="room-pill"
@@ -720,7 +725,7 @@ export default {
             <span class="room-pill-name">{{ translateRoomName(currentRoom) }}</span>
             <span class="room-pill-count" aria-hidden="true">
               <v-icon icon="mdi-account-outline" size="13"></v-icon>
-              {{ usersInRoom(currentRoom).length }}
+              {{ peopleInRoom(currentRoom) }}
             </span>
           </button>
         </div>
@@ -911,9 +916,9 @@ export default {
                 {{ roomInitial(name) }}
               </span>
               <span class="room-name">{{ translateRoomName(name) }}</span>
-              <span v-if="usersInRoom(name).length" class="room-count">
+              <span v-if="peopleInRoom(name)" class="room-count">
                 <v-icon icon="mdi-account-outline" size="13"></v-icon>
-                {{ usersInRoom(name).length }}
+                {{ peopleInRoom(name) }}
               </span>
               <span class="room-enter">
                 <v-icon :icon="rtl ? 'mdi-arrow-left' : 'mdi-arrow-right'" size="15"></v-icon>
