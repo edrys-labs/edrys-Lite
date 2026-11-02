@@ -190,11 +190,16 @@ export function setThemePreference(preference: ThemePreference) {
   }
 }
 
-/** Keeps Vuetify's theme in step with the preference and, for 'system', the OS. */
+/**
+ * Keeps Vuetify's theme in step with the preference and, for 'system', the OS.
+ * `data-theme` on <html> tells code outside Vue (edrys-dev's panel) which one
+ * is on screen; Vuetify puts the colors on :root as `--v-theme-<name>`.
+ */
 export function followThemePreference(themeName: Ref<string>) {
   const apply = () => {
     activeTheme.value = resolveTheme(themePreference.value)
     themeName.value = activeTheme.value
+    document.documentElement.dataset.theme = activeTheme.value
   }
   watch(themePreference, apply)
   darkQuery?.addEventListener?.('change', apply)
