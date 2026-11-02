@@ -15,6 +15,45 @@ code, kbd, pre, samp {
     font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
 }
 
+// App bar and footer: flat, with a hairline towards the page
+.edrys-bar.v-app-bar {
+    border-bottom: 1px solid rgb(var(--v-theme-bar-line));
+}
+
+.edrys-bar.v-footer {
+    border-top: 1px solid rgb(var(--v-theme-bar-line));
+}
+
+// 36px icon buttons on the bars (use with icon size="36" rounded="lg")
+.bar-btn.v-btn {
+    color: rgb(var(--v-theme-bar-icon));
+
+    .v-icon {
+        font-size: 20px;
+    }
+
+    &:focus-visible {
+        outline: 2px solid rgb(var(--v-theme-bar-icon));
+        outline-offset: 2px;
+    }
+}
+
+.bar-btn--active.v-btn {
+    background: rgb(var(--v-theme-bar-active));
+}
+
+// unread marker on a bar button
+.bar-dot {
+    position: absolute;
+    top: 7px;
+    inset-inline-end: 7px;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: rgb(var(--v-theme-badge));
+    box-shadow: 0 0 0 2px rgb(var(--v-theme-surface-variant));
+}
+
 
 .handle {
     cursor: move; /* fallback if grab cursor is unsupported */

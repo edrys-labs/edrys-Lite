@@ -75,6 +75,7 @@ describe('Index View', () => {
           'v-app-bar': {
             template: '<div class="v-app-bar"><slot /></div>'
           },
+          UserMenu: true,
           'v-main': {
             template: '<div class="v-main"><slot /></div>'
           },

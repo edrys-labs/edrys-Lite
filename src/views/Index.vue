@@ -13,6 +13,7 @@ import {
   isMember,
 } from "../ts/Utils";
 
+import AppBrand from "../components/AppBrand.vue";
 import Footer from "../components/Footer.vue";
 import UserMenu from '../components/UserMenu.vue';
 import LinkedText from '../components/LinkedText.vue';
@@ -21,7 +22,7 @@ import { useI18n } from 'vue-i18n';
 export default {
   name: "Index",
 
-  components: { Footer, UserMenu, LinkedText },
+  components: { AppBrand, Footer, UserMenu, LinkedText },
 
   setup() {
     const { t, locale } = useI18n();
@@ -137,10 +138,12 @@ export default {
 
 <template>
   <v-app>
-    <v-app-bar color="surface-variant" title="edrys-lite">
-      <template v-slot:append>
+    <v-app-bar color="surface-variant" height="56" flat class="edrys-bar">
+      <div class="d-flex align-center w-100 ps-5 pe-3">
+        <AppBrand />
+        <v-spacer></v-spacer>
         <UserMenu />
-      </template>
+      </div>
     </v-app-bar>
 
     <v-main class="d-flex">

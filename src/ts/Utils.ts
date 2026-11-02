@@ -2,6 +2,7 @@ import * as YAML from 'js-yaml'
 import LZString from 'lz-string'
 import SecureLS from 'secure-ls'
 import { Database } from './Database'
+import { ROOM_COLORS } from './Theme'
 
 function loadResource(type, url, base) {
   if (url.match(/(https?)?:\/\//i)) {
@@ -295,33 +296,29 @@ export function throttle(func, limit, options = { trailing: true }) {
 }
 
 
-// Rooms colour palette: 8 distinct but soft colours.
-const ROOM_PALETTE = [
-  "#6FB37A", // soft green
-  "#5C9DD6", // soft blue
-  "#E0A86B", // soft amber
-  "#A98BC9", // soft purple
-  "#5FB8B8", // soft teal
-  "#D98F9A", // muted rose
-  "#7986CB", // soft indigo
-  "#C2A24A", // soft gold
-];
-
 const ROOM_NEUTRAL_COLORS: Record<string, string> = {
   lobby: "#5C7A8A", // cool blue-grey
   "*": "#A1887F", // warm taupe-grey
 };
 
-export function roomColor(name: string, orderedRooms: string[]): string {
+/** A room's slot in the colour palette, or null for the neutral ones (Lobby, all rooms). */
+export function roomSlot(name: string, orderedRooms: string[]): number | null {
   const key = (name || "*").toLowerCase();
-  if (ROOM_NEUTRAL_COLORS[key]) return ROOM_NEUTRAL_COLORS[key];
+  if (ROOM_NEUTRAL_COLORS[key]) return null;
   // Colour by position among the non-neutral rooms only, so a neutral Lobby
   // doesn't consume (and shift) a palette slot.
   const idx = orderedRooms
     .map(r => (r || "*").toLowerCase())
     .filter(r => !ROOM_NEUTRAL_COLORS[r])
     .indexOf(key);
-  return ROOM_PALETTE[Math.max(0, idx) % ROOM_PALETTE.length];
+  return Math.max(0, idx) % ROOM_COLORS.length;
+}
+
+/** A mid-tone hex color of a room, for borders and tints. */
+export function roomColor(name: string, orderedRooms: string[]): string {
+  const slot = roomSlot(name, orderedRooms);
+  if (slot === null) return ROOM_NEUTRAL_COLORS[(name || "*").toLowerCase()];
+  return ROOM_COLORS[slot].border;
 }
 
 export function validateUrl(string: string) {

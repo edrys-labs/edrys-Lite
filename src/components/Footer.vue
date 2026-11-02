@@ -20,18 +20,20 @@ export default {
 </script>
 
 <template>
-  <v-footer color="surface-variant" :app="true" elevation="15">
-    <v-row justify="center" no-gutters>
+  <v-footer color="surface-variant" :app="true" height="48" class="edrys-bar footer">
+    <v-row justify="center" align="center" no-gutters class="ga-2">
       <v-tooltip :text="t('footer.github')" location="top">
         <template v-slot:activator="{ props }">
           <v-btn
-            density="compact"
+            size="36"
+            rounded="lg"
+            variant="text"
             icon="mdi-github"
             :aria-label="t('footer.github')"
             href="https://github.com/edrys-labs/edrys-Lite/"
             target="_blank"
             rel="noopener"
-            class="mx-2"
+            class="bar-btn"
             v-bind="props"
           >
           </v-btn>
@@ -41,13 +43,15 @@ export default {
       <v-tooltip :text="t('footer.docs')" location="top">
         <template v-slot:activator="{ props }">
           <v-btn
-            density="compact"
-            icon="mdi-information"
+            size="36"
+            rounded="lg"
+            variant="text"
+            icon="mdi-information-outline"
             :aria-label="t('footer.docs')"
             href="https://LiaScript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md"
             target="_blank"
             rel="noopener"
-            class="mx-2"
+            class="bar-btn"
             v-bind="props"
           >
           </v-btn>
@@ -57,13 +61,15 @@ export default {
       <v-tooltip :text="t('footer.explore')" location="top">
         <template v-slot:activator="{ props }">
           <v-btn
-            density="compact"
-            icon="mdi-share-circle"
+            size="36"
+            rounded="lg"
+            variant="text"
+            icon="mdi-compass-outline"
             :aria-label="t('footer.explore')"
             href="https://github.com/topics/edrys-lab"
             target="_blank"
             rel="noopener"
-            class="mx-2"
+            class="bar-btn"
             v-bind="props"
           >
           </v-btn>
@@ -73,13 +79,15 @@ export default {
       <v-tooltip :text="t('footer.blog')" location="top">
         <template v-slot:activator="{ props }">
           <v-btn
-            density="compact"
-            icon="mdi-rss-box"
+            size="36"
+            rounded="lg"
+            variant="text"
+            icon="mdi-rss"
             :aria-label="t('footer.blog')"
             href="https://edrys-labs.github.io/blog"
             target="_blank"
             rel="noopener"
-            class="mx-2"
+            class="bar-btn"
             v-bind="props"
           >
           </v-btn>
@@ -88,3 +96,9 @@ export default {
     </v-row>
   </v-footer>
 </template>
+
+<style scoped>
+.footer .bar-btn :deep(.v-icon) {
+  font-size: 18px;
+}
+</style>

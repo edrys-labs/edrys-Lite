@@ -84,6 +84,38 @@ describe('Theme', () => {
     expect(themeName.value).toBe('dark')
   })
 
+  test('tells computed colors which theme is on screen', async () => {
+    const { followThemePreference, setThemePreference, activeTheme } = await loadTheme()
+    followThemePreference(ref(''))
+    expect(activeTheme.value).toBe('light')
+
+    setThemePreference('dark')
+    await nextTick()
+    expect(activeTheme.value).toBe('dark')
+  })
+
+  test('room tiles are gray without a slot and tinted with one', async () => {
+    const { roomTile, ROOM_COLORS } = await loadTheme()
+    expect(roomTile(null, 'light')).toEqual({ bg: '#dfe2e7', fg: '#3b424d', dot: '#8a919b' })
+    expect(roomTile(null, 'dark').bg).toBe('#465060')
+    expect(roomTile(0, 'light')).toEqual({ ...ROOM_COLORS[0].light, dot: ROOM_COLORS[0].dot })
+    expect(roomTile(0, 'dark')).toEqual({ ...ROOM_COLORS[0].dark, dot: ROOM_COLORS[0].dot })
+    // more rooms than colors: the palette repeats
+    expect(roomTile(ROOM_COLORS.length, 'light')).toEqual(roomTile(0, 'light'))
+  })
+
+  test('every room color is a 6-digit hex, a light tile behind dark text and the other way round', async () => {
+    const { ROOM_COLORS } = await loadTheme()
+    const lightness = (hex: string) => parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16)
+    for (const c of ROOM_COLORS) {
+      for (const hex of [c.light.bg, c.light.fg, c.dark.bg, c.dark.fg, c.dot, c.border]) {
+        expect(hex).toMatch(/^#[0-9a-f]{6}$/)
+      }
+      expect(lightness(c.light.bg)).toBeGreaterThan(lightness(c.light.fg))
+      expect(lightness(c.dark.bg)).toBeLessThan(lightness(c.dark.fg))
+    }
+  })
+
   test('both themes define the same colors', async () => {
     const { themes } = await loadTheme()
     expect(Object.keys(themes.dark.colors!).sort()).toEqual(Object.keys(themes.light.colors!).sort())

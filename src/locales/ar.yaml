@@ -81,6 +81,7 @@ classroom:
     newRoom: "غرفة جديدة"
     rooms: "الغرف"
     gotoRoom: "الانتقال إلى {room}"
+    people: "عدد الأشخاص: {n}"
   popup:
     close: "إغلاق"
 

@@ -81,6 +81,7 @@ classroom:
     newRoom: "Neuer Raum"
     rooms: "Räume"
     gotoRoom: "Zu {room} wechseln"
+    people: "{n} Person | {n} Personen"
   popup:
     close: "Schließen"
     

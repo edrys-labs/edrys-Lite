@@ -6,6 +6,7 @@ import Modules from "../components/Modules.vue";
 import Logger from "../components/Logger.vue";
 import UserMenu from "../components/UserMenu.vue";
 import TutorChat from "../components/TutorChat.vue";
+import AppBrand from "../components/AppBrand.vue";
 import { useI18n } from "vue-i18n";
 
 import { Database, DatabaseItem } from "../ts/Database";
@@ -29,7 +30,8 @@ import {
 import { markRaw, onMounted } from "vue";
 import Peer, { MAX_ROOMS } from "../ts/Peer";
 
-import { copyToClipboard, deepEqual, roomColor } from "../ts/Utils";
+import { copyToClipboard, deepEqual, roomSlot } from "../ts/Utils";
+import { activeTheme, roomTile } from "../ts/Theme";
 
 import { debug } from "../api/debugHandler";
 import {
@@ -47,7 +49,7 @@ export default {
 
   setup() {
     const { t, locale } = useI18n();
-    return { t, locale, roomColor };
+    return { t, locale, activeTheme };
   },
 
   data() {
@@ -155,6 +157,12 @@ export default {
     },
     tutorId(): string | null {
       return this.tutorTab?.id ?? null;
+    },
+    currentRoom(): string | null {
+      return this.liveClassProxy?.users?.[this.peerID]?.room ?? null;
+    },
+    rtl(): boolean {
+      return ["ar", "he", "fa", "ur"].includes(this.locale);
     },
   },
   watch: {
@@ -518,15 +526,8 @@ export default {
       };
     },
 
-    usersInRoom(name: string): [string, string, string, string][] {
-      const users: [string, "black" | "dimgray", string, string][] = [];
-
-      const icon = {
-        teacher: "mdi-account-star-outline",
-        student: "mdi-account-outline",
-        station: "mdi-account-cog-outline",
-        visitor: "mdi-account-eye-outline",
-      };
+    usersInRoom(name: string) {
+      const users: { id: string; name: string; role: string; tag: string; label: string }[] = [];
 
       for (const id in this.liveClassProxy.users) {
         if (this.liveClassProxy.users[id].room === name) {
@@ -539,21 +540,52 @@ export default {
             }
           }
 
-          // Role and "you" are only shown by icon and color; spell them out
-          // for screen readers.
+          // Students are the default and go untagged; screen readers get the
+          // role spelled out for everyone.
+          const tags: string[] = [];
+          if (this.peerID === id) tags.push(this.t("general.you"));
+          if (userRole === "teacher" || userRole === "visitor") {
+            tags.push(this.t(`general.roles.${userRole}`));
+          }
+
           let label = this.t(`general.roles.${userRole}`);
           if (this.peerID === id) label += ", " + this.t("general.you");
 
-          users.push([
-            displayName,
-            this.peerID === id ? "black" : "dimgray",
-            icon[userRole],
+          users.push({
+            id,
+            name:
+              displayName && displayName.includes("Station")
+                ? displayName.replace("Station", this.t("classroom.sideMenu.station"))
+                : displayName,
+            role: userRole,
+            tag: tags.join(" · "),
             label,
-          ]);
+          });
         }
       }
 
       return users;
+    },
+
+    tileOf(name: string) {
+      return roomTile(roomSlot(name, this.orderedRooms()), this.activeTheme);
+    },
+
+    // "Room 3" shows its number, other rooms their first letter.
+    roomInitial(name: string): string {
+      const numbered = name.match(/^Room (.+)$/);
+      if (numbered) return numbered[1];
+      return this.translateRoomName(name).charAt(0).toUpperCase();
+    },
+
+    peopleLabel(count: number): string {
+      return this.t("classroom.sideMenu.people", { n: count }, count);
+    },
+
+    gotoLabel(name: string): string {
+      const label = this.t("classroom.sideMenu.gotoRoom", { room: this.translateRoomName(name) });
+      const count = this.usersInRoom(name).length;
+      return count ? label + ", " + this.peopleLabel(count) : label;
     },
 
     closePopup(id: number) {
@@ -631,6 +663,7 @@ export default {
   },
 
   components: {
+    AppBrand,
     Chat,
     Checks,
     Settings,
@@ -647,18 +680,50 @@ export default {
 
   <v-app>
     <v-layout>
-      <v-app-bar color="surface-variant">
-        <template v-slot:prepend>
-          <v-app-bar-nav-icon
+      <v-app-bar color="surface-variant" height="56" flat class="edrys-bar">
+        <div class="bar-start">
+          <v-btn
+            icon="mdi-menu"
+            size="36"
+            rounded="lg"
+            variant="text"
+            class="bar-btn"
+            :class="{ 'bar-btn--active': showSideMenu }"
             :aria-label="t('classroom.sideMenu.rooms')"
             :aria-expanded="showSideMenu"
             @click="showSideMenu = !showSideMenu"
-          ></v-app-bar-nav-icon>
+          ></v-btn>
 
-          <v-app-bar-title style="color: white; text-decoration: none">
-            <a href="./" title="Back to index-page" style="color: white; text-decoration: none">edrys-lite</a>
-          </v-app-bar-title>
-        </template>
+          <AppBrand />
+
+          <button
+            v-if="!showSideMenu && currentRoom"
+            type="button"
+            class="room-pill"
+            :aria-label="
+              t('classroom.sideMenu.rooms') +
+              ': ' +
+              translateRoomName(currentRoom) +
+              ', ' +
+              peopleLabel(usersInRoom(currentRoom).length)
+            "
+            :aria-expanded="false"
+            data-test="room-pill"
+            @click="showSideMenu = true"
+          >
+            <span
+              class="room-tile room-tile--small"
+              :style="{ background: tileOf(currentRoom).bg, color: tileOf(currentRoom).fg }"
+              aria-hidden="true"
+              >{{ roomInitial(currentRoom) }}</span
+            >
+            <span class="room-pill-name">{{ translateRoomName(currentRoom) }}</span>
+            <span class="room-pill-count" aria-hidden="true">
+              <v-icon icon="mdi-account-outline" size="13"></v-icon>
+              {{ usersInRoom(currentRoom).length }}
+            </span>
+          </button>
+        </div>
 
         <v-spacer></v-spacer>
 
@@ -691,178 +756,202 @@ export default {
           </template>
         </v-tooltip>
 
-        <v-divider
-          class="mx-3 align-self-center"
-          length="24"
-          thickness="2"
-          vertical
-        ></v-divider>
+        <div class="bar-divider" aria-hidden="true"></div>
 
-        <v-btn
-          icon
-          v-if="tutorId || tutor.open"
-          :aria-label="tutor.new ? t('tutor.buttonUnread') : t('tutor.button')"
-          :aria-expanded="tutor.open"
-          :title="t('tutor.title')"
-          data-test="tutor-button"
-          @click="
-            tutor.open = !tutor.open;
-            tutor.new = false;
-          "
-        >
-          <v-badge dot color="red" v-if="tutor.new">
+        <div class="bar-end">
+          <v-btn
+            icon
+            size="36"
+            rounded="lg"
+            variant="text"
+            class="bar-btn"
+            :class="{ 'bar-btn--active': tutor.open }"
+            v-if="tutorId || tutor.open"
+            :aria-label="tutor.new ? t('tutor.buttonUnread') : t('tutor.button')"
+            :aria-expanded="tutor.open"
+            :title="t('tutor.title')"
+            data-test="tutor-button"
+            @click="
+              tutor.open = !tutor.open;
+              tutor.new = false;
+            "
+          >
             <v-icon icon="mdi-robot-outline"></v-icon>
-          </v-badge>
-          <v-icon icon="mdi-robot-outline" v-else></v-icon>
-        </v-btn>
+            <span v-if="tutor.new" class="bar-dot"></span>
+          </v-btn>
 
-        <v-btn
-          icon
-          :aria-label="chat.new ? t('classroom.chatUnread') : t('classroom.chat')"
-          :aria-expanded="chat.open"
-          @click="
-            chat.open = !chat.open;
-            chat.new = false;
-          "
-        >
-          <v-badge dot color="red" v-if="chat.new">
-            <v-icon icon="mdi-forum"></v-icon>
-          </v-badge>
-          <v-icon icon="mdi-forum" v-else></v-icon>
-        </v-btn>
+          <v-btn
+            icon
+            size="36"
+            rounded="lg"
+            variant="text"
+            class="bar-btn"
+            :class="{ 'bar-btn--active': chat.open }"
+            :aria-label="chat.new ? t('classroom.chatUnread') : t('classroom.chat')"
+            :aria-expanded="chat.open"
+            @click="
+              chat.open = !chat.open;
+              chat.new = false;
+            "
+          >
+            <v-icon icon="mdi-message-outline"></v-icon>
+            <span v-if="chat.new" class="bar-dot"></span>
+          </v-btn>
 
-        <UserMenu>
-          <template v-slot:user-role>
-            <v-list-item>
-              <v-list-item-title>{{ t("general.userRole") }}:</v-list-item-title>
-              <v-list-item-subtitle>
-                {{
-                  getRole() === "teacher"
-                    ? t("general.roles.teacher")
-                    : getRole() === "student"
-                    ? t("general.roles.student")
-                    : t("general.roles.station")
-                }}
-              </v-list-item-subtitle>
-            </v-list-item>
-          </template>
-        </UserMenu>
+          <UserMenu>
+            <template v-slot:user-role>
+              <v-list-item>
+                <v-list-item-title>{{ t("general.userRole") }}:</v-list-item-title>
+                <v-list-item-subtitle>
+                  {{
+                    getRole() === "teacher"
+                      ? t("general.roles.teacher")
+                      : getRole() === "student"
+                      ? t("general.roles.student")
+                      : t("general.roles.station")
+                  }}
+                </v-list-item-subtitle>
+              </v-list-item>
+            </template>
+          </UserMenu>
+        </div>
       </v-app-bar>
 
-      <v-navigation-drawer temporary v-model="showSideMenu">
-        <v-overlay v-model="showSideMenu" style="width: 275px" v-if="isStation">
-          <v-card
-            tile
-            width="100%"
-            class="text-center"
-            style="margin-top: calc(50vh - 100px)"
-          >
-            <v-card-text class="white--text">
-              {{ t("classroom.station.mode") }}
-            </v-card-text>
+      <v-navigation-drawer temporary v-model="showSideMenu" width="264" color="panel" class="rooms-drawer">
+        <v-overlay v-model="showSideMenu" style="width: 264px" v-if="isStation">
+          <v-card class="station-card" style="margin-top: calc(50vh - 150px)">
+            <div class="station-card-head">
+              <span
+                class="station-card-tile"
+                :style="{ background: tileOf('Station ' + stationName).bg, color: tileOf('Station ' + stationName).fg }"
+              >
+                <v-icon icon="mdi-router-wireless" size="20"></v-icon>
+              </span>
+              <h3 class="station-card-title">{{ t("classroom.station.mode") }}</h3>
+            </div>
 
-            <v-divider></v-divider>
-
-            <v-card-text>
-              <v-form @submit.prevent="setStationName">
+            <v-form @submit.prevent="setStationName">
+              <label for="station-name" class="station-card-label">{{ t("classroom.station.label") }}</label>
+              <div class="station-card-field">
                 <v-text-field
-                  variant="solo"
+                  id="station-name"
+                  variant="outlined"
+                  density="compact"
+                  hide-details="auto"
                   v-model="stationNameInput"
                   :rules="stationNameRules"
-                  :label="t('classroom.station.label')"
                   required
-                  append-inner-icon="mdi-arrow-right"
-                  @click:append-inner="setStationName"
                 ></v-text-field>
-              </v-form>
+                <v-btn
+                  :icon="rtl ? 'mdi-arrow-left' : 'mdi-arrow-right'"
+                  size="40"
+                  rounded="lg"
+                  color="primary"
+                  variant="flat"
+                  :aria-label="t('classroom.station.label')"
+                  @click="setStationName"
+                ></v-btn>
+              </div>
+            </v-form>
 
-              {{ t("classroom.station.modeDescription") }}
-            </v-card-text>
-            <v-divider></v-divider>
-            <v-card-text>
-              <v-btn :href="'/?/classroom/' + id">
-                <v-icon left>mdi-export-variant</v-icon>
+            <p class="station-card-text">{{ t("classroom.station.modeDescription") }}</p>
 
-                {{ t("classroom.station.exit") }}
-              </v-btn>
-            </v-card-text>
+            <v-btn
+              :href="'/?/classroom/' + id"
+              variant="outlined"
+              height="38"
+              rounded="lg"
+              prepend-icon="mdi-open-in-new"
+              class="drawer-btn station-card-exit"
+            >
+              {{ t("classroom.station.exit") }}
+            </v-btn>
           </v-card>
         </v-overlay>
 
         <template v-slot:prepend>
-          <v-list density="compact" nav>
-            <v-list-item>
-              <v-list-item-title>
-                {{ configuration?.data?.name || "" }}
-              </v-list-item-title>
-
-              <v-list-item-subtitle>
+          <div class="drawer-head">
+            <div class="drawer-head-text">
+              <div class="drawer-class-name">{{ configuration?.data?.name || "" }}</div>
+              <div class="drawer-online">
                 {{ t("classroom.sideMenu.onlineUsers") }}
                 {{ Object.keys(liveClassProxy?.users || {}).length }}
-              </v-list-item-subtitle>
-
-              <template v-slot:append>
-                <v-btn
-                  color="grey"
-                  icon="mdi-cog"
-                  :title="t('classroom.sideMenu.settings')"
-                  @click="showSettings = !showSettings"
-                  variant="text"
-                  v-if="isOwner || isTeacher"
-                ></v-btn>
-              </template>
-            </v-list-item>
-          </v-list>
+              </div>
+            </div>
+            <v-btn
+              v-if="isOwner || isTeacher"
+              icon="mdi-cog-outline"
+              size="32"
+              rounded="lg"
+              variant="text"
+              class="drawer-settings"
+              :aria-label="t('classroom.sideMenu.settings')"
+              :title="t('classroom.sideMenu.settings')"
+              @click="showSettings = !showSettings"
+            ></v-btn>
+          </div>
         </template>
-        <v-divider></v-divider>
 
-        <v-list nav v-for="(room, name, i) in getRooms()" :key="i" density="compact">
-          <v-list-item
-            :prepend-icon="name === 'Lobby' ? 'mdi-account-group' : 'mdi-forum'"
-            :title="translateRoomName(name)"
-            :style="{
-              backgroundColor: roomColor(name, orderedRooms()) + '22',
-              borderLeft: '4px solid ' + roomColor(name, orderedRooms()),
-              paddingTop: '0px',
-              paddingBottom: '0px',
-              minHeight: '2rem',
-            }"
+        <div class="room-list">
+          <div
+            v-for="name in orderedRooms()"
+            :key="name"
+            class="room"
+            :class="{ 'room--station': name.startsWith('Station') }"
           >
-            <template v-slot:append>
-              <v-btn
-                :icon="
-                  ['ar', 'he', 'fa', 'ur'].includes(locale)
-                    ? 'mdi-arrow-left-circle'
-                    : 'mdi-arrow-right-circle'
-                "
-                variant="text"
-                :aria-label="t('classroom.sideMenu.gotoRoom', { room: translateRoomName(name) })"
-                @click="gotoRoom(name)"
-              ></v-btn>
-            </template>
-          </v-list-item>
+            <button
+              type="button"
+              class="room-row"
+              :class="{ 'room-row--current': name === currentRoom }"
+              :aria-current="name === currentRoom ? 'true' : undefined"
+              :aria-label="gotoLabel(name)"
+              @click="gotoRoom(name)"
+            >
+              <span class="room-tile" :style="{ background: tileOf(name).bg, color: tileOf(name).fg }">
+                {{ roomInitial(name) }}
+              </span>
+              <span class="room-name">{{ translateRoomName(name) }}</span>
+              <span v-if="usersInRoom(name).length" class="room-count">
+                <v-icon icon="mdi-account-outline" size="13"></v-icon>
+                {{ usersInRoom(name).length }}
+              </span>
+              <span class="room-enter">
+                <v-icon :icon="rtl ? 'mdi-arrow-left' : 'mdi-arrow-right'" size="15"></v-icon>
+              </span>
+            </button>
 
-          <v-list-item
-            v-for="([user, color, icon, label], j) in usersInRoom(name)"
-            :key="j"
-            :style="'min-height: 1.25rem; color: ' + color"
-          >
-            <template v-slot:prepend>
-              <v-icon :icon="icon"></v-icon>
-            </template>
-
-            <v-list-item-title>{{
-              user && user.includes("Station")
-                ? user.replace("Station", t("classroom.sideMenu.station"))
-                : user
-            }}<span class="d-sr-only">, {{ label }}</span></v-list-item-title>
-          </v-list-item>
-        </v-list>
+            <div v-for="user in usersInRoom(name)" :key="user.id" class="room-user">
+              <span
+                class="user-avatar"
+                :class="{ 'user-avatar--station': user.role === 'station' }"
+                :style="user.role === 'station' ? { background: tileOf(name).bg } : undefined"
+              >
+                <span
+                  class="user-dot"
+                  :style="user.role === 'station' ? { background: tileOf(name).dot } : undefined"
+                ></span>
+              </span>
+              <span class="user-name" :class="{ 'user-name--id': user.role !== 'station' }"
+                >{{ user.name }}<span class="d-sr-only">, {{ user.label }}</span></span
+              >
+              <span v-if="user.tag" class="user-tag" aria-hidden="true">{{ user.tag }}</span>
+            </div>
+          </div>
+        </div>
 
         <template v-slot:append>
-          <div class="pa-2">
-            <v-btn depressed block class="mb-2" @click="addRoom" v-if="isOwner" :disabled="!canAddRoom()">
-              <v-icon left>mdi-forum</v-icon>
+          <div class="drawer-foot" v-if="isOwner">
+            <v-btn
+              block
+              height="40"
+              rounded="lg"
+              variant="flat"
+              color="surface"
+              prepend-icon="mdi-plus"
+              class="drawer-btn"
+              @click="addRoom"
+              :disabled="!canAddRoom()"
+            >
               {{ t("classroom.sideMenu.newRoom") }}
             </v-btn>
           </div>
@@ -970,3 +1059,342 @@ export default {
     </v-snackbar>
   </v-app>
 </template>
+
+<style scoped>
+.bar-start,
+.bar-end {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding-inline: 12px;
+}
+
+.bar-end {
+  gap: 4px;
+}
+
+.bar-divider {
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background: rgb(var(--v-theme-bar-divider));
+}
+
+/* The room you are in, while the drawer is closed */
+.room-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-block: 4px;
+  padding-inline: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: rgb(var(--v-theme-bar-active));
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.room-pill:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-bar-icon));
+  outline-offset: 2px;
+}
+
+.room-pill-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-pill-count {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-inline-start: 6px;
+  margin-inline-start: 2px;
+  border-inline-start: 1px solid rgb(var(--v-theme-bar-divider));
+  color: rgb(var(--v-theme-bar-icon));
+  font-size: 12px;
+}
+
+.room-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.room-tile--small {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+/* Drawer */
+.rooms-drawer {
+  border-inline-end: 1px solid rgb(var(--v-theme-panel-line)) !important;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 12px 4px;
+  padding: 0 0 12px;
+  padding-inline-start: 6px;
+  border-bottom: 1px solid rgb(var(--v-theme-panel-line));
+}
+
+.drawer-head-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.drawer-class-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.drawer-online {
+  font-size: 12px;
+  color: rgb(var(--v-theme-muted));
+}
+
+.drawer-settings {
+  flex-shrink: 0;
+  color: rgb(var(--v-theme-muted));
+}
+
+.room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 12px 16px;
+}
+
+.room {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.room--station {
+  margin-top: 6px;
+}
+
+/* One button per room: the arrow is only a cue */
+.room-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.room-row:hover {
+  background: rgb(var(--v-theme-room-hover));
+}
+
+.room-row--current,
+.room-row--current:hover {
+  background: rgb(var(--v-theme-room-current));
+}
+
+.v-theme--light .room-row--current {
+  box-shadow: 0 1px 2px rgba(20, 25, 35, 0.08);
+}
+
+.room-row:focus-visible,
+.drawer-btn:focus-visible,
+.drawer-settings:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-focus));
+  outline-offset: 2px;
+}
+
+.room-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.room-row--current .room-name {
+  font-weight: 600;
+}
+
+.room-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-muted));
+}
+
+.room-enter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgb(var(--v-theme-line));
+  border-radius: 999px;
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-text-2));
+}
+
+.room-row--current .room-enter {
+  border-color: rgb(var(--v-theme-primary));
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+}
+
+.room-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-block: 3px 5px;
+  padding-inline: 52px 8px;
+}
+
+.user-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgb(var(--v-theme-avatar));
+}
+
+.user-avatar--station {
+  border-radius: 6px;
+}
+
+.user-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #8a919b;
+}
+
+.user-avatar--station .user-dot {
+  border-radius: 2px;
+}
+
+.user-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: rgb(var(--v-theme-text-2));
+}
+
+.user-name--id {
+  font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+  font-weight: 500;
+}
+
+.user-tag {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-muted));
+}
+
+.drawer-foot {
+  padding: 12px;
+  border-top: 1px solid rgb(var(--v-theme-panel-line));
+}
+
+.drawer-btn {
+  border: 1px solid rgb(var(--v-theme-line));
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* Station mode, over the drawer */
+.station-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-inline: 12px;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.station-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.station-card-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.station-card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.station-card-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-muted));
+}
+
+.station-card-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.station-card-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgb(var(--v-theme-text-2));
+}
+
+.station-card-exit {
+  align-self: flex-start;
+  border-color: rgb(var(--v-theme-line));
+}
+</style>

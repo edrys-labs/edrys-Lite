@@ -81,6 +81,7 @@ classroom:
     newRoom: "Нова кімната"
     rooms: "Кімнати"
     gotoRoom: "Перейти до {room}"
+    people: "Людей: {n}"
   popup:
     close: "Закрити"
 

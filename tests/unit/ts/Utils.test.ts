@@ -17,6 +17,8 @@ import {
   decodeCommConfig,
   stripPubKey,
   removeKeysStartingWithSecret,
+  roomSlot,
+  roomColor,
 } from '../../../src/ts/Utils';
 
 vi.mock('js-yaml', () => ({
@@ -67,6 +69,26 @@ describe('Utils', () => {
     test('deepEqual should correctly compare objects', () => {
       expect(deepEqual({ a: 1, b: { c: 2 } }, { a: 1, b: { c: 2 } })).toBe(true);
       expect(deepEqual({ a: 1 }, { a: 2 })).toBe(false);
+    });
+  });
+
+  describe('room colors', () => {
+    const rooms = ['Lobby', 'Room 1', 'Room 2', 'Station abc'];
+
+    test('the Lobby and "all rooms" are neutral', () => {
+      expect(roomSlot('Lobby', rooms)).toBeNull();
+      expect(roomSlot('*', rooms)).toBeNull();
+    });
+
+    test('rooms take palette slots by position, without a slot for the Lobby', () => {
+      expect(roomSlot('Room 1', rooms)).toBe(roomSlot('Room 1', ['Room 1']));
+      expect(new Set(rooms.slice(1).map(r => roomSlot(r, rooms))).size).toBe(3);
+    });
+
+    test('roomColor is a 6-digit hex, so callers can append an alpha', () => {
+      for (const room of [...rooms, '*']) {
+        expect(roomColor(room, rooms)).toMatch(/^#[0-9a-fA-F]{6}$/);
+      }
     });
   });
 

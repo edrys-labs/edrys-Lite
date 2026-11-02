@@ -36,7 +36,7 @@ vi.mock('../../../src/ts/Utils', () => ({
   deepEqual: vi.fn((a, b) => JSON.stringify(a) === JSON.stringify(b)),
   decodeCommConfig: vi.fn((s) => (s === 'ws' ? { communicationMethod: 'Websocket' } : null)),
   copyToClipboard: vi.fn(),
-  roomColor: vi.fn(() => '#1E88E5'),
+  roomSlot: vi.fn((name: string) => (name === 'Lobby' ? null : 0)),
   hashPubKey: vi.fn(() => Promise.resolve('testhash1234')),
   initCryptoIdentity: vi.fn(() => Promise.resolve()),
   signSetup: vi.fn(() => Promise.resolve('mock-signature')),
@@ -215,6 +215,68 @@ describe('Classroom View', () => {
     
     wrapper.vm.gotoRoom('Room1');
     expect(mockCommunication.gotoRoom).toHaveBeenCalledWith('Room1');
+  });
+
+  describe('rooms drawer', () => {
+    const live = {
+      users: {
+        'test-peer-id': { room: 'Lobby', displayName: 'test-user', role: 'teacher' },
+        'other-peer': { room: 'Room 1', displayName: 'other', role: 'student' },
+        'Station abc': { room: 'Station abc', displayName: 'Station abc', role: 'station' },
+      },
+      rooms: { 'Lobby': {}, 'Room 1': {}, 'Station abc': {} },
+    };
+
+    const openDrawer = async () => {
+      const wrapper = createWrapper();
+      await wrapper.vm.init();
+      wrapper.vm.liveClassProxy = live;
+      await wrapper.vm.$nextTick();
+      return wrapper;
+    };
+
+    test('has one button per room that goes there, the current one marked', async () => {
+      const wrapper = await openDrawer();
+      const rows = wrapper.findAll('.room-row');
+      expect(rows.map((r) => r.attributes('aria-label'))).toEqual([
+        'Go to Lobby, 1 person',
+        'Go to Room 1, 1 person',
+        'Go to Station abc, 1 person',
+      ]);
+      expect(rows[0].attributes('aria-current')).toBe('true');
+      expect(rows[1].attributes('aria-current')).toBeUndefined();
+
+      mockCommunication.gotoRoom.mockClear();
+      await rows[1].trigger('click');
+      expect(mockCommunication.gotoRoom).toHaveBeenCalledWith('Room 1');
+    });
+
+    test('shows numbered rooms by their number and others by their initial', async () => {
+      const wrapper = await openDrawer();
+      expect(wrapper.findAll('.room-row .room-tile').map((t) => t.text())).toEqual(['L', '1', 'S']);
+    });
+
+    test('tags you and teachers, and spells out every role for screen readers', async () => {
+      const wrapper = await openDrawer();
+      const users = wrapper.findAll('.room-user');
+      expect(users[0].find('.user-tag').text()).toBe('you · Teacher');
+      expect(users[0].find('.d-sr-only').text()).toBe(', Teacher, you');
+      expect(users[1].find('.user-tag').exists()).toBe(false);
+      expect(users[1].find('.d-sr-only').text()).toBe(', Student');
+    });
+
+    test('shows the current room in the app bar only while the drawer is closed', async () => {
+      const wrapper = await openDrawer();
+      expect(wrapper.find('[data-test="room-pill"]').exists()).toBe(false);
+
+      wrapper.vm.showSideMenu = false;
+      await wrapper.vm.$nextTick();
+      const pill = wrapper.find('[data-test="room-pill"]');
+      expect(pill.attributes('aria-label')).toBe('Rooms: Lobby, 1 person');
+
+      await pill.trigger('click');
+      expect(wrapper.vm.showSideMenu).toBe(true);
+    });
   });
 
   test('handles user roles correctly', async () => {

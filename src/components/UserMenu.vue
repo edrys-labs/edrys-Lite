@@ -1,7 +1,15 @@
 <template>
   <v-menu :close-on-content-click="false">
     <template v-slot:activator="{ props }">
-      <v-btn v-bind="props" icon="mdi-dots-vertical" :aria-label="t('general.menu')"> </v-btn>
+      <v-btn
+        v-bind="props"
+        icon="mdi-dots-vertical"
+        size="36"
+        rounded="lg"
+        variant="text"
+        class="bar-btn"
+        :aria-label="t('general.menu')"
+      ></v-btn>
     </template>
 
     <v-list>
