@@ -305,9 +305,30 @@ textarea {
   font-family: var(--edrys-font);
 }
 
-:focus-visible {
+:focus-visible,
+input[type='range']:focus-visible {
   outline: 2px solid var(--edrys-focus);
   outline-offset: 2px;
+}
+
+/* water.css draws the slider thumb in its border colour */
+input[type='range']::-webkit-slider-runnable-track {
+  background: var(--edrys-code-bg);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  background: var(--edrys-primary);
+  box-shadow: none;
+}
+
+input[type='range']::-moz-range-track {
+  background: var(--edrys-code-bg);
+}
+
+input[type='range']::-moz-range-thumb {
+  border: 0;
+  background: var(--edrys-primary);
+  box-shadow: none;
 }
 
 label, legend {
