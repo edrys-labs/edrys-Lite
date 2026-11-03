@@ -23,6 +23,9 @@ index:
     dismiss: "Cerrar"
     title: "Tu cuenta ha sido actualizada al nuevo sistema de identidad."
     body: "Tus clases están listas para usar. Las listas de profesores han sido restablecidas — por favor, vuelve a añadir a tus profesores."
+  storage:
+    title: "Tus clases se guardan solo en este navegador."
+    body: "Si borras los datos del sitio, se perderán. Descarga una copia de seguridad en cada clase desde ⚙️ Configuración → Compartir. Una copia restaurada recibe un enlace nuevo, así que compártelo de nuevo con tus estudiantes."
   classroom:
     title: "Tus aulas"
     saved: "Guardadas en este navegador: {n}"

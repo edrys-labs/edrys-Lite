@@ -23,6 +23,9 @@ index:
     dismiss: "Dismiss"
     title: "Your account has been upgraded to the new identity system."
     body: "Your classrooms are ready to use. Teacher lists have been reset — please re-add your teachers."
+  storage:
+    title: "Your classrooms are stored only in this browser."
+    body: "If you clear the site data, they are gone. Download a backup in each classroom under ⚙️ Settings → Share. A restored backup gets a new link, so share it with your students again."
   classroom:
     title: "Your classrooms"
     saved: "{n} saved in this browser"

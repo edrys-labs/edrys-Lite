@@ -23,6 +23,9 @@ index:
     dismiss: "Schließen"
     title: "Ihr Konto wurde auf das neue Identitätssystem aktualisiert."
     body: "Ihre Unterrichtsräume sind bereit. Die Lehrerlisten wurden zurückgesetzt — bitte fügen Sie Ihre Lehrer erneut hinzu."
+  storage:
+    title: "Deine Klassenräume sind nur in diesem Browser gespeichert."
+    body: "Wenn du die Websitedaten löschst, sind sie weg. Lade in jedem Klassenraum unter ⚙️ Einstellungen → Teilen eine Sicherung herunter. Eine wiederhergestellte Sicherung bekommt einen neuen Link, teile ihn also erneut mit deinen Studierenden."
   classroom:
     title: "Ihre Unterrichtsräume"
     saved: "{n} in diesem Browser gespeichert"

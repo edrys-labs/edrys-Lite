@@ -183,6 +183,14 @@ export default {
           <span v-if="classrooms.length">{{ t('index.classroom.saved', { n: classrooms.length }) }}</span>
         </div>
 
+        <div v-if="classrooms.length" class="storage-note">
+          <v-icon icon="mdi-harddisk" size="20"></v-icon>
+          <p>
+            <strong>{{ t('index.storage.title') }}</strong>
+            {{ t('index.storage.body') }}
+          </p>
+        </div>
+
         <div class="class-grid">
           <button type="button" class="create-card" @click="createClass()">
             <span class="create-icon"><v-icon icon="mdi-plus" size="26"></v-icon></span>
@@ -352,6 +360,30 @@ export default {
 
 .migration-text strong {
   font-size: 14px;
+  font-weight: 600;
+}
+
+.storage-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgb(var(--v-theme-warning-tint));
+  color: rgb(var(--v-theme-on-background));
+}
+
+.storage-note .v-icon {
+  margin-top: 1px;
+}
+
+.storage-note p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.storage-note strong {
   font-weight: 600;
 }
 
