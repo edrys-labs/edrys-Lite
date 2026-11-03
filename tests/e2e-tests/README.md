@@ -119,7 +119,7 @@ Notes:
 ## `load/` — station under load
 
 [`station-load.spec.ts`](load/station-load.spec.ts) loads a real published lab
-config (the way Settings → "Restore class from URL" does; swap `CONFIG_URL` for
+config (the way Settings → Import / Export → "From a link" does; swap `CONFIG_URL` for
 another), opens a station and joins **5 participants** at once:
 
 - 3 chromium contexts, each CDP-throttled to a network profile (`wifi`,
