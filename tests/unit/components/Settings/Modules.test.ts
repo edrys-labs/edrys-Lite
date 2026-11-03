@@ -165,4 +165,21 @@ describe('Modules Settings Component', () => {
     expect(wrapper.vm.validate_config(0)).toBe(false);
   });
 
+  test('leaving an untouched config form keeps empty configs empty', () => {
+    const wrapper = createWrapper();
+    const vm: any = wrapper.vm;
+    const form = { collectConfig: vi.fn(() => ({ config: { content: '' } })) };
+    vm.$.refs = { moduleConfigForm: form }; // the dialog with the form is not open here
+    vm.moduleDialogDraft = { config: '' };
+
+    vm.formHasChanges = false;
+    vm.collectFormIntoDraft();
+    expect(vm.moduleDialogDraft.config).toBe('');
+    expect(form.collectConfig).not.toHaveBeenCalled();
+
+    vm.formHasChanges = true;
+    vm.collectFormIntoDraft();
+    expect(vm.moduleDialogDraft.config).toEqual({ content: '' });
+  });
 });
+

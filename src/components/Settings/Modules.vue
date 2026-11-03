@@ -180,6 +180,7 @@
               <Module
                 v-model:module="moduleDialogDraft"
                 v-model:error="errors[moduleDialogIndex]"
+                :rooms="rooms"
               ></Module>
             </v-expansion-panel-text>
           </v-expansion-panel>
@@ -215,6 +216,7 @@ import ModulesExplorer from "./ModulesExplorer.vue";
 import ModuleConfigForm from "./ModuleConfigForm.vue";
 import LinkedText from "../LinkedText.vue";
 import FieldLabel from "../FieldLabel.vue";
+import type { PropType } from "vue";
 
 // A module's room key. Missing modules (list edges) get a unique sentinel so
 // group-boundary checks treat them as "no neighbour".
@@ -236,7 +238,7 @@ export default {
 
     // the class's rooms, in the drawer's order, so a room has the same color here
     rooms: {
-      type: Array,
+      type: Array as PropType<string[]>,
       default: () => [],
     },
   },
@@ -501,7 +503,8 @@ export default {
     // panel switch or a save. No-op when the form isn't mounted.
     collectFormIntoDraft() {
       const form = this.$refs.moduleConfigForm as any;
-      if (!form || !this.moduleDialogDraft) return;
+      // an untouched form would write its default values into configs that were empty
+      if (!form || !this.moduleDialogDraft || !this.formHasChanges) return;
 
       const formConfig = form.collectConfig();
       Object.entries(formConfig).forEach(([configType, value]) => {

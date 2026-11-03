@@ -174,6 +174,7 @@ settings:
         title: "URL"
         urlLabel: "URL del Módulo"
       design:
+        summary: "Ancho {width} · Altura {height}"
         title: "Diseño"
         width:
           title: "Ancho"
@@ -198,7 +199,14 @@ settings:
       studentSettings: "Configuración de Estudiantes"
       teacherSettings: "Configuración de Profesores"
       stationSettings: "Configuración de Estaciones"
+      summary:
+        empty: "Vacío"
+        keys: "{n} clave: {keys} | {n} claves: {keys}"
+        text: "Texto"
       showIn:
+        places: "Mostrar el módulo en"
+        textLabel: "Como texto"
+        all: "Todas las salas"
         title: "Mostrar en"
         label: "Lista de salas separadas por comas, o: vestíbulo, * para todas, estación, (específico del rol: solo-profesor, solo-estación)"
         teacherOnly: "solo-profesor"

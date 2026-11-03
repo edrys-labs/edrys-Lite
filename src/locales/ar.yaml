@@ -174,6 +174,7 @@ settings:
         title: "رابط"
         urlLabel: "رابط الوحدة"
       design:
+        summary: "العرض {width} · الارتفاع {height}"
         title: "التصميم"
         width:
           title: "العرض"
@@ -198,7 +199,14 @@ settings:
       studentSettings: "إعدادات الطالب"
       teacherSettings: "إعدادات المعلم"
       stationSettings: "إعدادات المحطة"
+      summary:
+        empty: "فارغ"
+        keys: "{n} مفتاح: {keys} | {n} مفاتيح: {keys}"
+        text: "نص"
       showIn:
+        places: "إظهار الوحدة في"
+        textLabel: "كنص"
+        all: "كل الغرف"
         title: "إظهار في"
         label: "قائمة مفصولة بفواصل من الغرف، أو: الردهة، * للجميع، المحطة، (دور محدد: فقط للمعلم، فقط للمحطة)"
         teacherOnly: "فقط للمعلم"

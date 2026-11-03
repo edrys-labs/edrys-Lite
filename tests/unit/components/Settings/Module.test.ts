@@ -25,7 +25,7 @@ describe('Module Settings Component', () => {
   const createWrapper = (props = {}) => {
     return mount(Module, {
       props: {
-        module: mockModule,
+        module: { ...mockModule },
         error: mockError,
         ...props
       },
@@ -95,4 +95,78 @@ describe('Module Settings Component', () => {
     });
     expect(wrapper.emitted('update:error')).toBeTruthy();
   });
+
+  const heads = (wrapper: any) => wrapper.findAll('.row-head');
+  const rowByTitle = (wrapper: any, title: string) =>
+    wrapper.findAll('.advanced-row').find((row: any) => row.find('.row-title').text() === title);
+
+  test('each part shows a summary of its value', () => {
+    const wrapper = createWrapper({
+      module: { ...mockModule, config: { content: '# Hi' }, studentConfig: 'free text', showInCustom: 'lobby, station' },
+    });
+    const summary = (title: string) => rowByTitle(wrapper, title).find('.row-summary').text();
+    expect(summary('URL')).toBe('https://example.com/module');
+    expect(summary('Design')).toBe('Width Full (1000px) · Height Tall (720px)');
+    expect(summary('General Settings')).toBe('1 key: content');
+    expect(summary('Student Settings')).toBe('Text');
+    expect(summary('Teacher Settings')).toBe('Empty');
+    expect(summary('Show in')).toBe('lobby, station');
+  });
+
+  test('one part is open at a time', async () => {
+    const wrapper = createWrapper();
+    const open = () => wrapper.findAll('.row-head[aria-expanded="true"]').map((h: any) => h.find('.row-title').text());
+    expect(open()).toEqual([]);
+
+    await heads(wrapper)[0].trigger('click');
+    expect(open()).toEqual(['URL']);
+    await heads(wrapper)[1].trigger('click');
+    expect(open()).toEqual(['Design']);
+    await heads(wrapper)[1].trigger('click');
+    expect(open()).toEqual([]);
+  });
+
+  test('a part with an error shows the error pill', () => {
+    const wrapper = createWrapper({ error: { ...mockError, teacherConfig: 'bad indentation' } });
+    expect(rowByTitle(wrapper, 'Teacher Settings').find('.error-pill').exists()).toBe(true);
+    expect(rowByTitle(wrapper, 'General Settings').find('.error-pill').exists()).toBe(false);
+  });
+
+  test('the design switches set width and height', async () => {
+    const module = { ...mockModule };
+    const wrapper = createWrapper({ module });
+    await wrapper.find('input[type="radio"][value="half"]').setValue(true);
+    expect(module.width).toBe('half');
+    await wrapper.find('input[type="radio"][value="short"]').setValue(true);
+    expect(module.height).toBe('short');
+  });
+
+  test('the "Show in" buttons edit the text and keep role values', async () => {
+    const module = { ...mockModule, showInCustom: '*' };
+    const wrapper = createWrapper({ module, rooms: ['Lobby', 'Room 1', 'Station A'] });
+    // one button per place: everywhere, the Lobby, each room, the stations (not each station)
+    const labels = wrapper.findAll('.place').map((b: any) => b.text().slice(1).trim());
+    expect(labels).toEqual(['All rooms', 'Lobby', 'Room 1', 'Station']);
+    const button = (label: string) => wrapper.findAll('.place').find((b: any) => b.text().includes(label));
+
+    expect(button('All rooms').attributes('aria-pressed')).toBe('true');
+
+    await button('Lobby').trigger('click');
+    expect(module.showInCustom).toBe('lobby');
+    await button('Room 1').trigger('click');
+    expect(module.showInCustom).toBe('lobby, Room 1');
+    expect(button('All rooms').attributes('aria-pressed')).toBe('false');
+
+    module.showInCustom = 'lobby, Room 1, teacher-only';
+    await wrapper.vm.$nextTick();
+    await button('Lobby').trigger('click');
+    expect(module.showInCustom).toBe('Room 1, teacher-only');
+    await button('Room 1').trigger('click');
+    expect(module.showInCustom).toBe('*, teacher-only');
+    await button('Station').trigger('click');
+    expect(module.showInCustom).toBe('station, teacher-only');
+    await button('All rooms').trigger('click');
+    expect(module.showInCustom).toBe('*, teacher-only');
+  });
 });
+

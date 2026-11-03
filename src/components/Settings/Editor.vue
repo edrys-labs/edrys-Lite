@@ -1,28 +1,10 @@
 <template>
-  <v-expansion-panel>
-    <v-expansion-panel-title>
-      {{ title }}
-
-      <template v-slot:actions>
-        <v-icon :style="errorMessage ? 'color: red;' : ''"> {{ icon }} </v-icon>
-      </template>
-    </v-expansion-panel-title>
-    <v-expansion-panel-text style="max-height: 60vh">
-      <div
-        style="font-size: small; margin-bottom: 0.25rem"
-        :style="errorMessage ? 'color: red;' : 'color: gray;'"
-      >
-        {{ errorMessage || t('settings.modules.editor.info') }}
-      </div>
-
-      <v-divider style="margin-bottom: 0.5rem"></v-divider>
-      <prism-editor
-        v-model="code"
-        :highlight="highlighter"
-        line-numbers
-      ></prism-editor>
-    </v-expansion-panel-text>
-  </v-expansion-panel>
+  <div class="code-field">
+    <prism-editor v-model="code" :highlight="highlighter" line-numbers></prism-editor>
+  </div>
+  <p :class="['code-note', { failed: !!errorMessage }]" role="status">
+    {{ errorMessage || t('settings.modules.editor.info') }}
+  </p>
 </template>
 
 <script lang="ts">
@@ -41,17 +23,7 @@ export default {
 
     error: {
       type: String,
-      default: false,
-    },
-
-    title: {
-      type: String,
-      required: true,
-    },
-
-    icon: {
-      type: String,
-      required: true,
+      default: "",
     },
   },
 
@@ -117,3 +89,35 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.code-field {
+  max-height: 40vh;
+  overflow: auto;
+  border: 1px solid rgb(var(--v-theme-field-line));
+  border-radius: 8px;
+  background: rgb(var(--v-theme-field));
+}
+
+.code-field:focus-within {
+  outline: 1px solid rgb(var(--v-theme-focus));
+  border-color: rgb(var(--v-theme-focus));
+}
+
+.code-field :deep(.prism-editor__container) {
+  min-height: 96px;
+  font-family: "JetBrains Mono Variable", monospace;
+  font-size: 13px;
+}
+
+.code-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgb(var(--v-theme-muted));
+}
+
+.code-note.failed {
+  color: rgb(var(--v-theme-error));
+}
+</style>

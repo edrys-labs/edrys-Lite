@@ -174,6 +174,7 @@ settings:
         title: "URL"
         urlLabel: "Modul-URL"
       design:
+        summary: "Breite {width} · Höhe {height}"
         title: "Design"
         width:
           title: "Breite"
@@ -198,7 +199,14 @@ settings:
       studentSettings: "Schülereinstellungen"
       teacherSettings: "Lehrereinstellungen"
       stationSettings: "Stationseinstellungen"
+      summary:
+        empty: "Leer"
+        keys: "{n} Schlüssel: {keys} | {n} Schlüssel: {keys}"
+        text: "Text"
       showIn:
+        places: "Das Modul zeigen in"
+        textLabel: "Als Text"
+        all: "Alle Räume"
         title: "Anzeigen in"
         label: "Durch Kommas getrennte Liste von Räumen oder: Lobby, * für alle, Station, (rollenspezifisch: nur Lehrer, nur Station)"
         teacherOnly: "nur Lehrer"

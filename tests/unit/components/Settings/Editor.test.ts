@@ -10,8 +10,6 @@ describe('Editor Component', () => {
     return mount(Editor, {
       props: {
         config: {},
-        title: 'Test Editor',
-        icon: 'mdi-test',
         ...props
       },
       global: {
@@ -74,8 +72,7 @@ describe('Editor Component', () => {
     
     await editor.setValue('invalid: yaml: : :');
     
-    const errorDiv = wrapper.find('div[style*="color: red"]');
-    expect(errorDiv.exists()).toBe(true);
+    expect(wrapper.find('.code-note.failed').exists()).toBe(true);
     expect(wrapper.vm.errorMessage).toBeTruthy();
   });
 
