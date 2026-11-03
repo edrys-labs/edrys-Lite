@@ -213,7 +213,7 @@ export async function ownerImportConfigFromUrl(
   // update configClone.name in the Main tab before saving, otherwise Save
   // would persist the pre-restore clone.
   await page.getByRole('tab').filter({ hasText: 'Main' }).click()
-  await expect(page.getByLabel('Class Name')).toHaveValue(parsed.name, { timeout })
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue(parsed.name, { timeout })
 
   // The Save button's accessible name includes the "unsaved changes" badge
   // text ("Save Badge"), so match loosely rather than exact.

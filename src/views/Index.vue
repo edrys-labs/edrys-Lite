@@ -12,27 +12,26 @@ import {
   sameKey,
   isMember,
 } from "../ts/Utils";
-import { classArt } from "../ts/ClassArt";
-import { activeTheme } from "../ts/Theme";
 
 import AppBrand from "../components/AppBrand.vue";
 import Footer from "../components/Footer.vue";
 import UserMenu from '../components/UserMenu.vue';
 import LinkedText from '../components/LinkedText.vue';
+import ClassBanner from '../components/ClassBanner.vue';
 import { useI18n } from 'vue-i18n';
 import { useDisplay, useRtl } from 'vuetify';
 
 export default {
   name: "Index",
 
-  components: { AppBrand, Footer, UserMenu, LinkedText },
+  components: { AppBrand, Footer, UserMenu, LinkedText, ClassBanner },
 
   setup() {
     const { t, locale } = useI18n();
     // phones list the classes as compact rows
     const { xs: phone } = useDisplay();
     const { isRtl: rtl } = useRtl();
-    return { t, locale, sameKey, isMember, classArt, activeTheme, phone, rtl };
+    return { t, locale, sameKey, isMember, phone, rtl };
   },
 
   data() {
@@ -58,7 +57,6 @@ export default {
       peerID: getPeerID(false),
       showMigrationBanner: sessionStorage.getItem('showMigrationBanner') === '1',
       // classroom id -> its logo failed to load, show its drawn picture instead
-      brokenLogos: {} as Record<string, boolean>,
       // phones: the class whose "More actions" menu asks before deleting
       confirmDelete: null as string | null,
     };
@@ -205,49 +203,7 @@ export default {
           </button>
 
           <article v-for="classroom in classrooms" :key="classroom.id" class="class-card">
-            <img
-              v-if="classroom?.data?.meta?.logo && !brokenLogos[classroom.id]"
-              class="banner"
-              :src="classroom.data.meta.logo"
-              alt=""
-              @error="brokenLogos[classroom.id] = true"
-            />
-            <svg
-              v-else
-              class="banner class-art"
-              viewBox="0 0 200 100"
-              preserveAspectRatio="xMidYMid slice"
-              aria-hidden="true"
-            >
-              <rect
-                x="-100"
-                y="-100"
-                width="400"
-                height="300"
-                :fill="classArt(classroom.id, activeTheme).background"
-              />
-              <line
-                v-for="(line, i) in classArt(classroom.id, activeTheme).lines"
-                :key="'l' + i"
-                :x1="line.x1"
-                :y1="line.y1"
-                :x2="line.x2"
-                :y2="line.y2"
-                :stroke="line.color"
-                stroke-width="1.4"
-                stroke-linecap="round"
-              />
-              <circle
-                v-for="(dot, i) in classArt(classroom.id, activeTheme).dots"
-                :key="'d' + i"
-                :cx="dot.cx"
-                :cy="dot.cy"
-                :r="dot.r"
-                :fill="dot.fill"
-                :stroke="classArt(classroom.id, activeTheme).background"
-                :stroke-width="dot.ring"
-              />
-            </svg>
+            <ClassBanner :id="classroom.id" :logo="classroom?.data?.meta?.logo || ''" class="banner" />
 
             <div class="class-body">
               <!-- the link covers the whole card; buttons and description links sit above it -->

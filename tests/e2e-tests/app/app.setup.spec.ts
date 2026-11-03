@@ -62,8 +62,8 @@ test.describe('App — owner setup, share and join', () => {
     // ── Owner configures the class through the UI ──
     let dialog = await openSettings(owner.page)
     await dialog.getByRole('tab', { name: 'Main' }).click()
-    await dialog.getByLabel('Class Name').fill(name)
-    await dialog.getByLabel('Default number of rooms (optional)').fill('2')
+    await dialog.getByLabel('Name', { exact: true }).fill(name)
+    await dialog.getByLabel('Number of rooms').fill('2')
 
     await dialog.getByRole('tab', { name: 'Modules' }).click()
     await dialog.getByLabel('Module URL').fill(MODULE_URL)

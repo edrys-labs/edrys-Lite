@@ -113,7 +113,7 @@ Notes:
 - The first Settings save on a WS run reloads the owner once: the class has no
   signed `communicationConfig` until that save pins `"ws"` (`settle()` waits
   it out).
-- "Default number of rooms" is only checked in the setup: it is applied when a
+- "Number of rooms" is only checked in the setup: it is applied when a
   session starts with no rooms, not live.
 
 ## `load/` — station under load
