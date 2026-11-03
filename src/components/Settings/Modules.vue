@@ -31,8 +31,13 @@
             {{ t('settings.modules.module.showIn.title') }}:
             <span class="group-name">{{ element.showInCustom || "*" }}</span>
           </h3>
+          <span class="group-rule" aria-hidden="true"></span>
         </div>
-        <div :key="element.id" class="list-group-item">
+        <div
+          :key="element.id"
+          class="list-group-item"
+          :style="{ '--room': groupColor(element.showInCustom) }"
+        >
           <svg class="drag-handle" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle>
             <circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle>
@@ -336,6 +341,15 @@ export default {
       return dots;
     },
 
+    // The stripe on a group's rows: its room's color when it names one room,
+    // a neutral line for "*" and for several rooms.
+    groupColor(showIn: string) {
+      const dots = this.groupDots(showIn);
+      return dots.length === 1 && dots[0].color
+        ? dots[0].color
+        : "rgb(var(--v-theme-line))";
+    },
+
     // Only allow reordering within the same room.
     canMove(event: any) {
       const target = event.relatedContext?.element;
@@ -523,7 +537,13 @@ export default {
   align-items: center;
   gap: 8px;
   padding: 0 4px;
-  margin: 18px 0 6px;
+  margin: 28px 0 8px;
+}
+
+.group-rule {
+  flex: 1;
+  height: 1px;
+  background: rgb(var(--v-theme-line));
 }
 
 .room-group-header.first {
@@ -547,7 +567,7 @@ export default {
 
 .room-group-header h3 {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: rgb(var(--v-theme-muted));
 }
@@ -563,11 +583,23 @@ export default {
   align-items: center;
   gap: 12px;
   margin-bottom: 6px;
-  padding: 8px 8px 8px 6px;
+  padding: 8px 8px 8px 10px;
   border-radius: 10px;
   background: rgb(var(--v-theme-row));
   box-shadow: 0 0 0 1px rgb(var(--v-theme-row-edge));
   cursor: grab;
+  position: relative;
+  overflow: hidden;
+}
+
+/* the group's room color down the row's start edge */
+.list-group-item::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 4px;
+  background: var(--room, transparent);
 }
 
 .list-group-item:hover {
