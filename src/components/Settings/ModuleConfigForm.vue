@@ -16,24 +16,20 @@
     </v-card-text>
 
     <template v-else>
+      <!-- A single config type is a heading, not a one-tab bar -->
+      <div v-if="configTypes.length === 1" class="config-heading">
+        {{ tabLabel(configTypes[0]) }}
+      </div>
       <v-tabs
+        v-else
         v-model="activeTab"
         bg-color="transparent"
         color="primary"
         align-tabs="center"
         density="comfortable"
       >
-        <v-tab v-if="configSchemas.config" value="config">
-          {{ t("settings.modules.module.generalSettings") }}
-        </v-tab>
-        <v-tab v-if="configSchemas.teacherConfig" value="teacherConfig">
-          {{ t("settings.modules.module.teacherSettings") }}
-        </v-tab>
-        <v-tab v-if="configSchemas.studentConfig" value="studentConfig">
-          {{ t("settings.modules.module.studentSettings") }}
-        </v-tab>
-        <v-tab v-if="configSchemas.stationConfig" value="stationConfig">
-          {{ t("settings.modules.module.stationSettings") }}
+        <v-tab v-for="configType in configTypes" :key="configType" :value="configType">
+          {{ tabLabel(configType) }}
         </v-tab>
       </v-tabs>
 
@@ -50,8 +46,10 @@
                 <v-checkbox
                   v-if="fieldConfig.type === 'boolean'"
                   v-model="formValues[configType][field]"
-                  :label="String(field)"
+                  :label="fieldLabel(field, fieldConfig)"
                   :hint="fieldConfig.hint"
+                  :hide-details="!fieldConfig.hint"
+                  persistent-hint
                   color="primary"
                   density="compact"
                   class="config-checkbox"
@@ -59,24 +57,27 @@
 
                 <!-- Checkbox group fields -->
                 <div v-else-if="fieldConfig.type === 'checkboxes'" class="mt-3">
-                  <div class="mb-1 field-label">{{ field }}</div>
+                  <div class="mb-1 field-label">{{ fieldLabel(field, fieldConfig) }}</div>
                   <div>
                     <v-checkbox
                       v-for="option in fieldConfig.options"
                       :key="option"
                       v-model="formValues[configType][field][option]"
                       :label="option"
-                      :hint="fieldConfig.hint"
+                      hide-details
                       color="primary"
                       density="compact"
                       class="config-checkbox"
                     ></v-checkbox>
                   </div>
+                  <div v-if="fieldConfig.hint" class="text-caption text-grey mt-1">
+                    {{ fieldConfig.hint }}
+                  </div>
                 </div>
 
                 <!-- Radio Button fields -->
                 <div v-else-if="fieldConfig.type === 'radio-button'" class="mt-3">
-                  <div class="mb-1 field-label">{{ field }}</div>
+                  <div class="mb-1 field-label">{{ fieldLabel(field, fieldConfig) }}</div>
                   <v-radio-group
                     v-model="formValues[configType][field]"
                     :hint="fieldConfig.hint"
@@ -98,7 +99,7 @@
                 <!-- Select fields (fixed list of options) -->
                 <FieldLabel
                   v-else-if="fieldConfig.type === 'select'"
-                  :label="String(field)"
+                  :label="fieldLabel(field, fieldConfig)"
                   class="mt-3"
                 >
                   <v-select
@@ -112,10 +113,8 @@
                       applyPreset(configType, field, fieldConfig, $event)
                     "
                   ></v-select>
-                  <div
-                    v-if="fieldConfig.presets"
-                    class="text-caption text-grey mt-1"
-                  >
+                  <div v-if="fieldConfig.presets" class="preset-note mt-1">
+                    <v-icon size="14">mdi-alert-circle-outline</v-icon>
                     {{ t("settings.modules.moduleConfig.presetHint") }}
                   </div>
                 </FieldLabel>
@@ -123,7 +122,7 @@
                 <!-- Combobox fields (suggestions, but free text is allowed) -->
                 <FieldLabel
                   v-else-if="fieldConfig.type === 'combobox'"
-                  :label="String(field)"
+                  :label="fieldLabel(field, fieldConfig)"
                   class="mt-3"
                 >
                   <v-combobox
@@ -138,7 +137,7 @@
                 <!-- Number fields -->
                 <FieldLabel
                   v-else-if="fieldConfig.type === 'number'"
-                  :label="String(field)"
+                  :label="fieldLabel(field, fieldConfig)"
                   class="mt-3"
                 >
                   <v-text-field
@@ -152,7 +151,7 @@
                 <!-- Text area fields -->
                 <FieldLabel
                   v-else-if="fieldConfig.type === 'text-area'"
-                  :label="String(field)"
+                  :label="fieldLabel(field, fieldConfig)"
                   class="mt-3"
                 >
                   <v-textarea
@@ -165,7 +164,7 @@
                 <!-- Date fields -->
                 <FieldLabel
                   v-else-if="fieldConfig.type === 'date'"
-                  :label="String(field)"
+                  :label="fieldLabel(field, fieldConfig)"
                   class="mt-3"
                 >
                   <v-text-field
@@ -178,7 +177,7 @@
 
                 <!-- Color picker fields -->
                 <div v-else-if="fieldConfig.type === 'color'" class="pl-1">
-                  <div class="mb-2 field-label">{{ field }}</div>
+                  <div class="mb-2 field-label">{{ fieldLabel(field, fieldConfig) }}</div>
                   <div class="d-flex align-center">
                     <v-color-picker
                       v-model="formValues[configType][field]"
@@ -203,7 +202,7 @@
 
                 <!-- Code editor fields -->
                 <div v-else-if="fieldConfig.type === 'code-area'" class="mt-3">
-                  <div class="mb-2 field-label">{{ field }}</div>
+                  <div class="mb-2 field-label">{{ fieldLabel(field, fieldConfig) }}</div>
                   <div class="code-editor-container">
                     <prism-editor
                       v-model="formValues[configType][field]"
@@ -220,7 +219,7 @@
                 </div>
 
                 <!-- String fields -->
-                <FieldLabel v-else :label="String(field)" class="mt-3">
+                <FieldLabel v-else :label="fieldLabel(field, fieldConfig)" class="mt-3">
                   <v-text-field
                     v-model="formValues[configType][field]"
                     :hint="fieldConfig.hint"
@@ -342,6 +341,13 @@ export default {
   },
 
   computed: {
+    // Config types this module declares, in tab order
+    configTypes() {
+      return ["config", "teacherConfig", "studentConfig", "stationConfig"].filter(
+        (configType) => this.configSchemas[configType]
+      );
+    },
+
     hasAnySchema() {
       return Object.values(this.configSchemas).some(
         (schema) => schema !== null
@@ -401,6 +407,39 @@ export default {
         console.error("Failed to parse configuration value:", e);
         return {};
       }
+    },
+
+    tabLabel(configType) {
+      const key = {
+        config: "generalSettings",
+        teacherConfig: "teacherSettings",
+        studentConfig: "studentSettings",
+        stationConfig: "stationSettings",
+      }[configType];
+      return this.t(`settings.modules.module.${key}`);
+    },
+
+    // A schema `label` if given, else the config key in words:
+    // streamName -> "Stream name", websocketUrl -> "Websocket URL"
+    fieldLabel(field, fieldConfig) {
+      if (fieldConfig?.label) return fieldConfig.label;
+
+      const acronyms = ["url", "id", "ip", "api", "fqbn", "mcu", "http", "mqtt", "html", "json"];
+      const words = String(field)
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+        .replace(/([a-zA-Z])(\d)/g, "$1 $2")
+        .split(/[\s_-]+/)
+        .filter(Boolean)
+        .map((word, i) => {
+          if (acronyms.includes(word.toLowerCase())) return word.toUpperCase();
+          // keep what the author wrote in capitals (mirrorX -> "Mirror X")
+          if (word === word.toUpperCase()) return word;
+          word = word.toLowerCase();
+          return i === 0 ? word[0].toUpperCase() + word.slice(1) : word;
+        });
+
+      return words.join(" ") || String(field);
     },
 
     highlighter(code) {
@@ -609,8 +648,18 @@ export default {
   margin-bottom: 0;
 }
 
-.config-checkbox :deep(.v-selection-control) {
-  margin-bottom: -12px;
+.config-heading {
+  font-weight: 600;
+  padding: 12px 16px 0;
+}
+
+.preset-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 12px;
+  color: rgb(var(--v-theme-muted));
 }
 
 .config-checkbox :deep(.v-label) {

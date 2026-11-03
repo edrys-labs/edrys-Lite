@@ -510,5 +510,34 @@ describe('ModuleConfigForm Component', () => {
       ).toEqual(['arduino:avr:uno', 'esp32:esp32:esp32', 'avr128db48']);
     });
 
+    test('a single config type shows a heading instead of tabs', () => {
+      wrapper = createPresetWrapper();
+
+      expect(wrapper.find('.v-tab').exists()).toBe(false);
+      expect(wrapper.find('.config-heading').text()).toBe('Station Settings');
+    });
+  });
+
+  describe('field labels', () => {
+    test.each([
+      ['streamName', 'Stream name'],
+      ['websocketUrl', 'Websocket URL'],
+      ['mirrorX', 'Mirror X'],
+      ['execute', 'Execute'],
+      ['show_in_room', 'Show in room'],
+      ['led2Pin', 'Led 2 pin'],
+      ['FQBN', 'FQBN'],
+    ])('%s reads as "%s"', (key, label) => {
+      wrapper = createWrapper();
+      expect((wrapper.vm as any).fieldLabel(key, {})).toBe(label);
+    });
+
+    test('a schema label wins over the key', () => {
+      wrapper = createWrapper();
+      expect((wrapper.vm as any).fieldLabel('rotate', { label: 'Rotation (°)' })).toBe(
+        'Rotation (°)'
+      );
+    });
+
   });
 });
