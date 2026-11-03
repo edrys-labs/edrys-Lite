@@ -25,7 +25,7 @@ index:
     body: "Tus clases están listas para usar. Las listas de profesores han sido restablecidas — por favor, vuelve a añadir a tus profesores."
   storage:
     title: "Tus clases se guardan solo en este navegador."
-    body: "Si borras los datos del sitio, se perderán. Descarga una copia de seguridad en cada clase desde ⚙️ Configuración → Compartir. Una copia restaurada recibe un enlace nuevo, así que compártelo de nuevo con tus estudiantes."
+    body: "Si borras los datos del sitio, se perderán. Descarga una copia de seguridad en cada clase desde ⚙️ Configuración → Importar / Exportar. Una clase restaurada después recibe un enlace nuevo, así que compártelo de nuevo."
   classroom:
     title: "Tus aulas"
     saved: "Guardadas en este navegador: {n}"

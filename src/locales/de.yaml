@@ -25,7 +25,7 @@ index:
     body: "Ihre Unterrichtsräume sind bereit. Die Lehrerlisten wurden zurückgesetzt — bitte fügen Sie Ihre Lehrer erneut hinzu."
   storage:
     title: "Deine Klassenräume sind nur in diesem Browser gespeichert."
-    body: "Wenn du die Websitedaten löschst, sind sie weg. Lade in jedem Klassenraum unter ⚙️ Einstellungen → Teilen eine Sicherung herunter. Eine wiederhergestellte Sicherung bekommt einen neuen Link, teile ihn also erneut mit deinen Studierenden."
+    body: "Wenn du die Websitedaten löschst, sind sie weg. Lade in jedem Klassenraum unter ⚙️ Einstellungen → Import / Export eine Sicherung herunter. Eine danach wiederhergestellte Klasse bekommt einen neuen Link, teile ihn also erneut."
   classroom:
     title: "Ihre Unterrichtsräume"
     saved: "{n} in diesem Browser gespeichert"

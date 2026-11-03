@@ -25,7 +25,7 @@ index:
     body: "Your classrooms are ready to use. Teacher lists have been reset — please re-add your teachers."
   storage:
     title: "Your classrooms are stored only in this browser."
-    body: "If you clear the site data, they are gone. Download a backup in each classroom under ⚙️ Settings → Share. A restored backup gets a new link, so share it with your students again."
+    body: "If you clear the site data, they are gone. Download a backup in each classroom under ⚙️ Settings → Import / Export. A class restored after that gets a new link, so share it again."
   classroom:
     title: "Your classrooms"
     saved: "{n} saved in this browser"
