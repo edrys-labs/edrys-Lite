@@ -169,8 +169,8 @@ export async function waitForPeerReady(page: Page, timeout = 45000) {
 }
 
 /**
- * Owner: drive the REAL Settings UI — gear icon > Share tab > "Restore class
- * from URL" > Save — to load a classroom config from a published URL.
+ * Owner: drive the REAL Settings UI — gear icon > Import / Export tab > "From a
+ * link" > Save — to load a classroom config from a published URL.
  *
  * Earlier this was done by reaching into the live Peer (`p.lab.data` +
  * `p._signAndWrite`) directly, mirroring what Share.vue's restoreURL does.
@@ -204,11 +204,10 @@ export async function ownerImportConfigFromUrl(
   await page.getByTitle('Settings').click()
   await page.getByRole('tab').filter({ hasText: 'Import / Export' }).click()
 
-  const urlField = page.getByLabel('Restore class from URL (http, https)')
+  const urlField = page.getByLabel('From a link (http, https)')
   await urlField.fill(configUrl)
-  // The Restore button next to the field (not Enter) runs restoreURL(); the file
-  // field shows its own only once a file is picked.
-  await page.getByRole('button', { name: 'Restore', exact: true }).click()
+  // The Restore button inside the field runs restoreURL()
+  await page.getByRole('button', { name: 'Restore from link' }).click()
 
   // restoreURL() is async (fetch + parseClassroom); wait for it to actually
   // update configClone.name in the Main tab before saving, otherwise Save

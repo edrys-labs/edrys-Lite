@@ -93,14 +93,15 @@ describe('Share Settings Component', () => {
             template: '<div class="v-col"><slot /></div>'
           },
           'v-btn': {
-            template: '<button class="v-btn" @click="$emit(\'click\')"><slot /></button>'
+            template: '<button class="v-btn" :disabled="$attrs.disabled" :aria-label="$attrs[\'aria-label\']" @click="$emit(\'click\')"><slot /></button>',
+            inheritAttrs: false
           },
           'v-file-input': {
-            template: '<input type="file" class="v-file-input" :disabled="$attrs.disabled" :label="$attrs.label" @change="$emit(\'update:modelValue\', $event.target.files[0])" />',
+            template: '<div><input type="file" class="v-file-input" @change="$emit(\'update:modelValue\', $event.target.files[0])" /><slot name="append-inner" /></div>',
             inheritAttrs: false
           },
           'v-text-field': {
-            template: '<input type="text" class="v-text-field" :disabled="$attrs.disabled" :label="$attrs.label" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+            template: '<div><input type="text" class="v-text-field" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><slot name="append-inner" /></div>',
             props: ['modelValue'],
             inheritAttrs: false
           },
@@ -113,7 +114,7 @@ describe('Share Settings Component', () => {
 
   test('handles yaml file download', async () => {
     const wrapper = createWrapper();
-    const downloadBtns = wrapper.findAll('.v-btn').filter(btn => btn.text() === 'Download class file (.yml)');
+    const downloadBtns = wrapper.findAll('.v-btn').filter(btn => btn.text() === 'YAML file (.yml)');
     
     await downloadBtns[0].trigger('click'); 
     expect(global.URL.createObjectURL).toHaveBeenCalled();
@@ -122,7 +123,7 @@ describe('Share Settings Component', () => {
 
   test('handles json file download', async () => {
     const wrapper = createWrapper();
-    const downloadBtns = wrapper.findAll('.v-btn').filter(btn => btn.text() === 'Download class file (.json)');
+    const downloadBtns = wrapper.findAll('.v-btn').filter(btn => btn.text() === 'JSON file (.json)');
     
     await downloadBtns[0].trigger('click'); 
     expect(global.URL.createObjectURL).toHaveBeenCalled();
@@ -199,4 +200,35 @@ describe('Share Settings Component', () => {
     expect(mockFileReader.readAsText).toHaveBeenCalledWith(file);
   });
 
+  test('restore buttons stay disabled until there is a file or a link', async () => {
+    const wrapper = createWrapper();
+    const fileBtn = wrapper.find('[aria-label="Restore from file"]');
+    const urlBtn = wrapper.find('[aria-label="Restore from link"]');
+    expect(fileBtn.attributes('disabled')).toBeDefined();
+    expect(urlBtn.attributes('disabled')).toBeDefined();
+
+    await wrapper.find('.v-text-field').setValue('https://example.com/lab.yml');
+    expect(urlBtn.attributes('disabled')).toBeUndefined();
+  });
+
+  test('a link that cannot be loaded shows an error, a class shows a success note', async () => {
+    const config: any = { ...mockConfig, modules: [] };
+    const wrapper = createWrapper({ config });
+    global.fetch = vi.fn().mockRejectedValueOnce(new Error('offline')) as any;
+
+    wrapper.vm.selectedURL = 'https://example.com/lab.yml';
+    await wrapper.vm.restoreURL();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.restore-status.failed').text()).toBe('Could not load a class from this link.');
+
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      text: async () => 'name: Imported\nmodules: []',
+    }) as any;
+    await wrapper.vm.restoreURL();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.restore-status').classes()).not.toContain('failed');
+    expect(wrapper.find('.restore-status').text()).toBe('Class loaded. Save to keep it.');
+    expect(config.name).toBe('Imported');
+  });
 });

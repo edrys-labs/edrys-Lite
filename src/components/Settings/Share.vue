@@ -1,73 +1,85 @@
 <template>
-  <v-row>
-    <v-col>
-      <v-btn variant="outlined" height="40" block prepend-icon="mdi-download" @click="downloadClass('yaml')">
-        {{ t('settings.share.downloadYml') }}
-      </v-btn>
-    </v-col>
-    <v-col>
-      <v-btn variant="outlined" height="40" block prepend-icon="mdi-download" @click="downloadClass('json')">
-        {{ t('settings.share.downloadJson') }}
-      </v-btn>
-    </v-col>
-  </v-row>
-  <v-row>
-    <v-col>
-      <FieldLabel :label="t('settings.share.restoreFromFile')">
-        <v-file-input
-          accept=".yml,.yaml,.json,application/yaml,application/json"
-          prepend-icon=""
-          prepend-inner-icon="mdi-paperclip"
-          v-model="selectedFile"
-        >
-          <template v-if="selectedFile !== undefined" v-slot:append>
-            <v-btn
-              icon="mdi-upload"
-              variant="text"
-              density="comfortable"
-              :aria-label="t('settings.share.restore')"
-              :title="t('settings.share.restore')"
-              @click="restoreFile"
-            ></v-btn>
-          </template>
-        </v-file-input>
-      </FieldLabel>
-    </v-col>
+  <h3 class="section-title">{{ t('settings.share.downloadTitle') }}</h3>
+  <p class="section-text">{{ t('settings.share.downloadText') }}</p>
+  <div class="downloads">
+    <v-btn variant="outlined" height="40" prepend-icon="mdi-download" @click="downloadClass('yaml')">
+      {{ t('settings.share.downloadYml') }}
+    </v-btn>
+    <v-btn variant="outlined" height="40" prepend-icon="mdi-download" @click="downloadClass('json')">
+      {{ t('settings.share.downloadJson') }}
+    </v-btn>
+  </div>
 
-    <v-col>
-      <FieldLabel :label="t('settings.share.restoreFromUrl')">
-        <v-text-field
-          v-model="selectedURL"
-          prepend-inner-icon="mdi-link"
-          @mouseover="showTemplate = true"
-          @mouseleave="showTemplate = false"
-        >
-          <template v-slot:append-inner>
-            <v-icon
-              @mouseover="showTemplate = true"
-              @mouseleave="showTemplate = false"
-              v-if="selectedURL.length > 0 && showTemplate"
-              @click="selectedURL = ''"
-              >mdi-close-circle</v-icon
-            >
-          </template>
-          <template v-if="selectedURL" v-slot:append>
-            <v-btn
-              icon="mdi-upload"
-              variant="text"
-              density="comfortable"
-              :aria-label="t('settings.share.restore')"
-              :title="t('settings.share.restore')"
-              @click="restoreURL"
-            ></v-btn>
-          </template>
-        </v-text-field>
-      </FieldLabel>
-    </v-col>
-  </v-row>
+  <v-divider class="my-5"></v-divider>
 
-  <v-divider class="pb-2"></v-divider>
-  <v-btn variant="outlined" height="40" prepend-icon="mdi-github" href="https://github.com/topics/edrys-lab" target="_blank">
+  <h3 class="section-title">{{ t('settings.share.restoreTitle') }}</h3>
+  <p class="section-text">{{ t('settings.share.restoreText') }}</p>
+  <div class="restore">
+    <FieldLabel :label="t('settings.share.restoreFromFile')">
+      <v-file-input
+        accept=".yml,.yaml,.json,application/yaml,application/json"
+        prepend-icon=""
+        prepend-inner-icon="mdi-paperclip"
+        hide-details
+        v-model="selectedFile"
+      >
+        <template v-slot:append-inner>
+          <!-- .stop: a click anywhere in the field opens the file picker -->
+          <v-btn
+            color="primary"
+            variant="flat"
+            height="32"
+            class="restore-btn"
+            :disabled="!selectedFile"
+            :aria-label="t('settings.share.restoreFile')"
+            @click.stop="restoreFile"
+          >
+            {{ t('settings.share.restore') }}
+          </v-btn>
+        </template>
+      </v-file-input>
+    </FieldLabel>
+
+    <FieldLabel :label="t('settings.share.restoreFromUrl')">
+      <v-text-field
+        v-model="selectedURL"
+        prepend-inner-icon="mdi-link"
+        placeholder="https://…/lab.yml"
+        hide-details
+        @keydown.enter="selectedURL && restoreURL()"
+      >
+        <template v-slot:append-inner>
+          <v-btn
+            color="primary"
+            variant="flat"
+            height="32"
+            class="restore-btn"
+            :disabled="!selectedURL"
+            :aria-label="t('settings.share.restoreUrl')"
+            @click.stop="restoreURL"
+          >
+            {{ t('settings.share.restore') }}
+          </v-btn>
+        </template>
+      </v-text-field>
+    </FieldLabel>
+  </div>
+  <p v-if="restoreSuccess || saveError" role="status" :class="['restore-status', { failed: saveError }]">
+    <v-icon :icon="saveError ? 'mdi-alert-circle-outline' : 'mdi-check-circle-outline'" size="16"></v-icon>
+    {{ saveError ? errorMessage : t('settings.share.restored') }}
+  </p>
+
+  <v-divider class="my-5"></v-divider>
+
+  <h3 class="section-title">{{ t('settings.share.findTitle') }}</h3>
+  <p class="section-text">{{ t('settings.share.findText') }}</p>
+  <v-btn
+    variant="tonal"
+    height="40"
+    append-icon="mdi-open-in-new"
+    href="https://github.com/topics/edrys-lab"
+    target="_blank"
+  >
     {{ t('settings.share.explore') }}
   </v-btn>
 </template>
@@ -100,8 +112,6 @@ export default {
       url: window.location.toString(),
       selectedURL: "",
       selectedFile: undefined,
-
-      showTemplate: false,
 
       restoreSuccess: false,
       saveError: false,
@@ -156,23 +166,25 @@ export default {
       this.restoreSuccess = false;
       this.saveError = false;
 
-      const response = await fetch(this.selectedURL);
+      try {
+        const response = await fetch(this.selectedURL);
 
-      if (response.ok) {
-        const text = await response.text();
+        if (response.ok) {
+          const newClass = parseClassroom(await response.text());
 
-        const newClass = parseClassroom(text);
+          if (newClass) {
+            this.updateConfig(newClass);
 
-        if (newClass) {
-          this.updateConfig(newClass);
-
-          this.restoreSuccess = true;
-          return;
+            this.restoreSuccess = true;
+            return;
+          }
         }
+      } catch (e) {
+        // network error or blocked by CORS: same message as a page that isn't a class
       }
 
       this.saveError = true;
-      this.errorMessage = `Could not parse the content within the URL: ${this.selectedURL}`;
+      this.errorMessage = this.t("settings.share.urlFailed");
 
       debug.settings.share("restoreURL", this.selectedURL, this.errorMessage);
     },
@@ -197,7 +209,7 @@ export default {
           this.restoreSuccess = false;
           this.saveError = true;
 
-          this.errorMessage = `Failed to restore classroom configuration from file.`;
+          this.errorMessage = this.t("settings.share.fileFailed");
 
           debug.settings.share("restoreFile", this.selectedFile.name, this.errorMessage);
         }
@@ -205,6 +217,7 @@ export default {
       reader.onerror = (err) => {
         this.restoreSuccess = false;
         this.saveError = true;
+        this.errorMessage = this.t("settings.share.fileFailed");
 
         debug.settings.share("restoreFile", this.selectedFile.name, err);
       };
@@ -215,3 +228,51 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.restore {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.restore-btn {
+  font-size: 12px;
+}
+
+/* a faded primary button still reads as clickable, in dark especially */
+.restore-btn.v-btn--disabled {
+  opacity: 1;
+  background: rgb(var(--v-theme-tonal)) !important;
+  color: rgb(var(--v-theme-faint)) !important;
+}
+
+.restore-btn.v-btn--disabled :deep(.v-btn__overlay) {
+  opacity: 0;
+}
+
+.restore-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: rgb(var(--v-theme-success));
+}
+
+.restore-status.failed {
+  color: rgb(var(--v-theme-error));
+}
+
+@media (max-width: 599px) {
+  .restore {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
