@@ -202,7 +202,7 @@ export async function ownerImportConfigFromUrl(
   const page = owner.page
 
   await page.getByTitle('Settings').click()
-  await page.getByRole('tab').filter({ hasText: 'Share' }).click()
+  await page.getByRole('tab').filter({ hasText: 'Import / Export' }).click()
 
   const urlField = page.getByLabel('Restore class from URL (http, https)')
   await urlField.fill(configUrl)

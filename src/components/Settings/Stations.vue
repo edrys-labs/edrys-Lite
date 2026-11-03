@@ -63,7 +63,7 @@ import { useI18n } from 'vue-i18n';
 import FieldLabel from "../FieldLabel.vue";
 import type { PropType } from "vue";
 
-type StationRoom = {
+export type StationRoom = {
   name: string;
   label: string;
   initial: string;
@@ -112,19 +112,6 @@ export default {
 </script>
 
 <style scoped>
-.section-title {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.section-text {
-  margin: 0 0 14px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: rgb(var(--v-theme-text-2));
-}
-
 .steps {
   margin: 0 0 20px;
   padding-inline-start: 20px;

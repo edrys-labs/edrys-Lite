@@ -100,7 +100,7 @@ test.describe('App — owner setup, share and join', () => {
     // ── Owner promotes the guest to teacher via the Members tab ──
     dialog = await openSettings(owner.page)
     await dialog.getByRole('tab', { name: 'Members' }).click()
-    await dialog.getByLabel(/Teacher IDs/).fill(guest.peerId.split('_')[0])
+    await dialog.getByLabel('Teacher public keys').fill(guest.peerId.split('_')[0])
     await save(dialog)
     expect(await settle(owner), 'a save that keeps the transport does not reload').toBe(false)
 

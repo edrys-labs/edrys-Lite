@@ -1,45 +1,73 @@
 <template>
-  <v-alert color="info" icon="mdi-information-outline" :text="t('settings.members.info')">
-    <a :href="url" class="alert-link">{{ url }}</a>
-    <!-- edrys-dev: the link above is on the students' site, this page's only works here -->
-    <div v-if="url !== localUrl" class="alert-more">
-      {{ t('settings.members.devLocalOnly') }}
-      <a :href="localUrl" class="alert-link">{{ localUrl }}</a>
-    </div>
-    <div v-if="noStudents" class="alert-more">{{ t('settings.members.devNoStudents') }}</div>
+  <h3 class="section-title">{{ t('settings.members.linkTitle') }}</h3>
+  <p class="section-text">{{ t('settings.members.linkText') }}</p>
 
-    <template v-slot:append>
-      <v-btn
-        icon="mdi-content-copy"
-        size="30"
-        variant="text"
-        class="alert-copy"
-        :aria-label="t('general.copyLink')"
-        @click="copyUrl"
-      ></v-btn>
-    </template>
-  </v-alert>
-  <FieldLabel :label="t('settings.members.teacherIds')" class="mt-6">
-    <v-textarea
-      :hint="t('settings.members.fullKeyHint')"
-      auto-grow
-      rows="3"
-      row-height="25"
-      class="ids"
-      v-model="teacher"
-    ></v-textarea>
+  <FieldLabel :label="t('settings.members.linkLabel')">
+    <v-text-field :model-value="url" readonly class="class-link" hide-details>
+      <template v-slot:append-inner>
+        <v-btn
+          :icon="copied ? 'mdi-check' : 'mdi-content-copy'"
+          variant="text"
+          density="comfortable"
+          :aria-label="t('general.copyLink')"
+          :title="t('general.copyLink')"
+          @click="copyUrl"
+        ></v-btn>
+        <!-- .stop: the field cancels the default of any click inside it, which would block the link -->
+        <v-btn
+          icon="mdi-open-in-new"
+          variant="text"
+          density="comfortable"
+          :href="url"
+          target="_blank"
+          @click.stop
+          :aria-label="t('settings.members.open')"
+          :title="t('settings.members.open')"
+        ></v-btn>
+      </template>
+    </v-text-field>
   </FieldLabel>
 
-  <FieldLabel :label="t('settings.members.studentIds')" class="mt-2">
-    <v-textarea
-      :hint="t('settings.members.fullKeyHint')"
-      auto-grow
-      rows="3"
-      row-height="25"
-      class="ids"
-      v-model="student"
-    ></v-textarea>
-  </FieldLabel>
+  <!-- edrys-dev: the link above is on the students' site, this page's only works here -->
+  <p v-if="url !== localUrl" class="link-note">
+    {{ t('settings.members.devLocalOnly') }}
+    <a :href="localUrl" class="link-note-url">{{ localUrl }}</a>
+  </p>
+  <p v-if="noStudents" class="link-note">{{ t('settings.members.devNoStudents') }}</p>
+
+  <v-divider class="my-5"></v-divider>
+
+  <div class="roles">
+    <section>
+      <h3 class="section-title">{{ t('settings.members.teachersTitle') }}</h3>
+      <p class="section-text">{{ t('settings.members.teachersText') }}</p>
+      <FieldLabel :label="t('settings.members.teacherKeys')">
+        <v-textarea
+          :hint="t('settings.members.keyHint')"
+          persistent-hint
+          rows="5"
+          no-resize
+          class="ids"
+          v-model="teacher"
+        ></v-textarea>
+      </FieldLabel>
+    </section>
+
+    <section>
+      <h3 class="section-title">{{ t('settings.members.studentsTitle') }}</h3>
+      <p class="section-text">{{ t('settings.members.studentsText') }}</p>
+      <FieldLabel :label="t('settings.members.studentKeys')">
+        <v-textarea
+          :hint="t('settings.members.keyHint')"
+          persistent-hint
+          rows="5"
+          no-resize
+          class="ids"
+          v-model="student"
+        ></v-textarea>
+      </FieldLabel>
+    </section>
+  </div>
 </template>
 
 <script lang="ts">
@@ -81,6 +109,7 @@ export default {
       localUrl,
       // edrys-dev --local: nobody on another machine can join
       noStudents: forStudents === null,
+      copied: false,
       teacher,
       student,
     };
@@ -89,6 +118,8 @@ export default {
   methods: {
     copyUrl() {
       copyToClipboard(this.url);
+      this.copied = true;
+      setTimeout(() => (this.copied = false), 2000);
     },
   },
 
@@ -115,3 +146,54 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.class-link :deep(input),
+.ids :deep(textarea) {
+  font-family: "JetBrains Mono Variable", monospace;
+}
+
+.class-link :deep(input) {
+  font-size: 13px;
+}
+
+.ids :deep(textarea) {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.link-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgb(var(--v-theme-muted));
+}
+
+.link-note-url {
+  color: inherit;
+  font-family: "JetBrains Mono Variable", monospace;
+  word-break: break-all;
+}
+
+.roles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+/* the text takes the leftover height, so both key fields line up */
+.roles section {
+  display: flex;
+  flex-direction: column;
+}
+
+.roles .section-text {
+  flex: 1;
+}
+
+@media (max-width: 599px) {
+  .roles {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

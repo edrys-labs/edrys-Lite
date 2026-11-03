@@ -276,18 +276,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-.section-title {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.section-text {
-  margin: 0 0 14px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: rgb(var(--v-theme-text-2));
-}
-</style>

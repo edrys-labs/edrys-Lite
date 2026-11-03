@@ -146,7 +146,7 @@ code, kbd, pre, samp {
     box-shadow: 0 0 0 2px rgb(var(--v-theme-surface));
 }
 
-// Notes in Settings: <v-alert color="info"> with a link (.alert-link) and a copy button (.alert-copy)
+// Notes in Settings: <v-alert color="info">
 .v-alert.text-info {
     padding: 12px 10px 12px 14px;
     border-radius: 10px;
@@ -167,31 +167,18 @@ code, kbd, pre, samp {
     }
 }
 
-.alert-link,
-.alert-link:visited {
-    display: block;
-    overflow: hidden;
-    margin-top: 4px;
-    color: inherit;
-    font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
-    font-size: 12px;
-    font-weight: 500;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+// Sections in the Settings tabs: a title, one line of text, then the controls
+.settings-body .section-title {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 600;
 }
 
-.alert-more {
-    margin-top: 8px;
-    font-size: 12px;
-}
-
-.alert-copy.v-btn {
-    border-radius: 7px;
-    color: inherit;
-
-    .v-icon {
-        font-size: 15px;
-    }
+.settings-body .section-text {
+    margin: 0 0 14px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: rgb(var(--v-theme-text-2));
 }
 
 // Toasts (<v-snackbar color="toast" class="edrys-toast">)

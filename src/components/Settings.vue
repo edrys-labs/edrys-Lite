@@ -3,6 +3,8 @@ import Main from "./Settings/Main.vue";
 import Members from "./Settings/Members.vue";
 import Modules from "./Settings/Modules.vue";
 import Stations from "./Settings/Stations.vue";
+import type { StationRoom } from "./Settings/Stations.vue";
+import type { PropType } from "vue";
 import Share from "./Settings/Share.vue";
 import { useI18n } from "vue-i18n";
 import Communication from "./Settings/Communication.vue";
@@ -29,7 +31,7 @@ export default {
     },
 
     stations: {
-      type: Array,
+      type: Array as PropType<StationRoom[]>,
       default: () => [],
     },
   },
@@ -58,7 +60,7 @@ export default {
         { key: "Members", icon: "mdi-account-group-outline" },
         { key: "Modules", icon: "mdi-view-grid-outline" },
         { key: "Stations", icon: "mdi-router-wireless" },
-        { key: "Share", icon: "mdi-share-variant-outline" },
+        { key: "Share", icon: "mdi-swap-vertical" },
         { key: "Communication", icon: "mdi-access-point-network" },
       ],
     };
