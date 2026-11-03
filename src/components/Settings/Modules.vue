@@ -45,7 +45,7 @@
           </svg>
 
           <div class="icon-tile">
-            <v-icon :icon="localScrapedModules[index].icon || 'mdi-package-variant-closed'" size="18"></v-icon>
+            <v-icon :icon="localScrapedModules[index].icon" size="18"></v-icon>
           </div>
 
           <div class="module-text">
@@ -124,7 +124,7 @@
     <v-card v-if="moduleDialogIndex !== null" style="display: flex; flex-direction: column; max-height: 90vh">
       <div class="dialog-head">
         <div class="icon-tile">
-          <v-icon :icon="localScrapedModules[moduleDialogIndex]?.icon || 'mdi-package-variant-closed'" size="18"></v-icon>
+          <v-icon :icon="localScrapedModules[moduleDialogIndex]?.icon" size="18"></v-icon>
         </div>
         <h2>{{ localScrapedModules[moduleDialogIndex]?.name }}</h2>
         <v-btn

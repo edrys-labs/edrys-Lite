@@ -196,7 +196,7 @@ export async function scrapeModule(module) {
           ...module,
           name: yaml.name,
           description: yaml.description,
-          icon: yaml.icon || 'mdi-package',
+          icon: yaml.icon || 'mdi-widgets-outline',
           showIn: yaml['show-in'] || ['*'],
           srcdoc: 'data:text/html,' + escape(code),
           origin: '*',
@@ -222,7 +222,7 @@ export async function scrapeModule(module) {
           name:
             moduleEl.getElementsByTagName('title')[0].innerText || meta['name'],
           description: meta['description'],
-          icon: meta['icon'] || 'mdi-package',
+          icon: meta['icon'] || 'mdi-widgets-outline',
           showIn: (meta['show-in'] || '*').replace(/\s+/g, '').split(','), // or 'station'
           srcdoc: 'data:text/html,' + escape(replace(content, module.url)),
           origin: '*',
@@ -236,7 +236,7 @@ export async function scrapeModule(module) {
           name:
             moduleEl.getElementsByTagName('title')[0].innerText || meta['name'],
           description: meta['description'],
-          icon: meta['icon'] || 'mdi-package',
+          icon: meta['icon'] || 'mdi-widgets-outline',
           showIn: (meta['show-in'] || '*').replace(/\s+/g, '').split(','), // or 'station'
           moduleConfig: meta['module-config'] || '',
         })
