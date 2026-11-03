@@ -199,6 +199,16 @@ export default {
         };
       });
     },
+    // The class's stations for Settings: online while the station itself is
+    // in its room, reconnecting during the grace period after it dropped
+    stationRooms() {
+      return this.drawerRooms
+        .filter((room) => room.name.startsWith("Station "))
+        .map((room) => ({
+          ...room,
+          online: room.users.some((user) => user.role === "station"),
+        }));
+    },
     // the drawer entry of the room you are in
     myRoom() {
       return this.drawerRooms.find((room) => room.name === this.currentRoom) ?? null;
@@ -1044,6 +1054,7 @@ export default {
         :config="data"
         :scrapedModules="scrapedModules"
         :rooms="orderedRooms()"
+        :stations="stationRooms"
         @saveClass="saveClass"
         @deleteClass="deleteClass"
         @updateClass="updateClass"

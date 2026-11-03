@@ -209,6 +209,10 @@ settings:
       join: "Sie erscheint als Raum in der Klasse, und Studierende können ihr beitreten."
     linkLabel: "Stations-Link"
     open: "Stations-Link öffnen"
+    connected: "Verbundene Stationen"
+    none: "Noch keine Station verbunden."
+    online: "Online"
+    reconnecting: "Verbindet neu…"
   share:
     downloadYml: "Klassendatei herunterladen (.yml)"
     downloadJson: "Klassendatei herunterladen (.json)"

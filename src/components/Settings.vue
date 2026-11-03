@@ -27,6 +27,11 @@ export default {
       type: Array,
       default: () => [],
     },
+
+    stations: {
+      type: Array,
+      default: () => [],
+    },
   },
 
   emits: ["close", "saveClass", "deleteClass", "updateClass"],
@@ -166,7 +171,7 @@ export default {
         </v-window-item>
 
         <v-window-item>
-          <Stations :config="configClone"></Stations>
+          <Stations :config="configClone" :stations="stations"></Stations>
         </v-window-item>
 
         <v-window-item>

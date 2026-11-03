@@ -77,4 +77,28 @@ describe('Stations Settings Component', () => {
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://localhost:3000/station');
   });
+
+  test('says when no station is connected', () => {
+    const wrapper = createWrapper();
+    expect(wrapper.findAll('.station-row')).toHaveLength(0);
+    expect(wrapper.text()).toContain('No station is connected yet.');
+  });
+
+  test('lists the stations with their status and people', () => {
+    const tile = { bg: '#000', fg: '#fff', dot: '#0f0' };
+    const wrapper = createWrapper({
+      stations: [
+        { name: 'Station A', label: 'Station A', initial: 'S', tile, people: 2, online: true },
+        { name: 'Station B', label: 'Station B', initial: 'S', tile, people: 0, online: false },
+      ],
+    });
+
+    const rows = wrapper.findAll('.station-row');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].text()).toContain('Station A');
+    expect(rows[0].text()).toContain('2 people');
+    expect(rows[0].text()).toContain('Online');
+    expect(rows[1].find('.station-people').exists()).toBe(false);
+    expect(rows[1].find('.station-status.offline').text()).toContain('Reconnecting');
+  });
 });

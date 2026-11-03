@@ -209,6 +209,10 @@ settings:
       join: "It shows up as a room in the class, and students can join it."
     linkLabel: "Station link"
     open: "Open the station link"
+    connected: "Connected stations"
+    none: "No station is connected yet."
+    online: "Online"
+    reconnecting: "Reconnecting…"
   share:
     downloadYml: "Download class file (.yml)"
     downloadJson: "Download class file (.json)"

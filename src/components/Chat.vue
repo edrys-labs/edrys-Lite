@@ -226,11 +226,11 @@ export default {
 </template>
 
 <style>
-ul li {
+.markdown ul li {
   margin-left: 1em !important;
 }
 
-ol li {
+.markdown ol li {
   margin-left: 1.2em !important;
 }
 

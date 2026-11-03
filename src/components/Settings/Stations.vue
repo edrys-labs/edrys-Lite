@@ -34,12 +34,43 @@
       </template>
     </v-text-field>
   </FieldLabel>
+
+  <v-divider class="my-5"></v-divider>
+
+  <h3 class="section-title">{{ t('settings.stations.connected') }}</h3>
+  <p v-if="!stations.length" class="section-text">{{ t('settings.stations.none') }}</p>
+  <ul v-else class="station-list">
+    <li v-for="station in stations" :key="station.name" class="station-row">
+      <span class="station-tile" :style="{ background: station.tile.bg, color: station.tile.fg }">
+        {{ station.initial }}
+      </span>
+      <span class="station-name">{{ station.label }}</span>
+      <span v-if="station.people" class="station-people">
+        <v-icon icon="mdi-account-outline" size="14"></v-icon>
+        {{ t('classroom.sideMenu.people', { n: station.people }, station.people) }}
+      </span>
+      <span :class="['station-status', { offline: !station.online }]">
+        <span class="status-dot" aria-hidden="true"></span>
+        {{ station.online ? t('settings.stations.online') : t('settings.stations.reconnecting') }}
+      </span>
+    </li>
+  </ul>
 </template>
 
 <script lang="ts">
 import { copyToClipboard} from "../../ts/Utils";
 import { useI18n } from 'vue-i18n';
 import FieldLabel from "../FieldLabel.vue";
+import type { PropType } from "vue";
+
+type StationRoom = {
+  name: string;
+  label: string;
+  initial: string;
+  tile: { bg: string; fg: string };
+  people: number;
+  online: boolean;
+};
 
 export default {
   name: "Settings-Stations",
@@ -49,6 +80,12 @@ export default {
     config: {
       type: Object,
       required: true,
+    },
+
+    // live station rooms, from the classroom's drawer data
+    stations: {
+      type: Array as PropType<StationRoom[]>,
+      default: () => [],
     },
   },
 
@@ -97,6 +134,67 @@ export default {
 
 .steps li + li {
   margin-top: 6px;
+}
+
+.station-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.station-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 10px;
+  background: rgb(var(--v-theme-row));
+  box-shadow: 0 0 0 1px rgb(var(--v-theme-row-edge));
+}
+
+.station-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.station-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.station-people,
+.station-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: rgb(var(--v-theme-text-2));
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-success));
+}
+
+.station-status.offline .status-dot {
+  background: none;
+  border: 1.5px solid rgb(var(--v-theme-muted));
 }
 
 .station-link :deep(input) {

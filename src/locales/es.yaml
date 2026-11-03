@@ -209,6 +209,10 @@ settings:
       join: "Aparece como una sala en la clase y los estudiantes pueden unirse a ella."
     linkLabel: "Enlace de la estación"
     open: "Abrir el enlace de la estación"
+    connected: "Estaciones conectadas"
+    none: "Todavía no hay ninguna estación conectada."
+    online: "En línea"
+    reconnecting: "Reconectando…"
   share:
     downloadYml: "Descargar archivo de clase (.yml)"
     downloadJson: "Descargar archivo de clase (.json)"
