@@ -29,7 +29,6 @@ index:
   classroom:
     title: "Tus aulas"
     saved: "Guardadas en este navegador: {n}"
-    noDescription: "Sin descripción"
     create: "Crear una clase"
     createHint: "Una clase vacía que te pertenece. Añade módulos, salas y estudiantes cuando quieras."
     newClass: "Mi Nueva Clase"

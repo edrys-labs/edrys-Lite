@@ -192,6 +192,18 @@ describe('Index View', () => {
     expect(second.find('.class-art').exists()).toBe(false);
   });
 
+  test('a class without a description shows no description line', async () => {
+    const wrapper = createWrapper();
+    const plain = { id: 'plain', data: { name: 'Bare', createdBy: 'x', meta: {} }, hash: null };
+    const described = { id: 'told', data: { name: 'Told', createdBy: 'x', meta: { description: 'One room per group.' } }, hash: null };
+
+    await wrapper.setData({ classrooms: [plain, described] });
+
+    const [first, second] = wrapper.findAll('.class-card');
+    expect(first.find('.class-body p').exists()).toBe(false);
+    expect(second.find('.class-body p').text()).toBe('One room per group.');
+  });
+
   test('a logo that fails to load gives way to the drawn picture', async () => {
     const wrapper = createWrapper();
     const logo = { id: 'gone', data: { name: 'Lost Logo', createdBy: 'x', meta: { logo: 'https://example.com/404.png' } }, hash: null };

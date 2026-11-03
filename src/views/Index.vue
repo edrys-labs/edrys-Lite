@@ -244,8 +244,8 @@ export default {
                 <span v-else-if="isMember(classroom?.data?.members?.teacher, peerID)">{{ t('index.classroom.ownership.teacher') }}</span>
                 <span v-else>{{ t('index.classroom.ownership.student') }}</span>
               </div>
-              <p :title="classroom?.data?.meta?.description">
-                <LinkedText :text="classroom?.data?.meta?.description || t('index.classroom.noDescription')" />
+              <p v-if="classroom?.data?.meta?.description" :title="classroom.data.meta.description">
+                <LinkedText :text="classroom.data.meta.description" />
               </p>
             </div>
 
@@ -391,8 +391,10 @@ export default {
   align-items: flex-start;
   gap: 12px;
   padding: 12px 16px;
+  border: 1px solid rgb(var(--v-theme-warning-tint));
   border-radius: 10px;
-  background: rgb(var(--v-theme-warning-tint));
+  /* a softer yellow than the tint itself, which also colours status pills */
+  background: color-mix(in srgb, rgb(var(--v-theme-warning-tint)) 45%, rgb(var(--v-theme-surface)));
   color: rgb(var(--v-theme-on-background));
 }
 
