@@ -99,7 +99,6 @@
                 <FieldLabel
                   v-else-if="fieldConfig.type === 'select'"
                   :label="String(field)"
-                 
                   class="mt-3"
                 >
                   <v-select
@@ -125,7 +124,6 @@
                 <FieldLabel
                   v-else-if="fieldConfig.type === 'combobox'"
                   :label="String(field)"
-                 
                   class="mt-3"
                 >
                   <v-combobox
@@ -141,7 +139,6 @@
                 <FieldLabel
                   v-else-if="fieldConfig.type === 'number'"
                   :label="String(field)"
-                 
                   class="mt-3"
                 >
                   <v-text-field
@@ -156,7 +153,6 @@
                 <FieldLabel
                   v-else-if="fieldConfig.type === 'text-area'"
                   :label="String(field)"
-                 
                   class="mt-3"
                 >
                   <v-textarea
@@ -170,7 +166,6 @@
                 <FieldLabel
                   v-else-if="fieldConfig.type === 'date'"
                   :label="String(field)"
-                 
                   class="mt-3"
                 >
                   <v-text-field

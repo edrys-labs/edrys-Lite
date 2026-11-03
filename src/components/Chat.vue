@@ -87,11 +87,6 @@ export default {
       return this.prismHighlight(code, this.prismLanguages.markdown, "markdown");
     },
 
-    focusEditor() {
-      const textarea = this.$refs.editor?.$el?.querySelector('textarea');
-      if (textarea) textarea.focus();
-    },
-
     permanent() {
       return window.innerWidth > 1000 + 360;
     },
@@ -156,7 +151,6 @@ export default {
     v-model="open"
     :class="['chat-panel', { 'chat-panel--phone': phone }]"
     @update:modelValue="onToggle"
-    @click="phone || focusEditor()"
   >
     <div class="chat-box">
       <div class="chat-title">

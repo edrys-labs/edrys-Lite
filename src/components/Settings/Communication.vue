@@ -11,7 +11,6 @@
     <FieldLabel
       v-if="communicationMethod === 'Websocket'"
       :label="$t('settings.communication.labels.websocketServer')"
-     
     >
       <v-text-field
         v-model="websocketUrl"

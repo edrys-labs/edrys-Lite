@@ -326,17 +326,6 @@ export default {
       }
     },
 
-    getRooms() {
-      if (!this.liveClassProxy) return;
-
-      const rooms = {};
-      this.orderedRooms().forEach((key) => {
-        rooms[key] = this.liveClassProxy.rooms[key];
-      });
-
-      return rooms;
-    },
-
     orderedRooms(): string[] {
       if (!this.liveClassProxy) return [];
 
@@ -1455,8 +1444,6 @@ export default {
   border: 1px solid rgb(var(--v-theme-line));
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: normal;
-  text-transform: none;
 }
 
 /* Station mode, over the drawer */

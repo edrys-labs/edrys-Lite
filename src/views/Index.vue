@@ -453,18 +453,11 @@ export default {
 }
 
 .banner {
-  display: flex;
-  align-items: flex-end;
+  display: block;
   width: 100%;
   /* the logo height of the cards before the restyle, so logos aren't cropped harder */
   height: 200px;
-  padding: 14px 16px;
   object-fit: cover;
-}
-
-img.banner,
-svg.banner {
-  padding: 0;
 }
 
 .class-body {
@@ -595,11 +588,8 @@ svg.banner {
 
 .class-list--phone .banner {
   flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
   width: 48px;
   height: 48px;
-  padding: 0;
   border-radius: 10px;
 }
 

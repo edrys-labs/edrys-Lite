@@ -211,7 +211,7 @@ describe('Classroom View', () => {
       }
     };
 
-    expect(Object.keys(wrapper.vm.getRooms())).toHaveLength(2);
+    expect(wrapper.vm.orderedRooms()).toEqual(['Lobby', 'Room1']);
     
     wrapper.vm.gotoRoom('Room1');
     expect(mockCommunication.gotoRoom).toHaveBeenCalledWith('Room1');

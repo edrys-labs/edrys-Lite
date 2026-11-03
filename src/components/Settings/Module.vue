@@ -39,7 +39,6 @@
               <FieldLabel
                 v-if="widthSelection === 'custom'"
                 :label="t('settings.modules.module.design.width.custom.label')"
-               
               >
                 <v-text-field
                   v-model.number="customWidth"
@@ -67,7 +66,6 @@
               <FieldLabel
                 v-if="heightSelection === 'custom'"
                 :label="t('settings.modules.module.design.height.custom.label')"
-               
               >
                 <v-text-field
                   v-model.number="customHeight"
