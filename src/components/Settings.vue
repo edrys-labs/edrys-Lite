@@ -228,7 +228,8 @@ export default {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 16px 0 24px;
+  padding-block: 16px 0;
+  padding-inline: 24px 16px;
 }
 
 .settings-head h2 {

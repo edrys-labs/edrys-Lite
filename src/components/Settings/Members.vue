@@ -2,7 +2,7 @@
   <SectionHead :title="t('settings.members.linkTitle')" :text="t('settings.members.linkText')" icon="mdi-link-variant" :color="1" />
 
   <FieldLabel :label="t('settings.members.linkLabel')">
-    <v-text-field :model-value="url" readonly class="class-link" hide-details>
+    <v-text-field :model-value="url" readonly class="class-link ltr" hide-details>
       <template v-slot:append-inner>
         <v-btn
           :icon="copied ? 'mdi-check' : 'mdi-content-copy'"
@@ -45,7 +45,7 @@
           persistent-hint
           rows="5"
           no-resize
-          class="ids"
+          class="ids ltr"
           v-model="teacher"
         ></v-textarea>
       </FieldLabel>
@@ -59,7 +59,7 @@
           persistent-hint
           rows="5"
           no-resize
-          class="ids"
+          class="ids ltr"
           v-model="student"
         ></v-textarea>
       </FieldLabel>

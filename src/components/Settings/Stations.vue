@@ -8,7 +8,7 @@
   </ol>
 
   <FieldLabel :label="t('settings.stations.linkLabel')">
-    <v-text-field :model-value="url" readonly hide-details class="station-link">
+    <v-text-field :model-value="url" readonly hide-details class="station-link ltr">
       <template v-slot:append-inner>
         <v-btn
           :icon="copied ? 'mdi-check' : 'mdi-content-copy'"
@@ -163,7 +163,8 @@ export default {
   align-items: center;
   gap: 12px;
   margin-bottom: 6px;
-  padding: 8px 12px 8px 8px;
+  padding-block: 8px;
+  padding-inline: 8px 12px;
   border-radius: 10px;
   background: rgb(var(--v-theme-row));
   box-shadow: 0 0 0 1px rgb(var(--v-theme-row-edge));

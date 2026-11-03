@@ -179,7 +179,8 @@ export default {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 16px 12px 24px;
+  padding-block: 16px 12px;
+  padding-inline: 24px 16px;
   border-bottom: 1px solid rgb(var(--v-theme-panel-line));
 }
 
@@ -207,7 +208,8 @@ export default {
 }
 
 .module-item {
-  padding: 10px 8px 10px 14px !important;
+  padding-block: 10px !important;
+  padding-inline: 14px 8px !important;
   border-radius: 10px !important;
   background: rgb(var(--v-theme-row));
   /* a border, not an outer shadow: the list scrolls and would clip it */

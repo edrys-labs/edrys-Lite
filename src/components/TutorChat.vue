@@ -200,7 +200,8 @@ export default {
   align-items: center;
   justify-content: space-between;
   height: 48px;
-  padding: 0 8px 0 16px;
+  padding-block: 0;
+  padding-inline: 16px 8px;
   border-bottom: 1px solid rgb(var(--v-theme-panel-line));
 }
 .tutor-title h2 {

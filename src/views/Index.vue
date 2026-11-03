@@ -332,7 +332,8 @@ export default {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px 12px 12px 16px;
+  padding-block: 12px;
+  padding-inline: 16px 12px;
   border-radius: 10px;
   background: rgb(var(--v-theme-info-tint));
   color: rgb(var(--v-theme-info));

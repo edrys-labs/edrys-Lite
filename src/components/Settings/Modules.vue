@@ -103,6 +103,7 @@
         <v-text-field
           v-model="moduleImportUrl"
           placeholder="https://edrys-labs.github.io/module-…"
+          class="ltr"
           hide-details
         ></v-text-field>
       </FieldLabel>
@@ -146,7 +147,7 @@
             elevation="0"
           >
             <v-expansion-panel-title class="editor-panel-title">
-              <v-icon size="18" class="mr-2">mdi-form-select</v-icon>
+              <v-icon size="18" class="me-2">mdi-form-select</v-icon>
               {{ t('settings.modules.moduleConfig.title') }}
               <template v-slot:actions="{ expanded }">
                 <v-icon>{{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
@@ -170,7 +171,7 @@
           <!-- Raw manual config -->
           <v-expansion-panel value="manual" elevation="0">
             <v-expansion-panel-title class="editor-panel-title">
-              <v-icon size="18" class="mr-2">mdi-code-braces</v-icon>
+              <v-icon size="18" class="me-2">mdi-code-braces</v-icon>
               {{ t('settings.modules.tooltip.manualConfig') }}
               <template v-slot:actions="{ expanded }">
                 <v-icon>{{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
@@ -586,7 +587,8 @@ export default {
   align-items: center;
   gap: 12px;
   margin-bottom: 6px;
-  padding: 8px 8px 8px 10px;
+  padding-block: 8px;
+  padding-inline: 10px 8px;
   border-radius: 10px;
   background: rgb(var(--v-theme-row));
   box-shadow: 0 0 0 1px rgb(var(--v-theme-row-edge));
@@ -686,11 +688,23 @@ export default {
   flex: 1;
 }
 
+/* on a phone the address gets the whole width, the buttons go below it */
+@media (max-width: 599px) {
+  .add-row {
+    flex-wrap: wrap;
+  }
+
+  .add-url {
+    flex-basis: 100%;
+  }
+}
+
 .dialog-head {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 16px 12px 24px;
+  padding-block: 16px 12px;
+  padding-inline: 24px 16px;
   border-bottom: 1px solid rgb(var(--v-theme-panel-line));
 }
 

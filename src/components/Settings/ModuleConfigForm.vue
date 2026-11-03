@@ -92,7 +92,7 @@
                       :value="option"
                       color="primary"
                       density="compact"
-                      class="mr-3"
+                      class="me-3"
                     ></v-radio>
                   </v-radio-group>
                 </div>
@@ -187,7 +187,7 @@
                       canvas-height="50%"
                       class="color-picker-compact"
                     ></v-color-picker>
-                    <div class="ml-4">
+                    <div class="ms-4">
                       <div class="color-value mb-1">
                         {{ formValues[configType][field] || "#000000" }}
                       </div>

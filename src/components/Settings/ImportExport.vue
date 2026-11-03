@@ -41,6 +41,7 @@
     <FieldLabel :label="t('settings.importExport.restoreFromUrl')">
       <v-text-field
         v-model="selectedURL"
+        class="ltr"
         prepend-inner-icon="mdi-link"
         placeholder="https://…/lab.yml"
         hide-details

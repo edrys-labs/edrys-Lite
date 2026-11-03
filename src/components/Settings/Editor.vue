@@ -1,5 +1,5 @@
 <template>
-  <div class="code-field">
+  <div class="code-field ltr" dir="ltr">
     <prism-editor v-model="code" :highlight="highlighter" line-numbers></prism-editor>
   </div>
   <p :class="['code-note', { failed: !!errorMessage }]" role="status">

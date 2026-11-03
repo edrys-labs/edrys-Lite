@@ -12,7 +12,8 @@
       </span>
       <span class="row-words">
         <span class="row-title">{{ title }}</span>
-        <span :class="['row-summary', { mono }]">{{ summary }}</span>
+        <!-- bdi: a URL or a list keeps its own order inside right-to-left text -->
+        <span :class="['row-summary', { mono }]"><bdi>{{ summary }}</bdi></span>
       </span>
       <span v-if="error" class="error-pill">
         <v-icon icon="mdi-alert-circle-outline" size="14"></v-icon>
@@ -83,7 +84,8 @@ export default {
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 8px 12px 8px 8px;
+  padding-block: 8px;
+  padding-inline: 8px 12px;
   border-radius: 10px;
   text-align: start;
   color: rgb(var(--v-theme-on-surface));
@@ -149,6 +151,14 @@ export default {
 
 /* in line with the title, past the icon tile */
 .row-body {
-  padding: 4px 16px 16px 52px;
+  padding-block: 4px 16px;
+  padding-inline: 52px 16px;
+}
+
+/* a phone has no width to spare for the indent */
+@media (max-width: 599px) {
+  .row-body {
+    padding-inline: 12px;
+  }
 }
 </style>

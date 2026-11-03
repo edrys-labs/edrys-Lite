@@ -148,7 +148,8 @@ code, kbd, pre, samp {
 
 // Notes in Settings: <v-alert color="info">
 .v-alert.text-info {
-    padding: 12px 10px 12px 14px;
+    padding-block: 12px;
+    padding-inline: 14px 10px;
     border-radius: 10px;
     background: rgb(var(--v-theme-info-tint));
     font-size: 13px;
@@ -165,6 +166,13 @@ code, kbd, pre, samp {
     .v-alert__prepend .v-icon {
         font-size: 18px;
     }
+}
+
+// Fields with a URL, keys, JSON or code: left to right, also in Arabic
+.ltr input,
+.ltr textarea,
+.ltr.code-field {
+    direction: ltr;
 }
 
 // Toasts (<v-snackbar color="toast" class="edrys-toast">)

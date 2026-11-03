@@ -106,7 +106,7 @@ describe('Module Settings Component', () => {
     });
     const summary = (title: string) => rowByTitle(wrapper, title).find('.row-summary').text();
     expect(summary('URL')).toBe('https://example.com/module');
-    expect(summary('Design')).toBe('Width Full (1000px) · Height Tall (720px)');
+    expect(summary('Design')).toBe('Width Full · Height Tall');
     expect(summary('General Settings')).toBe('1 key: content');
     expect(summary('Student Settings')).toBe('Text');
     expect(summary('Teacher Settings')).toBe('Empty');

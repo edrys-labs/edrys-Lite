@@ -10,7 +10,7 @@
       @toggle="toggle('url')"
     >
       <FieldLabel :label="t('settings.modules.module.url.urlLabel')">
-        <v-text-field v-model="module.url" hide-details class="mono"></v-text-field>
+        <v-text-field v-model="module.url" hide-details class="mono ltr"></v-text-field>
       </FieldLabel>
     </AdvancedRow>
 
@@ -99,7 +99,7 @@
           v-model="module.showInCustom"
           :hint="t('settings.modules.module.showIn.label')"
           persistent-hint
-          class="mono"
+          class="mono ltr"
         ></v-text-field>
       </FieldLabel>
     </AdvancedRow>
@@ -208,7 +208,8 @@ export default {
     designSummary() {
       const [width, height] = this.designGroups.map((group) => {
         const option = group.options.find((o) => o.value === group.selected);
-        return group.selected === "custom" ? `${group.custom.value} px` : option?.label;
+        // isolated, so "600 px" stays in that order in right-to-left text
+        return group.selected === "custom" ? `\u2066${group.custom.value} px\u2069` : option?.label;
       });
       return this.t("settings.modules.module.design.summary", { width, height });
     },
@@ -468,7 +469,8 @@ export default {
   align-items: center;
   gap: 7px;
   height: 32px;
-  padding: 0 12px 0 7px;
+  padding-block: 0;
+  padding-inline: 7px 12px;
   border: 1px solid rgb(var(--v-theme-field-line));
   border-radius: 999px;
   background: rgb(var(--v-theme-field));

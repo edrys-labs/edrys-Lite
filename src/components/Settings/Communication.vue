@@ -17,7 +17,7 @@
         v-model="websocketUrl"
         placeholder="wss://demos.yjs.dev"
         hide-details
-        class="mono"
+        class="mono ltr"
       ></v-text-field>
     </FieldLabel>
 
@@ -27,7 +27,7 @@
           v-model="signalingServer"
           placeholder="wss://rooms.deno.dev"
           hide-details
-          class="mono"
+          class="mono ltr"
         ></v-text-field>
       </FieldLabel>
 
@@ -38,7 +38,7 @@
           rows="3"
           no-resize
           hide-details
-          class="mono"
+          class="mono ltr"
         ></v-textarea>
       </FieldLabel>
     </template>
@@ -49,7 +49,7 @@
   <SectionHead :title="$t('settings.communication.shareLink.title')" :text="$t('settings.communication.shareLink.description')" icon="mdi-link-variant" :color="1" />
 
   <FieldLabel :label="$t('settings.communication.shareLink.linkLabel')">
-    <v-text-field v-model="shareableLink" readonly hide-details class="mono">
+    <v-text-field v-model="shareableLink" readonly hide-details class="mono ltr">
       <template v-slot:append-inner>
         <v-btn
           :icon="copied ? 'mdi-check' : 'mdi-content-copy'"

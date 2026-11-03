@@ -14,6 +14,7 @@
       <FieldLabel :label="t('settings.main.logoUrl')" class="mt-4">
         <v-text-field
           v-model="config.meta.logo"
+          class="ltr"
           placeholder="https://…/logo.png"
           :hint="t('settings.main.logoHint')"
           persistent-hint

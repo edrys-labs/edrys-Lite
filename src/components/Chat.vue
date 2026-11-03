@@ -227,11 +227,11 @@ export default {
 
 <style>
 .markdown ul li {
-  margin-left: 1em !important;
+  margin-inline-start: 1em !important;
 }
 
 .markdown ol li {
-  margin-left: 1.2em !important;
+  margin-inline-start: 1.2em !important;
 }
 
 .markdown > * {
