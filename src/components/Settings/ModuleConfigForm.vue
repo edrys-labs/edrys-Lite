@@ -18,20 +18,21 @@
     <template v-else>
       <!-- A single config type is a heading, not a one-tab bar -->
       <div v-if="configTypes.length === 1" class="config-heading">
-        {{ tabLabel(configTypes[0]) }}
+        <v-icon :icon="tabIcon(configTypes[0])" size="17"></v-icon>
+        <span>{{ tabLabel(configTypes[0]) }}</span>
       </div>
-      <v-tabs
-        v-else
-        v-model="activeTab"
-        bg-color="transparent"
-        color="primary"
-        align-tabs="center"
-        density="comfortable"
-      >
-        <v-tab v-for="configType in configTypes" :key="configType" :value="configType">
-          {{ tabLabel(configType) }}
-        </v-tab>
-      </v-tabs>
+      <div v-else class="config-tabs">
+        <v-tabs v-model="activeTab" slider-color="primary" height="40" show-arrows>
+          <v-tab
+            v-for="configType in configTypes"
+            :key="configType"
+            :value="configType"
+            :prepend-icon="tabIcon(configType)"
+          >
+            {{ tabLabel(configType) }}
+          </v-tab>
+        </v-tabs>
+      </div>
 
       <v-card-text class="mt-2">
         <v-window v-model="activeTab">
@@ -262,6 +263,13 @@ import { parse } from "../../ts/Utils";
 import { inject } from "vue";
 import FieldLabel from "../FieldLabel.vue";
 
+const TAB_ICONS: Record<string, string> = {
+  config: "mdi-tune-variant",
+  studentConfig: "mdi-account-outline",
+  teacherConfig: "mdi-school-outline",
+  stationConfig: "mdi-router-wireless",
+};
+
 export default {
   name: "ModuleConfigForm",
   components: { FieldLabel },
@@ -341,9 +349,9 @@ export default {
   },
 
   computed: {
-    // Config types this module declares, in tab order
+    // Config types this module declares, in the order of the rows under Advanced
     configTypes() {
-      return ["config", "teacherConfig", "studentConfig", "stationConfig"].filter(
+      return ["config", "studentConfig", "teacherConfig", "stationConfig"].filter(
         (configType) => this.configSchemas[configType]
       );
     },
@@ -382,9 +390,7 @@ export default {
     this.parseModuleConfig();
 
     // Set the initial active tab to the first available tab
-    const firstAvailableTab = Object.keys(this.configSchemas).find(
-      (key) => this.configSchemas[key] !== null
-    );
+    const firstAvailableTab = this.configTypes[0];
     if (firstAvailableTab) {
       this.activeTab = firstAvailableTab;
     }
@@ -407,6 +413,11 @@ export default {
         console.error("Failed to parse configuration value:", e);
         return {};
       }
+    },
+
+    // the same icons as the rows under Advanced
+    tabIcon(configType: string) {
+      return TAB_ICONS[configType] || "mdi-tune-variant";
     },
 
     tabLabel(configType) {
@@ -649,8 +660,36 @@ export default {
 }
 
 .config-heading {
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 12px 16px 0;
+  font-weight: 600;
+}
+
+/* the look of the Settings tabs */
+.config-tabs {
+  padding: 4px 16px 0;
+  border-bottom: 1px solid rgb(var(--v-theme-panel-line));
+}
+
+.config-tabs :deep(.v-tab) {
+  min-width: 0;
+  padding: 0 12px;
+  border-radius: 8px 8px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-muted));
+}
+
+.config-tabs :deep(.v-tab.v-tab--selected) {
+  background: rgb(var(--v-theme-primary-tint));
+  font-weight: 600;
+  color: rgb(var(--v-theme-primary-text));
+}
+
+.config-tabs :deep(.v-tab .v-icon) {
+  font-size: 16px;
 }
 
 .preset-note {

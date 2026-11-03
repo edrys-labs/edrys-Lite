@@ -514,7 +514,8 @@ describe('ModuleConfigForm Component', () => {
       wrapper = createPresetWrapper();
 
       expect(wrapper.find('.v-tab').exists()).toBe(false);
-      expect(wrapper.find('.config-heading').text()).toBe('Station Settings');
+      expect(wrapper.find('.config-heading span').text()).toBe('Station Settings');
+      expect(wrapper.find('.config-heading .v-icon').text()).toBe('mdi-router-wireless');
     });
   });
 
