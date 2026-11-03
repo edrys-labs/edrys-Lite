@@ -1,6 +1,5 @@
 <template>
-  <h3 class="section-title">{{ t('settings.main.classTitle') }}</h3>
-  <p class="section-text">{{ t('settings.main.classText') }}</p>
+  <SectionHead :title="t('settings.main.classTitle')" :text="t('settings.main.classText')" icon="mdi-book-open-outline" :color="6" />
 
   <div class="class-fields">
     <div class="fields">
@@ -9,7 +8,7 @@
       </FieldLabel>
 
       <FieldLabel :label="t('settings.main.description')">
-        <v-textarea v-model="config.meta.description" rows="2" auto-grow hide-details></v-textarea>
+        <v-textarea v-model="config.meta.description" rows="2" max-rows="3" auto-grow hide-details></v-textarea>
       </FieldLabel>
 
       <FieldLabel :label="t('settings.main.logoUrl')" class="mt-4">
@@ -36,8 +35,7 @@
 
   <v-divider class="my-4"></v-divider>
 
-  <h3 class="section-title">{{ t('settings.main.roomsTitle') }}</h3>
-  <p class="section-text">{{ t('settings.main.roomsText') }}</p>
+  <SectionHead :title="t('settings.main.roomsTitle')" :text="t('settings.main.roomsText')" icon="mdi-door-open" :color="0" />
 
   <FieldLabel :label="t('settings.main.roomsNum')">
     <v-text-field
@@ -62,11 +60,12 @@
 <script lang="ts">
 import { useI18n } from 'vue-i18n';
 import FieldLabel from "../FieldLabel.vue";
+import SectionHead from "./SectionHead.vue";
 import ClassBanner from "../ClassBanner.vue";
 
 export default {
   name: "Settings-Main",
-  components: { FieldLabel, ClassBanner },
+  components: { FieldLabel, SectionHead, ClassBanner },
 
   props: {
     config: {

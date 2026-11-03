@@ -1,6 +1,5 @@
 <template>
-  <h3 class="section-title">{{ t('settings.members.linkTitle') }}</h3>
-  <p class="section-text">{{ t('settings.members.linkText') }}</p>
+  <SectionHead :title="t('settings.members.linkTitle')" :text="t('settings.members.linkText')" icon="mdi-link-variant" :color="1" />
 
   <FieldLabel :label="t('settings.members.linkLabel')">
     <v-text-field :model-value="url" readonly class="class-link" hide-details>
@@ -39,8 +38,7 @@
 
   <div class="roles">
     <section>
-      <h3 class="section-title">{{ t('settings.members.teachersTitle') }}</h3>
-      <p class="section-text">{{ t('settings.members.teachersText') }}</p>
+      <SectionHead :title="t('settings.members.teachersTitle')" :text="t('settings.members.teachersText')" icon="mdi-school-outline" :color="3" />
       <FieldLabel :label="t('settings.members.teacherKeys')">
         <v-textarea
           :hint="t('settings.members.keyHint')"
@@ -54,8 +52,7 @@
     </section>
 
     <section>
-      <h3 class="section-title">{{ t('settings.members.studentsTitle') }}</h3>
-      <p class="section-text">{{ t('settings.members.studentsText') }}</p>
+      <SectionHead :title="t('settings.members.studentsTitle')" :text="t('settings.members.studentsText')" icon="mdi-account-outline" :color="0" />
       <FieldLabel :label="t('settings.members.studentKeys')">
         <v-textarea
           :hint="t('settings.members.keyHint')"
@@ -75,10 +72,11 @@ import { copyToClipboard } from "../../ts/Utils";
 import { studentLink } from "../../ts/DevBridge";
 import { useI18n } from 'vue-i18n';
 import FieldLabel from "../FieldLabel.vue";
+import SectionHead from "./SectionHead.vue";
 
 export default {
   name: "Settings-Members",
-  components: { FieldLabel },
+  components: { FieldLabel, SectionHead },
 
   emits: ["updateMembers"],
 
@@ -187,7 +185,7 @@ export default {
   flex-direction: column;
 }
 
-.roles .section-text {
+.roles section > :first-child {
   flex: 1;
 }
 

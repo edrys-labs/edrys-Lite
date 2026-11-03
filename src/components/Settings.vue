@@ -255,9 +255,14 @@ export default {
   color: rgb(var(--v-theme-muted));
 }
 
+.settings-tabs :deep(.v-tab) {
+  border-radius: 8px 8px 0 0;
+}
+
 .settings-tabs :deep(.v-tab.v-tab--selected) {
+  background: rgb(var(--v-theme-primary-tint));
   font-weight: 600;
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--v-theme-primary-text));
 }
 
 .settings-tabs :deep(.v-tab .v-icon) {

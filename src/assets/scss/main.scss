@@ -167,20 +167,6 @@ code, kbd, pre, samp {
     }
 }
 
-// Sections in the Settings tabs: a title, one line of text, then the controls
-.settings-body .section-title {
-    margin: 0 0 4px;
-    font-size: 15px;
-    font-weight: 600;
-}
-
-.settings-body .section-text {
-    margin: 0 0 14px;
-    font-size: 13px;
-    line-height: 1.5;
-    color: rgb(var(--v-theme-text-2));
-}
-
 // Toasts (<v-snackbar color="toast" class="edrys-toast">)
 .edrys-toast .v-snackbar__wrapper {
     border-radius: 10px;

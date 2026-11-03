@@ -42,6 +42,8 @@ const light: ThemeDefinition = {
     badge: '#e64343', // unread dot
     'danger-fill': '#c92f33', // white text on it
     'info-tint': '#e0f1ff',
+    'primary-tint': '#e5efff', // selected tab, step numbers
+    'primary-text': '#224fa7', // text and icons on primary-tint
     'success-tint': '#e4f8e7',
     'warning-tint': '#fee5b3',
     'teacher-tint': '#ffe5c9',
@@ -114,6 +116,8 @@ const dark: ThemeDefinition = {
     badge: '#f66d67',
     'danger-fill': '#c92f33',
     'info-tint': '#192f46',
+    'primary-tint': '#223251',
+    'primary-text': '#b1cfff',
     'success-tint': '#1f4127',
     'warning-tint': '#523709',
     'teacher-tint': '#56340e',

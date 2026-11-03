@@ -1,6 +1,5 @@
 <template>
-  <h3 class="section-title">{{ t('settings.importExport.downloadTitle') }}</h3>
-  <p class="section-text">{{ t('settings.importExport.downloadText') }}</p>
+  <SectionHead :title="t('settings.importExport.downloadTitle')" :text="t('settings.importExport.downloadText')" icon="mdi-download" :color="1" />
   <div class="downloads">
     <v-btn variant="outlined" height="40" prepend-icon="mdi-download" @click="downloadClass('yaml')">
       {{ t('settings.importExport.downloadYml') }}
@@ -12,8 +11,7 @@
 
   <v-divider class="my-5"></v-divider>
 
-  <h3 class="section-title">{{ t('settings.importExport.restoreTitle') }}</h3>
-  <p class="section-text">{{ t('settings.importExport.restoreText') }}</p>
+  <SectionHead :title="t('settings.importExport.restoreTitle')" :text="t('settings.importExport.restoreText')" icon="mdi-backup-restore" :color="2" />
   <div class="restore">
     <FieldLabel :label="t('settings.importExport.restoreFromFile')">
       <v-file-input
@@ -71,8 +69,7 @@
 
   <v-divider class="my-5"></v-divider>
 
-  <h3 class="section-title">{{ t('settings.importExport.findTitle') }}</h3>
-  <p class="section-text">{{ t('settings.importExport.findText') }}</p>
+  <SectionHead :title="t('settings.importExport.findTitle')" :text="t('settings.importExport.findText')" icon="mdi-compass-outline" :color="3" />
   <v-btn
     variant="tonal"
     height="40"
@@ -90,10 +87,11 @@ import { useI18n } from 'vue-i18n';
 import { getPeerID, parseClassroom } from "../../ts/Utils";
 import { debug } from "../../api/debugHandler";
 import FieldLabel from "../FieldLabel.vue";
+import SectionHead from "./SectionHead.vue";
 
 export default {
   name: "Settings-ImportExport",
-  components: { FieldLabel },
+  components: { FieldLabel, SectionHead },
 
   props: {
     config: {

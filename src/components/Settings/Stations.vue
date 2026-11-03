@@ -1,6 +1,5 @@
 <template>
-  <h3 class="section-title">{{ t('settings.stations.title') }}</h3>
-  <p class="section-text">{{ t('settings.stations.description') }}</p>
+  <SectionHead :title="t('settings.stations.title')" :text="t('settings.stations.description')" icon="mdi-router-wireless" :color="2" />
 
   <ol class="steps">
     <li>{{ t('settings.stations.steps.open') }}</li>
@@ -9,7 +8,7 @@
   </ol>
 
   <FieldLabel :label="t('settings.stations.linkLabel')">
-    <v-text-field :model-value="url" readonly class="station-link">
+    <v-text-field :model-value="url" readonly hide-details class="station-link">
       <template v-slot:append-inner>
         <v-btn
           :icon="copied ? 'mdi-check' : 'mdi-content-copy'"
@@ -37,9 +36,13 @@
 
   <v-divider class="my-5"></v-divider>
 
-  <h3 class="section-title">{{ t('settings.stations.connected') }}</h3>
-  <p v-if="!stations.length" class="section-text">{{ t('settings.stations.none') }}</p>
-  <ul v-else class="station-list">
+  <SectionHead
+    :title="t('settings.stations.connected')"
+    :text="stations.length ? '' : t('settings.stations.none')"
+    icon="mdi-lan-connect"
+    :color="4"
+  />
+  <ul v-if="stations.length" class="station-list">
     <li v-for="station in stations" :key="station.name" class="station-row">
       <span class="station-tile" :style="{ background: station.tile.bg, color: station.tile.fg }">
         {{ station.initial }}
@@ -61,6 +64,7 @@
 import { copyToClipboard} from "../../ts/Utils";
 import { useI18n } from 'vue-i18n';
 import FieldLabel from "../FieldLabel.vue";
+import SectionHead from "./SectionHead.vue";
 import type { PropType } from "vue";
 
 export type StationRoom = {
@@ -74,7 +78,7 @@ export type StationRoom = {
 
 export default {
   name: "Settings-Stations",
-  components: { FieldLabel },
+  components: { FieldLabel, SectionHead },
 
   props: {
     config: {
@@ -112,20 +116,45 @@ export default {
 </script>
 
 <style scoped>
+/* numbered circles, in line with the section text */
 .steps {
+  counter-reset: step;
   margin: 0 0 20px;
-  padding-inline-start: 20px;
+  padding-inline-start: 44px;
+  list-style: none;
   font-size: 13px;
   line-height: 1.5;
 }
 
+.steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  counter-increment: step;
+}
+
+.steps li::before {
+  content: counter(step);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-primary-tint));
+  color: rgb(var(--v-theme-primary-text));
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .steps li + li {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .station-list {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
 }
 

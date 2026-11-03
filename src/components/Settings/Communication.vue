@@ -1,6 +1,5 @@
 <template>
-  <h3 class="section-title">{{ $t('settings.communication.title') }}</h3>
-  <p class="section-text">{{ $t('settings.communication.text') }}</p>
+  <SectionHead :title="$t('settings.communication.title')" :text="$t('settings.communication.text')" icon="mdi-access-point-network" :color="4" />
 
   <div role="radiogroup" :aria-label="$t('settings.communication.labels.method')" class="method">
     <label v-for="method in methods" :key="method" :class="['method-option', { selected: communicationMethod === method }]">
@@ -47,8 +46,7 @@
 
   <v-divider class="my-5"></v-divider>
 
-  <h3 class="section-title">{{ $t('settings.communication.shareLink.title') }}</h3>
-  <p class="section-text">{{ $t('settings.communication.shareLink.description') }}</p>
+  <SectionHead :title="$t('settings.communication.shareLink.title')" :text="$t('settings.communication.shareLink.description')" icon="mdi-link-variant" :color="1" />
 
   <FieldLabel :label="$t('settings.communication.shareLink.linkLabel')">
     <v-text-field v-model="shareableLink" readonly hide-details class="mono">
@@ -86,10 +84,11 @@ import { encodeCommConfig,
 } from "../../ts/Utils";
 import { studentLink } from "../../ts/DevBridge";
 import FieldLabel from "../FieldLabel.vue";
+import SectionHead from "./SectionHead.vue";
 
 export default {
   name: "Settings-Communication",
-  components: { FieldLabel },
+  components: { FieldLabel, SectionHead },
 
   props: {
     config: {
