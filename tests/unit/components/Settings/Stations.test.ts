@@ -45,8 +45,9 @@ describe('Stations Settings Component', () => {
       },
       global: {
         stubs: {
-          'v-alert': {
-            template: '<div class="v-alert"><slot /><slot name="append" /></div>'
+          'v-text-field': {
+            props: ['modelValue'],
+            template: '<div class="v-text-field"><input :value="modelValue" readonly /><slot name="append-inner" /></div>'
           },
           'v-container': true,
           'v-btn': {
@@ -62,9 +63,16 @@ describe('Stations Settings Component', () => {
     expect(wrapper.vm.url).toContain('/station');
   });
 
+  test('shows the link in a field with an open button', () => {
+    const wrapper = createWrapper();
+    expect(wrapper.find('input').element.value).toBe('http://localhost:3000/station');
+    expect(wrapper.findAll('.v-btn')).toHaveLength(2);
+    expect(wrapper.findAll('.steps li')).toHaveLength(3);
+  });
+
   test('handles copy url button click', async () => {
     const wrapper = createWrapper();
-    const copyBtn = wrapper.find('.v-btn');
+    const copyBtn = wrapper.find('.copy-btn');
     await copyBtn.trigger('click');
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://localhost:3000/station');

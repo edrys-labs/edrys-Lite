@@ -201,7 +201,14 @@ settings:
         info: "Mehr erfahren"
       more: "Mehr erkunden"
   stations:
-    info: "Um eine neue Station hinzuzufügen, öffnen Sie diesen Link einfach auf dem Client-Gerät: "
+    title: "Stationen"
+    description: "Eine Station ist ein Rechner, an dem die Hardware, Kamera oder Werkzeuge angeschlossen sind, mit denen die Studierenden aus der Ferne arbeiten. Sie tritt der Klasse als eigener Raum bei."
+    steps:
+      open: "Öffnen Sie den Link unten auf dem Stationsrechner."
+      name: "Geben Sie der Station einen Namen, z. B. nach dem angeschlossenen Gerät."
+      join: "Sie erscheint als Raum in der Klasse, und Studierende können ihr beitreten."
+    linkLabel: "Stations-Link"
+    open: "Stations-Link öffnen"
   share:
     downloadYml: "Klassendatei herunterladen (.yml)"
     downloadJson: "Klassendatei herunterladen (.json)"

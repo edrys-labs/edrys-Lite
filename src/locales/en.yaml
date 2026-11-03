@@ -201,7 +201,14 @@ settings:
         info: "Learn more"
       more: "Explore more"
   stations:
-    info: "To add a new station, simply open this link on the client device: "
+    title: "Stations"
+    description: "A station is a computer connected to the hardware, camera or tools the students work with remotely. It joins the class as its own room."
+    steps:
+      open: "Open the link below on the station computer."
+      name: "Give the station a name, e.g. after the device it is connected to."
+      join: "It shows up as a room in the class, and students can join it."
+    linkLabel: "Station link"
+    open: "Open the station link"
   share:
     downloadYml: "Download class file (.yml)"
     downloadJson: "Download class file (.json)"

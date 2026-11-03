@@ -201,7 +201,14 @@ settings:
         info: "Información del Módulo"
       more: "Explorar más"
   stations:
-    info: "Para agregar una nueva estación, simplemente abre este enlace en el dispositivo cliente: "
+    title: "Estaciones"
+    description: "Una estación es un ordenador conectado al hardware, la cámara o las herramientas con las que los estudiantes trabajan a distancia. Se une a la clase como una sala propia."
+    steps:
+      open: "Abre el enlace de abajo en el ordenador de la estación."
+      name: "Dale un nombre a la estación, p. ej. según el dispositivo conectado."
+      join: "Aparece como una sala en la clase y los estudiantes pueden unirse a ella."
+    linkLabel: "Enlace de la estación"
+    open: "Abrir el enlace de la estación"
   share:
     downloadYml: "Descargar archivo de clase (.yml)"
     downloadJson: "Descargar archivo de clase (.json)"
