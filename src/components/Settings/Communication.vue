@@ -50,9 +50,18 @@
         <v-text-field
           v-model="shareableLink"
           readonly
-          :append-inner-icon="copied ? 'mdi-check' : 'mdi-content-copy'"
-          @click:append-inner="copyShareableLink"
-        ></v-text-field>
+        >
+          <template v-slot:append-inner>
+            <v-btn
+              :icon="copied ? 'mdi-check' : 'mdi-content-copy'"
+              variant="text"
+              density="comfortable"
+              :aria-label="$t('general.copyLink')"
+              :title="$t('general.copyLink')"
+              @click="copyShareableLink"
+            ></v-btn>
+          </template>
+        </v-text-field>
       </FieldLabel>
 
       <v-checkbox

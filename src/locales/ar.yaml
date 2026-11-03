@@ -206,6 +206,7 @@ settings:
     downloadJson: "تنزيل ملف الفصل (.json)"
     restoreFromFile: "استعادة الفصل من الملف (yaml، json)"
     restoreFromUrl: "استعادة الفصل من الرابط (http، https)"
+    restore: "استعادة"
     explore: "استكشاف على Github"
   communication:
     labels:

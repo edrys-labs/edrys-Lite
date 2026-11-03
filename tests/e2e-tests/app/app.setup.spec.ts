@@ -26,6 +26,9 @@ async function save(dialog: Locator) {
   await dialog.getByRole('button', { name: /^Save( Badge)?$/ }).click()
 }
 
+// The class name heads the rooms drawer; the Connecting card shows it too, while it is up.
+const className = (page: Page) => page.locator('.drawer-class-name')
+
 const peerId = (s: Session) => inPeer<string>(s.page, 'return p.peerID')
 
 /**
@@ -87,7 +90,7 @@ test.describe('App — owner setup, share and join', () => {
     expect(ownerHash, 'owner URL has an owner hash').toBeTruthy()
     expect(await inPeer(guest.page, 'return p.expectedOwner')).toBe(ownerHash)
 
-    await expect(guest.page.getByText(name)).toBeVisible({ timeout: 20000 * SCALE })
+    await expect(className(guest.page)).toHaveText(name, { timeout: 20000 * SCALE })
     // Only seeded when a session starts with no rooms, so check it arrived in the setup.
     expect(await inPeer(guest.page, 'return Number(p.lab.data.meta.defaultNumberOfRooms)')).toBe(2)
     await probe(guest)
@@ -108,7 +111,7 @@ test.describe('App — owner setup, share and join', () => {
     await owner.context.close()
     owner = undefined
     await guest.page.reload()
-    await expect(guest.page.getByText(name)).toBeVisible({ timeout: 20000 * SCALE })
+    await expect(className(guest.page)).toHaveText(name, { timeout: 20000 * SCALE })
     await probe(guest)
     await eventually(guest, `return p.role === 'teacher'`, 'guest is still teacher after reload')
   })

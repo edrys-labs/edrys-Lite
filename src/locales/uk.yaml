@@ -206,6 +206,7 @@ settings:
     downloadJson: "Завантажити файл класу (.json)"
     restoreFromFile: "Відновити клас за допомогою файлу (yaml, json)"
     restoreFromUrl: "Відновити клас за допомогою URL-адреси (http, https)"
+    restore: "Відновити"
     explore: "Дізнайтеся більше на github"
   communication:
     labels:

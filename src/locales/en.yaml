@@ -206,6 +206,7 @@ settings:
     downloadJson: "Download class file (.json)"
     restoreFromFile: "Restore class from file (yaml, json)"
     restoreFromUrl: "Restore class from URL (http, https)"
+    restore: "Restore"
     explore: "Explore on Github"
   communication:
     labels:

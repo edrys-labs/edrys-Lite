@@ -206,10 +206,9 @@ export async function ownerImportConfigFromUrl(
 
   const urlField = page.getByLabel('Restore class from URL (http, https)')
   await urlField.fill(configUrl)
-  // Share.vue binds the field's append-icon click (not Enter) to restoreURL().
-  await page
-    .getByRole('button', { name: 'Restore class from URL (http, https) appended action' })
-    .click()
+  // The Restore button next to the field (not Enter) runs restoreURL(); the file
+  // field shows its own only once a file is picked.
+  await page.getByRole('button', { name: 'Restore', exact: true }).click()
 
   // restoreURL() is async (fetch + parseClassroom); wait for it to actually
   // update configClone.name in the Main tab before saving, otherwise Save

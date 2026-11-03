@@ -19,9 +19,18 @@
           prepend-icon=""
           prepend-inner-icon="mdi-paperclip"
           v-model="selectedFile"
-          :append-icon="selectedFileIcon"
-          @click:append.self="restoreFile"
-        ></v-file-input>
+        >
+          <template v-if="selectedFile !== undefined" v-slot:append>
+            <v-btn
+              icon="mdi-upload"
+              variant="text"
+              density="comfortable"
+              :aria-label="t('settings.share.restore')"
+              :title="t('settings.share.restore')"
+              @click="restoreFile"
+            ></v-btn>
+          </template>
+        </v-file-input>
       </FieldLabel>
     </v-col>
 
@@ -30,8 +39,6 @@
         <v-text-field
           v-model="selectedURL"
           prepend-inner-icon="mdi-link"
-          :append-icon="selectedURLIcon"
-          @click:append.self="restoreURL"
           @mouseover="showTemplate = true"
           @mouseleave="showTemplate = false"
         >
@@ -43,6 +50,16 @@
               @click="selectedURL = ''"
               >mdi-close-circle</v-icon
             >
+          </template>
+          <template v-if="selectedURL" v-slot:append>
+            <v-btn
+              icon="mdi-upload"
+              variant="text"
+              density="comfortable"
+              :aria-label="t('settings.share.restore')"
+              :title="t('settings.share.restore')"
+              @click="restoreURL"
+            ></v-btn>
           </template>
         </v-text-field>
       </FieldLabel>
@@ -195,12 +212,6 @@ export default {
   },
 
   computed: {
-    selectedURLIcon() {
-      return this.selectedURL ? "mdi-upload" : "";
-    },
-    selectedFileIcon() {
-      return this.selectedFile !== undefined ? "mdi-upload" : "";
-    },
   },
 };
 </script>
