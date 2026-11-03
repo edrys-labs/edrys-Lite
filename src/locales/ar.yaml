@@ -116,7 +116,7 @@ settings:
     Members: "الأعضاء"
     Modules: "الوحدات"
     Stations: "المحطات"
-    Share: "استيراد / تصدير"
+    ImportExport: "استيراد / تصدير"
     Communication: "الاتصال"
     unsaved: "تغييرات غير محفوظة"
     actions:
@@ -220,7 +220,7 @@ settings:
     none: "لا توجد محطة متصلة بعد."
     online: "متصلة"
     reconnecting: "جارٍ إعادة الاتصال…"
-  share:
+  importExport:
     downloadTitle: "تنزيل"
     downloadText: "احفظ الفصل كملف، كنسخة احتياطية أو لإعطائه لمعلم آخر. تُستثنى المفاتيح والتوقيعات."
     downloadYml: "ملف YAML (.yml)"

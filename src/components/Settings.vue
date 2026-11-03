@@ -5,7 +5,7 @@ import Modules from "./Settings/Modules.vue";
 import Stations from "./Settings/Stations.vue";
 import type { StationRoom } from "./Settings/Stations.vue";
 import type { PropType } from "vue";
-import Share from "./Settings/Share.vue";
+import ImportExport from "./Settings/ImportExport.vue";
 import { useI18n } from "vue-i18n";
 import Communication from "./Settings/Communication.vue";
 import { decodeCommConfig } from "../ts/Utils";
@@ -60,7 +60,7 @@ export default {
         { key: "Members", icon: "mdi-account-group-outline" },
         { key: "Modules", icon: "mdi-view-grid-outline" },
         { key: "Stations", icon: "mdi-router-wireless" },
-        { key: "Share", icon: "mdi-swap-vertical" },
+        { key: "ImportExport", icon: "mdi-swap-vertical" },
         { key: "Communication", icon: "mdi-access-point-network" },
       ],
     };
@@ -119,7 +119,7 @@ export default {
     },
   },
 
-  components: { Main, Members, Modules, Stations, Share, Communication },
+  components: { Main, Members, Modules, Stations, ImportExport, Communication },
 };
 </script>
 
@@ -177,7 +177,7 @@ export default {
         </v-window-item>
 
         <v-window-item>
-          <Share :config="configClone"></Share>
+          <ImportExport :config="configClone"></ImportExport>
         </v-window-item>
 
         <v-window-item>

@@ -116,7 +116,7 @@ settings:
     Members: "Members"
     Modules: "Modules"
     Stations: "Stations"
-    Share: "Import / Export"
+    ImportExport: "Import / Export"
     Communication: "Communication"
     unsaved: "Unsaved changes"
     actions:
@@ -220,7 +220,7 @@ settings:
     none: "No station is connected yet."
     online: "Online"
     reconnecting: "Reconnecting…"
-  share:
+  importExport:
     downloadTitle: "Download"
     downloadText: "Save the class as a file, as a backup or to give it to another teacher. Keys and signatures are left out."
     downloadYml: "YAML file (.yml)"

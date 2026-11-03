@@ -1,6 +1,6 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
-import Share from '../../../../src/components/Settings/Share.vue';
+import ImportExport from '../../../../src/components/Settings/ImportExport.vue';
 
 vi.mock('../../../../src/ts/Utils', async (importOriginal) => ({
   ...(await importOriginal<any>()),
@@ -15,7 +15,7 @@ const readBlob = (blob: Blob) =>
     reader.readAsText(blob);
   });
 
-describe('Share Settings Component', () => {
+describe('Import / Export Settings Component', () => {
   const mockConfig = {
     id: 'test-id',
     name: 'Test Class',
@@ -79,7 +79,7 @@ describe('Share Settings Component', () => {
   });
 
   const createWrapper = (props = {}) => {
-    return mount(Share, {
+    return mount(ImportExport, {
       props: {
         config: mockConfig,
         ...props

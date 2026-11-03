@@ -1,21 +1,21 @@
 <template>
-  <h3 class="section-title">{{ t('settings.share.downloadTitle') }}</h3>
-  <p class="section-text">{{ t('settings.share.downloadText') }}</p>
+  <h3 class="section-title">{{ t('settings.importExport.downloadTitle') }}</h3>
+  <p class="section-text">{{ t('settings.importExport.downloadText') }}</p>
   <div class="downloads">
     <v-btn variant="outlined" height="40" prepend-icon="mdi-download" @click="downloadClass('yaml')">
-      {{ t('settings.share.downloadYml') }}
+      {{ t('settings.importExport.downloadYml') }}
     </v-btn>
     <v-btn variant="outlined" height="40" prepend-icon="mdi-download" @click="downloadClass('json')">
-      {{ t('settings.share.downloadJson') }}
+      {{ t('settings.importExport.downloadJson') }}
     </v-btn>
   </div>
 
   <v-divider class="my-5"></v-divider>
 
-  <h3 class="section-title">{{ t('settings.share.restoreTitle') }}</h3>
-  <p class="section-text">{{ t('settings.share.restoreText') }}</p>
+  <h3 class="section-title">{{ t('settings.importExport.restoreTitle') }}</h3>
+  <p class="section-text">{{ t('settings.importExport.restoreText') }}</p>
   <div class="restore">
-    <FieldLabel :label="t('settings.share.restoreFromFile')">
+    <FieldLabel :label="t('settings.importExport.restoreFromFile')">
       <v-file-input
         accept=".yml,.yaml,.json,application/yaml,application/json"
         prepend-icon=""
@@ -31,16 +31,16 @@
             height="32"
             class="restore-btn"
             :disabled="!selectedFile"
-            :aria-label="t('settings.share.restoreFile')"
+            :aria-label="t('settings.importExport.restoreFile')"
             @click.stop="restoreFile"
           >
-            {{ t('settings.share.restore') }}
+            {{ t('settings.importExport.restore') }}
           </v-btn>
         </template>
       </v-file-input>
     </FieldLabel>
 
-    <FieldLabel :label="t('settings.share.restoreFromUrl')">
+    <FieldLabel :label="t('settings.importExport.restoreFromUrl')">
       <v-text-field
         v-model="selectedURL"
         prepend-inner-icon="mdi-link"
@@ -55,10 +55,10 @@
             height="32"
             class="restore-btn"
             :disabled="!selectedURL"
-            :aria-label="t('settings.share.restoreUrl')"
+            :aria-label="t('settings.importExport.restoreUrl')"
             @click.stop="restoreURL"
           >
-            {{ t('settings.share.restore') }}
+            {{ t('settings.importExport.restore') }}
           </v-btn>
         </template>
       </v-text-field>
@@ -66,13 +66,13 @@
   </div>
   <p v-if="restoreSuccess || saveError" role="status" :class="['restore-status', { failed: saveError }]">
     <v-icon :icon="saveError ? 'mdi-alert-circle-outline' : 'mdi-check-circle-outline'" size="16"></v-icon>
-    {{ saveError ? errorMessage : t('settings.share.restored') }}
+    {{ saveError ? errorMessage : t('settings.importExport.restored') }}
   </p>
 
   <v-divider class="my-5"></v-divider>
 
-  <h3 class="section-title">{{ t('settings.share.findTitle') }}</h3>
-  <p class="section-text">{{ t('settings.share.findText') }}</p>
+  <h3 class="section-title">{{ t('settings.importExport.findTitle') }}</h3>
+  <p class="section-text">{{ t('settings.importExport.findText') }}</p>
   <v-btn
     variant="tonal"
     height="40"
@@ -80,7 +80,7 @@
     href="https://github.com/topics/edrys-lab"
     target="_blank"
   >
-    {{ t('settings.share.explore') }}
+    {{ t('settings.importExport.explore') }}
   </v-btn>
 </template>
 
@@ -92,7 +92,7 @@ import { debug } from "../../api/debugHandler";
 import FieldLabel from "../FieldLabel.vue";
 
 export default {
-  name: "Settings-Share",
+  name: "Settings-ImportExport",
   components: { FieldLabel },
 
   props: {
@@ -140,7 +140,7 @@ export default {
     },
 
     updateModules() {
-      debug.settings.share("updateModules", this.scrapedModules);
+      debug.settings.importExport("updateModules", this.scrapedModules);
     },
 
     downloadClass(format: "yaml" | "json") {
@@ -184,9 +184,9 @@ export default {
       }
 
       this.saveError = true;
-      this.errorMessage = this.t("settings.share.urlFailed");
+      this.errorMessage = this.t("settings.importExport.urlFailed");
 
-      debug.settings.share("restoreURL", this.selectedURL, this.errorMessage);
+      debug.settings.importExport("restoreURL", this.selectedURL, this.errorMessage);
     },
     restoreFile() {
       this.restoreSuccess = false;
@@ -204,22 +204,22 @@ export default {
           this.updateConfig(newClass);
           this.restoreSuccess = true;
 
-          debug.settings.share("restoreFile", this.selectedFile.name, newClass);
+          debug.settings.importExport("restoreFile", this.selectedFile.name, newClass);
         } else {
           this.restoreSuccess = false;
           this.saveError = true;
 
-          this.errorMessage = this.t("settings.share.fileFailed");
+          this.errorMessage = this.t("settings.importExport.fileFailed");
 
-          debug.settings.share("restoreFile", this.selectedFile.name, this.errorMessage);
+          debug.settings.importExport("restoreFile", this.selectedFile.name, this.errorMessage);
         }
       };
       reader.onerror = (err) => {
         this.restoreSuccess = false;
         this.saveError = true;
-        this.errorMessage = this.t("settings.share.fileFailed");
+        this.errorMessage = this.t("settings.importExport.fileFailed");
 
-        debug.settings.share("restoreFile", this.selectedFile.name, err);
+        debug.settings.importExport("restoreFile", this.selectedFile.name, err);
       };
     },
   },

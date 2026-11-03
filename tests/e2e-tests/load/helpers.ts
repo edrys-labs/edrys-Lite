@@ -173,7 +173,7 @@ export async function waitForPeerReady(page: Page, timeout = 45000) {
  * link" > Save — to load a classroom config from a published URL.
  *
  * Earlier this was done by reaching into the live Peer (`p.lab.data` +
- * `p._signAndWrite`) directly, mirroring what Share.vue's restoreURL does.
+ * `p._signAndWrite`) directly, mirroring what ImportExport.vue's restoreURL does.
  * That bypassed the app's own persistence path: Settings.saveClass() calls
  * `database.update(...)` (IndexedDB) THEN `communication.newSetup(...)`, so a
  * config applied only via the live Peer never survives a reload — the next

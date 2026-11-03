@@ -116,7 +116,7 @@ settings:
     Members: "Користувачі"
     Modules: "Модулі"
     Stations: "Станції"
-    Share: "Імпорт / Експорт"
+    ImportExport: "Імпорт / Експорт"
     Communication: "Спілкування"
     unsaved: "Незбережені зміни"
     actions:
@@ -220,7 +220,7 @@ settings:
     none: "Жодна станція ще не підключена."
     online: "Онлайн"
     reconnecting: "Перепідключення…"
-  share:
+  importExport:
     downloadTitle: "Завантажити"
     downloadText: "Збережіть клас як файл — як резервну копію або щоб передати іншому вчителю. Ключі та підписи не включаються."
     downloadYml: "Файл YAML (.yml)"

@@ -35,7 +35,7 @@ export const debug = {
     moduleConfigForm: createDebug('settings:moduleConfigForm'),
     modules: createDebug('settings:modules'),
     modulesExplorer: createDebug('settings:modulesExplorer'),
-    share: createDebug('settings:share'),
+    importExport: createDebug('settings:importExport'),
     stations: createDebug('settings:stations'),
   },
   ts: {
@@ -137,7 +137,7 @@ if (typeof window !== 'undefined') {
     console.log('  components:module, components:modules, components:settings, components:userMenu');
     console.log('  settings:communication, settings:editor, settings:main');
     console.log('  settings:members, settings:module, settings:moduleConfigForm');
-    console.log('  settings:modules, settings:modulesExplorer, settings:share, settings:stations');
+    console.log('  settings:modules, settings:modulesExplorer, settings:importExport, settings:stations');
     console.log('  views:classroom, views:deploy, views:index');
     console.log('  edrysModule');
     console.log('');

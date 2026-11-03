@@ -116,7 +116,7 @@ settings:
     Members: "Mitglieder"
     Modules: "Module"
     Stations: "Stationen"
-    Share: "Import / Export"
+    ImportExport: "Import / Export"
     Communication: "Kommunikation"
     unsaved: "Ungespeicherte Änderungen"
     actions:
@@ -220,7 +220,7 @@ settings:
     none: "Noch keine Station verbunden."
     online: "Online"
     reconnecting: "Verbindet neu…"
-  share:
+  importExport:
     downloadTitle: "Herunterladen"
     downloadText: "Speichern Sie die Klasse als Datei, als Sicherung oder um sie an andere Lehrkräfte weiterzugeben. Schlüssel und Signaturen werden weggelassen."
     downloadYml: "YAML-Datei (.yml)"
