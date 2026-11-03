@@ -156,8 +156,6 @@
             <v-expansion-panel-text>
               <ModuleConfigForm
                 ref="moduleConfigForm"
-                :standalone="false"
-                :moduleName="localScrapedModules[moduleDialogIndex]?.name"
                 :moduleConfig="localScrapedModules[moduleDialogIndex]?.moduleConfig"
                 :currentConfig="moduleDialogDraft?.config"
                 :currentStudentConfig="moduleDialogDraft?.studentConfig"

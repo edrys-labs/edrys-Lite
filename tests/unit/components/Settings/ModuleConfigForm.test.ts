@@ -33,12 +33,6 @@ const stubs = {
   'v-card': {
     template: '<div class="v-card"><slot /></div>',
   },
-  'v-toolbar': {
-    template: '<div class="v-toolbar"><slot /></div>',
-  },
-  'v-toolbar-title': {
-    template: '<div class="v-toolbar-title"><slot /></div>',
-  },
   'v-btn': {
     template: '<button class="v-btn" @click="$attrs.onClick"><slot /></button>',
   },
@@ -153,7 +147,6 @@ describe('ModuleConfigForm Component', () => {
   const createWrapper = (props = {}) => {
     return mount(ModuleConfigForm, {
       props: {
-        moduleName: 'Test Module',
         moduleConfig: '',
         currentConfig: '',
         currentStudentConfig: '',
@@ -170,8 +163,6 @@ describe('ModuleConfigForm Component', () => {
   test('renders without errors', () => {
     wrapper = createWrapper();
     expect(wrapper.find('.v-card').exists()).toBe(true);
-    expect(wrapper.find('.v-toolbar-title').text()).toContain('Module Configuration');
-    expect(wrapper.find('.v-toolbar-title').text()).toContain('Test Module');
   });
 
   test('displays "no schema" message when no module config is provided', () => {
@@ -204,7 +195,7 @@ describe('ModuleConfigForm Component', () => {
     expect(vm.formValues.config.radioField).toBe('Option 2');
   });
 
-  test('emits save event with form values when save button is clicked', async () => {
+  test('collectConfig returns the edited form values', async () => {
     wrapper = createWrapper({
       moduleConfig: complexModuleConfig,
       currentConfig
@@ -216,16 +207,8 @@ describe('ModuleConfigForm Component', () => {
     const vm = wrapper.vm as ModuleConfigFormData;
     vm.formValues.config.textField = 'Modified text';
     
-    // Find all buttons and click the save button (should be the last one)
-    const buttons = wrapper.findAll('.v-btn');
-    await buttons[buttons.length - 1].trigger('click');
-
-    // Check emitted events
-    expect(wrapper.emitted().save).toBeTruthy();
-    expect(wrapper.emitted().close).toBeTruthy();
-    
-    // Verify the saved data structure
-    const savedData = wrapper.emitted().save[0][0];
+    // what the module dialog reads when it saves
+    const savedData = (wrapper.vm as any).collectConfig();
     expect(savedData.config.textField).toBe('Modified text');
   });
 

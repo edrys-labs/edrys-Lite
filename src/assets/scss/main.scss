@@ -175,6 +175,19 @@ code, kbd, pre, samp {
     direction: ltr;
 }
 
+// Tooltips: the colors of the toasts, small and rounded
+.v-tooltip > .v-overlay__content {
+    padding: 5px 9px;
+    border-radius: 7px;
+    background: rgb(var(--v-theme-toast));
+    color: rgb(var(--v-theme-on-toast));
+    font-family: 'Noto Sans Variable', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
 // Toasts (<v-snackbar color="toast" class="edrys-toast">)
 .edrys-toast .v-snackbar__wrapper {
     border-radius: 10px;

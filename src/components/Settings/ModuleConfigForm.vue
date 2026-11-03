@@ -1,13 +1,5 @@
 <template>
-  <v-card :flat="!standalone" :elevation="standalone ? undefined : 0">
-    <v-toolbar v-if="standalone">
-      <v-toolbar-title>
-        {{ t("settings.modules.moduleConfig.title") }} - {{ moduleName }}
-      </v-toolbar-title>
-      <v-btn icon @click="$emit('close')">
-        <v-icon>mdi-close</v-icon>
-      </v-btn>
-    </v-toolbar>
+  <v-card flat>
 
     <v-card-text v-if="!hasAnySchema">
       <v-alert color="info" icon="mdi-information-outline">
@@ -233,27 +225,6 @@
       </v-card-text>
     </template>
 
-    <template v-if="standalone">
-      <v-divider></v-divider>
-      <v-card-actions>
-        <v-btn variant="outlined" color="grey-darken-4" @click="$emit('close')">
-          {{ t("settings.modules.moduleConfig.cancel") }}
-        </v-btn>
-        <v-btn
-          variant="flat"
-          color="grey-darken-4"
-          @click="saveConfig"
-        >
-          {{ t("settings.modules.moduleConfig.save") }}
-          <v-badge
-            v-if="hasChanges"
-            color="red"
-            dot
-            style="position: absolute; top: 0; right: 0"
-          ></v-badge>
-        </v-btn>
-      </v-card-actions>
-    </template>
   </v-card>
 </template>
 
@@ -275,10 +246,6 @@ export default {
   components: { FieldLabel },
 
   props: {
-    moduleName: {
-      type: String,
-      required: true,
-    },
     moduleConfig: {
       type: String,
       required: false,
@@ -307,11 +274,6 @@ export default {
       type: [String, Object],
       required: false,
       default: "",
-    },
-
-    standalone: {
-      type: Boolean,
-      default: true,
     },
   },
 
@@ -382,7 +344,7 @@ export default {
 
   watch: {
     hasChanges(val: boolean) {
-      if (!this.standalone) this.$emit('update:hasChanges', val);
+      this.$emit('update:hasChanges', val);
     },
   },
 
@@ -638,14 +600,6 @@ export default {
         }
       });
 
-      return configResult;
-    },
-
-    saveConfig() {
-      const configResult = this.collectConfig();
-
-      this.$emit("save", configResult);
-      if (this.standalone) this.$emit("close");
       return configResult;
     },
   },
