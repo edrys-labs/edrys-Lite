@@ -36,19 +36,18 @@ index:
       teacher: |
         # Willkommen in deiner neuen Klasse 👋
 
-        Dieses Feld ist ein Modul. Du kannst es jederzeit unter **⚙️ Einstellungen → Module** bearbeiten oder löschen.
+        Dieses Feld ist ein Modul. Du kannst es jederzeit unter **⚙️ Einstellungen → Module** ändern oder entfernen.
 
-        **Richte deine Klasse ein** (öffne **⚙️ Einstellungen** neben dem Klassennamen):
+        **Richte deine Klasse ein** unter **⚙️ Einstellungen**, neben dem Klassennamen im Raummenü:
 
-        1. **Haupt**: Gib der Klasse einen Namen und eine Beschreibung und lege die Anzahl der Räume fest.
-        2. **Module**: Füge die Werkzeuge hinzu, die deine Klasse braucht (Code-Editor, Terminal, Markdown, …), über den **Module Explorer** oder per Modul-URL. Klicke dann bei jedem Modul auf ⚙️, um es zu konfigurieren: Inhalt und Einstellungen, Größe und in welchen Räumen es erscheint.
-        3. **Mitglieder**: Füge Lehrkräfte über ihren öffentlichen Schlüssel hinzu (jede Person kann ihren eigenen im ⋮-Menü kopieren). Lass die Liste der Studierenden leer, damit alle mit dem Link beitreten können.
-        4. **Stationen**: Öffne den Stations-Link auf einem Gerät (z. B. einem PC an Laborhardware). Es wird zu einem Raum, dem Studierende beitreten können.
-        5. **Teilen**: Lade eine Sicherung deiner Klasse herunter oder stelle eine aus einer Datei wieder her.
+        1. **Haupt**: Gib der Klasse einen Namen, eine Beschreibung und ein Logo, und lege fest, mit wie vielen Räumen sie startet.
+        2. **Mitglieder**: Kopiere den **Link zur Klasse**, um Leute einzuladen. Füge Lehrkräfte über ihren öffentlichen Schlüssel hinzu (jede Person kann ihren eigenen im ⋮-Menü kopieren). Lass die Liste der Studierenden leer, damit alle mit dem Link beitreten können.
+        3. **Module**: Füge die Werkzeuge hinzu, die deine Klasse braucht (Code-Editor, Terminal, Markdown, …), über **Module erkunden** oder per Modul-URL. In den Einstellungen eines Moduls änderst du Inhalt, Größe und die Räume, in denen es erscheint.
+        4. **Stationen**: Öffne den Stations-Link auf einem Computer, der mit deiner Laborhardware oder Kamera verbunden ist. Er tritt der Klasse als eigener Raum bei, und Studierende können ihn betreten.
+        5. **Import / Export**: Lade eine Sicherung deiner Klasse herunter oder stelle eine aus einer Datei oder über einen Link wieder her.
+        6. **Kommunikation**: nur nötig, wenn dein Netzwerk direkte Verbindungen blockiert.
 
-        **Leute einladen:** Teile den Link der Klasse aus der Adressleiste deines Browsers.
-
-        ℹ️ Es gibt keinen zentralen Server: Deine Klasse liegt in deinem Browser, und alle verbinden sich direkt miteinander. Lade ab und zu unter **Teilen** eine Sicherung herunter.
+        ℹ️ Es gibt keinen zentralen Server: Deine Klasse liegt in diesem Browser, und alle verbinden sich direkt miteinander. Lade ab und zu unter **Import / Export** eine Sicherung herunter.
 
         📚 Mehr erfährst du in der [Dokumentation](https://liascript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md).
       student: |

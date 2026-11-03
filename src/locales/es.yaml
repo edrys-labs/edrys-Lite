@@ -36,19 +36,18 @@ index:
       teacher: |
         # Bienvenido a tu nueva clase 👋
 
-        Este panel es un módulo. Puedes editarlo o eliminarlo en cualquier momento en **⚙️ Configuración → Módulos**.
+        Este panel es un módulo. Puedes cambiarlo o quitarlo en cualquier momento en **⚙️ Configuración → Módulos**.
 
-        **Configura tu clase** (abre **⚙️ Configuración** junto al nombre de la clase):
+        **Prepara tu clase** en **⚙️ Configuración**, junto al nombre de la clase en el menú de salas:
 
-        1. **Principal**: dale a la clase un nombre y una descripción, y fija el número de salas.
-        2. **Módulos**: añade las herramientas que necesita tu clase (editor de código, terminal, markdown, …) desde el **Explorador de Módulos**, o pega la URL de un módulo. Después haz clic en ⚙️ en cada módulo para configurarlo: su contenido y ajustes, su tamaño y en qué salas aparece.
-        3. **Miembros**: añade profesores mediante su clave pública (cada usuario puede copiar la suya desde el menú ⋮). Deja vacía la lista de estudiantes para que cualquiera con el enlace pueda unirse.
-        4. **Estaciones**: abre el enlace de estación en un dispositivo (p. ej. un PC conectado al hardware del laboratorio). Se convierte en una sala a la que los estudiantes pueden unirse.
-        5. **Compartir**: descarga una copia de seguridad de tu clase o restaura una desde un archivo.
+        1. **Principal**: ponle un nombre a la clase, añade una descripción y un logo, y elige con cuántas salas empieza.
+        2. **Miembros**: copia el **Enlace de la clase** para invitar a la gente. Añade profesores con su clave pública (cada persona puede copiar la suya desde el menú ⋮). Deja vacía la lista de estudiantes para que cualquiera con el enlace pueda unirse.
+        3. **Módulos**: añade las herramientas que necesita tu clase (editor de código, terminal, Markdown, …) con **Explorar módulos**, o pega la URL de un módulo. En los ajustes de un módulo cambias su contenido, su tamaño y las salas en las que aparece.
+        4. **Estaciones**: abre el enlace de estación en un ordenador conectado al hardware o a la cámara de tu laboratorio. Se une a la clase como una sala propia, y los estudiantes pueden entrar en ella.
+        5. **Importar / Exportar**: descarga una copia de seguridad de tu clase, o restaura una desde un archivo o un enlace.
+        6. **Comunicación**: solo hace falta si tu red bloquea las conexiones directas.
 
-        **Invita a otros:** comparte el enlace de la clase desde la barra de direcciones de tu navegador.
-
-        ℹ️ No hay un servidor central: tu clase vive en tu navegador y todos se conectan directamente entre sí. Descarga de vez en cuando una copia de seguridad desde **Compartir**.
+        ℹ️ No hay un servidor central: tu clase vive en este navegador y todos se conectan directamente entre sí. Descarga de vez en cuando una copia de seguridad en **Importar / Exportar**.
 
         📚 Lee la [documentación](https://liascript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md) para saber más.
       student: |
