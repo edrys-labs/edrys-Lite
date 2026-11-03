@@ -20,7 +20,7 @@ import Footer from "../components/Footer.vue";
 import UserMenu from '../components/UserMenu.vue';
 import LinkedText from '../components/LinkedText.vue';
 import { useI18n } from 'vue-i18n';
-import { useDisplay } from 'vuetify';
+import { useDisplay, useRtl } from 'vuetify';
 
 export default {
   name: "Index",
@@ -31,7 +31,8 @@ export default {
     const { t, locale } = useI18n();
     // phones list the classes as compact rows
     const { xs: phone } = useDisplay();
-    return { t, locale, sameKey, isMember, classArt, activeTheme, phone };
+    const { isRtl: rtl } = useRtl();
+    return { t, locale, sameKey, isMember, classArt, activeTheme, phone, rtl };
   },
 
   data() {
@@ -333,7 +334,7 @@ export default {
                 :size="phone ? 40 : 36"
                 rounded="circle"
                 data-link="true"
-                :icon="['ar', 'he', 'fa', 'ur'].includes(locale) ? 'mdi-arrow-left' : 'mdi-arrow-right'"
+                :icon="rtl ? 'mdi-arrow-left' : 'mdi-arrow-right'"
                 :href="`./?/classroom/${classroom.id}${
                   classroom.ownerHash ? `/${classroom.ownerHash}` : ''
                 }`"

@@ -8,7 +8,7 @@ import UserMenu from "../components/UserMenu.vue";
 import TutorChat from "../components/TutorChat.vue";
 import AppBrand from "../components/AppBrand.vue";
 import { useI18n } from "vue-i18n";
-import { useDisplay } from "vuetify";
+import { useDisplay, useRtl } from "vuetify";
 
 import { Database, DatabaseItem } from "../ts/Database";
 import {
@@ -51,7 +51,8 @@ export default {
   setup() {
     const { t, locale } = useI18n();
     const { xs: phone } = useDisplay();
-    return { t, locale, activeTheme, phone };
+    const { isRtl: rtl } = useRtl();
+    return { t, locale, activeTheme, phone, rtl };
   },
 
   data() {
@@ -171,8 +172,39 @@ export default {
       const data = this.configuration?.data;
       return [data?.createdBy, ...(data?.members?.teacher || [])].filter(Boolean);
     },
-    rtl(): boolean {
-      return ["ar", "he", "fa", "ur"].includes(this.locale);
+    // Everything the drawer shows per room, built once per change.
+    drawerRooms() {
+      // the member lists decide who is a visitor
+      void this.configuration?.data?.members;
+      const rooms = this.orderedRooms();
+      const users = Object.entries(this.liveClassProxy?.users || {}) as [string, any][];
+
+      return rooms.map((name) => {
+        const inRoom = users.filter(([, user]) => user.room === name).map(([id, user]) => this.drawerUser(id, user));
+        // the station is the room's equipment, so a free station shows no count
+        const people = inRoom.filter((user) => user.role !== "station").length;
+        const label = this.translateRoomName(name);
+        const numbered = name.match(/^Room (.+)$/);
+        const goto = this.t("classroom.sideMenu.gotoRoom", { room: label });
+
+        return {
+          name,
+          label,
+          // "Room 3" shows its number, other rooms their first letter
+          initial: numbered ? numbered[1] : label.charAt(0).toUpperCase(),
+          tile: roomTile(roomSlot(name, rooms), this.activeTheme),
+          users: inRoom,
+          people,
+          gotoLabel: people ? goto + ", " + this.peopleLabel(people) : goto,
+        };
+      });
+    },
+    // the drawer entry of the room you are in
+    myRoom() {
+      return this.drawerRooms.find((room) => room.name === this.currentRoom) ?? null;
+    },
+    stationTile() {
+      return roomTile(roomSlot("Station " + this.stationName, this.orderedRooms()), this.activeTheme);
     },
     drawerWidth(): number {
       return this.phone ? 312 : 264;
@@ -528,71 +560,39 @@ export default {
       };
     },
 
-    usersInRoom(name: string) {
-      const users: { id: string; name: string; role: string; tag: string; label: string }[] = [];
-
-      for (const id in this.liveClassProxy.users) {
-        if (this.liveClassProxy.users[id].room === name) {
-          let displayName = this.liveClassProxy.users[id].displayName;
-          let userRole = this.liveClassProxy.users[id].role || "student";
-
-          if (userRole === "student") {
-            if (!this.communication.allowedToParticipate(getBasePeerID(id))) {
-              userRole = "visitor";
-            }
-          }
-
-          // Students are the default and go untagged; screen readers get the
-          // role spelled out for everyone.
-          const tags: string[] = [];
-          if (this.peerID === id) tags.push(this.t("general.you"));
-          if (userRole === "teacher" || userRole === "visitor") {
-            tags.push(this.t(`general.roles.${userRole}`));
-          }
-
-          let label = this.t(`general.roles.${userRole}`);
-          if (this.peerID === id) label += ", " + this.t("general.you");
-
-          users.push({
-            id,
-            name:
-              displayName && displayName.includes("Station")
-                ? displayName.replace("Station", this.t("classroom.sideMenu.station"))
-                : displayName,
-            role: userRole,
-            tag: tags.join(" · "),
-            label,
-          });
-        }
+    // One entry per user: role (students not on the member list are visitors),
+    // the tag shown next to the name and the label read out instead.
+    drawerUser(id: string, user: any) {
+      let role = user.role || "student";
+      if (role === "student" && !this.communication.allowedToParticipate(getBasePeerID(id))) {
+        role = "visitor";
       }
 
-      return users;
-    },
+      // Students are the default and go untagged; screen readers get the
+      // role spelled out for everyone.
+      const tags: string[] = [];
+      if (this.peerID === id) tags.push(this.t("general.you"));
+      if (role === "teacher" || role === "visitor") {
+        tags.push(this.t(`general.roles.${role}`));
+      }
 
-    tileOf(name: string) {
-      return roomTile(roomSlot(name, this.orderedRooms()), this.activeTheme);
-    },
+      let label = this.t(`general.roles.${role}`);
+      if (this.peerID === id) label += ", " + this.t("general.you");
 
-    // "Room 3" shows its number, other rooms their first letter.
-    roomInitial(name: string): string {
-      const numbered = name.match(/^Room (.+)$/);
-      if (numbered) return numbered[1];
-      return this.translateRoomName(name).charAt(0).toUpperCase();
-    },
-
-    // People in a room: the station is the room's equipment, so a free station shows no count.
-    peopleInRoom(name: string): number {
-      return this.usersInRoom(name).filter((user) => user.role !== "station").length;
+      const name = user.displayName;
+      return {
+        id,
+        name: name?.includes("Station")
+          ? name.replace("Station", this.t("classroom.sideMenu.station"))
+          : name,
+        role,
+        tag: tags.join(" · "),
+        label,
+      };
     },
 
     peopleLabel(count: number): string {
       return this.t("classroom.sideMenu.people", { n: count }, count);
-    },
-
-    gotoLabel(name: string): string {
-      const label = this.t("classroom.sideMenu.gotoRoom", { room: this.translateRoomName(name) });
-      const count = this.peopleInRoom(name);
-      return count ? label + ", " + this.peopleLabel(count) : label;
     },
 
     closePopup(id: number) {
@@ -705,30 +705,24 @@ export default {
 
           <!-- on phones the pill takes the brand's place and stays -->
           <button
-            v-if="currentRoom && (phone || !showSideMenu)"
+            v-if="myRoom && (phone || !showSideMenu)"
             type="button"
             class="room-pill"
-            :aria-label="
-              t('classroom.sideMenu.rooms') +
-              ': ' +
-              translateRoomName(currentRoom) +
-              ', ' +
-              peopleLabel(peopleInRoom(currentRoom))
-            "
+            :aria-label="t('classroom.sideMenu.rooms') + ': ' + myRoom.label + ', ' + peopleLabel(myRoom.people)"
             :aria-expanded="showSideMenu"
             data-test="room-pill"
             @click="showSideMenu = true"
           >
             <span
               class="room-tile room-tile--small"
-              :style="{ background: tileOf(currentRoom).bg, color: tileOf(currentRoom).fg }"
+              :style="{ background: myRoom.tile.bg, color: myRoom.tile.fg }"
               aria-hidden="true"
-              >{{ roomInitial(currentRoom) }}</span
+              >{{ myRoom.initial }}</span
             >
-            <span class="room-pill-name">{{ translateRoomName(currentRoom) }}</span>
+            <span class="room-pill-name">{{ myRoom.label }}</span>
             <span class="room-pill-count" aria-hidden="true">
               <v-icon icon="mdi-account-outline" size="13"></v-icon>
-              {{ peopleInRoom(currentRoom) }}
+              {{ myRoom.people }}
             </span>
           </button>
         </div>
@@ -820,7 +814,7 @@ export default {
             <div class="station-card-head">
               <span
                 class="station-card-tile"
-                :style="{ background: tileOf('Station ' + stationName).bg, color: tileOf('Station ' + stationName).fg }"
+                :style="{ background: stationTile.bg, color: stationTile.fg }"
               >
                 <v-icon icon="mdi-router-wireless" size="20"></v-icon>
               </span>
@@ -904,41 +898,41 @@ export default {
 
         <div class="room-list">
           <div
-            v-for="name in orderedRooms()"
-            :key="name"
+            v-for="room in drawerRooms"
+            :key="room.name"
             class="room"
-            :class="{ 'room--station': name.startsWith('Station') }"
+            :class="{ 'room--station': room.name.startsWith('Station') }"
           >
             <button
               type="button"
               class="room-row"
-              :class="{ 'room-row--current': name === currentRoom }"
-              :aria-current="name === currentRoom ? 'true' : undefined"
-              :aria-label="gotoLabel(name)"
-              @click="gotoRoom(name)"
+              :class="{ 'room-row--current': room.name === currentRoom }"
+              :aria-current="room.name === currentRoom ? 'true' : undefined"
+              :aria-label="room.gotoLabel"
+              @click="gotoRoom(room.name)"
             >
-              <span class="room-tile" :style="{ background: tileOf(name).bg, color: tileOf(name).fg }">
-                {{ roomInitial(name) }}
+              <span class="room-tile" :style="{ background: room.tile.bg, color: room.tile.fg }">
+                {{ room.initial }}
               </span>
-              <span class="room-name">{{ translateRoomName(name) }}</span>
-              <span v-if="peopleInRoom(name)" class="room-count">
+              <span class="room-name">{{ room.label }}</span>
+              <span v-if="room.people" class="room-count">
                 <v-icon icon="mdi-account-outline" size="13"></v-icon>
-                {{ peopleInRoom(name) }}
+                {{ room.people }}
               </span>
               <span class="room-enter">
                 <v-icon :icon="rtl ? 'mdi-arrow-left' : 'mdi-arrow-right'" size="15"></v-icon>
               </span>
             </button>
 
-            <div v-for="user in usersInRoom(name)" :key="user.id" class="room-user">
+            <div v-for="user in room.users" :key="user.id" class="room-user">
               <span
                 class="user-avatar"
                 :class="{ 'user-avatar--station': user.role === 'station' }"
-                :style="user.role === 'station' ? { background: tileOf(name).bg } : undefined"
+                :style="user.role === 'station' ? { background: room.tile.bg } : undefined"
               >
                 <span
                   class="user-dot"
-                  :style="user.role === 'station' ? { background: tileOf(name).dot } : undefined"
+                  :style="user.role === 'station' ? { background: room.tile.dot } : undefined"
                 ></span>
               </span>
               <span class="user-name" :class="{ 'user-name--id': user.role !== 'station' }"

@@ -2,7 +2,7 @@
 import { inject } from "vue";
 import markdownit from "markdown-it";
 import { useI18n } from 'vue-i18n';
-import { useDisplay } from "vuetify";
+import { useDisplay, useRtl } from "vuetify";
 import { isMember, sameKey } from "../ts/Utils";
 
 export default {
@@ -18,6 +18,7 @@ export default {
     const { t, locale } = useI18n();
     // on phones the chat is a page of its own
     const { xs: phone } = useDisplay();
+    const { isRtl: rtl } = useRtl();
 
     return {
       prismHighlight,
@@ -25,6 +26,7 @@ export default {
       t,
       locale,
       phone,
+      rtl,
     };
   },
 
@@ -68,12 +70,6 @@ export default {
     },
     truncated() {
       this.deletedMessages = this.truncated;
-    },
-  },
-
-  computed: {
-    rtl(): boolean {
-      return ["ar", "he", "fa", "ur"].includes(this.locale);
     },
   },
 
