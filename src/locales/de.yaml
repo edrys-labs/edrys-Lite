@@ -28,7 +28,7 @@ index:
     saved: "{n} in diesem Browser gespeichert"
     noDescription: "Keine Beschreibung"
     create: "Klasse erstellen"
-    startTeaching: "Jetzt unterrichten"
+    createHint: "Ein leerer Klassenraum, der dir gehört. Module, Räume und Studierende kannst du jederzeit hinzufügen."
     newClass: "Meine neue Klasse"
     welcome:
       teacher: |

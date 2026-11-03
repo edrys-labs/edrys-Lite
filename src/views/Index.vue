@@ -184,6 +184,12 @@ export default {
         </div>
 
         <div class="class-grid">
+          <button type="button" class="create-card" @click="createClass()">
+            <span class="create-icon"><v-icon icon="mdi-plus" size="26"></v-icon></span>
+            <span class="create-title">{{ t('index.classroom.create') }}</span>
+            <span class="create-sub">{{ t('index.classroom.createHint') }}</span>
+          </button>
+
           <article v-for="classroom in classrooms" :key="classroom.id" class="class-card">
             <img
               v-if="classroom?.data?.meta?.logo && !brokenLogos[classroom.id]"
@@ -305,12 +311,6 @@ export default {
               ></v-btn>
             </div>
           </article>
-
-          <button type="button" class="create-card" @click="createClass()">
-            <span class="create-icon"><v-icon icon="mdi-plus" size="22"></v-icon></span>
-            <span class="create-title">{{ t('index.classroom.create') }}</span>
-            <span class="create-sub">{{ t('index.classroom.startTeaching') }}</span>
-          </button>
         </div>
       </div>
     </v-main>
@@ -480,15 +480,20 @@ img.banner {
   justify-content: center;
   gap: 10px;
   min-height: 320px;
-  border: 1.5px dashed rgb(var(--v-theme-dashed));
+  padding: 24px;
+  border: 1.5px dashed rgba(var(--v-theme-primary), 0.5);
   border-radius: 12px;
-  background: transparent;
+  background: rgba(var(--v-theme-primary), 0.06);
   color: rgb(var(--v-theme-on-background));
+  text-align: center;
   cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
 }
 
 .create-card:hover {
-  border-color: rgb(var(--v-theme-muted));
+  border-style: solid;
+  border-color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.1);
 }
 
 .create-card:focus-visible {
@@ -500,21 +505,24 @@ img.banner {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 999px;
-  background: rgb(var(--v-theme-surface));
-  box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+  box-shadow: 0 2px 6px rgba(var(--v-theme-primary), 0.35);
 }
 
 .create-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
 }
 
 .create-sub {
+  max-width: 240px;
   font-size: 13px;
-  color: rgb(var(--v-theme-muted));
+  line-height: 1.5;
+  color: rgb(var(--v-theme-text-2));
 }
 
 /* phones: one compact row per class */
@@ -580,13 +588,16 @@ img.banner {
 
 .class-list--phone .create-card {
   flex-direction: row;
+  justify-content: flex-start;
+  gap: 12px;
   min-height: 56px;
+  padding: 12px;
 }
 
 .class-list--phone .create-icon {
-  width: auto;
-  height: auto;
-  background: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
   box-shadow: none;
 }
 

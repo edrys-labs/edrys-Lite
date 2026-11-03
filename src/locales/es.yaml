@@ -28,7 +28,7 @@ index:
     saved: "Guardadas en este navegador: {n}"
     noDescription: "Sin descripción"
     create: "Crear una clase"
-    startTeaching: "Empieza a enseñar ahora"
+    createHint: "Una clase vacía que te pertenece. Añade módulos, salas y estudiantes cuando quieras."
     newClass: "Mi Nueva Clase"
     welcome:
       teacher: |

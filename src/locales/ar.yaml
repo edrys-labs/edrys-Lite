@@ -28,7 +28,7 @@ index:
     saved: "المحفوظة في هذا المتصفح: {n}"
     noDescription: "لا يوجد وصف"
     create: "إنشاء فصل دراسي"
-    startTeaching: "ابدأ التدريس الآن"
+    createHint: "فصل دراسي فارغ تملكه. أضف الوحدات والغرف والطلاب متى شئت."
     newClass: "فصلي الجديد"
     welcome:
       teacher: |
