@@ -1,13 +1,15 @@
 <template>
-  <div>
-    <FieldLabel :label="$t('settings.communication.labels.method')">
-      <v-select
-        v-model="communicationMethod"
-        :items="['WebRTC', 'Websocket']"
-        @change="updateConfig"
-      ></v-select>
-    </FieldLabel>
+  <h3 class="section-title">{{ $t('settings.communication.title') }}</h3>
+  <p class="section-text">{{ $t('settings.communication.text') }}</p>
 
+  <div role="radiogroup" :aria-label="$t('settings.communication.labels.method')" class="method">
+    <label v-for="method in methods" :key="method" :class="['method-option', { selected: communicationMethod === method }]">
+      <input type="radio" name="communication-method" :value="method" v-model="communicationMethod" />
+      {{ method }}
+    </label>
+  </div>
+
+  <div class="fields">
     <FieldLabel
       v-if="communicationMethod === 'Websocket'"
       :label="$t('settings.communication.labels.websocketServer')"
@@ -15,7 +17,8 @@
       <v-text-field
         v-model="websocketUrl"
         placeholder="wss://demos.yjs.dev"
-        @change="updateConfig"
+        hide-details
+        class="mono"
       ></v-text-field>
     </FieldLabel>
 
@@ -24,7 +27,8 @@
         <v-text-field
           v-model="signalingServer"
           placeholder="wss://rooms.deno.dev"
-          @change="updateConfig"
+          hide-details
+          class="mono"
         ></v-text-field>
       </FieldLabel>
 
@@ -32,53 +36,46 @@
         <v-textarea
           v-model="webrtcConfig"
           placeholder='{"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}'
-          rows="5"
-          @change="updateConfig"
+          rows="3"
+          no-resize
+          hide-details
+          class="mono"
         ></v-textarea>
       </FieldLabel>
     </template>
-    
-
-    <v-divider class="my-5"></v-divider>
-
-    <div>
-      <h3 class="section-title">{{ $t('settings.communication.shareLink.title') }}</h3>
-      <p class="section-text">{{ $t('settings.communication.shareLink.description') }}</p>
-
-      <FieldLabel :label="$t('settings.communication.shareLink.linkLabel')">
-        <v-text-field
-          v-model="shareableLink"
-          readonly
-        >
-          <template v-slot:append-inner>
-            <v-btn
-              :icon="copied ? 'mdi-check' : 'mdi-content-copy'"
-              variant="text"
-              density="comfortable"
-              :aria-label="$t('general.copyLink')"
-              :title="$t('general.copyLink')"
-              @click="copyShareableLink"
-            ></v-btn>
-          </template>
-        </v-text-field>
-      </FieldLabel>
-
-      <v-checkbox
-        v-model="keepConfigInUrl"
-        :label="$t('settings.communication.keepConfigInUrl.label')"
-        :hint="$t('settings.communication.keepConfigInUrl.hint')"
-        @change="updateKeepConfigPreference"
-        class="mt-2"
-        color="primary"
-      ></v-checkbox>
-    </div>
-
-    <v-alert color="info" icon="mdi-information-outline" class="my-4">
-      {{ $t("settings.communication.alert.first") }}
-      <br />
-      {{ $t("settings.communication.alert.second") }}
-    </v-alert>
   </div>
+
+  <v-divider class="my-5"></v-divider>
+
+  <h3 class="section-title">{{ $t('settings.communication.shareLink.title') }}</h3>
+  <p class="section-text">{{ $t('settings.communication.shareLink.description') }}</p>
+
+  <FieldLabel :label="$t('settings.communication.shareLink.linkLabel')">
+    <v-text-field v-model="shareableLink" readonly hide-details class="mono">
+      <template v-slot:append-inner>
+        <v-btn
+          :icon="copied ? 'mdi-check' : 'mdi-content-copy'"
+          variant="text"
+          density="comfortable"
+          :aria-label="$t('general.copyLink')"
+          :title="$t('general.copyLink')"
+          @click="copyShareableLink"
+        ></v-btn>
+      </template>
+    </v-text-field>
+  </FieldLabel>
+
+  <v-checkbox
+    v-model="keepConfigInUrl"
+    :label="$t('settings.communication.keepConfigInUrl.label')"
+    aria-describedby="keep-config-hint"
+    hide-details
+    density="compact"
+    @change="updateKeepConfigPreference"
+    class="keep-config"
+    color="primary"
+  ></v-checkbox>
+  <p id="keep-config-hint" class="keep-config-hint">{{ $t('settings.communication.keepConfigInUrl.hint') }}</p>
 </template>
 
 <script lang="ts">
@@ -113,6 +110,7 @@ export default {
 
   data() {
     return {
+      methods: ["WebRTC", "Websocket"],
       communicationMethod: "WebRTC", // Default to WebRTC
       websocketUrl: "",
       webrtcConfig: "",
@@ -276,3 +274,84 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.method {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgb(var(--v-theme-tonal));
+}
+
+.method-option {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 8px;
+  color: rgb(var(--v-theme-muted));
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.method-option.selected {
+  background: rgb(var(--v-theme-surface));
+  box-shadow: 0 1px 2px rgba(20, 25, 35, 0.12), 0 0 0 1px rgb(var(--v-theme-row-edge));
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 600;
+}
+
+/* the native radio stays for keyboard and screen readers, the label is the look */
+.method-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.method-option:has(input:focus-visible) {
+  outline: 2px solid rgb(var(--v-theme-focus));
+  outline-offset: 2px;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+/* the box lines up with the field edge above, the hint with the label */
+.keep-config {
+  margin-top: 12px;
+  margin-inline-start: -6px;
+}
+
+.keep-config :deep(.v-label) {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 1;
+}
+
+.keep-config-hint {
+  margin: -4px 0 0;
+  padding-inline-start: 22px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgb(var(--v-theme-muted));
+}
+
+.mono :deep(input),
+.mono :deep(textarea) {
+  font-family: "JetBrains Mono Variable", monospace;
+  font-size: 13px;
+}
+
+@media (max-width: 599px) {
+  .fields {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

@@ -239,22 +239,21 @@ settings:
     findText: "Clases listas compartidas por otros profesores, etiquetadas edrys-lab en GitHub."
     explore: "Explorar en GitHub"
   communication:
+    title: "Conexión"
+    text: "Cómo se comunican entre sí los navegadores de esta clase. WebRTC los conecta directamente; Websocket envía todo a través de un servidor."
     labels:
-      method: "Método de Comunicación"
-      websocketServer: "URL del Servidor Websocket (opcional)"
-      webrtcSignaling: "URL del Servidor de Señalización WebRTC (opcional)"
-      webrtcConfig: "Configuración WebRTC (JSON) (opcional)"
-    alert:
-      first: "El cambio en el método de comunicación afectará cómo la aplicación se conecta a otros usuarios. Usar WebRTC permite conexiones directas entre pares, mientras que Websocket requiere un servidor para retransmitir mensajes."
-      second: "Después de cambiar la configuración, se generará un nuevo enlace para el aula. Este enlace debe compartirse con los alumnos para garantizar que se conectan con la configuración correcta."
+      method: "Método de comunicación"
+      websocketServer: "Servidor Websocket (opcional)"
+      webrtcSignaling: "Servidor de señalización (opcional)"
+      webrtcConfig: "Configuración WebRTC, JSON (opcional)"
     shareLink:
-      title: "Enlace Compartible con Configuración de Comunicación"
-      description: "Genera un enlace con tu configuración de comunicación actual incrustada. Comparte esto con estudiantes para una conectividad óptima."
-      linkLabel: "Enlace Compartible"
+      title: "Enlace con esta configuración"
+      description: "Una conexión cambiada necesita un enlace nuevo. Envía este para que todos se conecten de la misma forma."
+      linkLabel: "Enlace"
       error: "Error al generar el enlace compartible"
     keepConfigInUrl:
-      label: "Mantener configuración de comunicación en URL"
-      hint: "Cuando está marcado, la configuración de comunicación permanecerá en la URL después de cargar. Cuando no está marcado, la URL se limpiará automáticamente."
+      label: "Mantener la configuración en la barra de direcciones"
+      hint: "Si no, se lee una vez y se quita de la dirección cuando la clase se carga."
 
 tutor:
   title: "Tutor"

@@ -5,7 +5,7 @@ import { routeProbeModule, probe, MODULE_URL } from './probe-module'
 
 /**
  * The owner's real setup flow: configure the class through the Settings dialog,
- * share the Communication tab's "Shareable Link", and have a guest join from
+ * share the Communication tab's "Link with these settings", and have a guest join from
  * it. Checks that the owner-signed setup (name, meta, modules, members) reaches
  * the guest and is acted on, that the link carries the owner trust anchor, and
  * that the guest keeps the setup once the owner is gone.
@@ -71,8 +71,8 @@ test.describe('App — owner setup, share and join', () => {
     await expect(dialog.getByText('E2E Probe', { exact: true })).toBeVisible({ timeout: 10000 })
 
     await dialog.getByRole('tab', { name: 'Communication' }).click()
-    if (TRANSPORT === 'ws') await dialog.getByLabel('Keep communication settings in URL').check()
-    const shareUrl = await dialog.getByRole('textbox', { name: /Shareable Link/ }).inputValue()
+    if (TRANSPORT === 'ws') await dialog.getByLabel('Keep the settings in the address bar').check()
+    const shareUrl = await dialog.getByRole('textbox', { name: 'Link', exact: true }).inputValue()
     expect(shareUrl.includes('#comm=ws'), `share link matches the transport: ${shareUrl}`).toBe(TRANSPORT === 'ws')
     await save(dialog)
 

@@ -239,22 +239,21 @@ settings:
     findText: "Ready-made classes shared by other teachers, tagged edrys-lab on GitHub."
     explore: "Explore on GitHub"
   communication:
+    title: "Connection"
+    text: "How the browsers in this class reach each other. WebRTC connects them directly; Websocket sends everything through a server."
     labels:
-      method: "Communication Method"
-      websocketServer: "Websocket Server URL (optional)"
-      webrtcSignaling: "WebRTC Signaling Server URL (optional)"
-      webrtcConfig: "WebRTC Configuration (JSON) (optional)"
-    alert:
-      first: "Changing the communication method will affect how the application connects to other peers. Using WebRTC allows for direct peer-to-peer connections, while Websocket requires a server to relay messages."
-      second: "After changing the configuration, a new link will be generated for the classroom. This link should be shared with students to ensure they connect with the correct settings."
+      method: "Communication method"
+      websocketServer: "Websocket server (optional)"
+      webrtcSignaling: "Signaling server (optional)"
+      webrtcConfig: "WebRTC configuration, JSON (optional)"
     shareLink:
-      title: "Shareable Link with Communication Settings"
-      description: "Generate a link with your current communication settings embedded. Share this with students for optimal connectivity."
-      linkLabel: "Shareable Link"
+      title: "Link with these settings"
+      description: "A changed connection needs a new link. Send this one so everyone connects the same way."
+      linkLabel: "Link"
       error: "Error generating link. Please check your configuration."
     keepConfigInUrl:
-      label: "Keep communication settings in URL"
-      hint: "When checked, the communication configuration will remain in the URL after loading. When unchecked, the URL will be cleaned automatically."
+      label: "Keep the settings in the address bar"
+      hint: "Otherwise they are read once and removed from the address after the class loads."
 
 tutor:
   title: "Tutor"

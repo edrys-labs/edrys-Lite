@@ -90,7 +90,7 @@ Failing tests in `messaging`/`station` attach `transport-log.txt`
 | File                  | Covers                                                                   |
 | --------------------- | ------------------------------------------------------------------------ |
 | `app.modules.spec.ts` | modules in iframes via `$Edrys`: messages both ways + targeted, awareness + removal, shared `Y.Text` both ways and across a guest reload |
-| `app.setup.spec.ts`   | owner configures name/rooms/module in the Settings UI (WS: + "keep in URL"); guest joins from the Communication tab's Shareable Link: owner trust anchor enforced, signed setup applied (name, meta, module running, student role); promote to teacher via Members without reloading the owner; guest keeps the setup after the owner leaves |
+| `app.setup.spec.ts`   | owner configures name/rooms/module in the Settings UI (WS: + "keep in URL"); guest joins from the Communication tab's link: owner trust anchor enforced, signed setup applied (name, meta, module running, student role); promote to teacher via Members without reloading the owner; guest keeps the setup after the owner leaves |
 | `app.tutor.spec.ts`   | the student tutor of edrys-dev `--tutor`: the owner's `?dev` tab offers it, a student asks in its drawer and gets the answer through the owner tab; switched off in edrys-dev, the button goes, and comes back |
 
 [`probe-module.ts`](app/probe-module.ts) serves a minimal module from the fake

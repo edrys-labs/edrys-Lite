@@ -234,4 +234,20 @@ describe('Communication Component', () => {
       expect(wrapper.emitted()['update:keepUrlConfig'][0][0]).toBe(true);
     });
   });
+
+  describe('Method switch', () => {
+    test('the radio group switches the method and shows its fields', async () => {
+      wrapper = createWrapper();
+      const radios = wrapper.findAll('input[type="radio"]');
+      expect(radios.map((r: any) => r.element.value)).toEqual(['WebRTC', 'Websocket']);
+      expect((radios[0].element as HTMLInputElement).checked).toBe(true);
+
+      await radios[1].setValue(true);
+      expect(wrapper.vm.communicationMethod).toBe('Websocket');
+      expect(wrapper.find('.method-option.selected').text()).toBe('Websocket');
+      expect(wrapper.find('.v-textarea').exists()).toBe(false);
+      expect(wrapper.emitted('update:config')).toBeTruthy();
+    });
+  });
 });
+

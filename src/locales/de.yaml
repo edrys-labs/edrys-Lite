@@ -239,22 +239,21 @@ settings:
     findText: "Fertige Klassen, die andere Lehrkräfte auf GitHub mit edrys-lab markiert haben."
     explore: "Auf GitHub entdecken"
   communication:
+    title: "Verbindung"
+    text: "Wie sich die Browser in dieser Klasse erreichen. WebRTC verbindet sie direkt; Websocket schickt alles über einen Server."
     labels:
-        method: "Kommunikationsmethode"
-        websocketServer: "Websocket-Server-URL (optional)"
-        webrtcSignaling: "WebRTC Signalisierungsserver-URL (optional)"
-        webrtcConfig: "WebRTC-Konfiguration (JSON) (optional)"
-    alert:
-      first: "Änderung der Kommunikationsmethode beeinflusst, wie die Anwendung mit anderen Peers verbindet. WebRTC ermöglicht direkte Peer-to-Peer-Verbindungen, während Websocket einen Server zur Nachrichtenübermittlung benötigt."
-      second: "Nach dem Ändern der Konfiguration wird ein neuer Link für das Klassenzimmer generiert. Dieser Link sollte mit Schülern geteilt werden, um sicherzustellen, dass sie mit den korrekten Einstellungen verbinden."
+      method: "Kommunikationsmethode"
+      websocketServer: "Websocket-Server (optional)"
+      webrtcSignaling: "Signalisierungsserver (optional)"
+      webrtcConfig: "WebRTC-Konfiguration, JSON (optional)"
     shareLink:
-      title: "Teilbarer Link mit Kommunikationseinstellungen"
-      description: "Generieren Sie einen Link mit Ihren aktuellen Kommunikationseinstellungen. Teilen Sie diesen mit Schülern für optimale Konnektivität."
-      linkLabel: "Teilbarer Link"
+      title: "Link mit diesen Einstellungen"
+      description: "Eine geänderte Verbindung braucht einen neuen Link. Senden Sie diesen, damit sich alle auf dieselbe Weise verbinden."
+      linkLabel: "Link"
       error: "Fehler beim Generieren des Links, überprüfen Sie die Konfiguration"
     keepConfigInUrl:
-      label: "Kommunikationseinstellungen in URL behalten"
-      hint: "Wenn aktiviert, bleiben die Kommunikationseinstellungen nach dem Laden in der URL. Wenn deaktiviert, wird die URL automatisch bereinigt."
+      label: "Einstellungen in der Adresszeile behalten"
+      hint: "Sonst werden sie einmal gelesen und nach dem Laden der Klasse aus der Adresse entfernt."
 
 tutor:
   title: "Tutor"
