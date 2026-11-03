@@ -16,9 +16,7 @@ vi.mock('../../../src/ts/Database', () => ({
   }))
 }));
 
-vi.mock('../../../src/ts/Utils', async (importOriginal) => ({
-  classSlot: (await importOriginal<any>()).classSlot,
-  classInitials: (await importOriginal<any>()).classInitials,
+vi.mock('../../../src/ts/Utils', () => ({
   infoHash: vi.fn(() => 'test-hash'),
   getPeerID: vi.fn(() => 'test-user'),
   hashPubKey: vi.fn(() => Promise.resolve('testhash1234')),
@@ -179,7 +177,7 @@ describe('Index View', () => {
     expect(wrapper.text()).toContain(`${mockClassrooms.length} saved in this browser`);
   });
 
-  test('a class without a logo shows its initials on a tint, one with a logo its image', async () => {
+  test('a class without a logo shows its drawn picture, one with a logo its image', async () => {
     const wrapper = createWrapper();
     const plain = { id: 'plain', data: { name: 'Linux Basics', createdBy: 'x', meta: {} }, hash: null };
     const logo = { id: 'logo', data: { name: 'Pictured', createdBy: 'x', meta: { logo: 'https://example.com/l.png' } }, hash: null };
@@ -187,14 +185,14 @@ describe('Index View', () => {
     await wrapper.setData({ classrooms: [plain, logo] });
 
     const [first, second] = wrapper.findAll('.class-card');
-    expect(first.find('.initials').text()).toBe('LB');
-    expect(first.find('.banner').attributes('style')).toContain('background');
+    expect(first.find('svg.class-art').exists()).toBe(true);
+    expect(first.findAll('svg.class-art circle').length).toBeGreaterThan(0);
     expect(first.find('img').exists()).toBe(false);
     expect(second.find('img.banner').attributes('src')).toBe('https://example.com/l.png');
-    expect(second.find('.initials').exists()).toBe(false);
+    expect(second.find('.class-art').exists()).toBe(false);
   });
 
-  test('a logo that fails to load gives way to the initials', async () => {
+  test('a logo that fails to load gives way to the drawn picture', async () => {
     const wrapper = createWrapper();
     const logo = { id: 'gone', data: { name: 'Lost Logo', createdBy: 'x', meta: { logo: 'https://example.com/404.png' } }, hash: null };
     await new Promise((resolve) => setTimeout(resolve)); // the mocked database's first list
@@ -203,7 +201,7 @@ describe('Index View', () => {
     await wrapper.find('img.banner').trigger('error');
 
     expect(wrapper.find('img.banner').exists()).toBe(false);
-    expect(wrapper.find('.initials').text()).toBe('LL');
+    expect(wrapper.find('svg.class-art').exists()).toBe(true);
   });
 
   test('a stored classroom without members does not hide the list', async () => {

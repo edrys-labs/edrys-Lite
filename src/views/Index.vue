@@ -11,10 +11,9 @@ import {
   copyToClipboard,
   sameKey,
   isMember,
-  classSlot,
-  classInitials,
 } from "../ts/Utils";
-import { activeTheme, roomTile } from "../ts/Theme";
+import { classArt } from "../ts/ClassArt";
+import { activeTheme } from "../ts/Theme";
 
 import AppBrand from "../components/AppBrand.vue";
 import Footer from "../components/Footer.vue";
@@ -32,7 +31,7 @@ export default {
     const { t, locale } = useI18n();
     // phones list the classes as compact rows
     const { xs: phone } = useDisplay();
-    return { t, locale, sameKey, isMember, activeTheme, initials: classInitials, phone };
+    return { t, locale, sameKey, isMember, classArt, activeTheme, phone };
   },
 
   data() {
@@ -57,7 +56,7 @@ export default {
       classrooms,
       peerID: getPeerID(false),
       showMigrationBanner: sessionStorage.getItem('showMigrationBanner') === '1',
-      // classroom id -> its logo failed to load, show the initials instead
+      // classroom id -> its logo failed to load, show its drawn picture instead
       brokenLogos: {} as Record<string, boolean>,
       // phones: the class whose "More actions" menu asks before deleting
       confirmDelete: null as string | null,
@@ -68,11 +67,6 @@ export default {
     dismissMigrationBanner() {
       this.showMigrationBanner = false;
       sessionStorage.removeItem('showMigrationBanner');
-    },
-
-    // a class without a logo gets its initials on a tint of its own
-    tileOf(id: string) {
-      return roomTile(classSlot(id), this.activeTheme);
     },
 
     copyPeerID() {
@@ -206,13 +200,42 @@ export default {
               alt=""
               @error="brokenLogos[classroom.id] = true"
             />
-            <div
+            <svg
               v-else
-              class="banner"
-              :style="{ background: tileOf(classroom.id).bg, color: tileOf(classroom.id).fg }"
+              class="banner class-art"
+              viewBox="0 0 200 100"
+              preserveAspectRatio="xMidYMid slice"
+              aria-hidden="true"
             >
-              <span class="initials" aria-hidden="true">{{ initials(classroom.data?.name) }}</span>
-            </div>
+              <rect
+                x="-100"
+                y="-100"
+                width="400"
+                height="300"
+                :fill="classArt(classroom.id, activeTheme).background"
+              />
+              <line
+                v-for="(line, i) in classArt(classroom.id, activeTheme).lines"
+                :key="'l' + i"
+                :x1="line.x1"
+                :y1="line.y1"
+                :x2="line.x2"
+                :y2="line.y2"
+                :stroke="line.color"
+                stroke-width="1.4"
+                stroke-linecap="round"
+              />
+              <circle
+                v-for="(dot, i) in classArt(classroom.id, activeTheme).dots"
+                :key="'d' + i"
+                :cx="dot.cx"
+                :cy="dot.cy"
+                :r="dot.r"
+                :fill="dot.fill"
+                :stroke="classArt(classroom.id, activeTheme).background"
+                :stroke-width="dot.ring"
+              />
+            </svg>
 
             <div class="class-body">
               <h2>{{ classroom.data?.name }}</h2>
@@ -437,20 +460,9 @@ export default {
   object-fit: cover;
 }
 
-img.banner {
+img.banner,
+svg.banner {
   padding: 0;
-}
-
-.initials {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: rgb(var(--v-theme-surface));
-  font-size: 16px;
-  font-weight: 700;
 }
 
 .class-body {
@@ -587,13 +599,6 @@ img.banner {
   height: 48px;
   padding: 0;
   border-radius: 10px;
-}
-
-.class-list--phone .initials {
-  width: auto;
-  height: auto;
-  background: none;
-  font-size: 15px;
 }
 
 .class-list--phone .class-body {
