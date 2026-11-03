@@ -818,10 +818,7 @@ export default {
               >
                 <v-icon icon="mdi-router-wireless" size="20"></v-icon>
               </span>
-              <div>
-                <h3 class="station-card-title">{{ t("classroom.station.mode") }}</h3>
-                <div class="station-card-sub">{{ t("classroom.station.ready") }}</div>
-              </div>
+              <h3 class="station-card-title">{{ t("classroom.station.mode") }}</h3>
             </div>
 
             <v-form @submit.prevent="setStationName">
@@ -1470,12 +1467,6 @@ export default {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-}
-
-.station-card-sub {
-  margin-top: 2px;
-  font-size: 12px;
-  color: rgb(var(--v-theme-muted));
 }
 
 .station-card-label {

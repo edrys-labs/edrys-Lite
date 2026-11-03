@@ -139,7 +139,7 @@ export default {
                 variant="flat"
                 height="34"
                 prepend-icon="mdi-plus"
-                :aria-label="t('settings.modules.modulesExplorer.tooltip.add')"
+                :aria-label="t('settings.modules.add') + ': ' + module.name"
                 :title="t('settings.modules.modulesExplorer.tooltip.add')"
                 @click="addModule(module.name)"
               >
@@ -151,7 +151,7 @@ export default {
                 size="34"
                 variant="text"
                 class="muted-btn"
-                :aria-label="t('settings.modules.modulesExplorer.tooltip.info')"
+                :aria-label="t('settings.modules.modulesExplorer.tooltip.info') + ': ' + module.name"
                 :title="t('settings.modules.modulesExplorer.tooltip.info')"
                 @click="openModuleUrl(module.html_url)"
               ></v-btn>

@@ -65,6 +65,17 @@ export default {
   },
 
   methods: {
+    classUrl(classroom: any): string {
+      return `./?/classroom/${classroom.id}${classroom.ownerHash ? `/${classroom.ownerHash}` : ''}`;
+    },
+
+    // "Delete: My Class", so the buttons of different cards don't all read the same
+    actionLabel(action: string, classroom: any): string {
+      const label = this.t(`index.classroom.actions.${action}`);
+      const name = classroom.data?.name;
+      return name ? `${label}: ${name}` : label;
+    },
+
     dismissMigrationBanner() {
       this.showMigrationBanner = false;
       sessionStorage.removeItem('showMigrationBanner');
@@ -239,7 +250,10 @@ export default {
             </svg>
 
             <div class="class-body">
-              <h2>{{ classroom.data?.name }}</h2>
+              <!-- the link covers the whole card; buttons and description links sit above it -->
+              <h2>
+                <a :href="classUrl(classroom)" data-link="true" class="class-link">{{ classroom.data?.name }}</a>
+              </h2>
               <div class="class-role">
                 <span v-if="sameKey(classroom?.data?.createdBy, peerID)">{{ t('index.classroom.ownership.owner') }}</span>
                 <span v-else-if="isMember(classroom?.data?.members?.teacher, peerID)">{{ t('index.classroom.ownership.teacher') }}</span>
@@ -264,7 +278,7 @@ export default {
                     rounded="lg"
                     variant="text"
                     class="card-icon-btn"
-                    :aria-label="t('index.classroom.actions.more')"
+                    :aria-label="actionLabel('more', classroom)"
                   ></v-btn>
                 </template>
 
@@ -297,7 +311,7 @@ export default {
                   size="36"
                   variant="text"
                   class="card-icon-btn"
-                  :aria-label="t('index.classroom.actions.fork')"
+                  :aria-label="actionLabel('fork', classroom)"
                   :title="t('index.classroom.actions.fork')"
                   @click="forkClass(classroom)"
                 ></v-btn>
@@ -310,7 +324,7 @@ export default {
                       size="36"
                       variant="text"
                       class="card-icon-btn"
-                      :aria-label="t('index.classroom.actions.delete')"
+                      :aria-label="actionLabel('delete', classroom)"
                       :title="t('index.classroom.actions.delete')"
                     ></v-btn>
                   </template>
@@ -335,11 +349,10 @@ export default {
                 rounded="circle"
                 data-link="true"
                 :icon="rtl ? 'mdi-arrow-left' : 'mdi-arrow-right'"
-                :href="`./?/classroom/${classroom.id}${
-                  classroom.ownerHash ? `/${classroom.ownerHash}` : ''
-                }`"
-                :aria-label="t('index.classroom.actions.open')"
+                :href="classUrl(classroom)"
                 :title="t('index.classroom.actions.open')"
+                tabindex="-1"
+                aria-hidden="true"
               ></v-btn>
             </div>
           </article>
@@ -441,6 +454,7 @@ export default {
 }
 
 .class-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   border-radius: 12px;
@@ -475,6 +489,37 @@ export default {
   font-weight: 600;
   line-height: 1.3;
   overflow-wrap: anywhere;
+}
+
+/* the title opens the class; its ::after makes the whole card the target */
+.class-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.class-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.class-link:hover {
+  text-decoration: underline;
+}
+
+.class-link:focus-visible {
+  outline: none;
+}
+
+.class-card:has(.class-link:focus-visible) {
+  outline: 2px solid rgb(var(--v-theme-focus));
+  outline-offset: 2px;
+}
+
+.class-body p :deep(a),
+.class-actions {
+  position: relative;
+  z-index: 1;
 }
 
 .class-role {
