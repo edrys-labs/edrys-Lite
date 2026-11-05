@@ -59,12 +59,12 @@ describe('Members Settings Component', () => {
     });
   });
 
-  test('shows the class link with a copy and an open button', () => {
+  test('shows the class link with only a copy button', () => {
     const wrapper = createWrapper();
     const url = window.location.toString();
     expect((wrapper.find('.v-text-field input').element as HTMLInputElement).value).toBe(url);
     expect(wrapper.find('[data-icon="mdi-content-copy"]').exists()).toBe(true);
-    expect(wrapper.find('[data-icon="mdi-open-in-new"]').attributes('data-href')).toBe(url);
+    expect(wrapper.find('[data-icon="mdi-open-in-new"]').exists()).toBe(false);
     // the edrys-dev notes only show when the link differs from this page
     expect(wrapper.find('.link-note').exists()).toBe(false);
   });
