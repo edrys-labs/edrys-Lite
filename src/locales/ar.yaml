@@ -234,11 +234,11 @@ settings:
     reconnecting: "جارٍ إعادة الاتصال…"
   importExport:
     downloadTitle: "تنزيل"
-    downloadText: "احفظ الفصل كملف، كنسخة احتياطية أو لإعطائه لمعلم آخر. تُستثنى المفاتيح والتوقيعات."
+    downloadText: "احفظ الفصل كملف، كنسخة احتياطية أو لإعطائه لمعلم آخر. يُستثنى الأعضاء والمفاتيح والتوقيعات."
     downloadYml: "ملف YAML (.yml)"
     downloadJson: "ملف JSON (.json)"
     restoreTitle: "استعادة"
-    restoreText: "حمّل فصلًا من ملف أو رابط. يحل محل إعداد هذا الفصل؛ لا يتغير شيء حتى تحفظ."
+    restoreText: "حمّل فصلًا من ملف أو رابط. يحل محل إعداد هذا الفصل ويبقى أعضاؤه؛ لا يتغير شيء حتى تحفظ."
     restoreFromFile: "من ملف (.yml, .json)"
     restoreFromUrl: "من رابط (http, https)"
     restore: "استعادة"

@@ -96,10 +96,22 @@ export function copyToClipboard(str: string) {
   navigator.clipboard.writeText(str)
 }
 
-/** A classroom from a YAML/JSON text (deploy link, restored file or URL), normalized; undefined if it isn't one. */
+/**
+ * A classroom from a YAML/JSON text (deploy link, restored file or URL),
+ * normalized; undefined if it isn't one. It brings its setup only: who may
+ * join, who owns it and who signed it stay with the class it is loaded into,
+ * so a file from elsewhere can't make anyone a teacher.
+ */
 export function parseClassroom(config: string) {
   try {
-    return normalizeClassroom(parse(config))
+    const data = normalizeClassroom(parse(config))
+    if (!data) return undefined
+
+    data.members = { teacher: [], student: [] }
+    delete data.createdBy
+    delete data.setupSigner
+    delete data.setupSignature
+    return data
   } catch (e) {
     console.warn('could not parse classroom', e.message)
   }

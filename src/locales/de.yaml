@@ -234,11 +234,11 @@ settings:
     reconnecting: "Verbindet neu…"
   importExport:
     downloadTitle: "Herunterladen"
-    downloadText: "Speichern Sie die Klasse als Datei, als Sicherung oder um sie an andere Lehrkräfte weiterzugeben. Schlüssel und Signaturen werden weggelassen."
+    downloadText: "Speichern Sie die Klasse als Datei, als Sicherung oder um sie an andere Lehrkräfte weiterzugeben. Mitglieder, Schlüssel und Signaturen werden weggelassen."
     downloadYml: "YAML-Datei (.yml)"
     downloadJson: "JSON-Datei (.json)"
     restoreTitle: "Wiederherstellen"
-    restoreText: "Laden Sie eine Klasse aus einer Datei oder über einen Link. Sie ersetzt die Einrichtung dieser Klasse; erst beim Speichern wird etwas geändert."
+    restoreText: "Laden Sie eine Klasse aus einer Datei oder über einen Link. Sie ersetzt die Einrichtung dieser Klasse, ihre Mitglieder bleiben; erst beim Speichern wird etwas geändert."
     restoreFromFile: "Aus einer Datei (.yml, .json)"
     restoreFromUrl: "Über einen Link (http, https)"
     restore: "Wiederherstellen"

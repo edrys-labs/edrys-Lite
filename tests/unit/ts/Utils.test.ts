@@ -119,8 +119,30 @@ describe('Utils', () => {
       }));
 
       expect(classroom.meta).toMatchObject({ description: 'kept', defaultNumberOfRooms: 2 });
-      expect(classroom.members).toEqual({ teacher: ['t1'], student: ['*'] });
       expect(classroom.modules.map((m: any) => m.showInCustom)).toEqual(['lobby, station', 'Room 1', 'teacher-only']);
+    });
+
+    test('brings its setup only: no members, owner or setup signature', () => {
+      const classroom = parseClassroom(JSON.stringify({
+        name: 'From elsewhere',
+        createdBy: 'their-key',
+        setupSigner: 'their-key',
+        setupSignature: 'sig',
+        members: { teacher: ['t1'], student: ['s1'] },
+        modules: [{ url: 'a' }],
+      }));
+
+      expect(classroom.members).toEqual({ teacher: [], student: [] });
+      expect(classroom).not.toHaveProperty('createdBy');
+      expect(classroom).not.toHaveProperty('setupSigner');
+      expect(classroom).not.toHaveProperty('setupSignature');
+      expect(classroom.name).toBe('From elsewhere');
+      expect(classroom.modules).toHaveLength(1);
+    });
+
+    test('normalizing alone keeps the members (a class of your own)', () => {
+      const data = normalizeClassroom({ members: { teacher: ['t1', 42], student: ['*'] } });
+      expect(data.members).toEqual({ teacher: ['t1'], student: ['*'] });
     });
 
     test('is undefined for text that is not a classroom', () => {

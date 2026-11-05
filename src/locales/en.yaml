@@ -234,11 +234,11 @@ settings:
     reconnecting: "Reconnecting…"
   importExport:
     downloadTitle: "Download"
-    downloadText: "Save the class as a file, as a backup or to give it to another teacher. Keys and signatures are left out."
+    downloadText: "Save the class as a file, as a backup or to give it to another teacher. Members, keys and signatures are left out."
     downloadYml: "YAML file (.yml)"
     downloadJson: "JSON file (.json)"
     restoreTitle: "Restore"
-    restoreText: "Load a class from a file or a link. It replaces this class's setup; nothing changes until you save."
+    restoreText: "Load a class from a file or a link. It replaces this class's setup, its members stay; nothing changes until you save."
     restoreFromFile: "From a file (.yml, .json)"
     restoreFromUrl: "From a link (http, https)"
     restore: "Restore"

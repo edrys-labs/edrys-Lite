@@ -122,14 +122,14 @@ export default {
   },
 
   methods: {
-    // newConfig comes from parseClassroom, so meta/members/modules exist.
+    // newConfig comes from parseClassroom, so meta and modules exist. The
+    // class keeps its own members: an imported file brings its setup only.
     updateConfig(newConfig: any) {
       this.config.name = newConfig.name;
 
       this.config.meta = newConfig.meta;
       this.config.createdBy = getPeerID(false);
       this.config.dateCreated = newConfig.dateCreated;
-      this.config.members = newConfig.members;
       // Settings.vue only backfills ids when it opens, and the drag list keys
       // on them, so files without ids need them here.
       for (const module of newConfig.modules) {
@@ -143,9 +143,9 @@ export default {
     },
 
     downloadClass(format: "yaml" | "json") {
-      // Identity and signature fields are dropped: import replaces createdBy
-      // with the importer's key and the next save re-signs the setup.
-      const { createdBy, setupSigner, setupSignature, ...config } = this.config;
+      // Members, identity and signature fields are dropped: an import ignores
+      // them (parseClassroom), uses the importer's key and re-signs on save.
+      const { createdBy, setupSigner, setupSignature, members, ...config } = this.config;
       const data =
         format === "yaml" ? yaml.dump(config) : JSON.stringify(config, null, 2);
 

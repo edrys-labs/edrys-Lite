@@ -148,8 +148,20 @@ describe('Import / Export Settings Component', () => {
     expect(exported).not.toHaveProperty('createdBy');
     expect(exported).not.toHaveProperty('setupSigner');
     expect(exported).not.toHaveProperty('setupSignature');
+    expect(exported).not.toHaveProperty('members');
     expect(exported.name).toBe('Test Class');
     expect(exported.modules[0].id).toBe('m1');
+  });
+
+  test('import keeps the class its own members', () => {
+    const members = { teacher: ['my-teacher'], student: ['*'] };
+    const config: any = { ...mockConfig, members };
+    const wrapper = createWrapper({ config });
+
+    wrapper.vm.updateConfig({ name: 'Imported', meta: {}, modules: [] });
+
+    expect(config.members).toBe(members);
+    expect(config.name).toBe('Imported');
   });
 
   test('import backfills missing module ids and keeps existing ones', () => {
