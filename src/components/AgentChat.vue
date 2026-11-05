@@ -14,13 +14,24 @@ const MIN_WIDTH = 320;
 // the class keeps at least this much of the window
 const PAGE_MIN = 360;
 
+// no HTML of the agent's runs in the page; links open beside the class, not in its place
+const md = markdownit({ html: false, linkify: true });
+md.renderer.rules.link_open = (tokens, i, options, env, self) => {
+  tokens[i].attrSet("target", "_blank");
+  tokens[i].attrSet("rel", "noopener noreferrer");
+  return self.renderToken(tokens, i, options);
+};
+
 type Input = { id: string; type: "buttons" | "radio" | "checkbox"; label?: string; options: string[] };
+// html: the markdown rendered once, not on every render of the panel
 type Entry = { n: number; t: number } & (
-  | { type: "ai"; markdown: string; ask?: string; inputs?: Input[] }
+  | { type: "ai"; markdown: string; html?: string; ask?: string; inputs?: Input[] }
   | { type: "user"; text: string }
   | { type: "answer"; ask: string; values: Record<string, string | string[]> }
 );
-type TutorEntry = { from: "student" | "tutor"; t: number; text: string; room?: string } | { failed: string };
+type TutorEntry =
+  | { from: "student" | "tutor"; t: number; text: string; html?: string; room?: string }
+  | { failed: string };
 type Thread = { id: string; name: string; room: string; last: number; skipped: number; entries: TutorEntry[] };
 
 /**
@@ -38,18 +49,10 @@ export default {
     const { t, locale } = useI18n();
     const { xs: phone, width: windowWidth } = useDisplay();
     const { isRtl: rtl } = useRtl();
-    return { t, locale, phone, windowWidth, rtl };
+    return { t, locale, phone, windowWidth, rtl, WIDTH, MIN_WIDTH };
   },
 
   data() {
-    const md = markdownit({ html: false, linkify: true });
-    // links open beside the class, not in its place
-    md.renderer.rules.link_open = (tokens, i, options, env, self) => {
-      tokens[i].attrSet("target", "_blank");
-      tokens[i].attrSet("rel", "noopener noreferrer");
-      return self.renderToken(tokens, i, options);
-    };
-
     let wanted = WIDTH;
     let savedView = null;
     try {
@@ -58,7 +61,6 @@ export default {
     } catch {}
 
     return {
-      md,
       view: (!this.views.agent ? "students" : !this.views.students ? "agent" : savedView === "students" ? "students" : "agent") as
         | "agent"
         | "students",
@@ -164,7 +166,7 @@ export default {
     panelProps() {
       return this.phone
         ? { fullscreen: true, transition: "dialog-bottom-transition" }
-        : { width: this.width, permanent: window.innerWidth > 1000 + this.width, location: "right", color: "panel" };
+        : { width: this.width, permanent: this.windowWidth > 1000 + this.width, location: "right", color: "panel" };
     },
 
     listen(path: string, handle: (message: any) => void) {
@@ -247,6 +249,7 @@ export default {
     },
 
     add(entry: Entry, live: boolean) {
+      if (entry.type === "ai") entry.html = md.render(entry.markdown);
       if (entry.type === "ai" && entry.ask) {
         this.answers[entry.ask] = Object.fromEntries(
           (entry.inputs || []).map((input) => [input.id, input.type === "checkbox" ? [] : ""])
@@ -354,6 +357,7 @@ export default {
     },
 
     addTutorEntry(thread: Thread, entry: any) {
+      if (entry.from === "tutor") entry.html = md.render(entry.text);
       thread.entries.push(entry);
       thread.last = entry.t;
       if (entry.room) thread.room = entry.room;
@@ -444,14 +448,14 @@ export default {
         role="separator"
         aria-orientation="vertical"
         :aria-label="t('agentChat.resize')"
-        :aria-valuemin="320"
+        :aria-valuemin="MIN_WIDTH"
         :aria-valuenow="width"
         :title="t('agentChat.resizeTitle')"
         tabindex="0"
         @pointerdown="startResize"
         @pointermove="resize"
         @lostpointercapture="endResize"
-        @dblclick="setWidth(400)"
+        @dblclick="setWidth(WIDTH)"
         @keydown="resizeKey"
       ></div>
 
@@ -496,10 +500,7 @@ export default {
         ></v-btn>
       </div>
 
-      <div
-        v-if="view === 'agent' || showShare || view === 'students'"
-        class="agent-top"
-      >
+      <div class="agent-top">
         <v-select
           v-if="view === 'agent'"
           :model-value="current?.id"
@@ -565,7 +566,7 @@ export default {
           <div v-if="skipped" class="agent-muted">{{ t("agentChat.skipped", { n: skipped }) }}</div>
           <div v-for="entry in entries" :key="entry.n" :class="['agent-msg', entry.type]">
             <template v-if="entry.type === 'ai'">
-              <div class="markdown" v-html="md.render(entry.markdown)"></div>
+              <div class="markdown" v-html="entry.html"></div>
               <form
                 v-if="entry.ask"
                 class="agent-form"
@@ -660,7 +661,7 @@ export default {
                     entry.from === "student" ? time(entry.t) : t("tutor.title") + " · " + time(entry.t)
                   }}</span>
                   <template v-if="entry.from === 'student'">{{ entry.text }}</template>
-                  <div v-else class="markdown" v-html="md.render(entry.text)"></div>
+                  <div v-else class="markdown" v-html="entry.html"></div>
                 </div>
               </template>
             </div>

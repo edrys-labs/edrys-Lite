@@ -1059,7 +1059,6 @@ export default {
         :key="`${agentChat.views.agent}-${agentChat.views.students}`"
         v-model:show="agentChat.open"
         :views="agentChat.views"
-        @update:show="agentChat.new = false"
         @unread="agentChat.new = true"
       ></AgentChat>
 

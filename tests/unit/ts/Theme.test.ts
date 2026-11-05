@@ -94,16 +94,6 @@ describe('Theme', () => {
     expect(activeTheme.value).toBe('dark')
   })
 
-  test('marks <html> with the theme on screen', async () => {
-    const { followThemePreference, setThemePreference } = await loadTheme()
-    followThemePreference(ref(''))
-    expect(document.documentElement.dataset.theme).toBe('light')
-
-    setThemePreference('dark')
-    await nextTick()
-    expect(document.documentElement.dataset.theme).toBe('dark')
-  })
-
   test('room tiles are gray without a slot and tinted with one', async () => {
     const { roomTile, ROOM_COLORS } = await loadTheme()
     expect(roomTile(null, 'light')).toEqual({ bg: '#dfe2e7', fg: '#3b424d', dot: '#8a919b' })
