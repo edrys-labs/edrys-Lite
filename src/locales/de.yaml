@@ -279,10 +279,10 @@ labs:
   filter:
     label: "Zeigen"
     all: "Alle"
-    browser: "Im Browser"
+    browser: "Ohne Station"
     station: "Mit Station"
   tag:
-    browser: "Läuft im Browser"
+    browser: "Keine Station nötig"
     station: "Braucht eine Station"
   use: "Verwenden"
   create: "Erstellen"
@@ -299,7 +299,6 @@ labs:
   cancel: "Abbrechen"
   replace: "Ersetzen"
   github: "Auf GitHub öffnen"
-  stationNote: "Labore mit Station brauchen einen Computer im Labor, auf dem der Station-Link läuft."
   more: "Mehr Labore auf GitHub"
   error: "Die Labore konnten nicht geladen werden."
   errorText: "GitHub erlaubt ohne Anmeldung nur wenige Anfragen pro Stunde. Versuche es später noch einmal oder finde die Labore auf"

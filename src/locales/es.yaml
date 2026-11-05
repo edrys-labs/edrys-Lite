@@ -279,10 +279,10 @@ labs:
   filter:
     label: "Mostrar"
     all: "Todos"
-    browser: "En el navegador"
+    browser: "Sin estación"
     station: "Con estación"
   tag:
-    browser: "Funciona en el navegador"
+    browser: "No necesita estación"
     station: "Necesita una estación"
   use: "Usar"
   create: "Crear"
@@ -299,7 +299,6 @@ labs:
   cancel: "Cancelar"
   replace: "Reemplazar"
   github: "Abrir en GitHub"
-  stationNote: "Los laboratorios con estación necesitan un ordenador en el laboratorio que abra el enlace de la estación."
   more: "Más laboratorios en GitHub"
   error: "No se pudieron cargar los laboratorios."
   errorText: "Sin iniciar sesión, GitHub permite pocas solicitudes por hora. Inténtalo más tarde o encuentra los laboratorios en"

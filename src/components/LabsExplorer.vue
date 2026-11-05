@@ -357,7 +357,6 @@ export default {
       </v-card-text>
 
       <div class="labs-foot">
-        <p>{{ t('labs.stationNote') }}</p>
         <v-btn
           variant="outlined"
           height="40"
@@ -824,18 +823,10 @@ export default {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
   padding: 14px 24px;
   border-top: 1px solid rgb(var(--v-theme-panel-line));
-}
-
-.labs-foot p {
-  flex: 1;
-  min-width: 200px;
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.4;
-  color: rgb(var(--v-theme-muted));
 }
 
 /* phones: the action buttons go below the text */

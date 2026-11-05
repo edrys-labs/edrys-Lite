@@ -279,10 +279,10 @@ labs:
   filter:
     label: "Show"
     all: "All"
-    browser: "In the browser"
+    browser: "Without a station"
     station: "With a station"
   tag:
-    browser: "Runs in the browser"
+    browser: "No station needed"
     station: "Needs a station"
   use: "Use"
   create: "Create"
@@ -299,7 +299,6 @@ labs:
   cancel: "Cancel"
   replace: "Replace"
   github: "Open on GitHub"
-  stationNote: "Labs with a station need a computer in the lab running the station link."
   more: "More labs on GitHub"
   error: "Could not load the labs."
   errorText: "GitHub allows only a few requests an hour without a login. Try again later, or find the labs on"
