@@ -30,7 +30,7 @@ index:
     title: "فصولك الدراسية"
     saved: "المحفوظة في هذا المتصفح: {n}"
     create: "إنشاء فصل دراسي"
-    createHint: "ابدأ بفصل فارغ أو بمختبر جاهز: Arduino وLinux وROS وغيرها."
+    createHint: "ابدأ بفصل فارغ أو بمختبر جاهز: Arduino وCalliope mini والمحاكيات وغيرها."
     newClass: "فصلي الجديد"
     welcome:
       teacher: |
@@ -248,7 +248,7 @@ settings:
     fileFailed: "تعذرت قراءة فصل من هذا الملف."
     urlFailed: "تعذر تحميل فصل من هذا الرابط."
     findTitle: "البحث عن مختبرات"
-    findText: "مختبرات جاهزة من edrys-labs، من Arduino إلى ROS. استخدام أحدها يستبدل إعداد هذا الفصل."
+    findText: "مختبرات جاهزة من edrys-labs: Arduino وCalliope mini والمحاكيات وغيرها. استخدام أحدها يستبدل إعداد هذا الفصل."
     browse: "تصفح المختبرات"
   communication:
     title: "الاتصال"
@@ -275,7 +275,7 @@ labs:
   pickTitle: "اختيار مختبر"
   pickIntro: "مختبرات جاهزة من edrys-labs. الفصل الجديد نسخة تستطيع تغييرها."
   search: "البحث في المختبرات"
-  searchPlaceholder: "بحث: Arduino، Linux، ROS…"
+  searchPlaceholder: "بحث: Arduino، Calliope، STM32…"
   filter:
     label: "عرض"
     all: "الكل"
@@ -290,7 +290,7 @@ labs:
   emptyTitle: "فصل فارغ"
   emptyText: "فصل دراسي فارغ تملكه. أضف الوحدات والغرف والطلاب متى شئت."
   fromLabTitle: "من مختبر جاهز"
-  fromLabText: "انسخ مختبرًا من edrys-labs: Arduino وLinux وROS وغيرها."
+  fromLabText: "انسخ مختبرًا من edrys-labs: Arduino وCalliope mini والمحاكيات وغيرها."
   createNow: "إنشاء الآن"
   chooseLab: "اختيار مختبر"
   back: "رجوع"

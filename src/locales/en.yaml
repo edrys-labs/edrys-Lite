@@ -30,7 +30,7 @@ index:
     title: "Your classrooms"
     saved: "{n} saved in this browser"
     create: "Create a class"
-    createHint: "Start empty, or from a ready-made lab: Arduino, Linux, ROS and more."
+    createHint: "Start empty, or from a ready-made lab: Arduino, Calliope mini, simulators and more."
     newClass: "My New Class"
     welcome:
       teacher: |
@@ -248,7 +248,7 @@ settings:
     fileFailed: "Could not read a class from this file."
     urlFailed: "Could not load a class from this link."
     findTitle: "Find labs"
-    findText: "Ready-made labs from edrys-labs, from Arduino to ROS. Using one replaces this class's setup."
+    findText: "Ready-made labs from edrys-labs: Arduino, Calliope mini, simulators and more. Using one replaces this class's setup."
     browse: "Browse labs"
   communication:
     title: "Connection"
@@ -275,7 +275,7 @@ labs:
   pickTitle: "Choose a lab"
   pickIntro: "Ready-made labs from edrys-labs. The new class is a copy, yours to change."
   search: "Search labs"
-  searchPlaceholder: "Search: Arduino, Linux, ROS…"
+  searchPlaceholder: "Search: Arduino, Calliope, simulation…"
   filter:
     label: "Show"
     all: "All"
@@ -290,7 +290,7 @@ labs:
   emptyTitle: "Empty class"
   emptyText: "An empty classroom that you own. Add modules, rooms and students whenever you are ready."
   fromLabTitle: "From a ready-made lab"
-  fromLabText: "Copy a lab from edrys-labs: Arduino, Linux, ROS and more."
+  fromLabText: "Copy a lab from edrys-labs: Arduino, Calliope mini, simulators and more."
   createNow: "Create it now"
   chooseLab: "Choose a lab"
   back: "Back"

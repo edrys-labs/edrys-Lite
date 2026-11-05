@@ -30,7 +30,7 @@ index:
     title: "Tus aulas"
     saved: "Guardadas en este navegador: {n}"
     create: "Crear una clase"
-    createHint: "Empieza con una clase vacía o con un laboratorio listo: Arduino, Linux, ROS y más."
+    createHint: "Empieza con una clase vacía o con un laboratorio listo: Arduino, Calliope mini, simuladores y más."
     newClass: "Mi Nueva Clase"
     welcome:
       teacher: |
@@ -248,7 +248,7 @@ settings:
     fileFailed: "No se pudo leer una clase de este archivo."
     urlFailed: "No se pudo cargar una clase desde este enlace."
     findTitle: "Buscar laboratorios"
-    findText: "Laboratorios listos de edrys-labs, de Arduino a ROS. Usar uno reemplaza la configuración de esta clase."
+    findText: "Laboratorios listos de edrys-labs: Arduino, Calliope mini, simuladores y más. Usar uno reemplaza la configuración de esta clase."
     browse: "Ver laboratorios"
   communication:
     title: "Conexión"
@@ -275,7 +275,7 @@ labs:
   pickTitle: "Elegir un laboratorio"
   pickIntro: "Laboratorios listos de edrys-labs. La nueva clase es una copia que puedes cambiar."
   search: "Buscar laboratorios"
-  searchPlaceholder: "Buscar: Arduino, Linux, ROS…"
+  searchPlaceholder: "Buscar: Arduino, Calliope, STM32…"
   filter:
     label: "Mostrar"
     all: "Todos"
@@ -290,7 +290,7 @@ labs:
   emptyTitle: "Clase vacía"
   emptyText: "Una clase vacía que te pertenece. Añade módulos, salas y estudiantes cuando quieras."
   fromLabTitle: "A partir de un laboratorio listo"
-  fromLabText: "Copia un laboratorio de edrys-labs: Arduino, Linux, ROS y más."
+  fromLabText: "Copia un laboratorio de edrys-labs: Arduino, Calliope mini, simuladores y más."
   createNow: "Crear ahora"
   chooseLab: "Elegir un laboratorio"
   back: "Atrás"

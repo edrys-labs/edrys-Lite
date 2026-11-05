@@ -30,7 +30,7 @@ index:
     title: "Ваші класи"
     saved: "Збережено в цьому браузері: {n}"
     create: "Створити клас"
-    createHint: "Почніть з порожнього класу або з готової лабораторії: Arduino, Linux, ROS тощо."
+    createHint: "Почніть з порожнього класу або з готової лабораторії: Arduino, Calliope mini, симулятори тощо."
     newClass: "Мій новий клас"
     welcome:
       teacher: |
@@ -248,7 +248,7 @@ settings:
     fileFailed: "Не вдалося прочитати клас із цього файлу."
     urlFailed: "Не вдалося завантажити клас за цим посиланням."
     findTitle: "Знайти лабораторії"
-    findText: "Готові лабораторії від edrys-labs, від Arduino до ROS. Вибрана лабораторія замінює налаштування цього класу."
+    findText: "Готові лабораторії від edrys-labs: Arduino, Calliope mini, симулятори тощо. Вибрана лабораторія замінює налаштування цього класу."
     browse: "Переглянути лабораторії"
   communication:
     title: "З'єднання"
@@ -275,7 +275,7 @@ labs:
   pickTitle: "Вибрати лабораторію"
   pickIntro: "Готові лабораторії від edrys-labs. Новий клас — це копія, яку ви можете змінювати."
   search: "Пошук лабораторій"
-  searchPlaceholder: "Пошук: Arduino, Linux, ROS…"
+  searchPlaceholder: "Пошук: Arduino, Calliope, STM32…"
   filter:
     label: "Показати"
     all: "Усі"
@@ -290,7 +290,7 @@ labs:
   emptyTitle: "Порожній клас"
   emptyText: "Порожній клас, власником якого є ви. Додавайте модулі, кімнати й студентів будь-коли."
   fromLabTitle: "З готової лабораторії"
-  fromLabText: "Скопіюйте лабораторію від edrys-labs: Arduino, Linux, ROS тощо."
+  fromLabText: "Скопіюйте лабораторію від edrys-labs: Arduino, Calliope mini, симулятори тощо."
   createNow: "Створити зараз"
   chooseLab: "Вибрати лабораторію"
   back: "Назад"
