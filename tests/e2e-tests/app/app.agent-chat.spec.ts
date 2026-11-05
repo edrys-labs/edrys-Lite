@@ -41,7 +41,6 @@ test.describe('App — the agent chat of edrys-dev', () => {
   test('there is none without an agent or a tutor', async ({ browser }) => {
     const dev = await openDevClass(browser)
     owner = dev.owner
-    await expect(owner.page.locator('[data-test=tutor-button]')).toHaveCount(0)
     await expect(button(owner.page)).toHaveCount(0)
   })
 
@@ -122,5 +121,66 @@ test.describe('App — the agent chat of edrys-dev', () => {
 
     await drawer(page).getByLabel('Tutor answers students').click()
     await expect.poll(() => dev.dev.posts.at(-1)).toEqual({ path: '/tutor', body: { on: false } })
+  })
+
+  test('the tutor limit shows until the tutor takes a question again', async ({ browser }) => {
+    const dev = await openDevClass(browser, { agent: false, students: true })
+    owner = dev.owner
+    const page = owner.page
+
+    await expect(button(page)).toBeVisible({ timeout: 20000 })
+    await closeRooms(page)
+    await button(page).click()
+    await dev.dev.push('/tutor/events', { type: 'threads', on: true, threads: [] })
+    await dev.dev.push('/tutor/events', { type: 'limit', perHour: 60 })
+    const limit = drawer(page).locator('.agent-alert--warn')
+    await expect(limit).toContainText('60')
+
+    await dev.dev.push('/tutor/events', {
+      type: 'entry',
+      id: 't1',
+      name: 'Ada',
+      entry: { from: 'student', t: Date.now(), text: 'Still stuck', room: 'Lobby' },
+    })
+    await expect(limit).toHaveCount(0)
+  })
+
+  test('a lab problem sent again on a reconnect is not new', async ({ browser }) => {
+    const dev = await openDevClass(browser, { agent: true, students: false })
+    owner = dev.owner
+    const page = owner.page
+    const problem = { text: 'lab.yml does not load', detail: 'line 3' }
+
+    await expect(button(page)).toBeVisible({ timeout: 20000 })
+    await closeRooms(page)
+    await dev.dev.push('/chat/events', { ...history([]), lab: problem })
+    await expect(button(page)).toHaveAttribute('aria-label', /new/)
+    await button(page).click()
+    await button(page).click()
+    await expect(button(page)).not.toHaveAttribute('aria-label', /new/)
+
+    // the same history after a reconnect
+    await dev.dev.push('/chat/events', { ...history([]), lab: problem })
+    await expect(button(page)).not.toHaveAttribute('aria-label', /new/)
+  })
+
+  test('an edrys-dev with other views gets a panel with those views', async ({ browser }) => {
+    const dev = await openDevClass(browser, { agent: false, students: true })
+    owner = dev.owner
+    const page = owner.page
+
+    await expect(button(page)).toBeVisible({ timeout: 20000 })
+    await closeRooms(page)
+    await expect(page.locator('[data-test=agent-chat-tab-agent]')).toHaveCount(0)
+
+    await dev.dev.setChat({ agent: true, students: true })
+    await button(page).click()
+    await page.locator('[data-test=agent-chat-tab-agent]').click()
+    // the new panel listens to the agent's stream
+    await dev.dev.push('/chat/events', history([{ n: 1, t: 1, type: 'user', text: 'Hello agent' }]))
+    await expect(drawer(page).getByText('Hello agent')).toBeVisible()
+
+    await dev.dev.setChat(undefined)
+    await expect(button(page)).toHaveCount(0)
   })
 })

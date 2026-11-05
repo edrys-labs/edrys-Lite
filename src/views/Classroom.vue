@@ -1053,8 +1053,10 @@ export default {
         @answered="if (!tutor.open) tutor.new = true;"
       ></TutorChat>
 
+      <!-- a restarted edrys-dev may have other views: a new panel, with their streams -->
       <AgentChat
         v-if="agentChat.views"
+        :key="`${agentChat.views.agent}-${agentChat.views.students}`"
         v-model:show="agentChat.open"
         :views="agentChat.views"
         @update:show="agentChat.new = false"

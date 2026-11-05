@@ -23,6 +23,8 @@ export interface FakeEdrysDev {
   posts: { path: string; body: any }[]
   /** Turns the tutor on or off, as the switch in edrys-dev's panel does. */
   setTutor(on: boolean): Promise<void>
+  /** Other views of the agent chat, as an edrys-dev restarted with other flags has. */
+  setChat(chat: { agent: boolean; students: boolean } | undefined): Promise<void>
   /** Sends `data` to the tab on one of edrys-dev's other streams, like `/chat/events`. */
   push(path: string, data: any): Promise<void>
 }
@@ -136,6 +138,10 @@ export async function openDevClass(
       posts,
       async setTutor(on: boolean) {
         tutor = on
+        await emit(page, 'reload-lab', {})
+      },
+      async setChat(views) {
+        chat = views
         await emit(page, 'reload-lab', {})
       },
       push: (path, data) => push(page, path, data),

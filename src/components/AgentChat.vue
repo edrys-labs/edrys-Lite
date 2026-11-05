@@ -213,12 +213,10 @@ export default {
           message.entries.forEach((entry: Entry) => this.add(entry, false));
           this.setStatus(message.status, true);
           this.hint = message.hint || "";
-          this.problem = message.lab || null;
-          if (this.problem) this.unread();
+          this.setProblem(message.lab);
           break;
         case "lab":
-          this.problem = message.problem || null;
-          if (this.problem) this.unread();
+          this.setProblem(message.problem);
           break;
         case "entry":
           if (message.entry.type === "ai" && message.entry.ask) this.ask = message.entry.ask;
@@ -239,6 +237,13 @@ export default {
           if (message.reason) this.reasons[message.ask] = message.reason;
           break;
       }
+    },
+
+    // a reconnect sends the same problem again: only a new one is unread
+    setProblem(problem: { text: string; detail: string } | null | undefined) {
+      const fresh = !!problem && (problem.text !== this.problem?.text || problem.detail !== this.problem?.detail);
+      this.problem = problem || null;
+      if (fresh) this.unread();
     },
 
     add(entry: Entry, live: boolean) {
@@ -317,6 +322,8 @@ export default {
         case "entry": {
           this.addTutorEntry(this.threadFor(message.id, message.name), message.entry);
           if (message.entry.from !== "student") break;
+          // the tutor took a question again: the class is below its limit
+          this.limit = 0;
           if (this.view !== "students" || !this.show) this.count++;
           this.unread();
           break;
