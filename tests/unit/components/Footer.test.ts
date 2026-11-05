@@ -31,7 +31,7 @@ describe('Footer Component', () => {
 
   test('renders correctly', () => {
     expect(wrapper.find('.v-footer').exists()).toBe(true);
-    expect(wrapper.findAll('.v-btn')).toHaveLength(4);
+    expect(wrapper.findAll('.v-btn')).toHaveLength(3);
   });
 
   test('has correct GitHub link', () => {
@@ -43,19 +43,13 @@ describe('Footer Component', () => {
   test('has correct Documentation link', () => {
     const docsBtn = wrapper.findAll('.v-btn')[1];
     expect(docsBtn.attributes('href')).toBe('https://LiaScript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md');
-    expect(docsBtn.attributes('icon')).toBe('mdi-information-outline');
-  });
-
-  test('has correct Classrooms link', () => {
-    const classroomsBtn = wrapper.findAll('.v-btn')[2];
-    expect(classroomsBtn.attributes('href')).toBe('https://github.com/topics/edrys-lab');
-    expect(classroomsBtn.attributes('icon')).toBe('mdi-compass-outline');
+    expect(docsBtn.attributes('icon')).toBe('mdi-book-open-page-variant-outline');
   });
 
   test('has correct Blog link', () => {
-    const classroomsBtn = wrapper.findAll('.v-btn')[3];
-    expect(classroomsBtn.attributes('href')).toBe('https://edrys-labs.github.io/blog');
-    expect(classroomsBtn.attributes('icon')).toBe('mdi-rss');
+    const blogBtn = wrapper.findAll('.v-btn')[2];
+    expect(blogBtn.attributes('href')).toBe('https://edrys-labs.github.io/blog');
+    expect(blogBtn.attributes('icon')).toBe('mdi-post-outline');
   });
 
   test('all buttons open in new tab', () => {

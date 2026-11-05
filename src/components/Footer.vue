@@ -49,27 +49,9 @@ export default {
             size="36"
             rounded="lg"
             variant="text"
-            icon="mdi-information-outline"
+            icon="mdi-book-open-page-variant-outline"
             :aria-label="t('footer.docs')"
             href="https://LiaScript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md"
-            target="_blank"
-            rel="noopener"
-            class="bar-btn"
-            v-bind="props"
-          >
-          </v-btn>
-        </template>
-      </v-tooltip>
-
-      <v-tooltip :text="t('footer.explore')" location="top">
-        <template v-slot:activator="{ props }">
-          <v-btn
-            size="36"
-            rounded="lg"
-            variant="text"
-            icon="mdi-compass-outline"
-            :aria-label="t('footer.explore')"
-            href="https://github.com/topics/edrys-lab"
             target="_blank"
             rel="noopener"
             class="bar-btn"
@@ -85,7 +67,7 @@ export default {
             size="36"
             rounded="lg"
             variant="text"
-            icon="mdi-rss"
+            icon="mdi-post-outline"
             :aria-label="t('footer.blog')"
             href="https://edrys-labs.github.io/blog"
             target="_blank"
