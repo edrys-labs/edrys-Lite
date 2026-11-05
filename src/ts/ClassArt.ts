@@ -1,21 +1,24 @@
-import { ROOM_COLORS } from "./Theme";
+import { CLASS_ART_COLORS } from "./Theme";
 
 /**
- * The picture of a class without a logo: peers joined to their nearest
- * neighbours, two of them bigger like stations, in a room colour. Drawn from
- * the class id, so a class looks the same everywhere. Coordinates are for a
- * 200 × 100 viewBox.
+ * The picture of a class without a logo: a few peers joined to their nearest
+ * neighbours, two of them bigger like stations, on a pale ground in a palette
+ * hue. Drawn from the class id, so a class looks the same everywhere.
+ * Coordinates are for a 200 × 100 viewBox.
  */
 export type ClassArt = {
   background: string;
   lines: { x1: number; y1: number; x2: number; y2: number; color: string }[];
-  dots: { cx: number; cy: number; r: number; fill: string; ring: number }[];
+  dots: { cx: number; cy: number; r: number; fill: string }[];
 };
 
 const W = 200;
 const H = 100;
-const COLS = 5;
-const ROWS = 3;
+const COLS = 4;
+const ROWS = 2;
+const MIN_PEERS = 3;
+const MARGIN_X = 14;
+const MARGIN_Y = 12;
 
 function mulberry32(seed: number) {
   return function () {
@@ -43,23 +46,24 @@ export function classArt(id: string, theme: "light" | "dark"): ClassArt {
 
   const hash = hashCode(id || "");
   const random = mulberry32(hash);
-  const colors = ROOM_COLORS[Math.abs(hash) % ROOM_COLORS.length];
-  const tone = colors[theme];
-  const dark = theme === "dark";
+  const colors = CLASS_ART_COLORS[Math.abs(hash) % CLASS_ART_COLORS.length][theme];
 
-  // one peer in most cells of a 5 × 3 grid, so they spread over the picture
+  // one peer in most cells of a 4 × 2 grid, so they spread over the picture;
+  // a cell is only left empty while enough cells remain for three peers.
+  // The margins keep the bigger dots inside the picture.
   const nodes: { x: number; y: number }[] = [];
-  for (let row = 0; row < ROWS; row++) {
-    for (let col = 0; col < COLS; col++) {
-      if (random() < 0.3) continue;
-      nodes.push({
-        x: ((col + 0.2 + 0.6 * random()) * W) / COLS,
-        y: ((row + 0.2 + 0.6 * random()) * H) / ROWS,
-      });
-    }
+  for (let cell = 0; cell < COLS * ROWS; cell++) {
+    const cellsLeft = COLS * ROWS - cell;
+    if (nodes.length + cellsLeft > MIN_PEERS && random() < 0.3) continue;
+    const col = cell % COLS;
+    const row = Math.floor(cell / COLS);
+    nodes.push({
+      x: MARGIN_X + ((col + 0.15 + 0.7 * random()) * (W - 2 * MARGIN_X)) / COLS,
+      y: MARGIN_Y + ((row + 0.15 + 0.7 * random()) * (H - 2 * MARGIN_Y)) / ROWS,
+    });
   }
 
-  const art: ClassArt = { background: tone.bg, lines: [], dots: [] };
+  const art: ClassArt = { background: colors.bg, lines: [], dots: [] };
 
   const joined = new Set<string>();
   nodes.forEach((node, a) => {
@@ -72,25 +76,18 @@ export function classArt(id: string, theme: "light" | "dark"): ClassArt {
         const pair = a < b ? `${a}-${b}` : `${b}-${a}`;
         if (joined.has(pair)) return;
         joined.add(pair);
-        art.lines.push({
-          x1: node.x,
-          y1: node.y,
-          x2: nodes[b].x,
-          y2: nodes[b].y,
-          color: dark ? colors.dot : colors.border,
-        });
+        art.lines.push({ x1: node.x, y1: node.y, x2: nodes[b].x, y2: nodes[b].y, color: colors.line });
       });
   });
 
   const station = Math.floor(random() * nodes.length);
   nodes.forEach((node, k) => {
-    const big = k === station || k === (station + 3) % nodes.length;
+    const big = k === station || k === (station + 2) % nodes.length;
     art.dots.push({
       cx: node.x,
       cy: node.y,
-      r: big ? 6 : 3.2,
-      fill: big ? tone.fg : dark ? colors.border : colors.dot,
-      ring: big ? 2.5 : 1.5,
+      r: big ? 7 : 4.5,
+      fill: colors.dots[random() < 0.5 ? 0 : 1],
     });
   });
 

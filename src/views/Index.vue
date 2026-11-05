@@ -203,7 +203,7 @@ export default {
           </button>
 
           <article v-for="classroom in classrooms" :key="classroom.id" class="class-card">
-            <ClassBanner :id="classroom.id" :logo="classroom?.data?.meta?.logo || ''" class="banner" />
+            <ClassBanner :id="classroom.id" :logo="classroom?.data?.meta?.logo || ''" :cover="phone" class="banner" />
 
             <div class="class-body">
               <!-- the link covers the whole card; buttons and description links sit above it -->

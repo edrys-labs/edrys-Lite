@@ -1,7 +1,16 @@
 <template>
   <img v-if="logo && !broken" :src="logo" alt="" @error="broken = true" />
-  <svg v-else class="class-art" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <rect x="-100" y="-100" width="400" height="300" :fill="art.background" />
+  <!-- the whole picture fits in the box and the ground fills the rest, so no
+       peer is cut off whatever the card's width; `cover` fills a small
+       square instead, where a fitted picture would be tiny -->
+  <svg
+    v-else
+    class="class-art"
+    viewBox="0 0 200 100"
+    :preserveAspectRatio="cover ? 'xMidYMid slice' : 'xMidYMid meet'"
+    aria-hidden="true"
+  >
+    <rect x="-1000" y="-1000" width="2200" height="2100" :fill="art.background" />
     <line
       v-for="(line, i) in art.lines"
       :key="'l' + i"
@@ -10,7 +19,7 @@
       :x2="line.x2"
       :y2="line.y2"
       :stroke="line.color"
-      stroke-width="1.4"
+      stroke-width="1.6"
       stroke-linecap="round"
     />
     <circle
@@ -20,8 +29,6 @@
       :cy="dot.cy"
       :r="dot.r"
       :fill="dot.fill"
-      :stroke="art.background"
-      :stroke-width="dot.ring"
     />
   </svg>
 </template>
@@ -37,6 +44,7 @@ export default {
   props: {
     id: { type: String, default: "" },
     logo: { type: String, default: "" },
+    cover: { type: Boolean, default: false },
   },
 
   data() {

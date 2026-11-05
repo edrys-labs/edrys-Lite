@@ -263,6 +263,48 @@ export const ROOM_COLORS = [
   },
 ]
 
+/**
+ * Pictures of classes without a logo (ClassArt.ts), one entry per palette
+ * slot, from the same hues as ROOM_COLORS: ground L0.95/C0.03 in light,
+ * L0.3/C0.04 in dark; lines L0.8/C0.05 and L0.5/C0.05; dots in the slot's
+ * hue (L0.55/C0.13, dark L0.7/C0.1) and its hue + 110° (L0.6/C0.12, dark
+ * L0.72/C0.1).
+ */
+export const CLASS_ART_COLORS = [
+  { // green
+    light: { bg: '#e1f5e4', line: '#a8c7ad', dots: ['#298646', '#5480c7'] },
+    dark: { bg: '#1f3423', line: '#4f6c54', dots: ['#6fb07d', '#80a5e3'] },
+  },
+  { // blue
+    light: { bg: '#e0f1ff', line: '#a6c1dd', dots: ['#2a75ba', '#b95f7d'] },
+    dark: { bg: '#1e2f41', line: '#4d667f', dots: ['#6da3da', '#d88aa2'] },
+  },
+  { // amber
+    light: { bg: '#fdebda', line: '#d5b89d', dots: ['#a45e00', '#00977c'] },
+    dark: { bg: '#3c2a18', line: '#775e45', dots: ['#c99159', '#57b9a1'] },
+  },
+  { // purple
+    light: { bg: '#f1eaff', line: '#c2b7da', dots: ['#7e5db1', '#b86838'] },
+    dark: { bg: '#31293f', line: '#675d7c', dots: ['#a890d4', '#d7926b'] },
+  },
+  { // teal
+    light: { bg: '#d8f5f5', line: '#99c8c8', dots: ['#008889', '#916cb9'] },
+    dark: { bg: '#113434', line: '#3f6c6c', dots: ['#41b2b2', '#b395d7'] },
+  },
+  { // rose
+    light: { bg: '#ffe7ea', line: '#dcb1b6', dots: ['#af4c60', '#778a2d'] },
+    dark: { bg: '#3f2529', line: '#7d585d', dots: ['#d48490', '#9cae65'] },
+  },
+  { // indigo
+    light: { bg: '#e8edff', line: '#b4bcdf', dots: ['#5c69bc', '#bd615b'] },
+    dark: { bg: '#282c42', line: '#5b6180', dots: ['#8c99dd', '#dc8c85'] },
+  },
+  { // gold
+    light: { bg: '#f5efd8', line: '#c8be9a', dots: ['#8a6f00', '#0094a2'] },
+    dark: { bg: '#342e15', line: '#6c6342', dots: ['#b29e51', '#48b7c2'] },
+  },
+]
+
 // the Lobby and other rooms without a palette slot
 const NEUTRAL_ROOM = {
   light: { bg: '#dfe2e7', fg: '#3b424d' },
