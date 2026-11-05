@@ -2,6 +2,7 @@
 import markdownit from "markdown-it";
 import { markRaw } from "vue";
 import { useI18n } from "vue-i18n";
+import { useDisplay, useRtl } from "vuetify";
 import { infoHash } from "../ts/Utils";
 import { TEXT_MAX, sealQuestion, tutorAnswer } from "../ts/Tutor";
 
@@ -22,7 +23,10 @@ export default {
 
   setup() {
     const { t } = useI18n();
-    return { t };
+    // on phones the tutor is a page of its own, like the class chat
+    const { xs: phone } = useDisplay();
+    const { isRtl: rtl } = useRtl();
+    return { t, phone, rtl };
   },
 
   data() {
@@ -70,6 +74,13 @@ export default {
   },
 
   methods: {
+    // the same panel as the class chat: it stays open while the modules are used
+    panelProps() {
+      return this.phone
+        ? { fullscreen: true, transition: "dialog-bottom-transition" }
+        : { width: 360, permanent: window.innerWidth > 1000 + 360, location: "right", color: "panel" };
+    },
+
     key() {
       return `edrys-tutor:${this.classId}`;
     },
@@ -88,11 +99,11 @@ export default {
       try {
         sessionStorage.setItem(this.key(), JSON.stringify(this.entries.slice(-100)));
       } catch {}
-      // only the drawer scrolls: scrollIntoView would also scroll the page
+      // only the log scrolls: scrollIntoView would also scroll the page
       // sideways, to the closed class chat beside it
       this.$nextTick(() => {
-        const box = (this.$refs.log as HTMLElement | undefined)?.closest(".v-navigation-drawer__content");
-        if (box) box.scrollTop = box.scrollHeight;
+        const log = this.$refs.log as HTMLElement | undefined;
+        if (log) log.scrollTop = log.scrollHeight;
       });
     },
 
@@ -133,11 +144,26 @@ export default {
 </script>
 
 <template>
-  <v-navigation-drawer :width="360" v-model="open" location="right" color="panel" temporary>
-    <template v-slot:prepend>
+  <component
+    :is="phone ? 'v-dialog' : 'v-navigation-drawer'"
+    v-bind="panelProps()"
+    v-model="open"
+    :class="['tutor-panel', { 'tutor-panel--phone': phone }]"
+  >
+    <div class="tutor-box">
       <div class="tutor-title">
+        <v-btn
+          v-if="phone"
+          :icon="rtl ? 'mdi-arrow-right' : 'mdi-arrow-left'"
+          size="44"
+          rounded="lg"
+          variant="text"
+          :aria-label="t('tutor.close')"
+          @click="open = false"
+        ></v-btn>
         <h2>{{ t("tutor.title") }}</h2>
         <v-btn
+          v-if="!phone"
           icon="mdi-close"
           size="32"
           rounded="lg"
@@ -146,25 +172,23 @@ export default {
           @click="open = false"
         ></v-btn>
       </div>
-    </template>
 
-    <div role="log" ref="log" class="tutor-log">
-      <p class="tutor-intro">{{ t("tutor.intro") }}</p>
-      <div
-        v-for="entry in entries"
-        :key="entry.id + entry.from"
-        :class="['tutor-entry', entry.from, { error: entry.error }]"
-      >
-        <div v-if="entry.from === 'tutor' && !entry.error" class="markdown" v-html="md.render(entry.text)"></div>
-        <div v-else class="plain">{{ entry.text }}</div>
+      <div role="log" ref="log" class="tutor-log">
+        <p class="tutor-intro">{{ t("tutor.intro") }}</p>
+        <div
+          v-for="entry in entries"
+          :key="entry.id + entry.from"
+          :class="['tutor-entry', entry.from, { error: entry.error }]"
+        >
+          <div v-if="entry.from === 'tutor' && !entry.error" class="markdown" v-html="md.render(entry.text)"></div>
+          <div v-else class="plain">{{ entry.text }}</div>
+        </div>
+        <div v-if="pending" class="tutor-entry tutor text-medium-emphasis" role="status">
+          {{ t("tutor.thinking") }}
+        </div>
+        <p v-if="!tutorId" class="tutor-intro" role="status">{{ t("tutor.offline") }}</p>
       </div>
-      <div v-if="pending" class="tutor-entry tutor text-medium-emphasis" role="status">
-        {{ t("tutor.thinking") }}
-      </div>
-      <p v-if="!tutorId" class="tutor-intro" role="status">{{ t("tutor.offline") }}</p>
-    </div>
 
-    <template v-slot:append>
       <div class="tutor-compose">
         <label for="tutor-message">{{ t("tutor.placeholder") }}</label>
         <textarea
@@ -190,12 +214,24 @@ export default {
         </v-btn>
         <p class="tutor-privacy">{{ t("tutor.privacy") }}</p>
       </div>
-    </template>
-  </v-navigation-drawer>
+    </div>
+  </component>
 </template>
 
 <style scoped>
+.tutor-panel:not(.tutor-panel--phone) {
+  border-inline-start: 1px solid rgb(var(--v-theme-panel-line)) !important;
+}
+.tutor-box {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: rgb(var(--v-theme-panel));
+  color: rgb(var(--v-theme-on-surface));
+}
 .tutor-title {
+  flex-shrink: 0;
+  gap: 4px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -211,7 +247,10 @@ export default {
 }
 .tutor-log {
   display: flex;
+  flex: 1;
   flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
   gap: 8px;
   padding: 12px;
 }
@@ -258,6 +297,7 @@ export default {
 .tutor-compose {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   gap: 8px;
   padding: 12px;
   border-top: 1px solid rgb(var(--v-theme-panel-line));
@@ -291,5 +331,13 @@ export default {
 }
 .plain {
   white-space: pre-wrap;
+}
+.tutor-panel--phone .tutor-title {
+  justify-content: flex-start;
+  height: 56px;
+  padding: 0 4px;
+}
+.tutor-panel--phone .tutor-title h2 {
+  font-size: 16px;
 }
 </style>

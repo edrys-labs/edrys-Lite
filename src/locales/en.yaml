@@ -140,7 +140,6 @@ settings:
     linkTitle: "Class link"
     linkText: "Send this link to the people in your class. Who may join, and as what, is set below."
     linkLabel: "Link"
-    open: "Open the class in a new tab"
     teachersTitle: "Teachers"
     teachersText: "Can change the class: settings, modules and members."
     teacherKeys: "Teacher public keys"

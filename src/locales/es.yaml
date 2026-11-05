@@ -140,7 +140,6 @@ settings:
     linkTitle: "Enlace de la clase"
     linkText: "Envía este enlace a las personas de tu clase. Quién puede unirse, y con qué rol, se define abajo."
     linkLabel: "Enlace"
-    open: "Abrir la clase en una pestaña nueva"
     teachersTitle: "Profesores"
     teachersText: "Pueden cambiar la clase: ajustes, módulos y miembros."
     teacherKeys: "Claves públicas de los profesores"

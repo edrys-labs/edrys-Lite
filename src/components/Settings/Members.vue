@@ -12,17 +12,6 @@
           :title="t('general.copyLink')"
           @click="copyUrl"
         ></v-btn>
-        <!-- .stop: the field cancels the default of any click inside it, which would block the link -->
-        <v-btn
-          icon="mdi-open-in-new"
-          variant="text"
-          density="comfortable"
-          :href="url"
-          target="_blank"
-          @click.stop
-          :aria-label="t('settings.members.open')"
-          :title="t('settings.members.open')"
-        ></v-btn>
       </template>
     </v-text-field>
   </FieldLabel>
