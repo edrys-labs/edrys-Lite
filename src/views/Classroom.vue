@@ -28,7 +28,7 @@ import {
   sameKey,
   isMember,
 } from "../ts/Utils";
-import { markRaw, onMounted } from "vue";
+import { defineAsyncComponent, markRaw, onMounted } from "vue";
 import Peer, { MAX_ROOMS } from "../ts/Peer";
 
 import { copyToClipboard, deepEqual, roomSlot } from "../ts/Utils";
@@ -42,6 +42,7 @@ import {
   reportClass,
   rescrapeModules,
   withFresh,
+  type ChatViews,
 } from "../ts/DevBridge";
 import { startTutorRelay, tutorPeer } from "../ts/Tutor";
 
@@ -125,6 +126,9 @@ export default {
       componentKey: 0,
 
       tutor: { open: false, new: false },
+
+      // edrys-dev's agent chat in its ?dev tab; views null: none
+      agentChat: { views: null as ChatViews | null, open: false, new: false },
 
       chat: {
         open: false,
@@ -553,6 +557,11 @@ export default {
         readState,
         tutor,
         tutorAnswer: relay.answer,
+        chat: (views: ChatViews) => {
+          if (views.agent !== this.agentChat.views?.agent || views.students !== this.agentChat.views?.students) {
+            this.agentChat.views = views.agent || views.students ? views : null;
+          }
+        },
       });
 
       // what the agent sees of the class: rooms, who is where, the modules
@@ -688,6 +697,8 @@ export default {
     Logger,
     UserMenu,
     TutorChat,
+    // only edrys-dev's ?dev tab has it: loaded there, not for everyone
+    AgentChat: defineAsyncComponent(() => import("../components/AgentChat.vue")),
   },
 };
 </script>
@@ -766,6 +777,28 @@ export default {
         <div v-if="!phone" class="bar-divider" aria-hidden="true"></div>
 
         <div class="bar-end">
+          <!-- sparkles, not the robot: that one is the students' tutor -->
+          <v-btn
+            icon
+            size="36"
+            rounded="lg"
+            variant="text"
+            class="bar-btn"
+            :class="{ 'bar-btn--active': agentChat.open }"
+            v-if="agentChat.views"
+            :aria-label="agentChat.new ? t('agentChat.buttonUnread') : t('agentChat.button')"
+            :aria-expanded="agentChat.open"
+            :title="t('agentChat.button')"
+            data-test="agent-chat-button"
+            @click="
+              agentChat.open = !agentChat.open;
+              agentChat.new = false;
+            "
+          >
+            <v-icon icon="mdi-creation-outline"></v-icon>
+            <span v-if="agentChat.new" class="bar-dot"></span>
+          </v-btn>
+
           <v-btn
             icon
             size="36"
@@ -1019,6 +1052,14 @@ export default {
         :classId="id"
         @answered="if (!tutor.open) tutor.new = true;"
       ></TutorChat>
+
+      <AgentChat
+        v-if="agentChat.views"
+        v-model:show="agentChat.open"
+        :views="agentChat.views"
+        @update:show="agentChat.new = false"
+        @unread="agentChat.new = true"
+      ></AgentChat>
 
       <v-main style="overflow-y: scroll">
         <v-col>

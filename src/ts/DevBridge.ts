@@ -5,7 +5,7 @@
  * (signed), republishes it whenever the file changes.
  *
  * edrys-dev endpoints (same origin):
- *   GET  /edrys-dev/lab     { path, text, communication?, tutor?, studentSite? }
+ *   GET  /edrys-dev/lab     { path, text, communication?, tutor?, studentSite?, chat? }
  *   GET  /edrys-dev/events  server-sent events, `reload-lab` when the file changed,
  *                           `tutor-answer` for a student's question
  *   POST /edrys-dev/bridge  JSON reports from this tab
@@ -63,8 +63,11 @@ export function studentLink(link: string, classId: string): string | null {
   return url.toString()
 }
 
+/** The views of the agent chat: an agent answers it (--mcp), the students' tutor threads (--tutor). */
+export type ChatViews = { agent: boolean; students: boolean }
+
 /** The lab as classroom data, without id and createdBy: those belong to the class, not the file. */
-export async function fetchLab(): Promise<{ path: string; data: any; tutor: boolean }> {
+export async function fetchLab(): Promise<{ path: string; data: any; tutor: boolean; chat: ChatViews }> {
   const response = await fetch(API + '/lab')
   if (!response.ok) throw new Error(`${API}/lab: ${response.status}`)
 
@@ -89,7 +92,8 @@ export async function fetchLab(): Promise<{ path: string; data: any; tutor: bool
   const communicationConfig = encodeCommConfig(lab.communication)
   if (communicationConfig) data.communicationConfig = communicationConfig
 
-  return { path: lab.path, data, tutor: lab.tutor === true }
+  const chat = { agent: lab.chat?.agent === true, students: lab.chat?.students === true }
+  return { path: lab.path, data, tutor: lab.tutor === true, chat }
 }
 
 /** Reopens the lab's class, importing it as Deploy does on first use; returns the class route. */
@@ -149,6 +153,8 @@ export type DevCommands = {
   tutor?: (on: boolean) => void
   /** edrys-dev's answer to a question passed on with `tutor-ask`. */
   tutorAnswer?: (answer: { id: string; student: string; text?: string; error?: string }) => void
+  /** The views the agent chat has; none of them: no agent chat. */
+  chat?: (views: ChatViews) => void
 }
 
 /**
@@ -254,9 +260,10 @@ export function startDevBridge(apply: (data: any) => boolean, commands: DevComma
   const reload = (connected = false) => {
     const run = ++reloads
     return fetchLab()
-      .then(({ data, tutor }) => {
+      .then(({ data, tutor, chat }) => {
         if (connected) report('open', { url: shareLink(data) })
         commands.tutor?.(tutor)
+        commands.chat?.(chat)
         if (run === reloads) report('applied', { changed: apply(data) })
       })
       .catch((error) => {

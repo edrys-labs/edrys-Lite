@@ -19,8 +19,12 @@ modules: []
 export interface FakeEdrysDev {
   /** Every report the owner tab sent to edrys-dev, oldest first. */
   reports: any[]
+  /** What the agent chat posted, oldest first: {path, body}, path like `/chat`. */
+  posts: { path: string; body: any }[]
   /** Turns the tutor on or off, as the switch in edrys-dev's panel does. */
   setTutor(on: boolean): Promise<void>
+  /** Sends `data` to the tab on one of edrys-dev's other streams, like `/chat/events`. */
+  push(path: string, data: any): Promise<void>
 }
 
 // Replaces EventSource for edrys-dev's streams: open at once, never failing,
@@ -39,6 +43,10 @@ function fakeEventSource() {
     emit(type: string, data: any) {
       this.dispatchEvent(new MessageEvent(type, { data: JSON.stringify(data) }))
     }
+    // a message without event type, as the agent chat's streams send them
+    push(data: any) {
+      this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(data) }))
+    }
     close() {
       this.readyState = 2
     }
@@ -47,6 +55,7 @@ function fakeEventSource() {
     if (!String(url).startsWith('/edrys-dev/')) return new Real(url, options)
     const events = new DevEvents(String(url))
     if (String(url) === '/edrys-dev/events') (window as any).__devEvents = events
+    ;((window as any).__devStreams ??= {})[String(url)] = events
     return events
   }
 }
@@ -54,17 +63,28 @@ function fakeEventSource() {
 const emit = (page: Page, type: string, data: any) =>
   page.evaluate(([type, data]) => (window as any).__devEvents?.emit(type, data), [type, data] as const)
 
+async function push(page: Page, path: string, data: any) {
+  const url = '/edrys-dev' + path
+  await page.waitForFunction((url) => (window as any).__devStreams?.[url], url, { timeout: 20000 })
+  await page.evaluate(([url, data]) => (window as any).__devStreams[url].push(data), [url, data] as const)
+}
+
 /**
  * OWNER: opens the stand-in's lab with `?dev`, as edrys-dev's class tab, with
  * the tutor on. Returns the session, the join link the tab reported, and the
  * stand-in.
  */
-export async function openDevClass(browser: Browser): Promise<{ owner: Session; joinUrl: string; dev: FakeEdrysDev }> {
+export async function openDevClass(
+  browser: Browser,
+  // the views of the agent chat; none: an edrys-dev without --mcp and --tutor
+  chat?: { agent: boolean; students: boolean }
+): Promise<{ owner: Session; joinUrl: string; dev: FakeEdrysDev }> {
   const context = await browser.newContext()
   await context.addInitScript(fakeEventSource)
   let page: Page
   let tutor = true
   const reports: any[] = []
+  const posts: { path: string; body: any }[] = []
 
   await context.route('**/edrys-dev/lab', (route) =>
     route.fulfill({
@@ -72,10 +92,17 @@ export async function openDevClass(browser: Browser): Promise<{ owner: Session; 
         path: '/e2e/lab.yml',
         text: LAB,
         tutor,
+        chat,
         communication: TRANSPORT === 'ws' ? { communicationMethod: 'Websocket' } : undefined,
       },
     })
   )
+  for (const path of ['/chat', '/tutor']) {
+    await context.route('**/edrys-dev' + path, async (route) => {
+      posts.push({ path, body: route.request().postDataJSON() })
+      await route.fulfill({ status: 204 })
+    })
+  }
   await context.route('**/edrys-dev/bridge', async (route) => {
     const report = route.request().postDataJSON()
     reports.push(report)
@@ -106,10 +133,12 @@ export async function openDevClass(browser: Browser): Promise<{ owner: Session; 
     joinUrl: open().url,
     dev: {
       reports,
+      posts,
       async setTutor(on: boolean) {
         tutor = on
         await emit(page, 'reload-lab', {})
       },
+      push: (path, data) => push(page, path, data),
     },
   }
 }
