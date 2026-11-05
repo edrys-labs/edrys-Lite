@@ -1,7 +1,7 @@
 <script lang="ts">
 import { PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useDisplay } from 'vuetify';
+import { useDisplay, useRtl } from 'vuetify';
 import { loadLabs, fetchLab, repoInitials, Lab, LabGroup } from '../ts/Labs';
 import { activeTheme, roomTile } from '../ts/Theme';
 
@@ -28,7 +28,8 @@ export default {
   setup() {
     const { t } = useI18n();
     const { xs: phone } = useDisplay();
-    return { t, phone };
+    const { isRtl: rtl } = useRtl();
+    return { t, phone, rtl };
   },
 
   data() {
@@ -44,12 +45,36 @@ export default {
       confirming: null as Lab | null,
       busy: null as Lab | null,
       failed: null as Lab | null,
+      // start page: first the choice between an empty class and a lab, then the labs
+      step: 'choose' as 'choose' | 'labs',
     };
   },
 
   computed: {
     start(): boolean {
       return this.mode === 'start';
+    },
+
+    choosing(): boolean {
+      return this.start && this.step === 'choose';
+    },
+
+    title(): string {
+      if (!this.start) return this.t('labs.browseTitle');
+      return this.choosing ? this.t('labs.createTitle') : this.t('labs.pickTitle');
+    },
+
+    intro(): string {
+      if (!this.start) return this.t('labs.browseIntro');
+      return this.choosing ? this.t('labs.createIntro') : this.t('labs.pickIntro');
+    },
+
+    // a few repo tiles on the "From a ready-made lab" card, once the labs are in
+    previewTiles() {
+      return (this.groups as LabGroup[]).slice(0, 4).map((group, index) => ({
+        text: repoInitials(group.title),
+        ...this.tile(index),
+      }));
     },
 
     // slot: the group's colour, kept when a search hides other groups
@@ -130,6 +155,14 @@ export default {
       this.$emit('create', null);
       this.closeDialog();
     },
+
+    // focus follows the step: the search field, or back on the lab card
+    async goTo(step: 'choose' | 'labs') {
+      this.step = step;
+      await this.$nextTick();
+      const target = step === 'labs' ? this.$refs.search : this.$refs.labCard;
+      (target as HTMLElement | undefined)?.focus();
+    },
   },
 
   mounted() {
@@ -141,17 +174,27 @@ export default {
 <template>
   <v-dialog
     v-model="isDialogOpen"
-    max-width="800px"
-    height="680px"
+    :max-width="choosing ? '640px' : '800px'"
+    :height="choosing ? undefined : '680px'"
     :fullscreen="phone"
     scrollable
     @update:modelValue="(open) => open || $emit('close')"
   >
     <v-card class="labs" role="dialog" aria-labelledby="labs-title">
-      <div class="labs-head">
+      <div :class="['labs-head', { 'labs-head--back': start && !choosing }]">
+        <v-btn
+          v-if="start && !choosing"
+          :icon="rtl ? 'mdi-arrow-right' : 'mdi-arrow-left'"
+          size="36"
+          variant="text"
+          class="back-btn"
+          :aria-label="t('labs.back')"
+          :title="t('labs.back')"
+          @click="goTo('choose')"
+        ></v-btn>
         <div class="labs-head-text">
-          <h2 id="labs-title">{{ start ? t('labs.createTitle') : t('labs.browseTitle') }}</h2>
-          <p>{{ start ? t('labs.createIntro') : t('labs.browseIntro') }}</p>
+          <h2 id="labs-title">{{ title }}</h2>
+          <p>{{ intro }}</p>
         </div>
         <v-btn
           icon="mdi-close"
@@ -163,11 +206,54 @@ export default {
         ></v-btn>
       </div>
 
+      <div v-if="choosing" class="choices">
+        <button
+          type="button"
+          class="choice choice--empty"
+          aria-labelledby="choice-empty-title"
+          aria-describedby="choice-empty-text"
+          @click="createEmpty"
+        >
+          <span class="choice-icon" aria-hidden="true"><v-icon icon="mdi-plus" size="22"></v-icon></span>
+          <span id="choice-empty-title" class="choice-title">{{ t('labs.emptyTitle') }}</span>
+          <span id="choice-empty-text" class="choice-text">{{ t('labs.emptyText') }}</span>
+          <span class="choice-go" aria-hidden="true">
+            {{ t('labs.createNow') }}
+            <v-icon :icon="rtl ? 'mdi-arrow-left' : 'mdi-arrow-right'" size="16"></v-icon>
+          </span>
+        </button>
+
+        <button
+          ref="labCard"
+          type="button"
+          class="choice"
+          aria-labelledby="choice-lab-title"
+          aria-describedby="choice-lab-text"
+          @click="goTo('labs')"
+        >
+          <span class="choice-icon choice-icon--lab" aria-hidden="true"><v-icon icon="mdi-flask-outline" size="22"></v-icon></span>
+          <span id="choice-lab-title" class="choice-title">{{ t('labs.fromLabTitle') }}</span>
+          <span id="choice-lab-text" class="choice-text">{{ t('labs.fromLabText') }}</span>
+          <span v-if="previewTiles.length" class="choice-tiles" aria-hidden="true">
+            <span
+              v-for="(tile, index) in previewTiles"
+              :key="index"
+              :style="{ background: tile.bg, color: tile.fg }"
+            >{{ tile.text }}</span>
+          </span>
+          <span class="choice-go" aria-hidden="true">
+            {{ t('labs.chooseLab') }}
+            <v-icon :icon="rtl ? 'mdi-arrow-left' : 'mdi-arrow-right'" size="16"></v-icon>
+          </span>
+        </button>
+      </div>
+
+      <template v-else>
       <div class="labs-tools">
         <label class="search">
           <v-icon icon="mdi-magnify" size="18" aria-hidden="true"></v-icon>
           <span class="sr-only">{{ t('labs.search') }}</span>
-          <input v-model="search" type="search" :placeholder="t('labs.searchPlaceholder')" />
+          <input ref="search" v-model="search" type="search" :placeholder="t('labs.searchPlaceholder')" />
         </label>
         <div role="radiogroup" :aria-label="t('labs.filter.label')" class="segmented">
           <label v-for="f in filters" :key="f" :class="['segment', { selected: filter === f }]">
@@ -178,28 +264,6 @@ export default {
       </div>
 
       <v-card-text class="labs-body">
-        <template v-if="start">
-          <div class="lab-row empty-row">
-            <div class="empty-icon" aria-hidden="true"><v-icon icon="mdi-plus" size="20"></v-icon></div>
-            <div class="lab-text">
-              <div class="lab-name">{{ t('labs.emptyTitle') }}</div>
-              <div class="lab-desc wrap">{{ t('labs.emptyText') }}</div>
-            </div>
-            <v-btn
-              color="primary"
-              variant="flat"
-              height="34"
-              prepend-icon="mdi-plus"
-              :aria-label="t('labs.emptyAction')"
-              @click="createEmpty"
-            >
-              {{ t('labs.create') }}
-            </v-btn>
-            <div class="info-space"></div>
-          </div>
-          <h3 class="from-lab">{{ t('labs.fromLab') }}</h3>
-        </template>
-
         <div v-if="isLoading" class="d-flex justify-center align-center pa-8">
           <v-progress-circular indeterminate color="spinner" size="40"></v-progress-circular>
         </div>
@@ -305,6 +369,7 @@ export default {
           {{ t('labs.more') }}
         </v-btn>
       </div>
+      </template>
     </v-card>
   </v-dialog>
 </template>
@@ -339,8 +404,115 @@ export default {
   color: rgb(var(--v-theme-text-2));
 }
 
+/* the back arrow sits where the text would start */
+.labs-head--back {
+  padding-inline-start: 12px;
+}
+
+.back-btn {
+  margin-top: -4px;
+}
+
 .muted-btn {
   color: rgb(var(--v-theme-muted));
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 24px;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgb(var(--v-theme-row-edge));
+  background: rgb(var(--v-theme-row));
+  color: rgb(var(--v-theme-on-surface));
+  text-align: start;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+/* touch screens keep :hover after a tap, so only for a real pointer */
+@media (hover: hover) {
+  .choice:hover {
+    border-color: rgb(var(--v-theme-primary));
+  }
+
+  .choice--empty:hover {
+    border-style: solid;
+    background: rgba(var(--v-theme-primary), 0.1);
+  }
+}
+
+.choice:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-focus));
+  outline-offset: 2px;
+}
+
+/* the empty class looks like the Create card on the start page */
+.choice--empty {
+  border: 1.5px dashed rgba(var(--v-theme-primary), 0.5);
+  background: rgba(var(--v-theme-primary), 0.06);
+}
+
+.choice-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+}
+
+.choice-icon--lab {
+  background: rgb(var(--v-theme-primary-tint));
+  color: rgb(var(--v-theme-primary-text));
+}
+
+.choice-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.choice-text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgb(var(--v-theme-text-2));
+}
+
+.choice-tiles {
+  display: flex;
+  gap: 6px;
+}
+
+.choice-tiles span {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.choice-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-primary-text));
 }
 
 .labs-tools {
@@ -442,39 +614,6 @@ export default {
   padding-inline: 24px !important;
 }
 
-.empty-row {
-  margin-top: 10px;
-  border-radius: 10px;
-  border: 1.5px dashed rgba(var(--v-theme-primary), 0.5);
-  background: rgba(var(--v-theme-primary), 0.06);
-}
-
-.empty-icon {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgb(var(--v-theme-primary));
-  color: rgb(var(--v-theme-on-primary));
-}
-
-/* keeps the Create buttons of the empty row and the labs in one column */
-.info-space {
-  width: 34px;
-  flex-shrink: 0;
-}
-
-.from-lab {
-  margin-block: 12px 0;
-  margin-inline: 2px;
-  font-size: 13px;
-  font-weight: 600;
-  color: rgb(var(--v-theme-text-2));
-}
-
 .lab-group {
   display: flex;
   flex-direction: column;
@@ -566,9 +705,6 @@ export default {
   text-overflow: ellipsis;
 }
 
-.lab-desc.wrap {
-  white-space: normal;
-}
 
 .lab-meta {
   display: flex;
@@ -726,8 +862,9 @@ export default {
     margin-inline-start: 52px;
   }
 
-  .info-space {
-    display: none;
+  .choices {
+    grid-template-columns: 1fr;
+    padding: 16px;
   }
 
   .segmented {
