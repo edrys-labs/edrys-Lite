@@ -71,15 +71,15 @@
   <v-divider class="my-5"></v-divider>
 
   <SectionHead :title="t('settings.importExport.findTitle')" :text="t('settings.importExport.findText')" icon="mdi-compass-outline" :color="3" />
-  <v-btn
-    variant="tonal"
-    height="40"
-    append-icon="mdi-open-in-new"
-    href="https://github.com/topics/edrys-lab"
-    target="_blank"
-  >
-    {{ t('settings.importExport.explore') }}
+  <v-btn color="tonal" variant="flat" height="40" prepend-icon="mdi-magnify" @click="labsOpen = true">
+    {{ t('settings.importExport.browse') }}
   </v-btn>
+  <p v-if="labUsed" role="status" class="restore-status">
+    <v-icon icon="mdi-check-circle-outline" size="16"></v-icon>
+    {{ t('settings.importExport.restored') }}
+  </p>
+
+  <LabsExplorer v-if="labsOpen" mode="settings" @close="labsOpen = false" @use="useLab"></LabsExplorer>
 </template>
 
 <script lang="ts">
@@ -89,10 +89,11 @@ import { getPeerID, parseClassroom } from "../../ts/Utils";
 import { debug } from "../../api/debugHandler";
 import FieldLabel from "../FieldLabel.vue";
 import SectionHead from "./SectionHead.vue";
+import LabsExplorer from "../LabsExplorer.vue";
 
 export default {
   name: "Settings-ImportExport",
-  components: { FieldLabel, SectionHead },
+  components: { FieldLabel, SectionHead, LabsExplorer },
 
   props: {
     config: {
@@ -113,6 +114,8 @@ export default {
       selectedFile: undefined,
 
       restoreSuccess: false,
+      labsOpen: false,
+      labUsed: false,
       saveError: false,
       errorMessage: "",
       restoreFileRules: [
@@ -136,6 +139,15 @@ export default {
         if (!module.id) module.id = crypto.randomUUID();
       }
       this.config.modules = newConfig.modules;
+    },
+
+    // the lab comes from parseClassroom, like a restored file
+    useLab(newConfig: any) {
+      this.updateConfig(newConfig);
+      this.restoreSuccess = false;
+      this.saveError = false;
+      this.labUsed = true;
+      debug.settings.importExport("useLab", newConfig.name);
     },
 
     updateModules() {
@@ -164,6 +176,7 @@ export default {
     async restoreURL() {
       this.restoreSuccess = false;
       this.saveError = false;
+      this.labUsed = false;
 
       try {
         const response = await fetch(this.selectedURL);
@@ -190,6 +203,7 @@ export default {
     restoreFile() {
       this.restoreSuccess = false;
       this.saveError = false;
+      this.labUsed = false;
       const reader = new FileReader();
 
       reader.readAsText(this.selectedFile);

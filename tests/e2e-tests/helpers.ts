@@ -127,6 +127,7 @@ export async function createClassroom(
   const page = await context.newPage()
   await page.goto(BASE_URL)
   await page.getByText('Create a class').click()
+  await page.getByRole('button', { name: 'Create an empty class' }).click()
   await waitForPeer(page)
 
   if (TRANSPORT === 'ws') {

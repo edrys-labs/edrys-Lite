@@ -30,7 +30,7 @@ index:
     title: "Your classrooms"
     saved: "{n} saved in this browser"
     create: "Create a class"
-    createHint: "An empty classroom that you own. Add modules, rooms and students whenever you are ready."
+    createHint: "Start empty, or from a ready-made lab: Arduino, Linux, ROS and more."
     newClass: "My New Class"
     welcome:
       teacher: |
@@ -248,8 +248,8 @@ settings:
     fileFailed: "Could not read a class from this file."
     urlFailed: "Could not load a class from this link."
     findTitle: "Find labs"
-    findText: "Ready-made classes shared by other teachers, tagged edrys-lab on GitHub."
-    explore: "Explore on GitHub"
+    findText: "Ready-made labs from edrys-labs, from Arduino to ROS. Using one replaces this class's setup."
+    browse: "Browse labs"
   communication:
     title: "Connection"
     text: "How the browsers in this class reach each other. WebRTC connects them directly; Websocket sends everything through a server."
@@ -266,6 +266,41 @@ settings:
     keepConfigInUrl:
       label: "Keep the settings in the address bar"
       hint: "Otherwise they are read once and removed from the address after the class loads."
+
+labs:
+  browseTitle: "Browse labs"
+  browseIntro: "Ready-made labs from edrys-labs. Using one replaces this class's setup; nothing changes until you save."
+  createTitle: "Create a class"
+  createIntro: "Start empty, or copy a ready-made lab from edrys-labs. Either way the new class is yours to change."
+  search: "Search labs"
+  searchPlaceholder: "Search: Arduino, Linux, ROS…"
+  filter:
+    label: "Show"
+    all: "All"
+    browser: "In the browser"
+    station: "With a station"
+  tag:
+    browser: "Runs in the browser"
+    station: "Needs a station"
+  use: "Use"
+  create: "Create"
+  createFrom: "Create a class from {name}"
+  emptyTitle: "Empty class"
+  emptyText: "An empty classroom that you own. Add modules, rooms and students whenever you are ready."
+  emptyAction: "Create an empty class"
+  fromLab: "Or start from a ready-made lab"
+  confirmTitle: "Replace this class's setup?"
+  confirmText: "Modules, rooms, name and description come from the lab. Members stay. Nothing changes until you save."
+  cancel: "Cancel"
+  replace: "Replace"
+  github: "Open on GitHub"
+  stationNote: "Labs with a station need a computer in the lab running the station link."
+  more: "More labs on GitHub"
+  error: "Could not load the labs."
+  errorText: "GitHub allows only a few requests an hour without a login. Try again later, or find the labs on"
+  retry: "Try again"
+  noMatch: "No lab matches."
+  labFailed: "Could not load this lab."
 
 tutor:
   title: "Tutor"

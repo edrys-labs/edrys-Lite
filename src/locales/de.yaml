@@ -30,7 +30,7 @@ index:
     title: "Ihre Unterrichtsräume"
     saved: "{n} in diesem Browser gespeichert"
     create: "Klasse erstellen"
-    createHint: "Ein leerer Klassenraum, der dir gehört. Module, Räume und Studierende kannst du jederzeit hinzufügen."
+    createHint: "Leer beginnen oder mit einem fertigen Labor: Arduino, Linux, ROS und mehr."
     newClass: "Meine neue Klasse"
     welcome:
       teacher: |
@@ -248,8 +248,8 @@ settings:
     fileFailed: "Aus dieser Datei konnte keine Klasse gelesen werden."
     urlFailed: "Über diesen Link konnte keine Klasse geladen werden."
     findTitle: "Labore finden"
-    findText: "Fertige Klassen, die andere Lehrkräfte auf GitHub mit edrys-lab markiert haben."
-    explore: "Auf GitHub entdecken"
+    findText: "Fertige Labore von edrys-labs, von Arduino bis ROS. Eines zu verwenden ersetzt den Aufbau dieser Klasse."
+    browse: "Labore durchsuchen"
   communication:
     title: "Verbindung"
     text: "Wie sich die Browser in dieser Klasse erreichen. WebRTC verbindet sie direkt; Websocket schickt alles über einen Server."
@@ -266,6 +266,41 @@ settings:
     keepConfigInUrl:
       label: "Einstellungen in der Adresszeile behalten"
       hint: "Sonst werden sie einmal gelesen und nach dem Laden der Klasse aus der Adresse entfernt."
+
+labs:
+  browseTitle: "Labore durchsuchen"
+  browseIntro: "Fertige Labore von edrys-labs. Eines zu verwenden ersetzt den Aufbau dieser Klasse; nichts ändert sich, bis du speicherst."
+  createTitle: "Klasse erstellen"
+  createIntro: "Leer beginnen oder ein fertiges Labor von edrys-labs kopieren. So oder so gehört die neue Klasse dir und du kannst sie ändern."
+  search: "Labore suchen"
+  searchPlaceholder: "Suche: Arduino, Linux, ROS…"
+  filter:
+    label: "Zeigen"
+    all: "Alle"
+    browser: "Im Browser"
+    station: "Mit Station"
+  tag:
+    browser: "Läuft im Browser"
+    station: "Braucht eine Station"
+  use: "Verwenden"
+  create: "Erstellen"
+  createFrom: "Klasse aus {name} erstellen"
+  emptyTitle: "Leere Klasse"
+  emptyText: "Ein leerer Klassenraum, der dir gehört. Module, Räume und Studierende kannst du jederzeit hinzufügen."
+  emptyAction: "Leere Klasse erstellen"
+  fromLab: "Oder mit einem fertigen Labor beginnen"
+  confirmTitle: "Aufbau dieser Klasse ersetzen?"
+  confirmText: "Module, Räume, Name und Beschreibung kommen aus dem Labor. Die Mitglieder bleiben. Nichts ändert sich, bis du speicherst."
+  cancel: "Abbrechen"
+  replace: "Ersetzen"
+  github: "Auf GitHub öffnen"
+  stationNote: "Labore mit Station brauchen einen Computer im Labor, auf dem der Station-Link läuft."
+  more: "Mehr Labore auf GitHub"
+  error: "Die Labore konnten nicht geladen werden."
+  errorText: "GitHub erlaubt ohne Anmeldung nur wenige Anfragen pro Stunde. Versuche es später noch einmal oder finde die Labore auf"
+  retry: "Erneut versuchen"
+  noMatch: "Kein Labor passt."
+  labFailed: "Dieses Labor konnte nicht geladen werden."
 
 tutor:
   title: "Tutor"

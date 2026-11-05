@@ -18,13 +18,14 @@ import Footer from "../components/Footer.vue";
 import UserMenu from '../components/UserMenu.vue';
 import LinkedText from '../components/LinkedText.vue';
 import ClassBanner from '../components/ClassBanner.vue';
+import LabsExplorer from '../components/LabsExplorer.vue';
 import { useI18n } from 'vue-i18n';
 import { useDisplay, useRtl } from 'vuetify';
 
 export default {
   name: "Index",
 
-  components: { AppBrand, Footer, UserMenu, LinkedText, ClassBanner },
+  components: { AppBrand, Footer, UserMenu, LinkedText, ClassBanner, LabsExplorer },
 
   setup() {
     const { t, locale } = useI18n();
@@ -59,6 +60,8 @@ export default {
       // classroom id -> its logo failed to load, show its drawn picture instead
       // phones: the class whose "More actions" menu asks before deleting
       confirmDelete: null as string | null,
+      // the "Create a class" dialog: an empty class or one from a lab
+      labsOpen: false,
     };
   },
 
@@ -107,6 +110,26 @@ export default {
       await this.database.put({ id, data: classroom.data, timestamp: Date.now() });
 
       // Small delay to ensure the database write is fully committed
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      window.location.search = `?/classroom/${id}/${await hashPubKey(peerID)}`;
+    },
+
+    // from the "Create a class" dialog: null is an empty class
+    createFrom(lab: any) {
+      return lab ? this.createFromLab(lab) : this.createClass();
+    },
+
+    // a lab from parseClassroom, so without members or identity
+    async createFromLab(data: any) {
+      const id = infoHash(16);
+      const peerID = getPeerID(false);
+
+      data.id = id;
+      data.createdBy = peerID;
+      data.dateCreated = new Date().getTime();
+
+      await this.database.put({ id, data, timestamp: Date.now() });
       await new Promise(resolve => setTimeout(resolve, 50));
 
       window.location.search = `?/classroom/${id}/${await hashPubKey(peerID)}`;
@@ -196,7 +219,7 @@ export default {
         </div>
 
         <div class="class-grid">
-          <button type="button" class="create-card" @click="createClass()">
+          <button type="button" class="create-card" aria-haspopup="dialog" @click="labsOpen = true">
             <span class="create-icon"><v-icon icon="mdi-plus" size="26"></v-icon></span>
             <span class="create-title">{{ t('index.classroom.create') }}</span>
             <span class="create-sub">{{ t('index.classroom.createHint') }}</span>
@@ -317,6 +340,8 @@ export default {
     </v-main>
 
     <Footer></Footer>
+
+    <LabsExplorer v-if="labsOpen" mode="start" @close="labsOpen = false" @create="createFrom"></LabsExplorer>
   </v-app>
 </template>
 

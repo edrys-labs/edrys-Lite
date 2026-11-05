@@ -30,7 +30,7 @@ index:
     title: "Tus aulas"
     saved: "Guardadas en este navegador: {n}"
     create: "Crear una clase"
-    createHint: "Una clase vacía que te pertenece. Añade módulos, salas y estudiantes cuando quieras."
+    createHint: "Empieza con una clase vacía o con un laboratorio listo: Arduino, Linux, ROS y más."
     newClass: "Mi Nueva Clase"
     welcome:
       teacher: |
@@ -248,8 +248,8 @@ settings:
     fileFailed: "No se pudo leer una clase de este archivo."
     urlFailed: "No se pudo cargar una clase desde este enlace."
     findTitle: "Buscar laboratorios"
-    findText: "Clases listas compartidas por otros profesores, etiquetadas edrys-lab en GitHub."
-    explore: "Explorar en GitHub"
+    findText: "Laboratorios listos de edrys-labs, de Arduino a ROS. Usar uno reemplaza la configuración de esta clase."
+    browse: "Ver laboratorios"
   communication:
     title: "Conexión"
     text: "Cómo se comunican entre sí los navegadores de esta clase. WebRTC los conecta directamente; Websocket envía todo a través de un servidor."
@@ -266,6 +266,41 @@ settings:
     keepConfigInUrl:
       label: "Mantener la configuración en la barra de direcciones"
       hint: "Si no, se lee una vez y se quita de la dirección cuando la clase se carga."
+
+labs:
+  browseTitle: "Ver laboratorios"
+  browseIntro: "Laboratorios listos de edrys-labs. Usar uno reemplaza la configuración de esta clase; nada cambia hasta que guardes."
+  createTitle: "Crear una clase"
+  createIntro: "Empieza con una clase vacía o copia un laboratorio listo de edrys-labs. En ambos casos la nueva clase es tuya y puedes cambiarla."
+  search: "Buscar laboratorios"
+  searchPlaceholder: "Buscar: Arduino, Linux, ROS…"
+  filter:
+    label: "Mostrar"
+    all: "Todos"
+    browser: "En el navegador"
+    station: "Con estación"
+  tag:
+    browser: "Funciona en el navegador"
+    station: "Necesita una estación"
+  use: "Usar"
+  create: "Crear"
+  createFrom: "Crear una clase a partir de {name}"
+  emptyTitle: "Clase vacía"
+  emptyText: "Una clase vacía que te pertenece. Añade módulos, salas y estudiantes cuando quieras."
+  emptyAction: "Crear una clase vacía"
+  fromLab: "O empieza con un laboratorio listo"
+  confirmTitle: "¿Reemplazar la configuración de esta clase?"
+  confirmText: "Los módulos, las salas, el nombre y la descripción vienen del laboratorio. Los miembros se mantienen. Nada cambia hasta que guardes."
+  cancel: "Cancelar"
+  replace: "Reemplazar"
+  github: "Abrir en GitHub"
+  stationNote: "Los laboratorios con estación necesitan un ordenador en el laboratorio que abra el enlace de la estación."
+  more: "Más laboratorios en GitHub"
+  error: "No se pudieron cargar los laboratorios."
+  errorText: "Sin iniciar sesión, GitHub permite pocas solicitudes por hora. Inténtalo más tarde o encuentra los laboratorios en"
+  retry: "Reintentar"
+  noMatch: "Ningún laboratorio coincide."
+  labFailed: "No se pudo cargar este laboratorio."
 
 tutor:
   title: "Tutor"

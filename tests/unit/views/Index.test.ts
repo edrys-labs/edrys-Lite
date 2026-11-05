@@ -159,7 +159,11 @@ describe('Index View', () => {
           'v-switch': true,
           'v-spacer': true,
           'v-img': true,
-          Footer: true
+          Footer: true,
+          LabsExplorer: {
+            props: ['mode'],
+            template: '<div class="labs-explorer" :data-mode="mode"></div>'
+          }
         }
       }
     });
@@ -240,26 +244,61 @@ describe('Index View', () => {
     expect(text.text()).toBe('Lab bad good');
   });
 
-  test('creates new classroom', async () => {
+  test('the create card opens the "Create a class" dialog', async () => {
     const wrapper = createWrapper();
-    
+
     const createCard = wrapper.find('.create-card');
     expect(createCard.text()).toContain('Create a class');
-    
-    // Mock window.location
+    expect(wrapper.find('.labs-explorer').exists()).toBe(false);
+
+    await createCard.trigger('click');
+
+    expect(wrapper.find('.labs-explorer').attributes('data-mode')).toBe('start');
+  });
+
+  test('creates an empty classroom from the dialog', async () => {
+    const wrapper = createWrapper();
+
     const locationMock = { search: '' };
     Object.defineProperty(window, 'location', {
       value: locationMock,
       writable: true
     });
 
-    await createCard.trigger('click');
-    
-    // Wait for the async operations to complete
+    await wrapper.find('.create-card').trigger('click');
+    wrapper.findComponent('.labs-explorer').vm.$emit('create', null);
     await new Promise(resolve => setTimeout(resolve, 100));
-    
-    expect(wrapper.vm.database.put).toHaveBeenCalled();
-    expect(locationMock.search).toContain('classroom/test-hash');
+
+    const put = wrapper.vm.database.put as any;
+    expect(put.mock.lastCall[0].data.modules[0].url).toContain('module-markdown-it');
+    expect(locationMock.search).toBe('?/classroom/test-hash/testhash1234');
+  });
+
+  test('creates a classroom from a lab, owned by this browser', async () => {
+    const wrapper = createWrapper();
+
+    const locationMock = { search: '' };
+    Object.defineProperty(window, 'location', {
+      value: locationMock,
+      writable: true
+    });
+
+    const lab = {
+      name: 'Arduino - Blink',
+      meta: { description: 'Blink' },
+      members: { teacher: [], student: [] },
+      modules: [{ url: 'https://edrys-labs.github.io/module-serial/' }],
+    };
+    await wrapper.find('.create-card').trigger('click');
+    wrapper.findComponent('.labs-explorer').vm.$emit('create', lab);
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const put = wrapper.vm.database.put as any;
+    const { id, data } = put.mock.lastCall[0];
+    expect(id).toBe('test-hash');
+    expect(data).toMatchObject({ id: 'test-hash', createdBy: 'test-user', name: 'Arduino - Blink' });
+    expect(data.modules).toEqual(lab.modules);
+    expect(locationMock.search).toBe('?/classroom/test-hash/testhash1234');
   });
 
   test('handles classroom deletion', async () => {
