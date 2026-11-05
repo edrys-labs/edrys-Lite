@@ -338,7 +338,7 @@ agentChat:
   copyFailed: "Select and copy it"
   local: "Students on other computers cannot join: edrys-dev runs with --local, which reaches this computer only."
   noLinkYet: "The link for students appears once the class is open."
-  localModules: "A module loads from this computer (localhost) and will not load for students: publish it first. | {n} modules load from this computer (localhost) and will not load for students: publish them first."
+  localModules: "{names} loads from this computer (localhost), so students and stations on other computers see it empty. Put it online first, e.g. on GitHub Pages. All other modules work for everyone. | {names} load from this computer (localhost), so students and stations on other computers see them empty. Put them online first, e.g. on GitHub Pages. All other modules work for everyone."
   tutorSwitch: "Tutor answers students"
   tutorOn: "Students see the tutor button while this tab is open."
   tutorOff: 'Off: students do not see the button, and questions get "The tutor is off".'

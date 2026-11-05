@@ -2,6 +2,7 @@
 import markdownit from "markdown-it";
 import { useI18n } from "vue-i18n";
 import { useDisplay, useRtl } from "vuetify";
+import { moduleLabel } from "../ts/Labs";
 
 // edrys-dev's endpoints for this panel (same origin, see edrys-dev's chat.ts and server.ts)
 const API = "/edrys-dev";
@@ -125,10 +126,13 @@ export default {
     },
     shareNote(): string {
       if (!this.share) return "";
-      const modules = this.share.local_urls.length;
+      const urls = this.share.local_urls;
       if (!this.share.reachable) return this.t("agentChat.local");
       if (!this.share.link) return this.t("agentChat.noLinkYet");
-      return modules ? this.t("agentChat.localModules", modules) : "";
+      if (!urls.length) return "";
+      // name them, so it is clear the other modules are fine
+      const names = [...new Set(urls.map((url) => moduleLabel(url) || url))].join(", ");
+      return this.t("agentChat.localModules", { names }, urls.length);
     },
   },
 

@@ -338,7 +338,7 @@ agentChat:
   copyFailed: "Selecciónalo y cópialo"
   local: "Los estudiantes en otros ordenadores no pueden unirse: edrys-dev se ejecuta con --local, que solo llega a este ordenador."
   noLinkYet: "El enlace para estudiantes aparece en cuanto la clase está abierta."
-  localModules: "Un módulo se carga desde este ordenador (localhost) y no se cargará para los estudiantes: publícalo primero. | {n} módulos se cargan desde este ordenador (localhost) y no se cargarán para los estudiantes: publícalos primero."
+  localModules: "{names} se carga desde este ordenador (localhost), así que los estudiantes y las estaciones en otros ordenadores lo ven vacío. Ponlo en línea primero, p. ej. en GitHub Pages. Todos los demás módulos funcionan para todos. | {names} se cargan desde este ordenador (localhost), así que los estudiantes y las estaciones en otros ordenadores los ven vacíos. Ponlos en línea primero, p. ej. en GitHub Pages. Todos los demás módulos funcionan para todos."
   tutorSwitch: "El tutor responde a los estudiantes"
   tutorOn: "Los estudiantes ven el botón del tutor mientras esta pestaña esté abierta."
   tutorOff: 'Apagado: los estudiantes no ven el botón y las preguntas reciben "The tutor is off".'
