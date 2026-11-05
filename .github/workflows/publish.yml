@@ -1,0 +1,75 @@
+name: Publish
+
+# Push a tag that matches package.json, without a "v" (.npmrc sets
+# tag-version-prefix so npm version tags it that way), e.g.
+#   npm version 3.2.0 && git push --follow-tags
+# A version with a pre-release part (3.3.0-dev.0) goes to the npm tag "next",
+# any other to "latest".
+#
+# Auth is npm trusted publishing (OIDC), no token secret: on npmjs.com,
+# @edryslabs/edrys-lite → Settings → Trusted publishing → GitHub Actions,
+# organization edrys-labs, repository edrys-Lite, workflow publish.yml.
+
+on:
+  push:
+    tags:
+      - '*.*.*'
+
+permissions:
+  contents: write # GitHub release
+  id-token: write # npm trusted publishing and provenance
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # trusted publishing needs npm >= 11.5.1, which Node 24 ships
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - name: Check that the tag matches package.json
+        id: version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+          if [[ "$version" == *-* ]]; then
+            echo "dist_tag=next" >> "$GITHUB_OUTPUT"
+            echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT"
+          else
+            echo "dist_tag=latest" >> "$GITHUB_OUTPUT"
+            echo "prerelease=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install
+        run: npm ci
+
+      - name: Unit tests
+        run: npx vitest run
+
+      - name: Publish to npm
+        # prepublishOnly runs npm run build, with the same network config as
+        # the GitHub Pages deploy (deploy-to-pages.yml)
+        env:
+          WEBRTC_CONFIG: ${{ secrets.WEBRTC_CONFIG }}
+          WEBRTC_SIGNALING: ${{ secrets.WEBRTC_SIGNALING }}
+          WEBSOCKET_SERVER: ${{ secrets.WEBSOCKET_SERVER }}
+        run: npm publish --tag ${{ steps.version.outputs.dist_tag }}
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes ${{ steps.version.outputs.prerelease }}
