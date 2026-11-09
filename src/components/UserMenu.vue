@@ -42,7 +42,6 @@
           class="name-field"
           type="text"
           autocomplete="off"
-          :maxlength="maxUsernameLength"
           @change="commitUsername"
         />
         <div class="hint">{{ t('general.displayNameHint') }}</div>
@@ -90,7 +89,7 @@ import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { copyToClipboard, getDisplayPeerID, getPeerID } from '../ts/Utils';
 import { themePreference, setThemePreference, type ThemePreference } from '../ts/Theme';
-import { loadUsername, MAX_USERNAME_LENGTH, saveUsername } from '../ts/UserNames';
+import { loadUsername, saveUsername } from '../ts/UserNames';
 
 export default defineComponent({
   name: 'UserMenu',
@@ -107,7 +106,6 @@ export default defineComponent({
       peerID: getDisplayPeerID(),
       copied: false,
       username: loadUsername(),
-      maxUsernameLength: MAX_USERNAME_LENGTH,
       languages: [
         { title: 'English', value: 'en' },
         { title: 'Deutsch', value: 'de' },

@@ -14,6 +14,14 @@ describe('validUsername', () => {
     expect(validUsername(value)).toBeNull();
   });
 
+  test.each(['ㅤ', '⠀', '️', ' ㅤ ⠀ '])('has no name for the invisible %j', (value) => {
+    expect(validUsername(value)).toBeNull();
+  });
+
+  test('keeps emoji variation selectors', () => {
+    expect(validUsername('❤️')).toBe('❤️');
+  });
+
   test('strips control characters and bidi overrides', () => {
     expect(validUsername('Ad\u0007a')).toBe('Ada');
     expect(validUsername('\u202EAda\u202C')).toBe('Ada');

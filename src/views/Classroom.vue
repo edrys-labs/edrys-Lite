@@ -1108,7 +1108,7 @@ export default {
                 ><span class="user-details" aria-hidden="true"
                   ><span class="user-short-id">{{ user.shortId }}</span
                   ><span v-if="user.tag" class="user-tag">{{ user.tag }}</span></span
-                ><span class="d-sr-only">, {{ user.label }}</span></span
+                ><span class="d-sr-only">, {{ user.shortId }}, {{ user.label }}</span></span
               >
               <span v-else class="user-name user-name--id"
                 >{{ user.name }}<span class="d-sr-only">, {{ user.label }}</span></span

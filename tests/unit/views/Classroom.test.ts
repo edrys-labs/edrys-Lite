@@ -406,6 +406,16 @@ describe('Classroom View', () => {
       expect(users[1].find('.d-sr-only').text()).toBe(', Student');
     });
 
+    test('reads out the short ID of a user with a chosen name', async () => {
+      const wrapper = await openDrawer();
+      wrapper.vm.liveClassProxy = {
+        ...live,
+        users: { ...live.users, 'other-peer': { ...live.users['other-peer'], displayName: 'abc123', username: 'Ada' } },
+      };
+      await wrapper.vm.$nextTick();
+      expect(wrapper.findAll('.room-user')[1].find('.d-sr-only').text()).toBe(', abc123, Student');
+    });
+
     test('shows the current room in the app bar only while the drawer is closed', async () => {
       const wrapper = await openDrawer();
       expect(wrapper.find('[data-test="room-pill"]').exists()).toBe(false);

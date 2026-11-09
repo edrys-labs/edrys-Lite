@@ -41,6 +41,14 @@ describe('UserMenu display name', () => {
     expect(wrapper.emitted('username-change')).toEqual([['Ada']]);
   });
 
+  test('cuts a long name to the limit in characters, not UTF-16 units', async () => {
+    const input = mountMenu().find('#user-menu-username');
+    await input.setValue('😀'.repeat(40));
+
+    expect(loadUsername()).toBe('😀'.repeat(32));
+    expect((input.element as HTMLInputElement).value).toBe('😀'.repeat(32));
+  });
+
   test('clearing the field forgets the name', async () => {
     saveUsername('Ada');
     const input = mountMenu().find('#user-menu-username');
