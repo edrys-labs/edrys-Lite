@@ -95,6 +95,7 @@ classroom:
       field: "Room name"
       save: "Save name"
       cancel: "Cancel"
+      modulesLeave: "No longer shown in this room: {modules}. Their \"Show in\" lists the current name."
       problems:
         tooLong: "Keep it under {n} characters"
         characters: "Commas and asterisks are not allowed"

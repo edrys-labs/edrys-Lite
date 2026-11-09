@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { MAX_ROOM_LABEL_LENGTH, roomLabelProblem, showInWithLabels, withRoomLabel } from '../../../src/ts/RoomNames';
+import { MAX_ROOM_LABEL_LENGTH, modulesLeavingRoom, roomLabelProblem, showInWithLabels, withRoomLabel } from '../../../src/ts/RoomNames';
 
 describe('roomLabelProblem', () => {
   test('accepts a free name, an empty one and the room\'s own name', () => {
@@ -48,6 +48,33 @@ describe('showInWithLabels', () => {
     expect(showInWithLabels('Room 2, Group*', names)).toBe('Room 2, Group*');
     expect(showInWithLabels('', names)).toBe('*');
     expect(showInWithLabels('Room 1')).toBe('Room 1');
+  });
+});
+
+describe('modulesLeavingRoom', () => {
+  const leaving = (showInCustom: string, newLabel = 'Other') =>
+    modulesLeavingRoom([{ name: 'M', showInCustom }], 'Room 2', 'Group B', newLabel);
+
+  test('finds a module listing the old label, by name or wildcard', () => {
+    expect(leaving('Group B')).toEqual(['M']);
+    expect(leaving('lobby, group*')).toEqual(['M']);
+    expect(leaving('Group B', '')).toEqual(['M']);
+  });
+
+  test('ignores modules that stay in the room', () => {
+    expect(leaving('Room 2, Group B')).toEqual([]);
+    expect(leaving('*')).toEqual([]);
+    expect(leaving('Room 1')).toEqual([]);
+    expect(leaving('Group*', 'Group C')).toEqual([]);
+  });
+
+  test('has nothing to warn about for a room without a label', () => {
+    expect(modulesLeavingRoom([{ name: 'M', showInCustom: 'x' }], 'Room 2', undefined, 'y')).toEqual([]);
+  });
+
+  test('reads a module\'s own showIn and names each module once', () => {
+    const modules = [{ name: 'M', showIn: ['Group B'] }, { name: 'M', showInCustom: 'Group B' }];
+    expect(modulesLeavingRoom(modules, 'Room 2', 'Group B', 'Other')).toEqual(['M']);
   });
 });
 

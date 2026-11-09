@@ -45,7 +45,7 @@ import {
   type ChatViews,
 } from "../ts/DevBridge";
 import { startTutorRelay, tutorPeer } from "../ts/Tutor";
-import { MAX_ROOM_LABEL_LENGTH, roomLabel, roomLabelProblem, withRoomLabel } from "../ts/RoomNames";
+import { MAX_ROOM_LABEL_LENGTH, modulesLeavingRoom, roomLabel, roomLabelProblem, withRoomLabel } from "../ts/RoomNames";
 
 export default {
   props: ["id", "station", "owner"],
@@ -234,6 +234,19 @@ export default {
       );
       return problem
         ? this.t(`classroom.sideMenu.roomLabel.problems.${problem}`, { n: MAX_ROOM_LABEL_LENGTH })
+        : "";
+    },
+    // Modules that list the current label by hand would no longer show in the room.
+    roomLabelWarning(): string {
+      if (!this.renamingRoom) return "";
+      const modules = modulesLeavingRoom(
+        this.scrapedModules,
+        this.renamingRoom,
+        this.roomDisplayName(this.renamingRoom),
+        this.roomLabelInput
+      );
+      return modules.length
+        ? this.t("classroom.sideMenu.roomLabel.modulesLeave", { modules: modules.join(", ") })
         : "";
     },
     drawerWidth(): number {
@@ -995,6 +1008,7 @@ export default {
                 :label="t('classroom.sideMenu.roomLabel.field')"
                 :placeholder="room.name"
                 :error-messages="roomLabelError"
+                :messages="roomLabelWarning"
                 :maxlength="maxRoomLabelLength + 1"
                 density="compact"
                 variant="outlined"

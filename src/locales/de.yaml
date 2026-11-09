@@ -95,6 +95,7 @@ classroom:
       field: "Raumname"
       save: "Namen speichern"
       cancel: "Abbrechen"
+      modulesLeave: "Nicht mehr in diesem Raum sichtbar: {modules}. Ihr „Anzeigen in“ nennt den aktuellen Namen."
       problems:
         tooLong: "Höchstens {n} Zeichen"
         characters: "Kommas und Sternchen sind nicht erlaubt"

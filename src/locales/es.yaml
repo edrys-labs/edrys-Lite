@@ -95,6 +95,7 @@ classroom:
       field: "Nombre de la sala"
       save: "Guardar nombre"
       cancel: "Cancelar"
+      modulesLeave: "Dejarán de mostrarse en esta sala: {modules}. Su lista de salas usa el nombre actual."
       problems:
         tooLong: "Máximo {n} caracteres"
         characters: "No se permiten comas ni asteriscos"

@@ -320,6 +320,20 @@ describe('Classroom View', () => {
       expect(wrapper.vm.database.update).not.toHaveBeenCalled();
     });
 
+    test('warns about modules that would leave the room, and still allows the rename', async () => {
+      const wrapper = await openDrawer();
+      await nameRooms(wrapper, { 'Room 1': 'Group B' });
+      wrapper.vm.scrapedModules = [{ name: 'Editor', showInCustom: 'Group B' }];
+      wrapper.vm.startRoomRename('Room 1');
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.roomLabelWarning).toBe('');
+
+      wrapper.vm.roomLabelInput = 'Other';
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.roomLabelWarning).toContain('Editor');
+      expect(wrapper.vm.roomLabelError).toBe('');
+    });
+
     test('does not save when an unnamed room stays unnamed', async () => {
       const wrapper = await openDrawer();
       wrapper.vm.database.update = vi.fn().mockResolvedValue('test-id');

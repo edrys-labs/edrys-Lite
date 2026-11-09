@@ -46,6 +46,38 @@ export function showInWithLabels(showIn: string, roomNames: Record<string, strin
     .join(", ");
 }
 
+/** Whether `name` is one of a module's room entries: whole names, `*` as a wildcard. */
+export function showInMatches(entries: string[], name: string): boolean {
+  return entries.some((entry) => {
+    const pattern = entry
+      .toLowerCase()
+      .split("*")
+      .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+      .join(".*");
+    return new RegExp(`^${pattern}$`).test(name.toLowerCase());
+  });
+}
+
+/** Names of the modules that are in `room` only through `oldLabel` and so leave it with `newLabel`. */
+export function modulesLeavingRoom(
+  modules: { name?: string; showIn?: string | string[]; showInCustom?: string }[] = [],
+  room: string,
+  oldLabel: string | undefined,
+  newLabel: string
+): string[] {
+  if (!oldLabel) return [];
+  const leaving = modules.filter((module) => {
+    const raw = module.showInCustom ? module.showInCustom.split(",") : module.showIn ?? [];
+    const entries = (Array.isArray(raw) ? raw : [raw]).map((entry) => entry.trim());
+    return (
+      showInMatches(entries, oldLabel) &&
+      !showInMatches(entries, room) &&
+      !(newLabel.trim() && showInMatches(entries, newLabel.trim()))
+    );
+  });
+  return [...new Set(leaving.map((module) => module.name ?? ""))].filter(Boolean);
+}
+
 /** Why `label` can't name `room`, or null if it can. An empty label clears the name. */
 export function roomLabelProblem(
   label: string,

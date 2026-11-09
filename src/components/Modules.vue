@@ -9,6 +9,7 @@ import de from '../locales/de.yaml';
 import uk from '../locales/uk.yaml';
 import ar from '../locales/ar.yaml';
 import es from '../locales/es.yaml';
+import { showInMatches } from "../ts/RoomNames";
 
 import { debug } from "../api/debugHandler";
 import { reportMessage } from "../ts/DevBridge";
@@ -508,14 +509,7 @@ export default {
     // Whether the room is one of the showIn entries: whole names, `*` as a
     // wildcard ("Room 1" is not "Room 10"; other characters are literal).
     checkRoomMatch(normalizedShowIn: string[], currentRoom: string) {
-      return normalizedShowIn.some((entry) => {
-        const pattern = entry
-          .toLowerCase()
-          .split("*")
-          .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
-          .join(".*");
-        return new RegExp(`^${pattern}$`).test(currentRoom);
-      });
+      return showInMatches(normalizedShowIn, currentRoom);
     },
   },
 };

@@ -95,6 +95,7 @@ classroom:
       field: "اسم الغرفة"
       save: "حفظ الاسم"
       cancel: "إلغاء"
+      modulesLeave: "لن تظهر بعد الآن في هذه الغرفة: {modules}. قائمة غرفها تستخدم الاسم الحالي."
       problems:
         tooLong: "الحد الأقصى {n} حرفًا"
         characters: "الفواصل والنجوم غير مسموح بها"
