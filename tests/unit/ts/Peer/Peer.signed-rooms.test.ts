@@ -108,7 +108,7 @@ describe('Signed y.rooms', () => {
     const peer: any = new Peer(setup, undefined, i18n.global.t)
     await flushPromises()
     await peer.join('student')
-    await vi.waitFor(() => expect(Object.keys(peer._viewRooms())).toContain('Room 2'))
+    await vi.waitFor(() => expect(peer.y.rooms.get('Room 2')).toBeInstanceOf(Y.Map))
     peer.y.rooms.get('Room 2').set('notes', 'old')
 
     peer.clearRoomState('Room 2')
@@ -210,6 +210,128 @@ describe('Signed y.rooms', () => {
     expect(Object.keys((await peer.toJSON()).rooms)).toEqual(['Lobby', 'Room 1', 'Discussion'])
 
     peer.stop()
+  })
+
+  describe('numbered rooms with no record in the doc', () => {
+    async function student(rooms: number) {
+      await Utils.initCryptoIdentity()
+      const peer: any = new Peer(makeSetup('owner-key-that-is-not-ours', rooms), undefined, i18n.global.t)
+      await flushPromises()
+      await peer.join('student')
+      await flushPromises()
+      return peer
+    }
+
+    test('show from the setup, and not above its count', async () => {
+      const peer = await student(2)
+      expect(Object.keys(peer._viewRooms())).toEqual(['Lobby', 'Room 1', 'Room 2'])
+      peer.stop()
+    })
+
+    test('a peer\'s real state map wins over one made before syncing', async () => {
+      const peer = await student(1)
+      peer.gotoRoom('Room 1')
+
+      const other = new Y.Doc()
+      other.getMap('rooms').set('Room 1', new Y.Map())
+      ;(other.getMap('rooms').get('Room 1') as Y.Map<any>).set('notes', 'real')
+      Y.applyUpdate(peer.y.doc, Y.encodeStateAsUpdate(other))
+
+      expect(peer.y.rooms.get('Room 1').get('notes')).toBe('real')
+      peer.stop()
+    })
+
+    test('two peers who enter before syncing share one state map', async () => {
+      const [a, b] = [await student(1), await student(1)]
+      a.gotoRoom('Room 1')
+      b.gotoRoom('Room 1')
+      a.y.rooms.get('Room 1').set('a', 1)
+      b.y.rooms.get('Room 1').set('b', 2)
+
+      Y.applyUpdate(a.y.doc, Y.encodeStateAsUpdate(b.y.doc))
+
+      expect(a.y.rooms.get('Room 1').toJSON()).toEqual({ a: 1, b: 2 })
+      a.stop()
+      b.stop()
+    })
+
+    test('entering makes a new state map after the old one was deleted', async () => {
+      const peer = await student(1)
+      peer.gotoRoom('Room 1')
+      peer.y.rooms.delete('Room 1')
+
+      peer.gotoRoom('Room 1')
+
+      expect(peer.y.rooms.get('Room 1')).toBeInstanceOf(Y.Map)
+      peer.stop()
+    })
+
+    test('get their state map when entered, and only then', async () => {
+      const peer = await student(2)
+      expect(peer.y.rooms.has('Room 1')).toBe(false)
+
+      peer.gotoRoom('Room 1')
+
+      expect(peer.y.rooms.get('Room 1')).toBeInstanceOf(Y.Map)
+      expect(peer.y.rooms.has('Room 2')).toBe(false)
+      peer.stop()
+    })
+
+    test('entering keeps a state map that exists', async () => {
+      const peer = await student(1)
+      peer.y.rooms.set('Room 1', new Y.Map())
+      peer.y.rooms.get('Room 1').set('notes', 'kept')
+
+      peer.gotoRoom('Room 1')
+
+      expect(peer.y.rooms.get('Room 1').get('notes')).toBe('kept')
+      peer.stop()
+    })
+
+    test.each(['Room 3', 'Room 0', 'Room 01', 'Discussion'])('entering %s makes no state map', async (name) => {
+      const peer = await student(2)
+      peer.gotoRoom(name)
+      expect(peer.y.rooms.has(name)).toBe(false)
+      peer.stop()
+    })
+
+    test('a non-member entering gets a state map, so modules can load', async () => {
+      const peer = await student(1)
+      peer.lab.data.members.student = ['someone-else']
+      peer.gotoRoom('Room 1')
+      expect(peer.y.rooms.get('Room 1')).toBeInstanceOf(Y.Map)
+      peer.stop()
+    })
+
+    test('an owner signing before syncing keeps what a student wrote alone', async () => {
+      const alone = await student(1)
+      alone.gotoRoom('Room 1')
+      alone.y.rooms.get('Room 1').set('notes', 'written alone')
+
+      const owner: any = new Peer(makeSetup(Utils.getPeerID(false), 1), undefined, i18n.global.t)
+      await flushPromises()
+      owner.addRoom('Room 1')
+      await vi.waitFor(() => expect(owner.y.roomSigs.has('Room 1')).toBe(true))
+
+      Y.applyUpdate(owner.y.doc, Y.encodeStateAsUpdate(alone.y.doc))
+
+      expect(owner.y.rooms.get('Room 1').get('notes')).toBe('written alone')
+      alone.stop()
+      owner.stop()
+    })
+
+    test('an owner still signs a room the setup already shows', async () => {
+      await Utils.initCryptoIdentity()
+      const peer: any = new Peer(makeSetup(Utils.getPeerID(false), 1), undefined, i18n.global.t)
+      await flushPromises()
+      expect(Object.keys(peer._viewRooms())).toContain('Room 1')
+
+      peer.addRoom('Room 1')
+      await flushPromises()
+
+      expect(peer.y.roomSigs.has('Room 1')).toBe(true)
+      peer.stop()
+    })
   })
 
   test('the room count is capped at 50 rooms', async () => {

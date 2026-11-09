@@ -6,12 +6,14 @@ import { MODULE_ORIGIN, routeProbeModule, ownerAddProbeModule, inProbe } from '.
 test.describe('App — rooms', () => {
   let owner: Session | undefined
   let guest: Session | undefined
+  let joinUrl: string
 
   test.beforeEach(async ({ browser }) => {
     const opts = { prepare: routeProbeModule }
     const created = await createClassroom(browser, opts)
     owner = created.owner
     guest = await joinClassroom(browser, created.joinUrl, opts)
+    joinUrl = created.joinUrl
     await waitForMesh(owner, guest)
     await waitForVerified(owner, guest)
     await waitForVerified(guest, owner)
@@ -80,6 +82,30 @@ test.describe('App — rooms', () => {
 
     await roomRow(guest!, 'Room 1').click()
     await expect.poll(() => hasProbeFrame(guest!), { timeout }).toBe(false)
+  })
+
+  test('a student alone after everyone left still gets the rooms and can use them', async () => {
+    await ownerAddProbeModule(owner!)
+    await addRooms(2)
+    await expect(roomRow(guest!, 'Room 2')).toBeVisible({ timeout })
+
+    await owner!.page.close()
+    await guest!.page.close()
+    guest!.page = await guest!.context.newPage()
+    await guest!.page.goto(joinUrl)
+
+    await expect(roomRow(guest!, 'Room 2')).toBeVisible({ timeout })
+    await roomRow(guest!, 'Room 2').click()
+    await expect
+      .poll(() => inProbe(guest!, () => (window as any).Edrys.liveUser.room).catch(() => null), { timeout })
+      .toBe('Room 2')
+
+    await inProbe(guest!, () => {
+      ;(window as any).Edrys.getState('notes', 'Value', 'written alone')
+    })
+    await expect
+      .poll(() => inPeer(guest!.page, 'return p.roomState("Room 2")?.notes ?? null'), { timeout })
+      .toBe('written alone')
   })
 
   test('a dropped label leaves nothing unsaved and a second save keeps it gone', async () => {

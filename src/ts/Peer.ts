@@ -289,7 +289,6 @@ export default class Peer {
       }
     }
 
-    // Set up persistence before connecting
     this.connectProvider(this.lab.id, password)
 
     // Leave on page unload. beforeunload, while the connections still carry
@@ -831,6 +830,7 @@ export default class Peer {
   private async _writeAndSignRoom(name: string, origin: string): Promise<void> {
     try {
       const envelope = await signEntry('rooms', name, {})
+      if (this._isSetupRoom(name) && !this._hasRoomState(name)) this._createSetupRoomState(name)
       this.y.doc.transact(() => {
         if (!(this.y.rooms.get(name) instanceof Y.Map)) {
           this.y.rooms.set(name, new Y.Map())
@@ -1469,7 +1469,7 @@ export default class Peer {
    */
   addRoom(name: string) {
     if (!this.canManageRooms()) return
-    if (!(name in this._viewRooms())) this._writeAndSignRoom(name, 'addRoom')
+    if (!this._hasRoomRecord(name)) this._writeAndSignRoom(name, 'addRoom')
   }
 
   /**
@@ -1513,7 +1513,32 @@ export default class Peer {
   gotoRoom(room: string) {
     const current = this.user()
     if (!current) return
+    if (this._isSetupRoom(room) && !this._hasRoomState(room)) this._createSetupRoomState(room)
     this.presence.publish({ ...current, room })
+  }
+
+  private _hasRoomState(room: string): boolean {
+    return this.y.rooms.get(room) instanceof Y.Map
+  }
+
+  /**
+   * Makes the state map modules need for a room shown from the setup alone. The
+   * doc isn't stored, so with everyone gone nobody has it. Written as the room
+   * number's own Yjs client: every peer makes the identical map, and that tiny
+   * client id loses to a real one, so an unsynced peer can't replace a room's
+   * module state with an empty map.
+   */
+  private _createSetupRoomState(room: string) {
+    const seed = new Y.Doc()
+    seed.clientID = Number(room.slice('Room '.length))
+    seed.getMap('rooms').set(room, new Y.Map())
+    Y.applyUpdate(this.y.doc, Y.encodeStateAsUpdate(seed), 'gotoRoom')
+    seed.destroy()
+
+    // Applying it again can't bring back a map deleted since.
+    if (!this._hasRoomState(room)) {
+      this.y.doc.transact(() => this.y.rooms.set(room, new Y.Map()), 'gotoRoom')
+    }
   }
 
 
@@ -1719,11 +1744,23 @@ export default class Peer {
     return !!n && Number(n[1]) > this._roomCount()
   }
 
+  /** Whether the signed setup's room count makes `name` one of its numbered rooms. */
+  private _isSetupRoom(name: string): boolean {
+    const n = /^Room ([1-9]\d*)$/.exec(name)
+    return !!n && Number(n[1]) <= this._roomCount()
+  }
+
+  private _hasRoomRecord(name: string): boolean {
+    const record = this._roomRecords.get(name)
+    return !!record && this._isValidRoomRecord(name, record) && !this._isRemovedRoom(name)
+  }
+
   /**
    * Rooms as the UI and modules see them: the Lobby, rooms with a valid
-   * record (oldest first), and the stations that are present. A room's Y.Map
-   * in the doc only holds module state. Numbered rooms beyond the setup's
-   * room count are left out, so lowering it removes them for everyone.
+   * record (oldest first), the setup's numbered rooms, and the stations that
+   * are present. A room's Y.Map in the doc only holds module
+   * state. Numbered rooms beyond the setup's room count are left out, so
+   * lowering it removes them for everyone.
    *
    * While we wait for our station to come back (STATION_RETURN_GRACE), its
    * room stays in our view so we still see ourselves in it; `waiting: false`
@@ -1736,11 +1773,13 @@ export default class Peer {
     }
     const rooms: Record<string, any> = { [LOBBY]: state(LOBBY) }
     const records = [...this._roomRecords]
-      .filter(([name, envelope]) =>
-        this._isValidRoomRecord(name, envelope) && !this._isRemovedRoom(name))
+      .filter(([name]) => this._hasRoomRecord(name))
       .sort(([a, x], [b, y]) =>
         x.nonce - y.nonce || a.localeCompare(b, undefined, { numeric: true }))
     for (const [name] of records) rooms[name] = state(name)
+    for (let n = 1; n <= this._roomCount(); n++) {
+      if (!(`Room ${n}` in rooms)) rooms[`Room ${n}`] = state(`Room ${n}`)
+    }
     for (const id of Object.keys(this.presence?.visible || {})) {
       if (id.startsWith(STATION + ' ')) rooms[id] = state(id)
     }
