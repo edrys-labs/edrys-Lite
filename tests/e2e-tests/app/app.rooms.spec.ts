@@ -1,15 +1,17 @@
 import { test, expect } from '@playwright/test'
 import { createClassroom, joinClassroom, waitForMesh, inPeer, closeSessions, Session } from '../helpers'
 import { SCALE, waitForVerified } from '../comm/helpers'
+import { MODULE_ORIGIN, routeProbeModule, ownerAddProbeModule, inProbe } from './probe-module'
 
 test.describe('App — rooms', () => {
   let owner: Session | undefined
   let guest: Session | undefined
 
   test.beforeEach(async ({ browser }) => {
-    const created = await createClassroom(browser)
+    const opts = { prepare: routeProbeModule }
+    const created = await createClassroom(browser, opts)
     owner = created.owner
-    guest = await joinClassroom(browser, created.joinUrl)
+    guest = await joinClassroom(browser, created.joinUrl, opts)
     await waitForMesh(owner, guest)
     await waitForVerified(owner, guest)
     await waitForVerified(guest, owner)
@@ -34,6 +36,51 @@ test.describe('App — rooms', () => {
     await dialog.locator('.rooms-num input').fill(String(count))
     await dialog.getByRole('button', { name: /^Save( Badge)?$/ }).click()
   }
+
+  async function addRooms(count: number) {
+    for (let n = 1; n <= count; n++) {
+      await owner!.page.getByRole('button', { name: 'New room' }).click()
+      await expect.poll(() => rooms(owner!), { timeout }).toHaveLength(n)
+    }
+  }
+
+  async function renameRoom(room: string, label: string) {
+    const page = owner!.page
+    await page.getByRole('button', { name: `Rename ${room}` }).click()
+    await page.getByRole('textbox', { name: 'Room name' }).fill(label)
+    await page.keyboard.press('Enter')
+  }
+
+  const roomRow = (s: Session, text: string) => s.page.locator('.room-row').filter({ hasText: text })
+  const hasProbeFrame = (s: Session) => s.page.frames().some((f) => f.url().startsWith(MODULE_ORIGIN))
+
+  test('a rename reaches the other peer and the room keeps its internal name', async () => {
+    await addRooms(1)
+    await renameRoom('Room 1', 'Group A')
+
+    await expect(roomRow(guest!, 'Group A')).toBeVisible({ timeout })
+    await roomRow(guest!, 'Group A').click()
+
+    await expect
+      .poll(() => inPeer(guest!.page, 'return p._viewUsers()[p.peerID]?.room'), { timeout })
+      .toBe('Room 1')
+    await expect.poll(() => rooms(guest!), { timeout }).toEqual(['Room 1'])
+  })
+
+  test('a module shown in a label appears only in that room and gets the label', async () => {
+    await ownerAddProbeModule(owner!, 'Group B')
+    await addRooms(2)
+    await renameRoom('Room 2', 'Group B')
+
+    await expect(roomRow(guest!, 'Group B')).toBeVisible({ timeout })
+    await roomRow(guest!, 'Group B').click()
+    await expect
+      .poll(() => inProbe(guest!, () => (window as any).Edrys.roomLabel).catch(() => null), { timeout })
+      .toBe('Group B')
+
+    await roomRow(guest!, 'Room 1').click()
+    await expect.poll(() => hasProbeFrame(guest!), { timeout }).toBe(false)
+  })
 
   test('a dropped label leaves nothing unsaved and a second save keeps it gone', async () => {
     const page = owner!.page

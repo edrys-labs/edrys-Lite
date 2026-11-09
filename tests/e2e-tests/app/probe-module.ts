@@ -48,7 +48,7 @@ export async function routeProbeModule(context: BrowserContext) {
 }
 
 /** Owner: make the probe the class's only module, via Classroom.saveClass (what Settings calls). */
-export async function ownerAddProbeModule(owner: Session) {
+export async function ownerAddProbeModule(owner: Session, showIn = '*') {
   await inPeer(
     owner.page,
     `
@@ -72,7 +72,7 @@ export async function ownerAddProbeModule(owner: Session) {
     data.modules = [{
       id: 'e2e-probe', url: ${JSON.stringify(MODULE_URL)},
       config: '', studentConfig: '', teacherConfig: '', stationConfig: '',
-      showInCustom: '*', width: 'full', height: 'tall',
+      showInCustom: ${JSON.stringify(showIn)}, width: 'full', height: 'tall',
     }];
     // saveClass closes the Settings dialog via its ref, so open it first (cog button).
     classroom.showSettings = true;
