@@ -238,6 +238,14 @@ describe('Classroom View', () => {
       expect(entry({ username: 'Station 1' })).toMatchObject({ name: 'Station 1', shortId: 'abc123' });
     });
 
+    test('marks only your own row', async () => {
+      const wrapper = createWrapper();
+      await wrapper.vm.init();
+
+      expect(wrapper.vm.drawerUser(wrapper.vm.peerID, { displayName: 'me', role: 'student' }).me).toBe(true);
+      expect(wrapper.vm.drawerUser('other-peer', { displayName: 'other', role: 'student' }).me).toBe(false);
+    });
+
     const openDrawer = async () => {
       const wrapper = createWrapper();
       await wrapper.vm.init();

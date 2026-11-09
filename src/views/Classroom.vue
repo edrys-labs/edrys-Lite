@@ -651,6 +651,7 @@ export default {
             : user.username || name,
         // Next to a chosen name, which anyone could pick; never cut off.
         shortId: user.username ? name : "",
+        me: this.peerID === id,
         role,
         tag: tags.join(" · "),
         label,
@@ -1099,7 +1100,7 @@ export default {
             </div>
 
             <div v-for="user in room.visitors" :key="user.id" class="room-user">
-              <span class="user-avatar">
+              <span class="user-avatar" :class="{ 'user-avatar--me': user.me }">
                 <span class="user-dot"></span>
               </span>
               <span v-if="user.shortId" class="user-name user-name--named"
@@ -1637,6 +1638,14 @@ export default {
 .user-name--id {
   font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
   font-weight: 500;
+}
+
+.user-avatar--me {
+  background: rgb(var(--v-theme-you));
+}
+
+.user-avatar--me .user-dot {
+  background: rgb(var(--v-theme-surface));
 }
 
 .user-name--named {
