@@ -96,6 +96,13 @@ export function roomLabelProblem(
   return taken ? "taken" : null;
 }
 
+/** Why `name` can't name a station, or null if it can. Being in use is checked against the live class. */
+export function stationNameProblem(name: string): "tooLong" | "characters" | null {
+  if (name.trim().length > MAX_ROOM_LABEL_LENGTH) return "tooLong";
+  // `,` and `*` have a meaning in a module's room list
+  return /[,*]/.test(name) ? "characters" : null;
+}
+
 /** A copy of `meta` with the room's label set, or removed when empty or its own name. */
 export function withRoomLabel(meta: any, room: string, label: string): any {
   const { roomNames = {}, ...rest } = meta ?? {};

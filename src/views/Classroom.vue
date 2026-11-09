@@ -45,7 +45,7 @@ import {
   type ChatViews,
 } from "../ts/DevBridge";
 import { startTutorRelay, tutorPeer } from "../ts/Tutor";
-import { MAX_ROOM_LABEL_LENGTH, modulesLeavingRoom, roomLabel, roomLabelProblem, withRoomLabel } from "../ts/RoomNames";
+import { MAX_ROOM_LABEL_LENGTH, modulesLeavingRoom, roomLabel, roomLabelProblem, stationNameProblem, withRoomLabel } from "../ts/RoomNames";
 
 export default {
   props: ["id", "station", "owner"],
@@ -145,8 +145,12 @@ export default {
 
       stationNameInput: stationName,
       stationNameRules: [
-        (v: string) => !!v || this.t("classroom.station.rules.1"),
-        (v: string) => !this.isNameTaken(v) || this.t("classroom.station.rules.2"),
+        (v: string) => !!v.trim() || this.t("classroom.station.rules.1"),
+        (v: string) => {
+          const problem = stationNameProblem(v);
+          return !problem || this.t(`classroom.sideMenu.roomLabel.problems.${problem}`, { n: MAX_ROOM_LABEL_LENGTH });
+        },
+        (v: string) => !this.isNameTaken(v.trim()) || this.t("classroom.station.rules.2"),
       ],
 
       // Hidden for now: the Logger is moving into a separate edrys module.
@@ -726,12 +730,15 @@ export default {
         return;
       }
 
-      sessionStorage.setItem(`station_${this.id}`, this.stationNameInput);
+      const name = this.stationNameInput.trim();
+      if (name === this.stationName) return;
+
+      sessionStorage.setItem(`station_${this.id}`, name);
       window.location.reload();
     },
 
     isNameTaken(name: string) {
-      if (!this.liveClassProxy) return false;
+      if (!this.liveClassProxy || name === this.stationName) return false;
       return Object.keys(this.liveClassProxy.rooms).includes("Station " + name);
     },
 

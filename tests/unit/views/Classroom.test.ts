@@ -646,7 +646,45 @@ describe('Classroom View', () => {
     const rules = wrapper.vm.stationNameRules;
 
     expect(rules[0]('')).toBe('Name is required');
+    expect(rules[0]('   ')).toBe('Name is required');
     expect(rules[0]('test')).toBe(true);
+  });
+
+  test('rejects station names too long or with room list characters', () => {
+    const wrapper = createWrapper({ station: true });
+    const rules = wrapper.vm.stationNameRules;
+
+    expect(rules[1](`  ${'x'.repeat(40)}  `)).toBe(true);
+    expect(rules[1]('x'.repeat(41))).toBe('Keep it under 40 characters');
+    expect(rules[1]('a,b')).toBe('Commas and asterisks are not allowed');
+    expect(rules[1]('a*')).toBe('Commas and asterisks are not allowed');
+  });
+
+  test('a station name is taken by another station but not by this one', () => {
+    const wrapper = createWrapper({ station: true });
+    wrapper.vm.liveClassProxy = {
+      rooms: { 'Station other': {}, [`Station ${wrapper.vm.stationName}`]: {} },
+    };
+    const taken = wrapper.vm.stationNameRules[2];
+
+    expect(taken(' other ')).toBe('Name is already taken');
+    expect(taken(wrapper.vm.stationName)).toBe(true);
+    expect(taken('free')).toBe(true);
+  });
+
+  test('stores a station name trimmed and does not reload for its own name', async () => {
+    const reloadMock = vi.fn();
+    Object.defineProperty(window, 'location', { value: { reload: reloadMock }, writable: true });
+    const wrapper = createWrapper({ station: true });
+
+    wrapper.vm.stationNameInput = ` ${wrapper.vm.stationName} `;
+    await wrapper.vm.setStationName();
+    expect(reloadMock).not.toHaveBeenCalled();
+
+    wrapper.vm.stationNameInput = '  Bench 2  ';
+    await wrapper.vm.setStationName();
+    expect(sessionStorage.getItem('station_test-class')).toBe('Bench 2');
+    expect(reloadMock).toHaveBeenCalledOnce();
   });
 
   test('handles station name change', async () => {
