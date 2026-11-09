@@ -45,7 +45,7 @@
   <ul v-if="stations.length" class="station-list">
     <li v-for="station in stations" :key="station.name" class="station-row">
       <span class="station-tile" :style="{ background: station.tile.bg, color: station.tile.fg }">
-        {{ station.initial }}
+        <v-icon icon="mdi-router-wireless" size="18"></v-icon>
       </span>
       <span class="station-name">{{ station.label }}</span>
       <span v-if="station.people" class="station-people">

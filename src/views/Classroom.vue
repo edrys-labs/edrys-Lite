@@ -207,6 +207,8 @@ export default {
           label,
           // an unnamed "Room 3" shows its number, other rooms their first letter
           initial: numbered ? numbered[1] : firstLetter(label),
+          // the Lobby and stations aren't rooms a teacher names, so no letter to mix up
+          icon: name === "Lobby" ? "mdi-home-outline" : name.startsWith("Station ") ? "mdi-router-wireless" : null,
           tile: roomTile(roomSlot(name, rooms), this.activeTheme),
           users: inRoom,
           visitors,
@@ -814,7 +816,8 @@ export default {
               class="room-tile room-tile--small"
               :style="{ background: myRoom.tile.bg, color: myRoom.tile.fg }"
               aria-hidden="true"
-              >{{ myRoom.initial }}</span
+              ><v-icon v-if="myRoom.icon" :icon="myRoom.icon" size="13"></v-icon
+              ><template v-else>{{ myRoom.initial }}</template></span
             >
             <span class="room-pill-name">{{ myRoom.label }}</span>
             <span class="room-pill-count" aria-hidden="true">
@@ -1076,7 +1079,8 @@ export default {
                 @click="gotoRoom(room.name)"
               >
                 <span class="room-tile" :style="{ background: room.tile.bg, color: room.tile.fg }">
-                  {{ room.initial }}
+                  <v-icon v-if="room.icon" :icon="room.icon" size="18"></v-icon>
+                  <template v-else>{{ room.initial }}</template>
                 </span>
                 <span class="room-name">{{ room.label }}</span>
                 <span v-if="room.people" class="room-count">

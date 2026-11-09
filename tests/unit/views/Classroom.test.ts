@@ -392,9 +392,10 @@ describe('Classroom View', () => {
       expect(wrapper.vm.stationRooms[0].online).toBe(true);
     });
 
-    test('shows numbered rooms by their number and others by their initial', async () => {
+    test('marks numbered rooms by number, the Lobby and stations by icon', async () => {
       const wrapper = await openDrawer();
-      expect(wrapper.findAll('.room-row .room-tile').map((t) => t.text())).toEqual(['L', '1', 'S']);
+      expect(wrapper.vm.drawerRooms.map((r: any) => r.icon)).toEqual(['mdi-home-outline', null, 'mdi-router-wireless']);
+      expect(wrapper.findAll('.room-row .room-tile')[1].text()).toBe('1');
     });
 
     test('tags you and teachers, and spells out every role for screen readers', async () => {
