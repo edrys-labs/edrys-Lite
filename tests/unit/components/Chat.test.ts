@@ -274,6 +274,23 @@ describe('Chat Component', () => {
     expect(other.find('.chat-teacher').exists()).toBe(false);
   });
 
+  test('shows a chosen name as text beside the ID', async () => {
+    wrapper = createWrapper({
+      messages: [
+        { timestamp: 1, msg: 'x', user: 'abc123', username: '<b>Ada</b>', signature: 'a' },
+        { timestamp: 2, msg: 'y', user: 'def456', username: null, signature: 'b' },
+      ],
+    });
+    await wrapper.vm.$nextTick();
+
+    const [named, plain] = wrapper.findAll('.chat-message');
+    expect(named.find('.chat-name').text()).toBe('<b>Ada</b>');
+    expect(named.find('.chat-name b').exists()).toBe(false);
+    expect(named.find('.chat-user').text()).toBe('abc123');
+    expect(plain.find('.chat-name').exists()).toBe(false);
+    expect(plain.find('.chat-user').text()).toBe('def456');
+  });
+
   test('no tags without keys', async () => {
     wrapper = createWrapper({ messages: [{ timestamp: 1, msg: 'x', user: 'u', signature: 'a' }] });
     await wrapper.vm.$nextTick();

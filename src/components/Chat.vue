@@ -174,6 +174,7 @@ export default {
         >
           <div class="markdown" v-html="render(msg.id, msg.msg)"></div>
           <div class="chat-meta">
+            <span v-if="msg.username" class="chat-name">{{ msg.username }}</span>
             <span class="chat-user">{{ msg.user }}</span>
             <span v-if="isMine(msg)" class="chat-you">{{ t('general.you') }}</span>
             <span v-if="isFromTeacher(msg)" class="chat-teacher">{{ t('general.roles.teacher') }}</span>
@@ -334,6 +335,12 @@ export default {
   gap: 6px;
   font-size: 11px;
   color: rgb(var(--v-theme-muted));
+}
+
+.chat-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .chat-user {

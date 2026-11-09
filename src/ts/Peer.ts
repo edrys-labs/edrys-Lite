@@ -1066,7 +1066,8 @@ export default class Peer {
    * verifies, each signed message once (a copy elsewhere is a replay), from a
    * signer who may chat. Derived anew on every change, so an entry another
    * peer deletes or moves can't shift what is hidden, and one still being
-   * verified isn't shown. The name shown is the signer's, never the entry's.
+   * verified isn't shown. The ID shown is the signer's, never the entry's; the
+   * entry's signed `user` is the sender's chosen name, or their short ID if none.
    */
   private async _collectChat(): Promise<void> {
     const shown: any[] = []
@@ -1080,7 +1081,9 @@ export default class Peer {
       if (seen.has(signed)) continue
       seen.add(signed)
       if (!this._isKnownChatSigner(signer)) continue
-      shown.push({ ...entry, user: getShortPeerID(signer) })
+      const short = getShortPeerID(signer)
+      const username = user === short ? null : validUsername(user)
+      shown.push({ ...entry, user: short, username })
     }
     const changed = shown.length !== this._chatView.length ||
       shown.some((m, i) => m.signature !== this._chatView[i].signature)
@@ -1572,7 +1575,7 @@ export default class Peer {
    */
   async sendMessage(message: string) {
     const timestamp = Date.now()
-    const user = getShortPeerID(this.peerID)
+    const user = this._username || getShortPeerID(this.peerID)
     const payload = { msg: message, timestamp, user }
     const envelope = await signEntry('chat', String(timestamp), payload, timestamp)
     this.y.doc.transact(() => {

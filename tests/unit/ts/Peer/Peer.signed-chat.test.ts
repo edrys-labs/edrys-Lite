@@ -148,7 +148,48 @@ describe('Signed y.chat', () => {
     peer.stop()
   })
 
-  test("the name shown is the signer's, not the one in the entry", async () => {
+  test('a chosen name is signed into the message and stays as it was sent', async () => {
+    const { peer, pubKey } = await bootPeer()
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    peer.setUsername('Ada')
+    await peer.sendMessage('first')
+    peer.setUsername('Grace')
+    await peer.sendMessage('second')
+    peer.setUsername('')
+    await peer.sendMessage('third')
+    await flushPromises()
+    await flushPromises()
+
+    const short = Utils.getShortPeerID(pubKey)
+    expect(chatMessages.map((m) => [m.msg, m.username, m.user])).toEqual([
+      ['first', 'Ada', short],
+      ['second', 'Grace', short],
+      ['third', null, short],
+    ])
+    peer.stop()
+  })
+
+  test('a signed name over the limit is not shown', async () => {
+    const { peer } = await bootPeer()
+    let chatMessages: any[] = []
+    peer.on('chat', (data: any) => { chatMessages = data.messages })
+
+    const ts = Date.now()
+    const payload = { msg: 'hi', timestamp: ts, user: 'a'.repeat(33) }
+    const env = await Utils.signEntry('chat', String(ts), payload, ts)
+    peer['y'].doc.transact(() => {
+      peer['y'].chat.push([{ ...payload, signer: env.signer, signature: env.signature }])
+    }, 'sync')
+    await flushPromises()
+    await flushPromises()
+
+    expect(chatMessages.map((m) => m.username)).toEqual([null])
+    peer.stop()
+  })
+
+  test("the ID shown is the signer's, whatever name the entry gives", async () => {
     const { peer, pubKey } = await bootPeer()
     let chatMessages: any[] = []
     peer.on('chat', (data: any) => { chatMessages = data.messages })
@@ -163,7 +204,9 @@ describe('Signed y.chat', () => {
     await flushPromises()
     await flushPromises()
 
-    expect(chatMessages.map((m) => [m.msg, m.user])).toEqual([['submit now', Utils.getShortPeerID(pubKey)]])
+    expect(chatMessages.map((m) => [m.msg, m.user, m.username])).toEqual([
+      ['submit now', Utils.getShortPeerID(pubKey), 'the-teacher'],
+    ])
     peer.stop()
   })
 
