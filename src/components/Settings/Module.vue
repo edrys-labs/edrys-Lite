@@ -110,7 +110,7 @@
 import Editor from "./Editor.vue";
 import AdvancedRow from "./AdvancedRow.vue";
 import { activeTheme, roomTile } from "../../ts/Theme";
-import { roomLabel, showInWithLabels } from "../../ts/RoomNames";
+import { firstLetter, roomLabel, showInWithLabels } from "../../ts/RoomNames";
 import { roomSlot } from "../../ts/Utils";
 import type { PropType } from "vue";
 import FieldLabel from "../FieldLabel.vue";
@@ -235,7 +235,7 @@ export default {
         on:
           token === "*"
             ? !placeTokens.length || placeTokens.includes("*")
-            : placeTokens.includes(token.toLowerCase()) || placeTokens.includes(label.toLowerCase()),
+            : placeTokens.some(this.isPlaceEntry(token)),
       });
       return [
         place("*", this.t("settings.modules.module.showIn.all"), "*", null),
@@ -244,7 +244,7 @@ export default {
           .filter((room) => room !== "Lobby" && !room.startsWith("Station "))
           .map((room) => {
             const label = roomLabel(this.roomNames, room);
-            const mark = label ? label.charAt(0).toUpperCase() : room.split(" ").pop()!.charAt(0);
+            const mark = label ? firstLetter(label) : room.split(" ").pop()!.charAt(0);
             // the button shows the label but saves the internal name, which a later rename can't break
             return place(room, label ?? room, mark, roomSlot(room, rooms));
           }),
@@ -366,14 +366,19 @@ export default {
       return this.t(s + "empty");
     },
 
+    // Whether a "Show in" entry names this place: by its token or, for a room, its label.
+    isPlaceEntry(token: string) {
+      const names = [token, roomLabel(this.roomNames, token)].map((n) => n?.toLowerCase());
+      return (entry: string) => names.includes(entry.toLowerCase());
+    },
+
     // "*" stands for every place, so it replaces the others and the others replace it;
     // teacher-only and station-only are kept as they are
     togglePlace(token: string) {
       const tokens = tokensOf(this.module.showInCustom);
       const roles = tokens.filter(isRole);
       let places = tokens.filter((t) => !isRole(t) && t !== "*");
-      const names = [token, roomLabel(this.roomNames, token)].map((n) => n?.toLowerCase());
-      const isThisPlace = (t: string) => names.includes(t.toLowerCase());
+      const isThisPlace = this.isPlaceEntry(token);
       if (token === "*") {
         places = [];
       } else if (places.some(isThisPlace)) {

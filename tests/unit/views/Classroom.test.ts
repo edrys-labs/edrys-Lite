@@ -657,7 +657,7 @@ describe('Classroom View', () => {
     const rules = wrapper.vm.stationNameRules;
 
     expect(rules[1](`  ${'x'.repeat(40)}  `)).toBe(true);
-    expect(rules[1]('x'.repeat(41))).toBe('Keep it under 40 characters');
+    expect(rules[1]('x'.repeat(41))).toBe('Use at most 40 characters');
     expect(rules[1]('a,b')).toBe('Commas and asterisks are not allowed');
     expect(rules[1]('a*')).toBe('Commas and asterisks are not allowed');
   });

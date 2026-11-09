@@ -498,9 +498,10 @@ export default {
     // Returns room english name
     normalizeRoomName(room: string, translatedNames: Record<string, string>) {
       for (const prefix of this.roomPrefixTranslations) {
-        if (room.startsWith(prefix)) {
-          const roomNumber = room.split(' ').pop();
-          return `room ${roomNumber}`;
+        // only "Room 2" or "Room *": a longer name such as "Room A 2" is a label
+        const rest = room.slice(prefix.length).trim();
+        if (room.startsWith(prefix + ' ') && rest && !rest.includes(' ')) {
+          return `room ${rest}`;
         }
       }
       return translatedNames[room.toLowerCase()] || room;

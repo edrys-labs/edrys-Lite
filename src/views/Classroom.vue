@@ -45,7 +45,7 @@ import {
   type ChatViews,
 } from "../ts/DevBridge";
 import { startTutorRelay, tutorPeer } from "../ts/Tutor";
-import { MAX_ROOM_LABEL_LENGTH, modulesLeavingRoom, roomLabel, roomLabelProblem, stationNameProblem, withRoomLabel } from "../ts/RoomNames";
+import { firstLetter, MAX_ROOM_LABEL_LENGTH, modulesLeavingRoom, roomLabel, roomLabelProblem, stationNameProblem, withRoomLabel } from "../ts/RoomNames";
 
 export default {
   props: ["id", "station", "owner"],
@@ -205,7 +205,7 @@ export default {
           name,
           label,
           // an unnamed "Room 3" shows its number, other rooms their first letter
-          initial: numbered ? numbered[1] : label.charAt(0).toUpperCase(),
+          initial: numbered ? numbered[1] : firstLetter(label),
           tile: roomTile(roomSlot(name, rooms), this.activeTheme),
           users: inRoom,
           visitors,

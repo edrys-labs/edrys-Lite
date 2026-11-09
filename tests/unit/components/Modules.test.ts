@@ -577,6 +577,16 @@ describe('Modules Component', () => {
         expect(shownInLabelled('Room 2', 'Room for groups', 'Room for groups')).toBe(true);
       });
 
+      test('a label ending in a number stays out of the room with that number', () => {
+        expect(shownInLabelled('Room 2', undefined, 'Room A 2')).toBe(false);
+        expect(shownInLabelled('Room 5', 'Room A 2', 'Room A 2')).toBe(true);
+      });
+
+      test('still reads "Room 2" and "Room *" as rooms', () => {
+        expect(shownInLabelled('Room 2', undefined, 'Room 2')).toBe(true);
+        expect(shownInLabelled('Room 2', undefined, 'Room *')).toBe(true);
+      });
+
       test('does not leak a label to a room without it', () => {
         expect(shownInLabelled('Room 1', undefined, 'Group B')).toBe(false);
       });

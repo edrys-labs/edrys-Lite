@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest';
-import { MAX_ROOM_LABEL_LENGTH, modulesLeavingRoom, roomLabelProblem, showInWithLabels, withRoomLabel } from '../../../src/ts/RoomNames';
+import { firstLetter, MAX_ROOM_LABEL_LENGTH, modulesLeavingRoom, roomLabelProblem, showInWithLabels, withRoomLabel } from '../../../src/ts/RoomNames';
+
+describe('firstLetter', () => {
+  test('uppercases a letter and keeps an emoji whole', () => {
+    expect(firstLetter('group b')).toBe('G');
+    expect(firstLetter('😀 Lab')).toBe('😀');
+  });
+});
 
 describe('roomLabelProblem', () => {
   test('accepts a free name, an empty one and the room\'s own name', () => {

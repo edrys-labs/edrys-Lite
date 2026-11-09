@@ -1,6 +1,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Module from '../../../../src/components/Settings/Module.vue';
+import { i18n } from '../../../setup';
 
 describe('Module Settings Component', () => {
   const mockModule = {
@@ -190,6 +191,22 @@ describe('Module Settings Component', () => {
 
     expect(wrapper.vm.showInSummary).toBe('Group B');
     expect(module.showInCustom).toBe('Room 2');
+  });
+
+  test('a "Show in" button can be turned off when the list has its translated word', async () => {
+    i18n.global.locale.value = 'uk';
+    try {
+      const module = { ...mockModule, showInCustom: 'станція' };
+      const wrapper = createWrapper({ module, rooms: ['Lobby'] });
+      const button = wrapper.findAll('.place').find((b: any) => b.text().includes('Станція'));
+
+      await button.trigger('click');
+      expect(button.attributes('aria-pressed')).toBe('true');
+      await button.trigger('click');
+      expect(button.attributes('aria-pressed')).toBe('false');
+    } finally {
+      i18n.global.locale.value = 'en';
+    }
   });
 
   test('a "Show in" button is on for a module listing the label, and takes it off', async () => {

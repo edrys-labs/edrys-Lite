@@ -34,6 +34,11 @@ export function roomLabel(roomNames: Record<string, string> | undefined, room: s
   return typeof label === "string" && label.trim() ? label.trim() : undefined;
 }
 
+/** The label's first character for a tile, whole even when it is an emoji. */
+export function firstLetter(label: string): string {
+  return Array.from(label)[0]?.toUpperCase() ?? "";
+}
+
 /** A module's room list for reading: each room it names by its label, if it has one. */
 export function showInWithLabels(showIn: string, roomNames: Record<string, string> = {}): string {
   return (showIn || "*")
