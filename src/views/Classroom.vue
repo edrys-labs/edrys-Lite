@@ -194,8 +194,9 @@ export default {
 
       return rooms.map((name) => {
         const inRoom = users.filter(([, user]) => user.room === name).map(([id, user]) => this.drawerUser(id, user));
-        // the station is the room's equipment, so a free station shows no count
-        const people = inRoom.filter((user) => user.role !== "station").length;
+        // the station is the room's equipment: not listed under its room or counted
+        const visitors = inRoom.filter((user) => user.role !== "station");
+        const people = visitors.length;
         const label = this.translateRoomName(name);
         const numbered = !this.roomDisplayName(name) && name.match(/^Room (.+)$/);
         const goto = this.t("classroom.sideMenu.gotoRoom", { room: label });
@@ -207,6 +208,7 @@ export default {
           initial: numbered ? numbered[1] : label.charAt(0).toUpperCase(),
           tile: roomTile(roomSlot(name, rooms), this.activeTheme),
           users: inRoom,
+          visitors,
           people,
           gotoLabel: people ? goto + ", " + this.peopleLabel(people) : goto,
         };
@@ -1088,18 +1090,11 @@ export default {
               </button>
             </div>
 
-            <div v-for="user in room.users" :key="user.id" class="room-user">
-              <span
-                class="user-avatar"
-                :class="{ 'user-avatar--station': user.role === 'station' }"
-                :style="user.role === 'station' ? { background: room.tile.bg } : undefined"
-              >
-                <span
-                  class="user-dot"
-                  :style="user.role === 'station' ? { background: room.tile.dot } : undefined"
-                ></span>
+            <div v-for="user in room.visitors" :key="user.id" class="room-user">
+              <span class="user-avatar">
+                <span class="user-dot"></span>
               </span>
-              <span class="user-name" :class="{ 'user-name--id': user.role !== 'station' }"
+              <span class="user-name user-name--id"
                 >{{ user.name }}<span class="d-sr-only">, {{ user.label }}</span></span
               >
               <span v-if="user.tag" class="user-tag" aria-hidden="true">{{ user.tag }}</span>
@@ -1608,19 +1603,11 @@ export default {
   background: rgb(var(--v-theme-avatar));
 }
 
-.user-avatar--station {
-  border-radius: 6px;
-}
-
 .user-dot {
   width: 7px;
   height: 7px;
   border-radius: 999px;
   background: #8a919b;
-}
-
-.user-avatar--station .user-dot {
-  border-radius: 2px;
 }
 
 .user-name {

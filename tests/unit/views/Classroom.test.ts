@@ -358,11 +358,11 @@ describe('Classroom View', () => {
       expect(wrapper.vm.database.update).not.toHaveBeenCalled();
     });
 
-    test('does not count a station as a person in its room', async () => {
+    test('does not list or count a station as a person in its room', async () => {
       const wrapper = await openDrawer();
       const stationRoom = wrapper.findAll('.room')[2];
       expect(stationRoom.find('.room-count').exists()).toBe(false);
-      expect(stationRoom.findAll('.room-user')).toHaveLength(1);
+      expect(stationRoom.findAll('.room-user')).toHaveLength(0);
 
       wrapper.vm.liveClassProxy = {
         ...live,
@@ -370,6 +370,8 @@ describe('Classroom View', () => {
       };
       await wrapper.vm.$nextTick();
       expect(wrapper.findAll('.room')[2].find('.room-count').text()).toBe('1');
+      expect(wrapper.findAll('.room')[2].findAll('.room-user')).toHaveLength(1);
+      expect(wrapper.vm.stationRooms[0].online).toBe(true);
     });
 
     test('shows numbered rooms by their number and others by their initial', async () => {
