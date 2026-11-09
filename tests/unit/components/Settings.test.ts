@@ -95,4 +95,20 @@ describe('Settings Component', () => {
     expect(wrapper.vm.configChanged).toBe(false);
   });
 
+  test('takes over meta the save adjusted, so nothing shows as unsaved', async () => {
+    const config = { ...mockConfig, meta: { defaultNumberOfRooms: 1, roomNames: { 'Room 2': 'Old' } } };
+    const wrapper = createWrapper({
+      config,
+      onSaveClass: (saved: any) => {
+        saved.meta = { defaultNumberOfRooms: 1 };
+      },
+    });
+
+    wrapper.vm.saveClass();
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.configClone.meta).toEqual({ defaultNumberOfRooms: 1 });
+    expect(wrapper.vm.configChanged).toBe(false);
+  });
+
 });

@@ -102,6 +102,21 @@ describe('Signed y.rooms', () => {
     peer.stop()
   })
 
+  test('a cleared room comes back with empty state', async () => {
+    await Utils.initCryptoIdentity()
+    const setup = makeSetup(Utils.getPeerID(false), 2)
+    const peer: any = new Peer(setup, undefined, i18n.global.t)
+    await flushPromises()
+    await peer.join('student')
+    await vi.waitFor(() => expect(Object.keys(peer._viewRooms())).toContain('Room 2'))
+    peer.y.rooms.get('Room 2').set('notes', 'old')
+
+    peer.clearRoomState('Room 2')
+
+    await vi.waitFor(() => expect(peer.y.rooms.get('Room 2')?.size).toBe(0))
+    peer.stop()
+  })
+
   test('joining seeds Lobby state without a record and signs default rooms', async () => {
     await Utils.initCryptoIdentity()
     const myPubKey = Utils.getPeerID(false)

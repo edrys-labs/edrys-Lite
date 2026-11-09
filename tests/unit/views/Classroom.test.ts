@@ -58,6 +58,7 @@ const mockCommunication = {
   update: vi.fn(),
   gotoRoom: vi.fn(),
   addRoom: vi.fn(),
+  clearRoomState: vi.fn(),
   sendMessage: vi.fn(),
   newSetup: vi.fn(),
   stop: vi.fn(),
@@ -287,6 +288,19 @@ describe('Classroom View', () => {
       wrapper.vm.isTeacher = true;
       await wrapper.vm.$nextTick();
       expect(wrapper.findAll('.room-rename-open')).toHaveLength(1);
+    });
+
+    test('New room is for owners and teachers', async () => {
+      const wrapper = createWrapper();
+      await wrapper.vm.init();
+      wrapper.vm.isOwner = false;
+      wrapper.vm.isTeacher = false;
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find('.drawer-btn').exists()).toBe(false);
+
+      wrapper.vm.isTeacher = true;
+      await wrapper.vm.$nextTick();
+      expect(wrapper.findAll('.drawer-btn')).toHaveLength(1);
     });
 
     test('saves a new label into the setup', async () => {
@@ -519,6 +533,37 @@ describe('Classroom View', () => {
 
       expect(db.update).not.toHaveBeenCalled();
       expect(wrapper.vm.configuration.data.meta.defaultNumberOfRooms).toBe(50);
+    });
+
+    test('lowering the room count clears the state of the rooms it drops', async () => {
+      const { wrapper } = await saveWith({ meta: { defaultNumberOfRooms: 3 } });
+      mockCommunication.clearRoomState.mockClear();
+
+      wrapper.vm.saveClass({ ...wrapper.vm.configuration.data, meta: { defaultNumberOfRooms: 1 } });
+
+      expect(mockCommunication.clearRoomState.mock.calls).toEqual([['Room 2'], ['Room 3']]);
+    });
+
+    test('lowering the room count drops only the labels of the rooms it removes', async () => {
+      const { wrapper } = await saveWith({
+        meta: { defaultNumberOfRooms: 2, roomNames: { 'Room 1': 'Group A', 'Room 2': 'Group B' } },
+      });
+
+      wrapper.vm.saveClass({
+        ...wrapper.vm.configuration.data,
+        meta: { defaultNumberOfRooms: 1, roomNames: { 'Room 1': 'Group A', 'Room 2': 'Group B' } },
+      });
+
+      expect(wrapper.vm.configuration.data.meta.roomNames).toEqual({ 'Room 1': 'Group A' });
+    });
+
+    test('raising the room count clears nothing', async () => {
+      const { wrapper } = await saveWith({ meta: { defaultNumberOfRooms: 1 } });
+      mockCommunication.clearRoomState.mockClear();
+
+      wrapper.vm.addRoom();
+
+      expect(mockCommunication.clearRoomState).not.toHaveBeenCalled();
     });
 
     test('does not reload modules when the transport changed (the page reloads instead)', async () => {

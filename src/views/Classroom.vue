@@ -509,6 +509,13 @@ export default {
         configuration.modules
       );
       
+      // A room the new count drops starts empty and unnamed if it is added again.
+      const newRoomCount = Number(configuration.meta?.defaultNumberOfRooms) || 0;
+      for (let n = newRoomCount + 1; n <= Math.min(this.roomCount(), MAX_ROOMS); n++) {
+        this.communication?.clearRoomState("Room " + n);
+        configuration.meta = withRoomLabel(configuration.meta, "Room " + n, "");
+      }
+
       this.configuration.data = clone(configuration);
       this.data = clone(configuration);
 
@@ -1094,7 +1101,7 @@ export default {
         </div>
 
         <template v-slot:append>
-          <div class="drawer-foot" v-if="isOwner || phone">
+          <div class="drawer-foot" v-if="isOwner || isTeacher || phone">
             <!-- phones hide the brand, the bar's link to the list -->
             <v-btn
               v-if="phone"
@@ -1123,7 +1130,7 @@ export default {
               {{ t("classroom.sideMenu.settings") }}
             </v-btn>
             <v-btn
-              v-if="isOwner"
+              v-if="isOwner || isTeacher"
               block
               :height="phone ? 44 : 40"
               rounded="lg"

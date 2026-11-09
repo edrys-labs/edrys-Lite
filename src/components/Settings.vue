@@ -73,6 +73,8 @@ export default {
     saveClass() {
       Object.assign(this.config, JSON.parse(JSON.stringify(this.configClone)));
       this.$emit("saveClass", this.config);
+      // saving can adjust meta (labels of rooms the count dropped)
+      if (this.config.meta) this.configClone.meta = JSON.parse(JSON.stringify(this.config.meta));
       this.configChanged = false;
 
       if (this.$refs.CommunicationComponent) {

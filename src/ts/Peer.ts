@@ -1472,6 +1472,15 @@ export default class Peer {
     if (!(name in this._viewRooms())) this._writeAndSignRoom(name, 'addRoom')
   }
 
+  /**
+   * Drops a removed room's module state. Its signed record stays, so
+   * _republishRoom puts back an empty map for when the room is added again.
+   */
+  clearRoomState(name: string) {
+    if (!this.canManageRooms() || !this.y.rooms.has(name)) return
+    this.y.doc.transact(() => this.y.rooms.delete(name), 'clearRoomState')
+  }
+
   // the public key of the student tutor this tab offers (an owner tab of edrys-dev --tutor)
   private _tutor: string | null = null
   private _onTutor: ((msg: { from: string; tutor: any }) => void) | null = null
