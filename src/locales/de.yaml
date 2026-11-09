@@ -104,7 +104,7 @@ deploy:
   overlay:
     isReady: "Herzlichen Glückwunsch, Ihr Labor ist bereit"
     redirect: "Klicken Sie auf die Schaltfläche unten, um zu Ihrem neuen Klassenzimmer zu gelangen. Wenn Sie \"Diese Nachricht nicht mehr anzeigen\" aktivieren, werden Sie beim nächsten Mal automatisch weitergeleitet."
-    info: "Sie besitzen dieses Klassenzimmer und sind der einzige, der es ändern kann. Teilen Sie den Link zu dieser Webseite mit Ihren Schülern, damit diese beitreten können. Der Link ist einzigartig — ein neues Erstellen oder Neuladen erstellt einen neuen Raum."
+    info: "Sie besitzen dieses Klassenzimmer. Teilen Sie den Link oben mit Ihren Schülern, damit diese beitreten können. Teilen Sie nicht die Adresse dieser Seite: Jedes Öffnen erstellt ein neues Klassenzimmer."
     checkbox: "Diese Nachricht nicht mehr anzeigen"
     goto: "Zum Klassenzimmer"
 
@@ -386,9 +386,8 @@ modules:
   collapse: "Vollbild verlassen"
   noModulesInRoom: "Keines der Module dieser Klasse ist für diesen Raum konfiguriert."
   noModules:
-    1: "Sorry, aber es sieht so aus, als hätten Sie keine "
-    2: " Module geladen. Fügen Sie einige in den Klasseneinstellungen hinzu, um loszulegen."
-    3: "Sorry, aber es sieht so aus, als hätten die Klassenersteller noch keine Module hinzugefügt."
+    teacher: "Diese Klasse hat noch keine Module. Fügen Sie einige in den Klasseneinstellungen hinzu, um loszulegen."
+    student: "Sorry, aber es sieht so aus, als hätten die Klassenersteller noch keine Module hinzugefügt."
   webrtcNotSupported:
     title: "WebRTC wird nicht unterstützt"
     message: "Ihr Browser unterstützt WebRTC nicht, das für diese Klasse erforderlich ist."
@@ -473,7 +472,7 @@ peer:
     noAccess: "Sie haben keinen Zugriff auf dieses Labor, Sie können nur ansehen"
     unauthorized: "Unbefugter Benutzer versucht, eine Nachricht zu senden, kontaktieren Sie den Administrator für den Zugang"
     notPropagated: "Ihre Statusänderungen werden nicht an andere Benutzer weitergegeben, kontaktieren Sie den Administrator für den Laborzugang"
-    noPermission: "Nur der Klassenraumbesitzer kann Mitglieder ändern"
+    noPermission: "Der Klassenbesitzer kann nicht als Schüler eingetragen werden"
     userNotFound: "Benutzer nicht gefunden"
     removedTeacher: "Sie wurden als Lehrer entfernt..."
     addedTeacher: "Sie wurden als Lehrer hinzugefügt..."

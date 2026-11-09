@@ -574,10 +574,10 @@ export default {
 
     <div v-else-if="!scrapedModules_.length" class="modules-note">
       <template v-if="role == 'teacher' || role == 'station'">
-        {{ t('modules.noModules.1') }} {{ modulesType }} {{ t('modules.noModules.2') }}
+        {{ t('modules.noModules.teacher') }}
       </template>
       <template v-if="role == 'student'">
-        {{ t('modules.noModules.3') }}
+        {{ t('modules.noModules.student') }}
       </template>
     </div>
 

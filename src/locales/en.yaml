@@ -95,7 +95,7 @@ classroom:
 
 deploy:
   state:
-    waiting: "Please wait while your classrooms gets loaded, you will be redirected ..."
+    waiting: "Please wait while your classroom loads. You will be redirected ..."
     fetching: "Fetching data from "
     fetched: "Data fetched successfully"
     parsed: "Data parsed successfully"
@@ -104,9 +104,9 @@ deploy:
   overlay:
     isReady: "Congratulations, your lab is ready"
     redirect: "Click the button below to go to your new classroom. If you check \"Don't show this again\", you will be redirected automatically next time."
-    info: "You own this classroom and are the only one who can modify it. Share the link to this page with your students to let them join. The link is unique — recreating or reloading it will create a new room."
+    info: "You own this classroom. Share the link above with your students so they can join. Don't share the address of this page: every time it is opened, it creates a new classroom."
     checkbox: "Don't show this message again"
-    goto: "Goto Classroom"
+    goto: "Go to classroom"
 
 settings:
   general:
@@ -386,9 +386,8 @@ modules:
   collapse: "Leave full screen"
   noModulesInRoom: "None of this classroom's modules are configured to show in this room."
   noModules:
-    1: "Sorry, looks like you have not loaded up any "
-    2: " modules. Add some in the class settings to get started."
-    3: "Sorry, it looks like the class creators have not added any modules yet."
+    teacher: "This class doesn't have any modules yet. Add some in the class settings to get started."
+    student: "Sorry, it looks like the class creators have not added any modules yet."
   webrtcNotSupported:
     title: "WebRTC Not Supported"
     message: "Your browser does not support WebRTC, which is required for this classroom."
@@ -473,11 +472,11 @@ peer:
     noAccess: "You don't have access to this lab, you can only view"
     unauthorized: "Unauthorized user trying to broadcast message, contact admin for access"
     notPropagated: "Your state changes will not be propagated to other users, contact admin for lab access"
-    noPermission: "Only the classroom owner can modify members"
+    noPermission: "The class owner can't be listed as a student"
     userNotFound: "user not found"
     removedTeacher: "You have been removed as a teacher..."
     addedTeacher: "You have been added as a teacher..."
     addedStudent: "You have been added as a student..."
     removedStudent: "You have been removed as a student..."  
-    moduleChanges: "Module definitions have changed, you better reload the page to capture all changes..."
+    moduleChanges: "Module definitions have changed. Reload the page to get all changes."
     communicationChanges: "Communication settings have been updated. Your page will reload automatically in a few seconds."

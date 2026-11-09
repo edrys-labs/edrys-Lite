@@ -95,7 +95,7 @@ classroom:
 
 deploy:
   state:
-    waiting: "Por favor espera mientras se cargan tus aulas, serás redirigido ..."
+    waiting: "Por favor espera mientras se carga tu aula, serás redirigido ..."
     fetching: "Obteniendo datos de "
     fetched: "Datos obtenidos exitosamente"
     parsed: "Datos analizados exitosamente"
@@ -104,7 +104,7 @@ deploy:
   overlay:
     isReady: "Felicitaciones, tu laboratorio está listo"
     redirect: "Haz clic en el botón de abajo para ir a tu nueva aula. Si marcas \"No mostrar este mensaje de nuevo\", serás redirigido automáticamente la próxima vez."
-    info: "Eres propietario de esta aula y eres el único que puede modificarla. Comparte el enlace a esta página con tus estudiantes para que puedan unirse. El enlace es único — recrearlo o recargarlo creará una nueva sala."
+    info: "Eres propietario de esta aula. Comparte el enlace de arriba con tus estudiantes para que puedan unirse. No compartas la dirección de esta página: cada vez que se abre, crea un aula nueva."
     checkbox: "No mostrar este mensaje de nuevo"
     goto: "Ir al Aula"
 
@@ -386,9 +386,8 @@ modules:
   collapse: "Salir de pantalla completa"
   noModulesInRoom: "Ninguno de los módulos de esta clase está configurado para mostrarse en esta sala."
   noModules:
-    1: "Lo siento, parece que no has cargado ningún "
-    2: " módulo. Agrega algunos en la configuración de la clase para comenzar."
-    3: "Lo siento, parece que los creadores de la clase aún no han agregado ningún módulo."
+    teacher: "Esta clase aún no tiene módulos. Agrega algunos en la configuración de la clase para comenzar."
+    student: "Lo siento, parece que los creadores de la clase aún no han agregado ningún módulo."
   webrtcNotSupported:
     title: "WebRTC no es compatible"
     message: "Tu navegador no es compatible con WebRTC, que es necesario para este aula."
@@ -473,7 +472,7 @@ peer:
     noAccess: "No tienes acceso a este laboratorio, solo puedes ver"
     unauthorized: "Usuario no autorizado intentando transmitir mensaje, contacta al administrador para obtener acceso"
     notPropagated: "Tus cambios de estado no se propagarán a otros usuarios, contacta al administrador para obtener acceso al laboratorio"
-    noPermission: "Solo el propietario del aula puede modificar los miembros"
+    noPermission: "El propietario del aula no puede figurar como estudiante"
     userNotFound: "usuario no encontrado"
     removedTeacher: "Has sido removido como profesor..."
     addedTeacher: "Has sido agregado como profesor..."

@@ -400,15 +400,14 @@ describe('Modules Component', () => {
     i18n.global.locale.value = 'en';
     const noModules = messages.en.modules.noModules;
     wrapper = createWrapper({ scrapedModules_: [], role: 'teacher' });
-    expect(wrapper.find('.modules-note').text()).toContain(noModules['1']);
-    expect(wrapper.find('.modules-note').text()).toContain(noModules['2']);
+    expect(wrapper.find('.modules-note').text()).toContain(noModules.teacher);
 
     await wrapper.setProps({ role: 'station' });
-    expect(wrapper.find('.modules-note').text()).toContain(noModules['1']);
+    expect(wrapper.find('.modules-note').text()).toContain(noModules.teacher);
 
     await wrapper.setProps({ role: 'student' });
-    expect(wrapper.find('.modules-note').text()).toContain(noModules['3']);
-    expect(wrapper.find('.modules-note').text()).not.toContain(noModules['1']);
+    expect(wrapper.find('.modules-note').text()).toContain(noModules.student);
+    expect(wrapper.find('.modules-note').text()).not.toContain(noModules.teacher);
   });
 
   test('updates grid on room change', async () => {
