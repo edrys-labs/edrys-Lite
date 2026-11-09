@@ -3,6 +3,8 @@ general:
   copyFullId: "نسخ المعرف الكامل"
   copied: "تم النسخ!"
   userRole: "دور المستخدم"
+  displayName: "الاسم المعروض"
+  displayNameHint: "يظهر للآخرين بجانب معرفك."
   language: "لغة"
   theme:
     title: "المظهر"

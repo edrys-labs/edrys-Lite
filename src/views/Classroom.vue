@@ -5,6 +5,7 @@ import Checks from "../components/Checks.vue";
 import Modules from "../components/Modules.vue";
 import Logger from "../components/Logger.vue";
 import UserMenu from "../components/UserMenu.vue";
+import { loadUsername } from "../ts/UserNames";
 import TutorChat from "../components/TutorChat.vue";
 import AppBrand from "../components/AppBrand.vue";
 import { useI18n } from "vue-i18n";
@@ -359,7 +360,8 @@ export default {
           null, // password
           this.owner || undefined
         ));
-        
+        this.communication.setUsername(loadUsername());
+
         this.communication.on("setup", async (configuration: DatabaseItem) => {
           const previousModules = self.data?.modules;
           await self.database.put(clone(configuration));
@@ -907,7 +909,10 @@ export default {
             <span v-if="chat.new" class="bar-dot"></span>
           </v-btn>
 
-          <UserMenu>
+          <UserMenu
+            :name-editable="!isStation"
+            @username-change="communication?.setUsername($event)"
+          >
             <template v-slot:user-role>{{ t(`general.roles.${getRole()}`) }}</template>
           </UserMenu>
         </div>

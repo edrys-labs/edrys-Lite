@@ -53,6 +53,7 @@ vi.mock('../../../src/ts/Utils', () => ({
 
 // Create a mock communication object that uses vi.fn() for all methods
 const mockCommunication = {
+  setUsername: vi.fn(),
   on: vi.fn(),
   join: vi.fn(),
   update: vi.fn(),

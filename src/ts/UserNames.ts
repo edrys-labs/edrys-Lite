@@ -1,3 +1,5 @@
+import { getPeerID } from "./Utils";
+
 export const MAX_USERNAME_LENGTH = 32;
 
 // Control and invisible formatting characters, such as the bidi overrides that
@@ -15,4 +17,27 @@ export function validUsername(value: unknown): string | null {
   const name = value.replace(/\s+/g, " ").replace(HIDDEN, "").trim();
   if (!VISIBLE.test(name)) return null;
   return Array.from(name).length <= MAX_USERNAME_LENGTH ? name : null;
+}
+
+const storageKey = () => `username_${getPeerID(false)}`;
+
+/** This identity's saved name, or "" if it has none. */
+export function loadUsername(): string {
+  try {
+    return validUsername(localStorage.getItem(storageKey())) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** Saves this identity's name, or forgets it if `value` isn't one; returns what was saved. */
+export function saveUsername(value: string): string {
+  const name = validUsername(value);
+  try {
+    if (name) localStorage.setItem(storageKey(), name);
+    else localStorage.removeItem(storageKey());
+  } catch {
+    // Without storage the name still applies until the page closes.
+  }
+  return name ?? "";
 }

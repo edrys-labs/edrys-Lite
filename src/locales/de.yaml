@@ -3,6 +3,8 @@ general:
   copyFullId: "Vollständige ID kopieren"
   copied: "Kopiert!"
   userRole: "Benutzerrolle"
+  displayName: "Anzeigename"
+  displayNameHint: "Wird anderen neben deiner ID angezeigt."
   language: "Sprache"
   theme:
     title: "Darstellung"

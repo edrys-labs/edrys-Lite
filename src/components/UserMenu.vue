@@ -34,6 +34,20 @@
         </div>
       </section>
 
+      <section v-if="nameEditable" class="gap">
+        <label for="user-menu-username" class="label">{{ t('general.displayName') }}</label>
+        <input
+          id="user-menu-username"
+          v-model="username"
+          class="name-field"
+          type="text"
+          autocomplete="off"
+          :maxlength="maxUsernameLength"
+          @change="commitUsername"
+        />
+        <div class="hint">{{ t('general.displayNameHint') }}</div>
+      </section>
+
       <section v-if="$slots['user-role']">
         <div class="label">{{ t('general.userRole') }}</div>
         <div class="value"><slot name="user-role"></slot></div>
@@ -76,9 +90,14 @@ import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { copyToClipboard, getDisplayPeerID, getPeerID } from '../ts/Utils';
 import { themePreference, setThemePreference, type ThemePreference } from '../ts/Theme';
+import { loadUsername, MAX_USERNAME_LENGTH, saveUsername } from '../ts/UserNames';
 
 export default defineComponent({
   name: 'UserMenu',
+  props: {
+    nameEditable: { type: Boolean, default: true },
+  },
+  emits: ['username-change'],
   setup() {
     const { t, locale } = useI18n();
     return { t, locale, themePreference, setThemePreference };
@@ -87,6 +106,8 @@ export default defineComponent({
     return {
       peerID: getDisplayPeerID(),
       copied: false,
+      username: loadUsername(),
+      maxUsernameLength: MAX_USERNAME_LENGTH,
       languages: [
         { title: 'English', value: 'en' },
         { title: 'Deutsch', value: 'de' },
@@ -108,6 +129,10 @@ export default defineComponent({
       setTimeout(() => {
         this.copied = false;
       }, 2000);
+    },
+    commitUsername() {
+      this.username = saveUsername(this.username);
+      this.$emit('username-change', this.username);
     },
     onLocaleChange(event: Event) {
       this.changeLocale((event.target as HTMLSelectElement).value);
@@ -186,6 +211,29 @@ section:last-child {
 
 .copy-btn :deep(.v-icon) {
   font-size: 15px;
+}
+
+.hint {
+  font-size: 12px;
+  color: rgb(var(--v-theme-muted));
+}
+
+.name-field {
+  box-sizing: border-box;
+  width: 100%;
+  height: 38px;
+  padding-inline: 12px;
+  border: 1px solid rgb(var(--v-theme-field-line));
+  border-radius: 8px;
+  background: rgb(var(--v-theme-field));
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+}
+
+.name-field:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-focus));
+  outline-offset: 2px;
 }
 
 .select {

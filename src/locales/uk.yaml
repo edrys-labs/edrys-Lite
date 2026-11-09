@@ -3,6 +3,8 @@ general:
   copyFullId: "Скопіювати повний ID"
   copied: "Скопійовано!"
   userRole: "Роль користувача"
+  displayName: "Ім'я для показу"
+  displayNameHint: "Інші бачать його поруч із вашим ID."
   language: "Мова"
   theme:
     title: "Тема"
