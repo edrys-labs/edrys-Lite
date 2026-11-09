@@ -102,18 +102,40 @@ describe('Signed y.rooms', () => {
     peer.stop()
   })
 
-  test('a cleared room comes back with empty state', async () => {
+  test('a room the count drops comes back with empty state', async () => {
     await Utils.initCryptoIdentity()
-    const setup = makeSetup(Utils.getPeerID(false), 2)
+    const myPubKey = Utils.getPeerID(false)
+    const setup = makeSetup(myPubKey, 2)
     const peer: any = new Peer(setup, undefined, i18n.global.t)
     await flushPromises()
     await peer.join('student')
     await vi.waitFor(() => expect(peer.y.rooms.get('Room 2')).toBeInstanceOf(Y.Map))
     peer.y.rooms.get('Room 2').set('notes', 'old')
 
-    peer.clearRoomState('Room 2')
+    const saved = makeSetup(myPubKey, 1)
+    saved.timestamp = setup.timestamp + 1
+    peer.newSetup(saved)
 
     await vi.waitFor(() => expect(peer.y.rooms.get('Room 2')?.size).toBe(0))
+    peer.stop()
+  })
+
+  test('raising the count keeps the state of existing rooms', async () => {
+    await Utils.initCryptoIdentity()
+    const myPubKey = Utils.getPeerID(false)
+    const setup = makeSetup(myPubKey, 1)
+    const peer: any = new Peer(setup, undefined, i18n.global.t)
+    await flushPromises()
+    await peer.join('student')
+    await vi.waitFor(() => expect(peer.y.rooms.get('Room 1')).toBeInstanceOf(Y.Map))
+    peer.y.rooms.get('Room 1').set('notes', 'kept')
+
+    const saved = makeSetup(myPubKey, 2)
+    saved.timestamp = setup.timestamp + 1
+    peer.newSetup(saved)
+    await flushPromises()
+
+    expect(peer.y.rooms.get('Room 1').get('notes')).toBe('kept')
     peer.stop()
   })
 

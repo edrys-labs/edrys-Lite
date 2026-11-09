@@ -118,8 +118,8 @@ export default {
 
         // A label is matched as written: normalizing would read "Room for groups" as a number.
         const isInRoom =
-          this.checkRoomMatch(normalizedShowIn, this.roomName.toLowerCase()) ||
-          (!!this.roomLabel && this.checkRoomMatch(showIn, this.roomLabel.toLowerCase()));
+          showInMatches(normalizedShowIn, this.roomName) ||
+          (!!this.roomLabel && showInMatches(showIn, this.roomLabel));
 
         if (this.roleTranslations.teacher.some(trans => normalizedShowIn.includes(trans))) {
           return (
@@ -505,12 +505,6 @@ export default {
         }
       }
       return translatedNames[room.toLowerCase()] || room;
-    },
-
-    // Whether the room is one of the showIn entries: whole names, `*` as a
-    // wildcard ("Room 1" is not "Room 10"; other characters are literal).
-    checkRoomMatch(normalizedShowIn: string[], currentRoom: string) {
-      return showInMatches(normalizedShowIn, currentRoom);
     },
   },
 };

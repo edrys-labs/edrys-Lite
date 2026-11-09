@@ -515,10 +515,9 @@ export default {
         configuration.modules
       );
       
-      // A room the new count drops starts empty and unnamed if it is added again.
+      // A room the new count drops is unnamed if it is added again.
       const newRoomCount = Number(configuration.meta?.defaultNumberOfRooms) || 0;
       for (let n = newRoomCount + 1; n <= Math.min(this.roomCount(), MAX_ROOMS); n++) {
-        this.communication?.clearRoomState("Room " + n);
         configuration.meta = withRoomLabel(configuration.meta, "Room " + n, "");
       }
 

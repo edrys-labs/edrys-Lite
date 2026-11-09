@@ -830,7 +830,7 @@ export default class Peer {
   private async _writeAndSignRoom(name: string, origin: string): Promise<void> {
     try {
       const envelope = await signEntry('rooms', name, {})
-      if (this._isSetupRoom(name) && !this._hasRoomState(name)) this._createSetupRoomState(name)
+      this._ensureSetupRoomState(name)
       this.y.doc.transact(() => {
         if (!(this.y.rooms.get(name) instanceof Y.Map)) {
           this.y.rooms.set(name, new Y.Map())
@@ -1134,6 +1134,7 @@ export default class Peer {
     if (this.lab.timestamp < config.timestamp) {
       const roomsChanged =
         this.lab.data?.meta?.defaultNumberOfRooms !== config.data?.meta?.defaultNumberOfRooms
+      const previousRoomCount = this._roomCount()
       this.logSetupChanges(this.lab.data, config.data)
       this.lab.id = config.id
       this.lab.data = config.data
@@ -1142,6 +1143,7 @@ export default class Peer {
       this.initSetup(true)
       this.update('setup')
       this._reverifyAfterSetup()
+      this._clearRemovedRooms(previousRoomCount)
       if (roomsChanged) this._addDefaultRooms()
     }
   }
@@ -1473,12 +1475,17 @@ export default class Peer {
   }
 
   /**
-   * Drops a removed room's module state. Its signed record stays, so
-   * _republishRoom puts back an empty map for when the room is added again.
+   * Drops the module state of the rooms a lower count removed, so they start
+   * empty if added again. Their signed records stay, so _republishRoom puts
+   * back an empty map.
    */
-  clearRoomState(name: string) {
-    if (!this.canManageRooms() || !this.y.rooms.has(name)) return
-    this.y.doc.transact(() => this.y.rooms.delete(name), 'clearRoomState')
+  private _clearRemovedRooms(previousCount: number) {
+    if (!this.canManageRooms()) return
+    this.y.doc.transact(() => {
+      for (let n = this._roomCount() + 1; n <= previousCount; n++) {
+        this.y.rooms.delete(`Room ${n}`)
+      }
+    }, 'clearRemovedRooms')
   }
 
   // the public key of the student tutor this tab offers (an owner tab of edrys-dev --tutor)
@@ -1513,7 +1520,7 @@ export default class Peer {
   gotoRoom(room: string) {
     const current = this.user()
     if (!current) return
-    if (this._isSetupRoom(room) && !this._hasRoomState(room)) this._createSetupRoomState(room)
+    this._ensureSetupRoomState(room)
     this.presence.publish({ ...current, room })
   }
 
@@ -1528,16 +1535,18 @@ export default class Peer {
    * client id loses to a real one, so an unsynced peer can't replace a room's
    * module state with an empty map.
    */
-  private _createSetupRoomState(room: string) {
+  private _ensureSetupRoomState(room: string) {
+    if (!this._isSetupRoom(room) || this._hasRoomState(room)) return
+
     const seed = new Y.Doc()
     seed.clientID = Number(room.slice('Room '.length))
     seed.getMap('rooms').set(room, new Y.Map())
-    Y.applyUpdate(this.y.doc, Y.encodeStateAsUpdate(seed), 'gotoRoom')
+    Y.applyUpdate(this.y.doc, Y.encodeStateAsUpdate(seed), 'setupRoomState')
     seed.destroy()
 
     // Applying it again can't bring back a map deleted since.
     if (!this._hasRoomState(room)) {
-      this.y.doc.transact(() => this.y.rooms.set(room, new Y.Map()), 'gotoRoom')
+      this.y.doc.transact(() => this.y.rooms.set(room, new Y.Map()), 'setupRoomState')
     }
   }
 

@@ -317,12 +317,12 @@ export default {
   },
 
   methods: {
+    showInWithLabels,
+
     // One dot per room a "Show in" value names, in that room's drawer color;
     // "station" names every station that is online. "*", stations that are
     // offline and rooms that don't exist yet get a hollow ring. Role values
     // (teacher-only, station-only) narrow who sees a module, so add no dot.
-    showInWithLabels,
-
     groupDots(showIn: string) {
       const rooms = this.rooms as string[];
       const dots: { key: string; color: string | null }[] = [];

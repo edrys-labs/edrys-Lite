@@ -58,7 +58,6 @@ const mockCommunication = {
   update: vi.fn(),
   gotoRoom: vi.fn(),
   addRoom: vi.fn(),
-  clearRoomState: vi.fn(),
   sendMessage: vi.fn(),
   newSetup: vi.fn(),
   stop: vi.fn(),
@@ -537,15 +536,6 @@ describe('Classroom View', () => {
       expect(wrapper.vm.configuration.data.meta.defaultNumberOfRooms).toBe(50);
     });
 
-    test('lowering the room count clears the state of the rooms it drops', async () => {
-      const { wrapper } = await saveWith({ meta: { defaultNumberOfRooms: 3 } });
-      mockCommunication.clearRoomState.mockClear();
-
-      wrapper.vm.saveClass({ ...wrapper.vm.configuration.data, meta: { defaultNumberOfRooms: 1 } });
-
-      expect(mockCommunication.clearRoomState.mock.calls).toEqual([['Room 2'], ['Room 3']]);
-    });
-
     test('lowering the room count drops only the labels of the rooms it removes', async () => {
       const { wrapper } = await saveWith({
         meta: { defaultNumberOfRooms: 2, roomNames: { 'Room 1': 'Group A', 'Room 2': 'Group B' } },
@@ -557,15 +547,6 @@ describe('Classroom View', () => {
       });
 
       expect(wrapper.vm.configuration.data.meta.roomNames).toEqual({ 'Room 1': 'Group A' });
-    });
-
-    test('raising the room count clears nothing', async () => {
-      const { wrapper } = await saveWith({ meta: { defaultNumberOfRooms: 1 } });
-      mockCommunication.clearRoomState.mockClear();
-
-      wrapper.vm.addRoom();
-
-      expect(mockCommunication.clearRoomState).not.toHaveBeenCalled();
     });
 
     test('does not reload modules when the transport changed (the page reloads instead)', async () => {
