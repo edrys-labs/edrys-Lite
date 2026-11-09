@@ -160,6 +160,16 @@ describe('Module Component', () => {
     activeTheme.value = 'light';
   });
 
+  test('sends the room label with the update and again when it changes', async () => {
+    const wrapper = createWrapper({ roomLabel: 'Group A' });
+    await wrapper.find('iframe').trigger('load');
+    expect(mockPostMessage.mock.lastCall[0].roomLabel).toBe('Group A');
+
+    mockPostMessage.mockClear();
+    await wrapper.setProps({ roomLabel: 'Group B' });
+    expect(mockPostMessage.mock.lastCall[0]).toMatchObject({ event: 'update', roomLabel: 'Group B' });
+  });
+
   test('reacts to room changes', async () => {
     wrapper = createWrapper();
     await wrapper.find('iframe').trigger('load');

@@ -165,6 +165,18 @@ describe('edrys.ts (module API bridge)', () => {
     expect(Object.keys(window['Edrys'].liveClass.users)).toEqual(['alice', 'bob']);
   });
 
+  test('roomLabel is the label from the parent, else the internal room name', () => {
+    sendInitialUpdate();
+    expect(window['Edrys'].roomLabel).toBe('Room A');
+
+    sendInitialUpdate({ liveClass: undefined, roomLabel: 'Group B' });
+    expect(window['Edrys'].roomLabel).toBe('Group B');
+    expect(window['Edrys'].liveUser.room).toBe('Room A');
+
+    sendInitialUpdate({ liveClass: undefined });
+    expect(window['Edrys'].roomLabel).toBe('Room A');
+  });
+
   test('sendMessage encodes the body and posts to the trusted parent origin', () => {
     sendInitialUpdate();
     const postSpy = vi.spyOn(window.parent, 'postMessage');

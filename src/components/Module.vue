@@ -52,6 +52,8 @@ export default {
       type: String,
       required: true,
     },
+
+    roomLabel: String,
   },
   emits: ["loaded"],
   data() {
@@ -67,6 +69,9 @@ export default {
   },
   watch: {
     liveClassProxy() {
+      if (this.loaded) this.updateIframe();
+    },
+    roomLabel() {
       if (this.loaded) this.updateIframe();
     },
     theme(theme) {
@@ -108,6 +113,7 @@ export default {
             module: JSON.parse(JSON.stringify(this.scrapedModule)),
             class_id: this.class_id,
             theme: this.theme,
+            roomLabel: this.roomLabel,
           },
           this.targetOrigin()
         );

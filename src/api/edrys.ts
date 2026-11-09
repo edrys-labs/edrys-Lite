@@ -9,6 +9,7 @@
  *  Edrys.liveClass (read-only snapshot, rebuilt on every update; use Edrys.getState to share data)
  *  Edrys.liveRoom
  *  Edrys.liveUser
+ *  Edrys.roomLabel (the room's name for display; key data on Edrys.liveUser.room, which a rename doesn't change)
  *  Edrys.theme ('light' or 'dark', the classroom's theme; also on <html data-theme>)
  * Functions:
  *  Edrys.sendMessage(subject, body)
@@ -159,6 +160,7 @@ window['Edrys'] = {
   liveClass: undefined,
   liveRoom: undefined,
   liveUser: undefined,
+  roomLabel: undefined,
   module: undefined,
   class_id: undefined,
   theme: undefined,
@@ -423,6 +425,7 @@ window['Edrys'] = {
 
 // Present users, as last handed over by the parent (not part of the doc).
 var liveUsers: Record<string, any> = {}
+var givenRoomLabel: string | undefined
 
 function update() {
   const liveClass = {
@@ -444,6 +447,7 @@ function update() {
     ? liveClass.rooms[window['Edrys'].liveUser.room]
     : undefined
   //window['Edrys'].liveRoom.name = window['Edrys'].liveUser.room
+  window['Edrys'].roomLabel = givenRoomLabel ?? window['Edrys'].liveUser?.room
 }
 
 function dispatchUpdate() {
@@ -574,8 +578,11 @@ window.addEventListener(
         applyTheme(e.data.theme)
 
         if (e.data.users) {
-          const changed = JSON.stringify(e.data.users) !== JSON.stringify(liveUsers)
+          const changed =
+            JSON.stringify(e.data.users) !== JSON.stringify(liveUsers) ||
+            e.data.roomLabel !== givenRoomLabel
           liveUsers = e.data.users
+          givenRoomLabel = e.data.roomLabel
           if (changed && window['Edrys'].ready) dispatchUpdate()
           else if (changed && liveClass) update()
         }

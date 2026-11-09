@@ -562,6 +562,7 @@ export default {
           :scrapedModule="m"
           :role="role"
           :class_id="class_id"
+          :room-label="roomLabel"
           @loaded="moduleLoaded"
         >
         </Module>
