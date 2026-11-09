@@ -307,11 +307,12 @@ export function startDevBridge(apply: (data: any) => boolean, commands: DevComma
  * the loaded modules, in the order of the lab's).
  */
 export function classState(live: any, peerID: string, data: any, scraped: any[] = []) {
-  const rooms: Record<string, { name: string; role: string; me?: true }[]> = {}
+  const rooms: Record<string, { name: string; username?: string; role: string; me?: true }[]> = {}
   for (const name of Object.keys(live?.rooms || {})) rooms[name] = []
 
   for (const [id, user] of Object.entries<any>(live?.users || {})) {
-    const entry: { name: string; role: string; me?: true } = { name: user.displayName, role: user.role }
+    const entry: { name: string; username?: string; role: string; me?: true } = { name: user.displayName, role: user.role }
+    if (user.username) entry.username = user.username
     if (id === peerID) entry.me = true
     ;(rooms[user.room] ??= []).push(entry)
   }

@@ -135,10 +135,15 @@ export async function tutorAnswer(
 /**
  * In the owner tab: passes the questions of peers who may take part in the
  * class on to edrys-dev, and its answers back to the asker, sealed. `room`
- * gives the room of a peer. Returns `publicKey` (to announce), `answer` for
+ * gives the room of a peer, `username` its chosen name. Returns `publicKey` (to announce), `answer` for
  * edrys-dev's `tutor-answer` events and `stop`.
  */
-export function startTutorRelay(peer: Peer, allowed: (base: string) => boolean, room: (id: string) => string) {
+export function startTutorRelay(
+  peer: Peer,
+  allowed: (base: string) => boolean,
+  room: (id: string) => string,
+  username: (id: string) => string | null | undefined = () => null
+) {
   const keys = tutorKeys()
   const waiting = new Map<string, { to: string; id: string; key: CryptoKey; t: number }>()
 
@@ -169,7 +174,11 @@ export function startTutorRelay(peer: Peer, allowed: (base: string) => boolean, 
     for (const [relayId, entry] of waiting) if (entry.t < now - RELAY_MS) waiting.delete(relayId)
     const relay = infoHash(12)
     waiting.set(relay, { to: msg.from, id: ask.id, key, t: now })
-    report('tutor-ask', { id: relay, student, name: getShortPeerID(msg.from), room: room(msg.from), text: value.text })
+    const short = getShortPeerID(msg.from)
+    const chosen = username(msg.from)
+    // The short ID stays: chosen names aren't unique
+    const name = chosen ? `${chosen} · ${short}` : short
+    report('tutor-ask', { id: relay, student, name, room: room(msg.from), text: value.text })
   })
 
   return {

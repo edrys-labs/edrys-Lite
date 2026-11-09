@@ -535,6 +535,13 @@ describe('classState', () => {
     });
   });
 
+  test('gives a chosen name beside the short ID', () => {
+    const users = { 'student-key-s2': { displayName: 'stud', username: 'Ada', role: 'student', room: 'Lobby' } };
+    const state = classState({ rooms: { Lobby: {} }, users }, 'owner-key-s1', {});
+
+    expect(state.rooms.Lobby).toEqual([{ name: 'stud', username: 'Ada', role: 'student' }]);
+  });
+
   test('names modules as loaded, and says which could not be loaded', () => {
     const data = {
       modules: [{ url: 'https://t' }, { url: 'https://gone' }, { url: 'https://later' }],

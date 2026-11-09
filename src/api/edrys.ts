@@ -8,7 +8,7 @@
  *  Edrys.debug (set to true/false to enable/disable module debugging)
  *  Edrys.liveClass (read-only snapshot, rebuilt on every update; use Edrys.getState to share data)
  *  Edrys.liveRoom
- *  Edrys.liveUser
+ *  Edrys.liveUser (displayName is the short ID; username is the name the user chose, or null, and isn't unique)
  *  Edrys.roomLabel (the room's name for display; key data on Edrys.liveUser.room, which a rename doesn't change)
  *  Edrys.theme ('light' or 'dark', the classroom's theme; also on <html data-theme>)
  * Functions:

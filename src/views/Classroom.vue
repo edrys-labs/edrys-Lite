@@ -584,7 +584,8 @@ export default {
       const relay = startTutorRelay(
         this.communication,
         (base: string) => this.communication.allowedToParticipate(base),
-        (id: string) => this.liveClassProxy?.users?.[id]?.room ?? ""
+        (id: string) => this.liveClassProxy?.users?.[id]?.room ?? "",
+        (id: string) => this.liveClassProxy?.users?.[id]?.username
       );
       // the key is made once per tab; the last switch wins
       let switches = 0;

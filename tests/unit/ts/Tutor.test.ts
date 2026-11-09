@@ -3,6 +3,7 @@ import { sealQuestion, startTutorRelay, tutorAnswer, tutorKeys, tutorPeer, TEXT_
 
 vi.mock('../../../src/ts/DevBridge', () => ({ report: vi.fn() }))
 import { report } from '../../../src/ts/DevBridge'
+import { getShortPeerID } from '../../../src/ts/Utils'
 
 const OWNER = 'ownerKey=='
 const STUDENT = 'studentKey_s1'
@@ -71,6 +72,18 @@ describe('startTutorRelay', () => {
     expect(peer.sendTutor).toHaveBeenCalledTimes(1)
     relay.stop()
     expect(peer.onTutor).toHaveBeenLastCalledWith(null)
+  })
+
+  test.each([
+    ['Ada', `Ada · ${getShortPeerID(STUDENT)}`],
+    [null, getShortPeerID(STUDENT)],
+  ])('a student with the chosen name %j is called %j', async (chosen, name) => {
+    const relay = startTutorRelay(peer, () => true, () => 'Lobby', () => chosen)
+    const { tutor } = await sealQuestion(await relay.publicKey(), STUDENT, 'q1', 'hi')
+    await handler({ from: STUDENT, tutor })
+
+    const [, question] = vi.mocked(report).mock.calls[0] as any[]
+    expect(question.name).toBe(name)
   })
 
   test('a question copied off the wire, or sealed for another key, is dropped', async () => {
