@@ -188,13 +188,13 @@ export default {
         // the station is the room's equipment, so a free station shows no count
         const people = inRoom.filter((user) => user.role !== "station").length;
         const label = this.translateRoomName(name);
-        const numbered = name.match(/^Room (.+)$/);
+        const numbered = !this.roomDisplayName(name) && name.match(/^Room (.+)$/);
         const goto = this.t("classroom.sideMenu.gotoRoom", { room: label });
 
         return {
           name,
           label,
-          // "Room 3" shows its number, other rooms their first letter
+          // an unnamed "Room 3" shows its number, other rooms their first letter
           initial: numbered ? numbered[1] : label.charAt(0).toUpperCase(),
           tile: roomTile(roomSlot(name, rooms), this.activeTheme),
           users: inRoom,
@@ -684,7 +684,14 @@ export default {
       if (name === "Lobby") return this.t("classroom.sideMenu.lobby");
       if (name.includes("Station"))
         return name.replace("Station", this.t("classroom.sideMenu.station"));
-      return name.replace("Room", this.t("classroom.sideMenu.room"));
+      return this.roomDisplayName(name) ?? name.replace("Room", this.t("classroom.sideMenu.room"));
+    },
+
+    // The label the class gave this room, if any. The internal name stays the
+    // room's identity: state, signatures and presence are all keyed on it.
+    roomDisplayName(name: string): string | undefined {
+      const label = this.configuration?.data?.meta?.roomNames?.[name];
+      return typeof label === "string" && label.trim() ? label.trim() : undefined;
     },
   },
 

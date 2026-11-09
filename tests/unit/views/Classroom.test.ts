@@ -235,6 +235,13 @@ describe('Classroom View', () => {
       return wrapper;
     };
 
+    const nameRooms = async (wrapper: any, roomNames: Record<string, string>) => {
+      const data = wrapper.vm.configuration.data;
+      wrapper.vm.database.update = vi.fn().mockResolvedValue('test-id');
+      wrapper.vm.saveClass({ ...data, meta: { ...data.meta, roomNames } });
+      await flushPromises();
+    };
+
     test('has one button per room that goes there, the current one marked', async () => {
       const wrapper = await openDrawer();
       const rows = wrapper.findAll('.room-row');
@@ -249,6 +256,28 @@ describe('Classroom View', () => {
       mockCommunication.gotoRoom.mockClear();
       await rows[1].trigger('click');
       expect(mockCommunication.gotoRoom).toHaveBeenCalledWith('Room 1');
+    });
+
+    test('shows a room label but still goes to the internal room', async () => {
+      const wrapper = await openDrawer();
+      await nameRooms(wrapper, { 'Room 1': 'Group B' });
+
+      const room = wrapper.vm.drawerRooms.find((r: any) => r.name === 'Room 1');
+      expect(room).toMatchObject({ label: 'Group B', initial: 'G' });
+
+      mockCommunication.gotoRoom.mockClear();
+      await wrapper.findAll('.room-row')[1].trigger('click');
+      expect(mockCommunication.gotoRoom).toHaveBeenCalledWith('Room 1');
+    });
+
+    test('keeps the number for an empty label and never labels the Lobby or a station', async () => {
+      const wrapper = await openDrawer();
+      await nameRooms(wrapper, { 'Room 1': '   ', Lobby: 'Hall', 'Station abc': 'Bench' });
+
+      const [lobby, room, station] = wrapper.vm.drawerRooms;
+      expect(room).toMatchObject({ label: 'Room 1', initial: '1' });
+      expect(lobby.label).toBe('Lobby');
+      expect(station.label).toBe('Station abc');
     });
 
     test('does not count a station as a person in its room', async () => {
