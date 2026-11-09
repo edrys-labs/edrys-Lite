@@ -228,6 +228,16 @@ describe('Classroom View', () => {
       rooms: { 'Lobby': {}, 'Room 1': {}, 'Station abc': {} },
     };
 
+    test('a chosen name is shown with the short ID, and never as a station', async () => {
+      const wrapper = createWrapper();
+      await wrapper.vm.init();
+      const entry = (user: any) => wrapper.vm.drawerUser('other-peer', { displayName: 'abc123', role: 'student', ...user });
+
+      expect(entry({ username: 'Ada' })).toMatchObject({ name: 'Ada', shortId: 'abc123' });
+      expect(entry({})).toMatchObject({ name: 'abc123', shortId: '' });
+      expect(entry({ username: 'Station 1' })).toMatchObject({ name: 'Station 1', shortId: 'abc123' });
+    });
+
     const openDrawer = async () => {
       const wrapper = createWrapper();
       await wrapper.vm.init();

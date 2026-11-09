@@ -644,9 +644,12 @@ export default {
       const name = user.displayName;
       return {
         id,
-        name: name?.includes("Station")
-          ? name.replace("Station", this.t("classroom.sideMenu.station"))
-          : name,
+        name:
+          role === "station"
+            ? name?.replace("Station", this.t("classroom.sideMenu.station"))
+            : user.username || name,
+        // Next to a chosen name, which anyone could pick; never cut off.
+        shortId: user.username ? name : "",
         role,
         tag: tags.join(" · "),
         label,
@@ -1098,10 +1101,17 @@ export default {
               <span class="user-avatar">
                 <span class="user-dot"></span>
               </span>
-              <span class="user-name user-name--id"
+              <span v-if="user.shortId" class="user-name user-name--named"
+                ><span class="user-chosen" :title="user.name">{{ user.name }}</span
+                ><span class="user-details" aria-hidden="true"
+                  ><span class="user-short-id">{{ user.shortId }}</span
+                  ><span v-if="user.tag" class="user-tag">{{ user.tag }}</span></span
+                ><span class="d-sr-only">, {{ user.label }}</span></span
+              >
+              <span v-else class="user-name user-name--id"
                 >{{ user.name }}<span class="d-sr-only">, {{ user.label }}</span></span
               >
-              <span v-if="user.tag" class="user-tag" aria-hidden="true">{{ user.tag }}</span>
+              <span v-if="user.tag && !user.shortId" class="user-tag" aria-hidden="true">{{ user.tag }}</span>
             </div>
           </div>
         </div>
@@ -1626,6 +1636,30 @@ export default {
 .user-name--id {
   font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
   font-weight: 500;
+}
+
+.user-name--named {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font-weight: 500;
+}
+
+.user-chosen {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-details {
+  display: flex;
+  gap: 8px;
+}
+
+.user-short-id {
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+  font-size: 11px;
+  color: rgb(var(--v-theme-muted));
 }
 
 .user-tag {
