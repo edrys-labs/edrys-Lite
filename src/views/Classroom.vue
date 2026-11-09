@@ -45,6 +45,7 @@ import {
   type ChatViews,
 } from "../ts/DevBridge";
 import { startTutorRelay, tutorPeer } from "../ts/Tutor";
+import { MAX_ROOM_LABEL_LENGTH, roomLabelProblem, withRoomLabel } from "../ts/RoomNames";
 
 export default {
   props: ["id", "station", "owner"],
@@ -111,6 +112,10 @@ export default {
 
       showSideMenu: true,
       showSettings: false,
+
+      renamingRoom: null as string | null,
+      roomLabelInput: "",
+      maxRoomLabelLength: MAX_ROOM_LABEL_LENGTH,
 
       scrapedModules: [] as any[],
       isLoadingModules: false,
@@ -219,6 +224,17 @@ export default {
     },
     stationTile() {
       return roomTile(roomSlot("Station " + this.stationName, this.orderedRooms()), this.activeTheme);
+    },
+    roomLabelError(): string {
+      if (!this.renamingRoom) return "";
+      const problem = roomLabelProblem(
+        this.roomLabelInput,
+        this.renamingRoom,
+        this.configuration?.data?.meta?.roomNames
+      );
+      return problem
+        ? this.t(`classroom.sideMenu.roomLabel.problems.${problem}`, { n: MAX_ROOM_LABEL_LENGTH })
+        : "";
     },
     drawerWidth(): number {
       return this.phone ? 312 : 264;
@@ -650,6 +666,25 @@ export default {
       this.saveClass(configuration);
     },
 
+    canRenameRoom(name: string): boolean {
+      return (this.isOwner || this.isTeacher) && name.startsWith("Room ");
+    },
+
+    startRoomRename(name: string) {
+      this.roomLabelInput = this.roomDisplayName(name) ?? "";
+      this.renamingRoom = name;
+    },
+
+    saveRoomLabel() {
+      if (!this.renamingRoom || this.roomLabelError) return;
+      const configuration = clone(this.configuration.data);
+      configuration.meta = withRoomLabel(configuration.meta, this.renamingRoom, this.roomLabelInput);
+      this.renamingRoom = null;
+      if (!deepEqual(configuration.meta, this.configuration.data.meta)) {
+        this.saveClass(configuration);
+      }
+    },
+
     deleteClass() {
       this.database.drop(this.configuration.id);
       window.location.search = "";
@@ -950,26 +985,81 @@ export default {
             class="room"
             :class="{ 'room--station': room.name.startsWith('Station') }"
           >
-            <button
-              type="button"
-              class="room-row"
-              :class="{ 'room-row--current': room.name === currentRoom }"
-              :aria-current="room.name === currentRoom ? 'true' : undefined"
-              :aria-label="room.gotoLabel"
-              @click="gotoRoom(room.name)"
+            <form
+              v-if="renamingRoom === room.name"
+              class="room-rename"
+              @submit.prevent="saveRoomLabel"
+              @keydown.esc.stop="renamingRoom = null"
             >
-              <span class="room-tile" :style="{ background: room.tile.bg, color: room.tile.fg }">
-                {{ room.initial }}
-              </span>
-              <span class="room-name">{{ room.label }}</span>
-              <span v-if="room.people" class="room-count">
-                <v-icon icon="mdi-account-outline" size="13"></v-icon>
-                {{ room.people }}
-              </span>
-              <span class="room-enter">
-                <v-icon :icon="rtl ? 'mdi-arrow-left' : 'mdi-arrow-right'" size="15"></v-icon>
-              </span>
-            </button>
+              <v-text-field
+                v-model="roomLabelInput"
+                :label="t('classroom.sideMenu.roomLabel.field')"
+                :placeholder="room.name"
+                :error-messages="roomLabelError"
+                :maxlength="maxRoomLabelLength + 1"
+                density="compact"
+                variant="outlined"
+                hide-details="auto"
+                autofocus
+              ></v-text-field>
+              <v-btn
+                type="submit"
+                icon="mdi-check"
+                size="28"
+                rounded="lg"
+                variant="text"
+                color="primary"
+                class="room-rename-action"
+                :disabled="!!roomLabelError"
+                :aria-label="t('classroom.sideMenu.roomLabel.save')"
+                :title="t('classroom.sideMenu.roomLabel.save')"
+              ></v-btn>
+              <v-btn
+                icon="mdi-close"
+                size="28"
+                rounded="lg"
+                variant="text"
+                class="room-rename-action room-rename-cancel"
+                :aria-label="t('classroom.sideMenu.roomLabel.cancel')"
+                :title="t('classroom.sideMenu.roomLabel.cancel')"
+                @click="renamingRoom = null"
+              ></v-btn>
+            </form>
+            <div v-else class="room-head">
+              <button
+                type="button"
+                class="room-row"
+                :class="{
+                  'room-row--current': room.name === currentRoom,
+                  'room-row--renamable': canRenameRoom(room.name),
+                }"
+                :aria-current="room.name === currentRoom ? 'true' : undefined"
+                :aria-label="room.gotoLabel"
+                @click="gotoRoom(room.name)"
+              >
+                <span class="room-tile" :style="{ background: room.tile.bg, color: room.tile.fg }">
+                  {{ room.initial }}
+                </span>
+                <span class="room-name">{{ room.label }}</span>
+                <span v-if="room.people" class="room-count">
+                  <v-icon icon="mdi-account-outline" size="13"></v-icon>
+                  {{ room.people }}
+                </span>
+                <span class="room-enter">
+                  <v-icon :icon="rtl ? 'mdi-arrow-left' : 'mdi-arrow-right'" size="15"></v-icon>
+                </span>
+              </button>
+              <button
+                v-if="canRenameRoom(room.name)"
+                type="button"
+                class="room-rename-open"
+                :aria-label="t('classroom.sideMenu.roomLabel.rename', { room: room.label })"
+                :title="t('classroom.sideMenu.roomLabel.rename', { room: room.label })"
+                @click="startRoomRename(room.name)"
+              >
+                <v-icon icon="mdi-pencil-outline" size="15"></v-icon>
+              </button>
+            </div>
 
             <div v-for="user in room.users" :key="user.id" class="room-user">
               <span
@@ -1335,6 +1425,64 @@ export default {
   margin-top: 6px;
 }
 
+.room-head {
+  position: relative;
+}
+
+.room-rename {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 4px 6px 8px;
+}
+
+.room-rename-action {
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.room-rename-cancel {
+  color: rgb(var(--v-theme-muted));
+}
+
+/* Sits in the row, in the space kept free before the arrow */
+.room-rename-open {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-block: auto;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(var(--v-theme-muted));
+  cursor: pointer;
+  opacity: 0;
+}
+
+.room-head:hover .room-rename-open,
+.room-rename-open:focus-visible {
+  opacity: 1;
+}
+
+.room-rename-open:hover {
+  color: rgb(var(--v-theme-text-2));
+}
+
+@media (hover: none) {
+  .room-rename-open {
+    opacity: 1;
+  }
+}
+
+.room-row--renamable .room-enter {
+  margin-inline-start: 20px;
+}
+
 /* One button per room: the arrow is only a cue */
 .room-row {
   display: flex;
@@ -1365,6 +1513,7 @@ export default {
 }
 
 .room-row:focus-visible,
+.room-rename-open:focus-visible,
 .drawer-btn:focus-visible,
 .drawer-settings:focus-visible {
   outline: 2px solid rgb(var(--v-theme-focus));

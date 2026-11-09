@@ -90,6 +90,16 @@ classroom:
     gotoRoom: "Go to {room}"
     people: "{n} person | {n} people"
     close: "Close rooms"
+    roomLabel:
+      rename: "Rename {room}"
+      field: "Room name"
+      save: "Save name"
+      cancel: "Cancel"
+      problems:
+        tooLong: "Keep it under {n} characters"
+        characters: "Commas and asterisks are not allowed"
+        reserved: "This name is reserved for another room"
+        taken: "Another room already has this name"
   popup:
     close: "Close"
 

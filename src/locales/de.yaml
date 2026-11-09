@@ -90,6 +90,16 @@ classroom:
     gotoRoom: "Zu {room} wechseln"
     people: "{n} Person | {n} Personen"
     close: "Räume schließen"
+    roomLabel:
+      rename: "{room} umbenennen"
+      field: "Raumname"
+      save: "Namen speichern"
+      cancel: "Abbrechen"
+      problems:
+        tooLong: "Höchstens {n} Zeichen"
+        characters: "Kommas und Sternchen sind nicht erlaubt"
+        reserved: "Dieser Name ist für einen anderen Raum reserviert"
+        taken: "Ein anderer Raum hat bereits diesen Namen"
   popup:
     close: "Schließen"
     

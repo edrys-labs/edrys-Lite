@@ -90,6 +90,16 @@ classroom:
     gotoRoom: "Перейти до {room}"
     people: "Людей: {n}"
     close: "Закрити кімнати"
+    roomLabel:
+      rename: "Перейменувати {room}"
+      field: "Назва кімнати"
+      save: "Зберегти назву"
+      cancel: "Скасувати"
+      problems:
+        tooLong: "Не більше {n} символів"
+        characters: "Коми та зірочки не дозволені"
+        reserved: "Цю назву зарезервовано для іншої кімнати"
+        taken: "Інша кімната вже має цю назву"
   popup:
     close: "Закрити"
 

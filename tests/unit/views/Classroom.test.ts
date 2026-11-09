@@ -280,6 +280,56 @@ describe('Classroom View', () => {
       expect(station.label).toBe('Station abc');
     });
 
+    test('lets teachers rename numbered rooms only', async () => {
+      const wrapper = await openDrawer();
+      expect(wrapper.find('.room-rename-open').exists()).toBe(false);
+
+      wrapper.vm.isTeacher = true;
+      await wrapper.vm.$nextTick();
+      expect(wrapper.findAll('.room-rename-open')).toHaveLength(1);
+    });
+
+    test('saves a new label into the setup', async () => {
+      const wrapper = await openDrawer();
+      wrapper.vm.database.update = vi.fn().mockResolvedValue('test-id');
+      wrapper.vm.startRoomRename('Room 1');
+      wrapper.vm.roomLabelInput = ' Group B ';
+      wrapper.vm.saveRoomLabel();
+      await flushPromises();
+
+      expect(wrapper.vm.renamingRoom).toBeNull();
+      expect(wrapper.vm.database.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            meta: expect.objectContaining({ roomNames: { 'Room 1': 'Group B' } }),
+          }),
+        })
+      );
+    });
+
+    test('keeps the form open and saves nothing for an invalid label', async () => {
+      const wrapper = await openDrawer();
+      wrapper.vm.database.update = vi.fn().mockResolvedValue('test-id');
+      wrapper.vm.startRoomRename('Room 1');
+      wrapper.vm.roomLabelInput = 'Lobby';
+      await wrapper.vm.$nextTick();
+      wrapper.vm.saveRoomLabel();
+
+      expect(wrapper.vm.roomLabelError).not.toBe('');
+      expect(wrapper.vm.renamingRoom).toBe('Room 1');
+      expect(wrapper.vm.database.update).not.toHaveBeenCalled();
+    });
+
+    test('does not save when an unnamed room stays unnamed', async () => {
+      const wrapper = await openDrawer();
+      wrapper.vm.database.update = vi.fn().mockResolvedValue('test-id');
+      wrapper.vm.startRoomRename('Room 1');
+      wrapper.vm.saveRoomLabel();
+
+      expect(wrapper.vm.renamingRoom).toBeNull();
+      expect(wrapper.vm.database.update).not.toHaveBeenCalled();
+    });
+
     test('does not count a station as a person in its room', async () => {
       const wrapper = await openDrawer();
       const stationRoom = wrapper.findAll('.room')[2];

@@ -90,6 +90,16 @@ classroom:
     gotoRoom: "الانتقال إلى {room}"
     people: "عدد الأشخاص: {n}"
     close: "إغلاق الغرف"
+    roomLabel:
+      rename: "إعادة تسمية {room}"
+      field: "اسم الغرفة"
+      save: "حفظ الاسم"
+      cancel: "إلغاء"
+      problems:
+        tooLong: "الحد الأقصى {n} حرفًا"
+        characters: "الفواصل والنجوم غير مسموح بها"
+        reserved: "هذا الاسم محجوز لغرفة أخرى"
+        taken: "هناك غرفة أخرى تحمل هذا الاسم"
   popup:
     close: "إغلاق"
 
