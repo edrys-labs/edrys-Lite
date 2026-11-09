@@ -554,6 +554,34 @@ describe('Modules Component', () => {
       expect(shownIn('Room 10', 'Room 1*')).toBe(true);
     });
 
+    describe('with a room label', () => {
+      const shownInLabelled = (room: string, roomLabel: string | undefined, showInCustom: string) =>
+        createWrapper({
+          roomLabel,
+          scrapedModules_: [{ name: 'M', url: 'https://example.com/m', showInCustom }],
+          liveClassProxy: { users: { 'test-user': { room } } },
+        }).findAllComponents({ name: 'Module' }).length === 1;
+
+      test('matches the internal name or the label', () => {
+        expect(shownInLabelled('Room 2', 'Group B', 'Room 2')).toBe(true);
+        expect(shownInLabelled('Room 2', 'Group B', 'group b')).toBe(true);
+        expect(shownInLabelled('Room 2', 'Group B', 'Room 1, Group B')).toBe(true);
+        expect(shownInLabelled('Room 2', 'Group B', 'Group A')).toBe(false);
+      });
+
+      test('applies wildcards to the label', () => {
+        expect(shownInLabelled('Room 2', 'Group B', 'Group*')).toBe(true);
+      });
+
+      test('matches a label that starts with a room word', () => {
+        expect(shownInLabelled('Room 2', 'Room for groups', 'Room for groups')).toBe(true);
+      });
+
+      test('does not leak a label to a room without it', () => {
+        expect(shownInLabelled('Room 1', undefined, 'Group B')).toBe(false);
+      });
+    });
+
     test('treat characters other than * literally', () => {
       expect(shownIn('Lab (A)', 'Lab (A)')).toBe(true);
       expect(shownIn('Lab [x', 'Lab [x')).toBe(true);

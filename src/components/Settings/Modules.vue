@@ -29,7 +29,7 @@
           ></span>
           <h3>
             {{ t('settings.modules.module.showIn.title') }}:
-            <span class="group-name">{{ element.showInCustom || "*" }}</span>
+            <span class="group-name">{{ showInWithLabels(element.showInCustom, roomNames) }}</span>
           </h3>
           <span class="group-rule" aria-hidden="true"></span>
         </div>
@@ -180,6 +180,7 @@
                 v-model:module="moduleDialogDraft"
                 v-model:error="errors[moduleDialogIndex]"
                 :rooms="rooms"
+                :room-names="roomNames"
               ></Module>
             </v-expansion-panel-text>
           </v-expansion-panel>
@@ -208,6 +209,7 @@
 <script lang="ts">
 import { scrapeModule, validateUrl, parse, roomSlot } from "../../ts/Utils";
 import { activeTheme, roomTile } from "../../ts/Theme";
+import { roomLabel, showInWithLabels } from "../../ts/RoomNames";
 import draggable from "vuedraggable";
 import Module from "./Module.vue";
 import { useI18n } from 'vue-i18n';
@@ -240,6 +242,7 @@ export default {
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    roomNames: Object as PropType<Record<string, string>>,
   },
 
   setup() {
@@ -318,6 +321,8 @@ export default {
     // "station" names every station that is online. "*", stations that are
     // offline and rooms that don't exist yet get a hollow ring. Role values
     // (teacher-only, station-only) narrow who sees a module, so add no dot.
+    showInWithLabels,
+
     groupDots(showIn: string) {
       const rooms = this.rooms as string[];
       const dots: { key: string; color: string | null }[] = [];
@@ -336,7 +341,11 @@ export default {
           if (!stations.length) add(undefined);
           continue;
         }
-        add(rooms.find((r) => r.toLowerCase() === token));
+        add(
+          rooms.find(
+            (r) => r.toLowerCase() === token || roomLabel(this.roomNames, r)?.toLowerCase() === token
+          )
+        );
       }
       if (!dots.length) add(undefined);
       return dots;

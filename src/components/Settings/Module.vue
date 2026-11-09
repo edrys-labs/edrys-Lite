@@ -70,7 +70,7 @@
 
     <AdvancedRow
       :title="t('settings.modules.module.showIn.title')"
-      :summary="module.showInCustom || '*'"
+      :summary="showInSummary"
       icon="mdi-eye-outline"
       :color="6"
       mono
@@ -110,6 +110,7 @@
 import Editor from "./Editor.vue";
 import AdvancedRow from "./AdvancedRow.vue";
 import { activeTheme, roomTile } from "../../ts/Theme";
+import { roomLabel, showInWithLabels } from "../../ts/RoomNames";
 import { roomSlot } from "../../ts/Utils";
 import type { PropType } from "vue";
 import FieldLabel from "../FieldLabel.vue";
@@ -141,6 +142,7 @@ export default {
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    roomNames: Object as PropType<Record<string, string>>,
   },
 
   setup() {
@@ -214,6 +216,10 @@ export default {
       return this.t("settings.modules.module.design.summary", { width, height });
     },
 
+    showInSummary(): string {
+      return showInWithLabels(this.module.showInCustom, this.roomNames);
+    },
+
     // the buttons above the "Show in" text: everywhere, the Lobby, each room, the stations
     places() {
       const tokens = tokensOf(this.module.showInCustom).map((s) => s.toLowerCase());
@@ -226,14 +232,22 @@ export default {
         label,
         mark,
         tile: roomTile(slot, theme),
-        on: token === "*" ? !placeTokens.length || placeTokens.includes("*") : placeTokens.includes(token.toLowerCase()),
+        on:
+          token === "*"
+            ? !placeTokens.length || placeTokens.includes("*")
+            : placeTokens.includes(token.toLowerCase()) || placeTokens.includes(label.toLowerCase()),
       });
       return [
         place("*", this.t("settings.modules.module.showIn.all"), "*", null),
         place("lobby", this.t("classroom.sideMenu.lobby"), this.t("classroom.sideMenu.lobby").charAt(0), null),
         ...rooms
           .filter((room) => room !== "Lobby" && !room.startsWith("Station "))
-          .map((room) => place(room, room, room.split(" ").pop()!.charAt(0), roomSlot(room, rooms))),
+          .map((room) => {
+            const label = roomLabel(this.roomNames, room);
+            const mark = label ? label.charAt(0).toUpperCase() : room.split(" ").pop()!.charAt(0);
+            // the button shows the label but saves the internal name, which a later rename can't break
+            return place(room, label ?? room, mark, roomSlot(room, rooms));
+          }),
         place("station", this.t("classroom.sideMenu.station"), this.t("classroom.sideMenu.station").charAt(0),
           firstStation ? roomSlot(firstStation, rooms) : null),
       ];
@@ -358,10 +372,12 @@ export default {
       const tokens = tokensOf(this.module.showInCustom);
       const roles = tokens.filter(isRole);
       let places = tokens.filter((t) => !isRole(t) && t !== "*");
+      const names = [token, roomLabel(this.roomNames, token)].map((n) => n?.toLowerCase());
+      const isThisPlace = (t: string) => names.includes(t.toLowerCase());
       if (token === "*") {
         places = [];
-      } else if (places.some((t) => t.toLowerCase() === token.toLowerCase())) {
-        places = places.filter((t) => t.toLowerCase() !== token.toLowerCase());
+      } else if (places.some(isThisPlace)) {
+        places = places.filter((t) => !isThisPlace(t));
       } else {
         places.push(token);
       }

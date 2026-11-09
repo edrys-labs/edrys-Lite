@@ -45,7 +45,7 @@ import {
   type ChatViews,
 } from "../ts/DevBridge";
 import { startTutorRelay, tutorPeer } from "../ts/Tutor";
-import { MAX_ROOM_LABEL_LENGTH, roomLabelProblem, withRoomLabel } from "../ts/RoomNames";
+import { MAX_ROOM_LABEL_LENGTH, roomLabel, roomLabelProblem, withRoomLabel } from "../ts/RoomNames";
 
 export default {
   props: ["id", "station", "owner"],
@@ -725,8 +725,7 @@ export default {
     // The label the class gave this room, if any. The internal name stays the
     // room's identity: state, signatures and presence are all keyed on it.
     roomDisplayName(name: string): string | undefined {
-      const label = this.configuration?.data?.meta?.roomNames?.[name];
-      return typeof label === "string" && label.trim() ? label.trim() : undefined;
+      return roomLabel(this.configuration?.data?.meta?.roomNames, name);
     },
   },
 
@@ -1164,6 +1163,7 @@ export default {
           <Modules
             :role="getRole()"
             :username_="peerID"
+            :roomLabel="currentRoom ? roomDisplayName(currentRoom) : undefined"
             :liveClassProxy="liveClassProxy"
             :scrapedModules_="scrapedModules"
             :isLoading="isLoadingModules || !states.receivedConfiguration"

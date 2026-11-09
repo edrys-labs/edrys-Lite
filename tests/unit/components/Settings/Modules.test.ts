@@ -147,6 +147,15 @@ describe('Modules Settings Component', () => {
     expect(dots('station, station-only')).toEqual([{ key: 'other', color: null }]);
   });
 
+  test('colors a group listing a room label like that room', () => {
+    const wrapper = createWrapper({
+      rooms: ['Lobby', 'Room 1', 'Room 2'],
+      roomNames: { 'Room 2': 'Group B' },
+    });
+
+    expect(wrapper.vm.groupDots('group b')).toEqual([{ key: 'Room 2', color: roomTile(1, 'light').dot }]);
+  });
+
   test('"station" gets a dot per online station, role values none', () => {
     const rooms = ['Lobby', 'Room 1', 'Station A', 'Station B'];
     const wrapper = createWrapper({ rooms });

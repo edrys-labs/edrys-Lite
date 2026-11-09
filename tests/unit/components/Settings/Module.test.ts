@@ -168,5 +168,42 @@ describe('Module Settings Component', () => {
     await button('All rooms').trigger('click');
     expect(module.showInCustom).toBe('*, teacher-only');
   });
+
+  test('a "Show in" button shows the room label but saves the internal name', async () => {
+    const module = { ...mockModule, showInCustom: '*' };
+    const wrapper = createWrapper({
+      module,
+      rooms: ['Lobby', 'Room 1', 'Room 2'],
+      roomNames: { 'Room 2': 'Group B' },
+    });
+    const button = () => wrapper.findAll('.place').find((b: any) => b.text().includes('Group B'));
+
+    expect(button().text().charAt(0)).toBe('G');
+    await button().trigger('click');
+    expect(module.showInCustom).toBe('Room 2');
+    expect(button().attributes('aria-pressed')).toBe('true');
+  });
+
+  test('the "Show in" summary reads the label while the stored value stays', () => {
+    const module = { ...mockModule, showInCustom: 'Room 2' };
+    const wrapper = createWrapper({ module, rooms: ['Room 2'], roomNames: { 'Room 2': 'Group B' } });
+
+    expect(wrapper.vm.showInSummary).toBe('Group B');
+    expect(module.showInCustom).toBe('Room 2');
+  });
+
+  test('a "Show in" button is on for a module listing the label, and takes it off', async () => {
+    const module = { ...mockModule, showInCustom: 'group b, Room 1' };
+    const wrapper = createWrapper({
+      module,
+      rooms: ['Lobby', 'Room 1', 'Room 2'],
+      roomNames: { 'Room 2': 'Group B' },
+    });
+    const button = wrapper.findAll('.place').find((b: any) => b.text().includes('Group B'));
+
+    expect(button.attributes('aria-pressed')).toBe('true');
+    await button.trigger('click');
+    expect(module.showInCustom).toBe('Room 1');
+  });
 });
 

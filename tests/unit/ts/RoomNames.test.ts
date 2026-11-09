@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { MAX_ROOM_LABEL_LENGTH, roomLabelProblem, withRoomLabel } from '../../../src/ts/RoomNames';
+import { MAX_ROOM_LABEL_LENGTH, roomLabelProblem, showInWithLabels, withRoomLabel } from '../../../src/ts/RoomNames';
 
 describe('roomLabelProblem', () => {
   test('accepts a free name, an empty one and the room\'s own name', () => {
@@ -8,7 +8,7 @@ describe('roomLabelProblem', () => {
     expect(roomLabelProblem('room 2', 'Room 2')).toBeNull();
   });
 
-  test.each(['Lobby', 'lobby', 'Station', 'Station A', 'Room 3', 'Raum 3', 'Sala 3', 'Кімната 3'])(
+  test.each(['Lobby', 'lobby', 'Station', 'Station A', 'Room 3', 'Raum 3', 'Sala 3', 'Кімната 3', 'teacher-only', 'nur Station'])(
     'reserves %s',
     (label) => expect(roomLabelProblem(label, 'Room 2')).toBe('reserved')
   );
@@ -33,6 +33,21 @@ describe('roomLabelProblem', () => {
     const names = { 'Room 1': 'Group A', 'Room 2': 'Group B' };
     expect(roomLabelProblem(' group a ', 'Room 2', names)).toBe('taken');
     expect(roomLabelProblem('group b', 'Room 2', names)).toBeNull();
+  });
+});
+
+describe('showInWithLabels', () => {
+  const names = { 'Room 1': 'sim' };
+
+  test('replaces rooms that have a label, whatever their case', () => {
+    expect(showInWithLabels('Room 1', names)).toBe('sim');
+    expect(showInWithLabels('lobby, room 1, teacher-only', names)).toBe('lobby, sim, teacher-only');
+  });
+
+  test('leaves other entries as written and shows * for none', () => {
+    expect(showInWithLabels('Room 2, Group*', names)).toBe('Room 2, Group*');
+    expect(showInWithLabels('', names)).toBe('*');
+    expect(showInWithLabels('Room 1')).toBe('Room 1');
   });
 });
 

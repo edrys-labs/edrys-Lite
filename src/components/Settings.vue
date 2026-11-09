@@ -26,7 +26,7 @@ export default {
     },
 
     rooms: {
-      type: Array,
+      type: Array as PropType<string[]>,
       default: () => [],
     },
 
@@ -169,6 +169,7 @@ export default {
             :config="configClone"
             :scraped-modules="scrapedModules"
             :rooms="rooms"
+            :room-names="configClone.meta?.roomNames"
           ></Modules>
         </v-window-item>
 

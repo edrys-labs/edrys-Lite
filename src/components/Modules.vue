@@ -21,6 +21,7 @@ export default {
   props: [
     "role",
     "username_",
+    "roomLabel",
     "liveClassProxy",
     "scrapedModules_",
     "isLoading",
@@ -114,7 +115,10 @@ export default {
 
         const normalizedShowIn = showIn.map(room => this.normalizeRoomName(room, translatedRoomNames));
 
-        const isInRoom = this.checkRoomMatch(normalizedShowIn, this.roomName.toLowerCase());
+        // A label is matched as written: normalizing would read "Room for groups" as a number.
+        const isInRoom =
+          this.checkRoomMatch(normalizedShowIn, this.roomName.toLowerCase()) ||
+          (!!this.roomLabel && this.checkRoomMatch(showIn, this.roomLabel.toLowerCase()));
 
         if (this.roleTranslations.teacher.some(trans => normalizedShowIn.includes(trans))) {
           return (

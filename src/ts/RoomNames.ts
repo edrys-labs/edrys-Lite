@@ -8,7 +8,13 @@ export const MAX_ROOM_LABEL_LENGTH = 40;
 
 export type RoomLabelProblem = "tooLong" | "characters" | "reserved" | "taken";
 
-const sideMenus = [en, de, uk, ar, es].map((messages: any) => messages.classroom.sideMenu);
+const locales: any[] = [en, de, uk, ar, es];
+const sideMenus = locales.map((messages) => messages.classroom.sideMenu);
+// a module's room list also takes these, so a room can't be named after them
+const roleEntries = locales.flatMap(({ settings }) => {
+  const { teacherOnly, stationOnly } = settings.modules.module.showIn;
+  return [teacherOnly.toLowerCase(), stationOnly.toLowerCase()];
+});
 const words = (key: "lobby" | "station" | "room"): string[] =>
   sideMenus.map((menu) => menu[key].toLowerCase());
 
@@ -17,9 +23,27 @@ const normalized = (label: string) => label.trim().toLowerCase();
 // Labels are seen in every language, so all of them count. "Room 3" is
 // reserved even while the class has fewer rooms, as it can be added later.
 function isReserved(name: string): boolean {
-  if (words("lobby").includes(name)) return true;
+  if (words("lobby").includes(name) || roleEntries.includes(name)) return true;
   if (words("station").some((word) => name === word || name.startsWith(word + " "))) return true;
   return words("room").some((word) => new RegExp(`^${word}\\s+\\d+$`).test(name));
+}
+
+/** The label the class gave this room, if any. */
+export function roomLabel(roomNames: Record<string, string> | undefined, room: string): string | undefined {
+  const label = roomNames?.[room];
+  return typeof label === "string" && label.trim() ? label.trim() : undefined;
+}
+
+/** A module's room list for reading: each room it names by its label, if it has one. */
+export function showInWithLabels(showIn: string, roomNames: Record<string, string> = {}): string {
+  return (showIn || "*")
+    .split(",")
+    .map((entry) => {
+      const name = entry.trim();
+      const room = Object.keys(roomNames).find((key) => normalized(key) === normalized(name));
+      return (room && roomLabel(roomNames, room)) || name;
+    })
+    .join(", ");
 }
 
 /** Why `label` can't name `room`, or null if it can. An empty label clears the name. */
