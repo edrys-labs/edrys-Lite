@@ -27,6 +27,7 @@ import { decoding } from 'lib0'
 import { GenericWebrtcProviderAdapter } from './GenericProviderAdapter'
 import { GenericWebsocketProviderAdapter } from './GenericWebsocketProviderAdapter'
 import { SignedPresence } from './Presence'
+import { validUsername } from './UserNames'
 import { debug } from '../api/debugHandler'
 
 function LOG(...args: any[]) {
@@ -922,6 +923,7 @@ export default class Peer {
       handRaised: false,
       connections: [{ id: '', target: {} }],
       ...(this._tutor ? { tutor: this._tutor } : {}),
+      ...(this._username ? { username: this._username } : {}),
     })
 
     heartbeatID = setInterval(() => {
@@ -1502,6 +1504,19 @@ export default class Peer {
     this.presence.publish(key ? { ...rest, tutor: key } : rest)
   }
 
+  private _username: string | null = null
+
+  /** Sets the name we choose for ourselves in our signed presence; an invalid or empty one clears it. */
+  setUsername(value: string | null) {
+    const username = this.isStation() ? null : validUsername(value)
+    if (username === this._username) return
+    this._username = username
+    const current = this.user()
+    if (!current) return
+    const { username: _previous, ...rest } = current
+    this.presence.publish(username ? { ...rest, username } : rest)
+  }
+
   /** Tutor messages addressed to us, signed by their `from`. */
   onTutor(callback: ((msg: { from: string; tutor: any }) => void) | null) {
     this._onTutor = callback
@@ -1741,6 +1756,7 @@ export default class Peer {
         ...payload,
         room,
         displayName: station ? id : getShortPeerID(id),
+        username: station ? null : validUsername(payload?.username),
         role: station ? 'station' : base === owner || teachers.includes(base) ? 'teacher' : 'student',
       }
     }

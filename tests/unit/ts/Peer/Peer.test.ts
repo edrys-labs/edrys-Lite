@@ -1151,6 +1151,43 @@ describe('Peer Class', () => {
       expect(users['studentPub_s1'].displayName).toBe('test-user');
     });
 
+    test('a peer\'s chosen name is cleaned and leaves displayName alone', async () => {
+      await addRemote('namedPub_s1', { room: 'Lobby', username: ' \u202EAda ' });
+
+      const { users } = await peer.toJSON();
+      expect(users['namedPub_s1'].username).toBe('Ada');
+      expect(users['namedPub_s1'].displayName).toBe('test-user');
+    });
+
+    test.each([[42], ['a'.repeat(33)], [undefined]])('a peer with the name %j shows none', async (username) => {
+      await addRemote('namedPub_s1', { room: 'Lobby', username });
+
+      const { users } = await peer.toJSON();
+      expect(users['namedPub_s1'].username).toBeNull();
+    });
+
+    test('a station has no chosen name', async () => {
+      await addRemote('Station A', { room: 'Station A', username: 'Teacher' }, 'test-peer-id');
+
+      const { users } = await peer.toJSON();
+      expect(users['Station A'].username).toBeNull();
+    });
+
+    test('setUsername publishes, keeps the room and survives a re-join', () => {
+      peer.gotoRoom('Lobby');
+      peer.setUsername('  Ada ');
+      expect(peer.user()).toMatchObject({ username: 'Ada', room: 'Lobby' });
+
+      peer.initUser('student');
+      expect(peer.user().username).toBe('Ada');
+    });
+
+    test('setUsername with an empty name clears it', () => {
+      peer.setUsername('Ada');
+      peer.setUsername('');
+      expect(peer.user()).not.toHaveProperty('username');
+    });
+
     test('a member excluded from the allowlist is hidden', async () => {
       await addRemote('other-pub_s1', { room: 'Lobby' });
       expect(peer['presence'].has('other-pub_s1')).toBe(true);
