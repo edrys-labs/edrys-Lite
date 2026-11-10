@@ -986,7 +986,7 @@ export default class Peer {
     LOG('current room is gone, moving to lobby', room)
     this._missingRoomChecks = 0
     this._ownRoomGoneAt = null
-    this.gotoRoom(LOBBY)
+    this._moveTo(LOBBY)
   }
 
   private _hasRoomsObserver: boolean = false
@@ -994,6 +994,14 @@ export default class Peer {
   /** Owner (matched by createdBy) and teachers/stations may manage rooms; students may not. */
   private canManageRooms(): boolean {
     return this.role !== 'student' || sameKey(getPeerID(false), this.lab.data?.createdBy)
+  }
+
+  /**
+   * True when the class lets only teachers move students and we are one of
+   * those students: we can't change rooms ourselves.
+   */
+  isLocked(): boolean {
+    return !!this.lab.data?.meta?.teacherMovesStudents && !this.canManageRooms()
   }
 
   /** Watches room records and room state once, across reconnects. */
@@ -1536,6 +1544,12 @@ export default class Peer {
    * @param room The room to move to.
    */
   gotoRoom(room: string) {
+    if (this.isLocked()) return
+    this._moveTo(room)
+  }
+
+  /** Changes our room, also while locked: for moves the app makes itself. */
+  private _moveTo(room: string) {
     const current = this.user()
     if (!current) return
     this._ensureSetupRoomState(room)
