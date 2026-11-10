@@ -84,6 +84,9 @@ classroom:
   sideMenu:
     lobby: "Вестибюль"
     station: "Станція"
+    stations: "Станції"
+    stationOnline: "Онлайн"
+    stationReconnecting: "Перепідключення…"
     room: "Кімната"
     onlineUsers: "Користувачів онлайн"
     settings: "Налаштування"

@@ -272,7 +272,7 @@ describe('Classroom View', () => {
       expect(rows.map((r) => r.attributes('aria-label'))).toEqual([
         'Go to Lobby, 1 person',
         'Go to Room 1, 1 person',
-        'Go to Station abc',
+        'Go to Station abc, Online',
       ]);
       expect(rows[0].attributes('aria-current')).toBe('true');
       expect(rows[1].attributes('aria-current')).toBeUndefined();
@@ -610,6 +610,43 @@ describe('Classroom View', () => {
       expect(wrapper.findAll('.room')[2].find('.room-count').text()).toBe('1');
       expect(wrapper.findAll('.room')[2].findAll('.room-user')).toHaveLength(1);
       expect(wrapper.vm.stationRooms[0].online).toBe(true);
+    });
+
+    test('lists stations last under a heading, with their name and whether they are online', async () => {
+      const wrapper = await openDrawer();
+      // Station abc is reconnecting (its station is gone), Station xyz is there
+      wrapper.vm.liveClassProxy = {
+        users: {
+          'test-peer-id': live.users['test-peer-id'],
+          'Station xyz': { room: 'Station xyz', displayName: 'Station xyz', role: 'station' },
+        },
+        // a room that sorts after the stations still comes before them
+        rooms: { 'Station abc': {}, 'Lobby': {}, 'Room 1': {}, 'Station xyz': {}, 'Zone': {} },
+      };
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.vm.drawerRooms.map((r: any) => r.name)).toEqual(['Lobby', 'Room 1', 'Zone', 'Station abc', 'Station xyz']);
+      const headings = wrapper.findAll('.room-group');
+      expect(headings).toHaveLength(1);
+      expect(headings[0].text()).toBe('Stations');
+      expect(headings[0].element.nextElementSibling?.querySelector('.room-name')?.textContent).toBe('Station abc');
+
+      const rows = wrapper.findAll('.room-row');
+      // the word is there for screen readers and tests, only the name shows
+      expect(rows[3].find('.room-name .d-sr-only').text()).toBe('Station');
+      expect(rows[3].find('.room-status').text()).toBe('Reconnecting…');
+      expect(rows[3].find('.room-status-dot--online').exists()).toBe(false);
+      expect(rows[4].find('.room-status').text()).toBe('Online');
+      expect(rows[4].find('.room-status-dot--online').exists()).toBe(true);
+      expect(rows[4].attributes('aria-label')).toBe('Go to Station xyz, Online');
+      expect(rows[1].find('.room-status').exists()).toBe(false);
+    });
+
+    test('shows no Stations heading without stations', async () => {
+      const wrapper = await openDrawer();
+      wrapper.vm.liveClassProxy = { users: {}, rooms: { 'Lobby': {}, 'Room 1': {} } };
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find('.room-group').exists()).toBe(false);
     });
 
     test('marks numbered rooms by number, the Lobby and stations by icon', async () => {

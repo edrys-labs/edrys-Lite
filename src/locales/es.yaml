@@ -84,6 +84,9 @@ classroom:
   sideMenu:
     lobby: "Vestíbulo"
     station: "Estación"
+    stations: "Estaciones"
+    stationOnline: "En línea"
+    stationReconnecting: "Reconectando…"
     room: "Sala"
     onlineUsers: "usuarios en línea"
     settings: "Configuración"

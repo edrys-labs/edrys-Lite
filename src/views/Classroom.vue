@@ -201,7 +201,7 @@ export default {
       const rooms = this.orderedRooms();
       const users = Object.entries(this.liveClassProxy?.users || {}) as [string, any][];
 
-      return rooms.map((name) => {
+      const list = rooms.map((name) => {
         const inRoom = users.filter(([, user]) => user.room === name).map(([id, user]) => this.drawerUser(id, user));
         // the station is the room's equipment: not listed under its room or counted
         const visitors = inRoom.filter((user) => user.role !== "station");
@@ -209,31 +209,47 @@ export default {
         const label = this.translateRoomName(name);
         const numbered = !this.roomDisplayName(name) && name.match(/^Room (.+)$/);
         const goto = this.t("classroom.sideMenu.gotoRoom", { room: label });
+        const station = name.startsWith("Station ");
+        // online while the station itself is in its room, reconnecting during
+        // the grace period after it dropped
+        const online = station && inRoom.some((user) => user.role === "station");
+        const status = station
+          ? this.t(online ? "classroom.sideMenu.stationOnline" : "classroom.sideMenu.stationReconnecting")
+          : "";
+        // under the Stations heading the row shows just the station's name;
+        // the word stays in the text for screen readers and tests
+        const shortLabel = station ? name.slice("Station ".length) : label;
 
         return {
           name,
           label,
+          shortLabel,
+          labelPrefix: label.slice(0, label.length - shortLabel.length),
           // an unnamed "Room 3" shows its number, other rooms their first letter
           initial: numbered ? numbered[1] : firstLetter(label),
           // the Lobby and stations aren't rooms a teacher names, so no letter to mix up
-          icon: name === "Lobby" ? "mdi-home-outline" : name.startsWith("Station ") ? "mdi-router-wireless" : null,
+          icon: name === "Lobby" ? "mdi-home-outline" : station ? "mdi-router-wireless" : null,
           tile: roomTile(roomSlot(name, rooms), this.activeTheme),
           users: inRoom,
           visitors,
           people,
-          gotoLabel: people ? goto + ", " + this.peopleLabel(people) : goto,
+          station,
+          firstStation: false,
+          online,
+          status,
+          gotoLabel: [goto, status, people && this.peopleLabel(people)].filter(Boolean).join(", "),
         };
       });
+
+      // stations last, under their own heading
+      list.sort((a, b) => Number(a.station) - Number(b.station));
+      const first = list.find((room) => room.station);
+      if (first) first.firstStation = true;
+      return list;
     },
-    // The class's stations for Settings: online while the station itself is
-    // in its room, reconnecting during the grace period after it dropped
+    // The class's stations for Settings
     stationRooms() {
-      return this.drawerRooms
-        .filter((room) => room.name.startsWith("Station "))
-        .map((room) => ({
-          ...room,
-          online: room.users.some((user) => user.role === "station"),
-        }));
+      return this.drawerRooms.filter((room) => room.station);
     },
     // the drawer entry of the room you are in
     myRoom() {
@@ -1084,12 +1100,11 @@ export default {
         </template>
 
         <div class="room-list">
-          <div
-            v-for="room in drawerRooms"
-            :key="room.name"
-            class="room"
-            :class="{ 'room--station': room.name.startsWith('Station') }"
-          >
+          <template v-for="room in drawerRooms" :key="room.name">
+          <h3 v-if="room.firstStation" class="room-group" :class="{ 'room-group--rtl': rtl }">
+            {{ t("classroom.sideMenu.stations") }}
+          </h3>
+          <div class="room">
             <form
               v-if="renamingRoom === room.name"
               class="room-rename"
@@ -1150,10 +1165,16 @@ export default {
                   <v-icon v-if="room.icon" :icon="room.icon" size="18"></v-icon>
                   <template v-else>{{ room.initial }}</template>
                 </span>
-                <span class="room-name"
-                  >{{ room.label
-                  }}<span v-if="locked && room.people" class="d-sr-only">, {{ peopleLabel(room.people) }}</span></span
-                >
+                <span class="room-text">
+                  <span class="room-name"
+                    ><span v-if="room.labelPrefix" class="d-sr-only">{{ room.labelPrefix }}</span>{{ room.shortLabel
+                    }}<span v-if="locked && room.people" class="d-sr-only">, {{ peopleLabel(room.people) }}</span></span
+                  >
+                  <span v-if="room.station" class="room-status">
+                    <span class="room-status-dot" :class="{ 'room-status-dot--online': room.online }"></span>
+                    {{ room.status }}
+                  </span>
+                </span>
                 <span v-if="room.people" class="room-count" :aria-hidden="locked ? 'true' : undefined">
                   <v-icon icon="mdi-account-outline" size="13"></v-icon>
                   {{ room.people }}
@@ -1242,6 +1263,7 @@ export default {
               </v-menu>
             </div>
           </div>
+          </template>
         </div>
 
         <template v-slot:append>
@@ -1642,8 +1664,20 @@ export default {
   gap: 2px;
 }
 
-.room--station {
-  margin-top: 6px;
+/* over the stations, which come last */
+.room-group {
+  margin: 10px 0 0;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(var(--v-theme-muted));
+}
+
+/* spacing would pull Arabic letters apart */
+.room-group--rtl {
+  letter-spacing: 0;
 }
 
 .room-head {
@@ -1761,12 +1795,42 @@ export default {
   outline-offset: 2px;
 }
 
-.room-name {
+.room-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   flex: 1;
   min-width: 0;
+}
+
+.room-name {
   font-size: 14px;
   font-weight: 500;
   overflow-wrap: anywhere;
+}
+
+.room-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-muted));
+}
+
+/* hollow while the station reconnects, filled when it is there */
+.room-status-dot {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid rgb(var(--v-theme-muted));
+  border-radius: 50%;
+}
+
+.room-status-dot--online {
+  border-color: rgb(var(--v-theme-success));
+  background: rgb(var(--v-theme-success));
 }
 
 .room-row--current .room-name {

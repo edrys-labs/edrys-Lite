@@ -84,6 +84,9 @@ classroom:
   sideMenu:
     lobby: "الردهة"
     station: "المحطة"
+    stations: "المحطات"
+    stationOnline: "متصلة"
+    stationReconnecting: "جارٍ إعادة الاتصال…"
     room: "الغرفة"
     onlineUsers: "المستخدمون المتصلون"
     settings: "الإعدادات"
