@@ -58,6 +58,7 @@ const mockCommunication = {
   join: vi.fn(),
   update: vi.fn(),
   gotoRoom: vi.fn(),
+  moveUser: vi.fn(),
   addRoom: vi.fn(),
   sendMessage: vi.fn(),
   newSetup: vi.fn(),
@@ -137,7 +138,10 @@ describe('Classroom View', () => {
           },
           'v-spacer': true,
           'v-divider': true,
-          'v-menu': true,
+          // the activator and the open menu, side by side
+          'v-menu': {
+            template: '<div class="v-menu"><slot name="activator" :props="{}" :isActive="false" /><slot /></div>'
+          },
           'v-badge': true,
           'v-overlay': {
             template: '<div class="v-overlay"><slot /></div>'
@@ -158,7 +162,8 @@ describe('Classroom View', () => {
           Chat: true,
           Modules: true,
           Checks: true,
-          Logger: true
+          Logger: true,
+          UserMenu: true
         }
       }
     });
@@ -319,6 +324,51 @@ describe('Classroom View', () => {
         expect(wrapper.findAll('.room-row')[1].element.tagName).toBe('BUTTON');
         expect(wrapper.find('.drawer-locked').exists()).toBe(false);
       }
+    });
+
+    test('a teacher gets a move button on student rows only, and only with the setting on', async () => {
+      const wrapper = await openDrawer();
+      wrapper.vm.isTeacher = true;
+      await wrapper.vm.$nextTick();
+      expect(wrapper.findAll('.user-move')).toHaveLength(0);
+
+      await lockClass(wrapper);
+      // one student in Room 1; the teacher (you) and the station get none
+      const buttons = wrapper.findAll('.user-move');
+      expect(buttons).toHaveLength(1);
+      expect(buttons[0].attributes('aria-label')).toBe('Move other');
+    });
+
+    test('students and stations get no move buttons', async () => {
+      for (const role of ['isStation', null]) {
+        const wrapper = await openDrawer();
+        await lockClass(wrapper);
+        if (role) wrapper.vm[role] = true;
+        await wrapper.vm.$nextTick();
+        expect(wrapper.findAll('.user-move')).toHaveLength(0);
+      }
+    });
+
+    test('the move menu lists every room, marks where the student is, and moves them elsewhere', async () => {
+      const wrapper = await openDrawer();
+      await nameRooms(wrapper, { 'Room 1': 'Group B' });
+      wrapper.vm.isTeacher = true;
+      await lockClass(wrapper);
+      const menu = wrapper.find('.move-menu');
+      expect(menu.attributes('role')).toBe('menu');
+      expect(menu.attributes('aria-label')).toBe('Move other to');
+
+      const items = menu.findAll('[role="menuitem"]');
+      expect(items.map((i) => i.find('.move-target-name').text())).toEqual(['Lobby', 'Group B', 'Station abc']);
+      expect(items[1].attributes('aria-disabled')).toBe('true');
+      expect(items[1].find('.move-target-note').text()).toBe('Here now');
+      expect(items[0].attributes('aria-disabled')).toBeUndefined();
+
+      mockCommunication.moveUser.mockClear();
+      await items[1].trigger('click');
+      expect(mockCommunication.moveUser).not.toHaveBeenCalled();
+      await items[2].trigger('click');
+      expect(mockCommunication.moveUser).toHaveBeenCalledWith('other-peer', 'Station abc');
     });
 
     test('a move shows one notice with the room label, replacing the last move notice only', async () => {

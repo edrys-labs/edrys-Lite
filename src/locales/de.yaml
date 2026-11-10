@@ -91,6 +91,9 @@ classroom:
     rooms: "Räume"
     gotoRoom: "Zu {room} wechseln"
     teacherMoves: "Ihre Lehrkraft verschiebt Sie zwischen den Räumen"
+    moveUser: "{name} verschieben"
+    moveUserTo: "{name} verschieben nach"
+    hereNow: "Gerade hier"
     people: "{n} Person | {n} Personen"
     close: "Räume schließen"
     roomLabel:

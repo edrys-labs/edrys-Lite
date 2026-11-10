@@ -677,6 +677,21 @@ export default {
       };
     },
 
+    // a teacher may send students (and visitors) elsewhere when the class says so
+    canMove(user: { me: boolean; role: string }): boolean {
+      return (
+        !!this.configuration?.data?.meta?.teacherMovesStudents &&
+        (this.isOwner || this.isTeacher) &&
+        !this.isStation &&
+        !user.me &&
+        (user.role === "student" || user.role === "visitor")
+      );
+    },
+
+    moveUser(id: string, room: string) {
+      this.communication?.moveUser(id, room);
+    },
+
     peopleLabel(count: number): string {
       return this.t("classroom.sideMenu.people", { n: count }, count);
     },
@@ -1145,6 +1160,44 @@ export default {
                 >{{ user.name }}<span class="d-sr-only">, {{ user.label }}</span></span
               >
               <span v-if="user.tag && !user.shortId" class="user-tag" aria-hidden="true">{{ user.tag }}</span>
+              <v-menu v-if="canMove(user)" location="end top">
+                <template v-slot:activator="{ props, isActive }">
+                  <button
+                    v-bind="props"
+                    type="button"
+                    class="user-move"
+                    :class="{ 'user-move--open': isActive, 'user-move--phone': phone }"
+                    :aria-label="t('classroom.sideMenu.moveUser', { name: user.name })"
+                    :title="t('classroom.sideMenu.moveUser', { name: user.name })"
+                  >
+                    <v-icon :icon="rtl ? 'mdi-account-arrow-left-outline' : 'mdi-account-arrow-right-outline'" size="16"></v-icon>
+                  </button>
+                </template>
+                <div class="move-menu" role="menu" :aria-label="t('classroom.sideMenu.moveUserTo', { name: user.name })">
+                  <div class="move-menu-title" aria-hidden="true">
+                    {{ t("classroom.sideMenu.moveUserTo", { name: user.name }) }}
+                  </div>
+                  <button
+                    v-for="target in drawerRooms"
+                    :key="target.name"
+                    type="button"
+                    role="menuitem"
+                    class="move-target"
+                    :class="{ 'move-target--here': target.name === room.name }"
+                    :aria-disabled="target.name === room.name ? 'true' : undefined"
+                    @click="target.name === room.name || moveUser(user.id, target.name)"
+                  >
+                    <span class="move-tile" :style="{ background: target.tile.bg, color: target.tile.fg }">
+                      <v-icon v-if="target.icon" :icon="target.icon" size="15"></v-icon>
+                      <template v-else>{{ target.initial }}</template>
+                    </span>
+                    <span class="move-target-name">{{ target.label }}</span>
+                    <span v-if="target.name === room.name" class="move-target-note">
+                      {{ t("classroom.sideMenu.hereNow") }}
+                    </span>
+                  </button>
+                </div>
+              </v-menu>
             </div>
           </div>
         </div>
@@ -1727,6 +1780,124 @@ export default {
   flex-shrink: 0;
   font-size: 11px;
   font-weight: 500;
+  color: rgb(var(--v-theme-muted));
+}
+
+.user-move {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-inline-start: auto;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: rgb(var(--v-theme-muted));
+  cursor: pointer;
+}
+
+/* the row whose student is being moved */
+.room-user:has(.user-move--open) {
+  border-radius: 8px;
+  background: rgb(var(--v-theme-room-hover));
+}
+
+.user-move--phone {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+}
+
+.user-move:hover {
+  background: rgb(var(--v-theme-room-hover));
+  color: rgb(var(--v-theme-text-2));
+}
+
+.user-move--open,
+.user-move--open:hover {
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+}
+
+.user-move:focus-visible,
+.move-target:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-focus));
+  outline-offset: 2px;
+}
+
+.move-menu {
+  width: 240px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-menu));
+  color: rgb(var(--v-theme-on-surface));
+  box-shadow: 0 12px 32px rgba(20, 25, 35, 0.14), 0 0 0 1px rgb(var(--v-theme-module-edge));
+}
+
+.v-theme--dark .move-menu {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgb(var(--v-theme-line));
+}
+
+.move-menu-title {
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-muted));
+  overflow-wrap: anywhere;
+}
+
+.move-target {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.move-target:hover {
+  background: rgb(var(--v-theme-room-hover));
+}
+
+.move-target--here,
+.move-target--here:hover {
+  background: rgb(var(--v-theme-room-hover));
+  color: rgb(var(--v-theme-muted));
+  cursor: default;
+}
+
+.move-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.move-target-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.move-target-note {
+  flex-shrink: 0;
+  font-size: 11px;
   color: rgb(var(--v-theme-muted));
 }
 

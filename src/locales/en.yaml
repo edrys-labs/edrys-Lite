@@ -91,6 +91,9 @@ classroom:
     rooms: "Rooms"
     gotoRoom: "Go to {room}"
     teacherMoves: "Your teacher moves you between rooms"
+    moveUser: "Move {name}"
+    moveUserTo: "Move {name} to"
+    hereNow: "Here now"
     people: "{n} person | {n} people"
     close: "Close rooms"
     roomLabel:

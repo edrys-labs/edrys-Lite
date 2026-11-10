@@ -91,6 +91,9 @@ classroom:
     rooms: "Salas"
     gotoRoom: "Ir a {room}"
     teacherMoves: "Tu profesor te mueve entre las salas"
+    moveUser: "Mover a {name}"
+    moveUserTo: "¿Adónde mover a {name}?"
+    hereNow: "Está aquí"
     people: "{n} persona | {n} personas"
     close: "Cerrar salas"
     roomLabel:
