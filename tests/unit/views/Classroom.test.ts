@@ -461,6 +461,23 @@ describe('Classroom View', () => {
       });
     });
 
+    test('a popup that closes on its own leaves the list, the others stay', async () => {
+      const wrapper = await openDrawer();
+      wrapper.vm.addPopup('first');
+      wrapper.vm.popups[0].id = 1;
+      wrapper.vm.addPopup('second');
+      await wrapper.vm.$nextTick();
+
+      const snackbars = wrapper.findAllComponents({ name: 'VSnackbar' });
+      expect(snackbars).toHaveLength(2);
+      expect(snackbars[0].props('timeout')).toBe(10000);
+      // the newest is first; its timer runs out
+      snackbars[0].vm.$emit('update:modelValue', false);
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.vm.popups.map((p: any) => p.message)).toEqual(['first']);
+    });
+
     test('a move shows one notice with the room label, replacing the last move notice only', async () => {
       const wrapper = await openDrawer();
       expect(mockCommunication.on).toHaveBeenCalledWith('moved', wrapper.vm.showMoved);

@@ -1461,9 +1461,10 @@ export default {
     <v-snackbar
       v-for="popup in popups"
       :key="popup.id"
-      v-model="popup.open"
+      :model-value="popup.open"
       :multi-line="true"
-      :timeout="500000"
+      :timeout="10000"
+      @update:model-value="(open: boolean) => open || closePopup(popup.id)"
       color="toast"
       class="edrys-toast"
     >
