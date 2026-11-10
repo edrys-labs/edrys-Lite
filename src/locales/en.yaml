@@ -94,6 +94,13 @@ classroom:
     moveUser: "Move {name}"
     moveUserTo: "Move {name} to"
     hereNow: "Here now"
+    select: "Select"
+    selectUser: "Select {name}"
+    selectedCount: "{n} selected"
+    cancelSelect: "Cancel"
+    moveSelected: "Move to…"
+    moveSelectedTo: "Move {n} student to | Move {n} students to"
+    hereCount: "{n} here"
     people: "{n} person | {n} people"
     close: "Close rooms"
     roomLabel:

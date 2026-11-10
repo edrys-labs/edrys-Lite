@@ -94,6 +94,13 @@ classroom:
     moveUser: "Перемістити {name}"
     moveUserTo: "Перемістити {name} до"
     hereNow: "Зараз тут"
+    select: "Вибрати"
+    selectUser: "Вибрати {name}"
+    selectedCount: "Вибрано: {n}"
+    cancelSelect: "Скасувати"
+    moveSelected: "Перемістити до…"
+    moveSelectedTo: "Перемістити вибраних ({n}) до"
+    hereCount: "Тут: {n}"
     people: "Людей: {n}"
     close: "Закрити кімнати"
     roomLabel:

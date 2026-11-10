@@ -111,6 +111,41 @@ test.describe('App — teacher moves students', () => {
       .toBe(sid)
   })
 
+  test('the owner picks two students and moves them together', async ({ browser }) => {
+    const second = await joinClassroom(browser, joinUrl)
+    try {
+      await waitForMesh(owner!, second)
+      await waitForVerified(owner!, second)
+      await waitForVerified(second, owner!)
+      await saveSettings({ rooms: 2, teacherMoves: true })
+      for (const s of [guest!, second]) {
+        await expect.poll(() => inPeer(s.page, 'return p.isLocked()'), { timeout }).toBe(true)
+      }
+
+      const page = owner!.page
+      await expect(page.locator('.user-move')).toHaveCount(2, { timeout })
+      await page.getByRole('button', { name: 'Select', exact: true }).click()
+      const boxes = page.getByRole('checkbox', { name: /^Select / })
+      await expect(boxes).toHaveCount(2)
+      await boxes.nth(0).check()
+      await boxes.nth(1).check()
+      await expect(page.locator('.select-count')).toHaveText('2 selected')
+
+      await page.getByRole('button', { name: 'Move to…' }).click()
+      const menu = page.getByRole('menu', { name: 'Move 2 students to' })
+      await expect(menu.getByRole('menuitem', { name: /Lobby/ })).toContainText('2 here')
+      await menu.getByRole('menuitem', { name: /Room 2/ }).click()
+
+      for (const s of [guest!, second]) {
+        await expect.poll(() => inPeer(s.page, 'return p.user()?.room'), { timeout }).toBe('Room 2')
+      }
+      // picking ends with the move
+      await expect(page.getByRole('button', { name: 'Select', exact: true })).toBeVisible()
+    } finally {
+      await closeSessions(second)
+    }
+  })
+
   test('turning the setting on keeps the student where they are, turning it off frees them', async () => {
     await saveSettings({ rooms: 1, teacherMoves: false })
     const roomRow = (text: string) => guest!.page.locator('.room-row').filter({ hasText: text })

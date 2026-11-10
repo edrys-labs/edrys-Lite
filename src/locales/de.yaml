@@ -94,6 +94,13 @@ classroom:
     moveUser: "{name} verschieben"
     moveUserTo: "{name} verschieben nach"
     hereNow: "Gerade hier"
+    select: "Auswählen"
+    selectUser: "{name} auswählen"
+    selectedCount: "{n} ausgewählt"
+    cancelSelect: "Abbrechen"
+    moveSelected: "Verschieben nach…"
+    moveSelectedTo: "{n} Person verschieben nach | {n} Personen verschieben nach"
+    hereCount: "{n} hier"
     people: "{n} Person | {n} Personen"
     close: "Räume schließen"
     roomLabel:

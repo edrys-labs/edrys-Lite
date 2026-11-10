@@ -164,6 +164,10 @@ export default {
 
       // False while the connection to the class is lost (the transport reconnects).
       online: true,
+
+      // A teacher picking several students to move at once: their tab ids.
+      selecting: false,
+      selected: [] as string[],
     };
   },
   computed: {
@@ -270,8 +274,24 @@ export default {
     drawerWidth(): number {
       return this.phone ? 312 : 264;
     },
+    // who may pick several students and move them together
+    canSelect(): boolean {
+      return !!this.configuration?.data?.meta?.teacherMovesStudents && (this.isOwner || this.isTeacher) && !this.isStation;
+    },
+    // the picked students still here and still movable
+    selectedUsers(): string[] {
+      const users = this.liveClassProxy?.users || {};
+      return this.selected.filter((id: string) => users[id] && this.canMove(this.drawerUser(id, users[id])));
+    },
+    moveSelectedTitle(): string {
+      const n = this.selectedUsers.length;
+      return this.t("classroom.sideMenu.moveSelectedTo", { n }, n);
+    },
   },
   watch: {
+    canSelect(can: boolean) {
+      if (!can) this.stopSelecting();
+    },
     showSettings() {
       if (!this.showSettings) {
         this.data = clone(this.configuration.data);
@@ -690,6 +710,26 @@ export default {
 
     moveUser(id: string, room: string) {
       this.communication?.moveUser(id, room);
+    },
+
+    // how many of the picked students are in `room` now
+    selectedIn(room: string): number {
+      const users = this.liveClassProxy?.users || {};
+      return this.selectedUsers.filter((id: string) => users[id].room === room).length;
+    },
+
+    // sends the picked students who are elsewhere to `room`, and ends picking
+    moveSelected(room: string) {
+      const users = this.liveClassProxy?.users || {};
+      for (const id of this.selectedUsers) {
+        if (users[id].room !== room) this.moveUser(id, room);
+      }
+      this.stopSelecting();
+    },
+
+    stopSelecting() {
+      this.selecting = false;
+      this.selected = [];
     },
 
     peopleLabel(count: number): string {
@@ -1145,7 +1185,12 @@ export default {
               </button>
             </div>
 
-            <div v-for="user in room.visitors" :key="user.id" class="room-user">
+            <div
+              v-for="user in room.visitors"
+              :key="user.id"
+              class="room-user"
+              :class="{ 'room-user--selected': selecting && selected.includes(user.id) }"
+            >
               <span class="user-avatar" :class="{ 'user-avatar--me': user.me }">
                 <span class="user-dot"></span>
               </span>
@@ -1160,7 +1205,15 @@ export default {
                 >{{ user.name }}<span class="d-sr-only">, {{ user.label }}</span></span
               >
               <span v-if="user.tag && !user.shortId" class="user-tag" aria-hidden="true">{{ user.tag }}</span>
-              <v-menu v-if="canMove(user)" location="end top">
+              <span v-if="selecting && canMove(user)" class="user-select" :class="{ 'user-select--phone': phone }">
+                <input
+                  v-model="selected"
+                  type="checkbox"
+                  :value="user.id"
+                  :aria-label="t('classroom.sideMenu.selectUser', { name: user.name })"
+                />
+              </span>
+              <v-menu v-else-if="canMove(user)" location="end top">
                 <template v-slot:activator="{ props, isActive }">
                   <button
                     v-bind="props"
@@ -1203,7 +1256,50 @@ export default {
         </div>
 
         <template v-slot:append>
-          <div class="drawer-foot" v-if="isOwner || isTeacher || phone">
+          <div v-if="selecting" class="drawer-foot drawer-foot--select">
+            <span class="select-count">
+              {{ t("classroom.sideMenu.selectedCount", { n: selectedUsers.length }, selectedUsers.length) }}
+            </span>
+            <v-btn variant="text" :height="phone ? 44 : 40" rounded="lg" class="select-cancel" @click="stopSelecting">
+              {{ t("classroom.sideMenu.cancelSelect") }}
+            </v-btn>
+            <v-menu location="top end">
+              <template v-slot:activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  color="primary"
+                  variant="flat"
+                  :height="phone ? 44 : 40"
+                  rounded="lg"
+                  class="select-move"
+                  :disabled="!selectedUsers.length"
+                >
+                  {{ t("classroom.sideMenu.moveSelected") }}
+                </v-btn>
+              </template>
+              <div class="move-menu" role="menu" :aria-label="moveSelectedTitle">
+                <div class="move-menu-title" aria-hidden="true">{{ moveSelectedTitle }}</div>
+                <button
+                  v-for="target in drawerRooms"
+                  :key="target.name"
+                  type="button"
+                  role="menuitem"
+                  class="move-target"
+                  @click="moveSelected(target.name)"
+                >
+                  <span class="move-tile" :style="{ background: target.tile.bg, color: target.tile.fg }">
+                    <v-icon v-if="target.icon" :icon="target.icon" size="15"></v-icon>
+                    <template v-else>{{ target.initial }}</template>
+                  </span>
+                  <span class="move-target-name">{{ target.label }}</span>
+                  <span v-if="selectedIn(target.name)" class="move-target-note">
+                    {{ t("classroom.sideMenu.hereCount", { n: selectedIn(target.name) }) }}
+                  </span>
+                </button>
+              </div>
+            </v-menu>
+          </div>
+          <div class="drawer-foot" v-else-if="isOwner || isTeacher || phone">
             <!-- phones hide the brand, the bar's link to the list -->
             <v-btn
               v-if="phone"
@@ -1231,20 +1327,32 @@ export default {
             >
               {{ t("classroom.sideMenu.settings") }}
             </v-btn>
-            <v-btn
-              v-if="isOwner || isTeacher"
-              block
-              :height="phone ? 44 : 40"
-              rounded="lg"
-              variant="flat"
-              color="surface"
-              prepend-icon="mdi-plus"
-              class="drawer-btn"
-              @click="addRoom"
-              :disabled="!canAddRoom()"
-            >
-              {{ t("classroom.sideMenu.newRoom") }}
-            </v-btn>
+            <div v-if="isOwner || isTeacher" class="drawer-foot-row">
+              <v-btn
+                :height="phone ? 44 : 40"
+                rounded="lg"
+                variant="flat"
+                color="surface"
+                prepend-icon="mdi-plus"
+                class="drawer-btn"
+                @click="addRoom"
+                :disabled="!canAddRoom()"
+              >
+                {{ t("classroom.sideMenu.newRoom") }}
+              </v-btn>
+              <v-btn
+                v-if="canSelect"
+                :height="phone ? 44 : 40"
+                rounded="lg"
+                variant="flat"
+                color="surface"
+                prepend-icon="mdi-format-list-checks"
+                class="drawer-btn"
+                @click="selecting = true"
+              >
+                {{ t("classroom.sideMenu.select") }}
+              </v-btn>
+            </div>
           </div>
         </template>
       </v-navigation-drawer>
@@ -1804,6 +1912,40 @@ export default {
   background: rgb(var(--v-theme-room-hover));
 }
 
+.room-user--selected {
+  border-radius: 8px;
+  background: rgb(var(--v-theme-primary-tint));
+}
+
+/* the checkbox takes the move button's place and size */
+.user-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-inline-start: auto;
+}
+
+.user-select--phone {
+  width: 44px;
+  height: 44px;
+}
+
+.user-select input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: rgb(var(--v-theme-primary));
+  cursor: pointer;
+}
+
+.user-select--phone input {
+  width: 20px;
+  height: 20px;
+}
+
 .user-move--phone {
   width: 44px;
   height: 44px;
@@ -1927,6 +2069,47 @@ export default {
 
 .drawer-btn {
   border: 1px solid rgb(var(--v-theme-line));
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* New room and Select, side by side */
+.drawer-foot-row {
+  display: flex;
+  gap: 8px;
+}
+
+.drawer-foot-row .drawer-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+/* picking students: the count, Cancel and Move to… replace the buttons */
+.drawer-foot--select {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.select-count {
+  flex: 1;
+  min-width: 0;
+  padding-inline-start: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rooms-drawer--phone .select-count {
+  font-size: 14px;
+}
+
+.select-cancel {
+  color: rgb(var(--v-theme-text-2));
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.select-move {
   font-size: 13px;
   font-weight: 600;
 }

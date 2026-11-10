@@ -371,6 +371,96 @@ describe('Classroom View', () => {
       expect(mockCommunication.moveUser).toHaveBeenCalledWith('other-peer', 'Station abc');
     });
 
+    describe('bulk move', () => {
+      const crowd = {
+        users: {
+          'test-peer-id': { room: 'Lobby', displayName: 'me', role: 'teacher' },
+          ada: { room: 'Lobby', displayName: 'ada', role: 'student' },
+          ben: { room: 'Lobby', displayName: 'ben', role: 'student' },
+          chen: { room: 'Room 1', displayName: 'chen', role: 'student' },
+        },
+        rooms: { Lobby: {}, 'Room 1': {} },
+      };
+
+      const teacherDrawer = async (setting = true) => {
+        const wrapper = await openDrawer();
+        wrapper.vm.liveClassProxy = crowd;
+        wrapper.vm.isTeacher = true;
+        if (setting) await lockClass(wrapper);
+        await wrapper.vm.$nextTick();
+        return wrapper;
+      };
+
+      const selectButton = (wrapper: any) =>
+        wrapper.findAll('.drawer-foot .v-btn').find((b: any) => b.text() === 'Select');
+
+      test('Select sits next to New room only while the setting is on', async () => {
+        expect(selectButton(await teacherDrawer(false))).toBeUndefined();
+
+        const wrapper = await teacherDrawer();
+        const row = wrapper.find('.drawer-foot-row');
+        expect(row.findAll('.v-btn').map((b: any) => b.text())).toEqual(['New room', 'Select']);
+      });
+
+      test('picking shows a checkbox per student instead of the move button, and the count', async () => {
+        const wrapper = await teacherDrawer();
+        await selectButton(wrapper).trigger('click');
+
+        expect(wrapper.findAll('.user-move')).toHaveLength(0);
+        const boxes = wrapper.findAll('.user-select input');
+        expect(boxes.map((b: any) => b.attributes('aria-label'))).toEqual(['Select ada', 'Select ben', 'Select chen']);
+        expect(wrapper.find('.drawer-foot-row').exists()).toBe(false);
+
+        await boxes[0].setValue(true);
+        await boxes[2].setValue(true);
+        expect(wrapper.find('.select-count').text()).toBe('2 selected');
+        expect(wrapper.findAll('.room-user--selected')).toHaveLength(2);
+      });
+
+      test('Move to… sends each picked student who is elsewhere, counts who is already there, and ends picking', async () => {
+        const wrapper = await teacherDrawer();
+        await selectButton(wrapper).trigger('click');
+        const boxes = wrapper.findAll('.user-select input');
+        await boxes[0].setValue(true);
+        await boxes[2].setValue(true);
+
+        const menu = wrapper.find('.drawer-foot .move-menu');
+        expect(menu.attributes('aria-label')).toBe('Move 2 students to');
+        const items = menu.findAll('[role="menuitem"]');
+        expect(items.map((i: any) => i.find('.move-target-note').exists() && i.find('.move-target-note').text())).toEqual([
+          '1 here',
+          '1 here',
+        ]);
+
+        mockCommunication.moveUser.mockClear();
+        await items[1].trigger('click');
+        expect(mockCommunication.moveUser.mock.calls).toEqual([['ada', 'Room 1']]);
+        expect(wrapper.vm.selecting).toBe(false);
+        expect(wrapper.vm.selected).toEqual([]);
+      });
+
+      test('Cancel, a student leaving, or the setting going off end or shrink the pick', async () => {
+        const wrapper = await teacherDrawer();
+        await selectButton(wrapper).trigger('click');
+        wrapper.vm.selected = ['ada', 'ben'];
+        await wrapper.vm.$nextTick();
+
+        const { ben, ...rest } = crowd.users;
+        wrapper.vm.liveClassProxy = { ...crowd, users: rest };
+        await wrapper.vm.$nextTick();
+        expect(wrapper.vm.selectedUsers).toEqual(['ada']);
+
+        await wrapper.find('.select-cancel').trigger('click');
+        expect(wrapper.vm.selecting).toBe(false);
+
+        wrapper.vm.selecting = true;
+        const { data } = wrapper.vm.configuration;
+        wrapper.vm.configuration = { ...wrapper.vm.configuration, data: { ...data, meta: { ...data.meta, teacherMovesStudents: false } } };
+        await wrapper.vm.$nextTick();
+        expect(wrapper.vm.selecting).toBe(false);
+      });
+    });
+
     test('a move shows one notice with the room label, replacing the last move notice only', async () => {
       const wrapper = await openDrawer();
       expect(mockCommunication.on).toHaveBeenCalledWith('moved', wrapper.vm.showMoved);

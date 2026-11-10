@@ -94,6 +94,13 @@ classroom:
     moveUser: "Mover a {name}"
     moveUserTo: "¿Adónde mover a {name}?"
     hereNow: "Está aquí"
+    select: "Seleccionar"
+    selectUser: "Seleccionar a {name}"
+    selectedCount: "{n} seleccionado | {n} seleccionados"
+    cancelSelect: "Cancelar"
+    moveSelected: "Mover a…"
+    moveSelectedTo: "¿Adónde mover a {n} estudiante? | ¿Adónde mover a {n} estudiantes?"
+    hereCount: "{n} aquí"
     people: "{n} persona | {n} personas"
     close: "Cerrar salas"
     roomLabel:
