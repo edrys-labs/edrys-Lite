@@ -52,7 +52,7 @@ https://github.com/edrys-labs/edrys-Lite/assets/3089101/b7188ba0-b91e-469c-8a9f-
   Create modules to deliver virtually any content asynchronously
 
 - __Group coursework:__
-  Dynamic breakout rooms and easy jumping between rooms
+  Dynamic breakout rooms and easy jumping between rooms, or a class where only teachers move students between rooms and stations
 
 ## 📚 Documentation
 
