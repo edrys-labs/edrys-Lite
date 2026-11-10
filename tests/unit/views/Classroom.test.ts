@@ -314,10 +314,11 @@ describe('Classroom View', () => {
     });
 
     test('teachers, the owner and stations keep the room buttons', async () => {
-      for (const role of ['isTeacher', 'isOwner', 'isStation']) {
+      // set as getRole() does: the owner is a teacher too
+      for (const flags of [['isTeacher'], ['isOwner', 'isTeacher'], ['isStation']]) {
         const wrapper = await openDrawer();
         await lockClass(wrapper);
-        wrapper.vm[role] = true;
+        for (const flag of flags) wrapper.vm[flag] = true;
         await wrapper.vm.$nextTick();
 
         expect(wrapper.vm.locked).toBe(false);

@@ -192,12 +192,7 @@ export default {
     },
     // only teachers move students in this class, and we are a student
     locked(): boolean {
-      return (
-        !!this.configuration?.data?.meta?.teacherMovesStudents &&
-        !this.isOwner &&
-        !this.isTeacher &&
-        !this.isStation
-      );
+      return !!this.configuration?.data?.meta?.teacherMovesStudents && !this.isTeacher && !this.isStation;
     },
     // Everything the drawer shows per room, built once per change.
     drawerRooms() {
@@ -274,9 +269,9 @@ export default {
     drawerWidth(): number {
       return this.phone ? 312 : 264;
     },
-    // who may pick several students and move them together
-    canSelect(): boolean {
-      return !!this.configuration?.data?.meta?.teacherMovesStudents && (this.isOwner || this.isTeacher) && !this.isStation;
+    // the class lets only teachers move students, and we are one (the owner too)
+    canMoveStudents(): boolean {
+      return !!this.configuration?.data?.meta?.teacherMovesStudents && this.isTeacher;
     },
     // the picked students still here and still movable
     selectedUsers(): string[] {
@@ -289,7 +284,7 @@ export default {
     },
   },
   watch: {
-    canSelect(can: boolean) {
+    canMoveStudents(can: boolean) {
       if (!can) this.stopSelecting();
     },
     showSettings() {
@@ -699,13 +694,7 @@ export default {
 
     // a teacher may send students (and visitors) elsewhere when the class says so
     canMove(user: { me: boolean; role: string }): boolean {
-      return (
-        !!this.configuration?.data?.meta?.teacherMovesStudents &&
-        (this.isOwner || this.isTeacher) &&
-        !this.isStation &&
-        !user.me &&
-        (user.role === "student" || user.role === "visitor")
-      );
+      return this.canMoveStudents && !user.me && (user.role === "student" || user.role === "visitor");
     },
 
     moveUser(id: string, room: string) {
@@ -1341,7 +1330,7 @@ export default {
                 {{ t("classroom.sideMenu.newRoom") }}
               </v-btn>
               <v-btn
-                v-if="canSelect"
+                v-if="canMoveStudents"
                 :height="phone ? 44 : 40"
                 rounded="lg"
                 variant="flat"
