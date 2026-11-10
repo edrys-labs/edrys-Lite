@@ -90,6 +90,7 @@ classroom:
     newRoom: "Neuer Raum"
     rooms: "Räume"
     gotoRoom: "Zu {room} wechseln"
+    teacherMoves: "Ihre Lehrkraft verschiebt Sie zwischen den Räumen"
     people: "{n} Person | {n} Personen"
     close: "Räume schließen"
     roomLabel:
@@ -105,6 +106,7 @@ classroom:
         taken: "Ein anderer Raum hat bereits diesen Namen"
   popup:
     close: "Schließen"
+    moved: "Ihre Lehrkraft hat Sie verschoben: {room}"
     
 deploy:
   state:

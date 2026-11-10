@@ -90,6 +90,7 @@ classroom:
     newRoom: "غرفة جديدة"
     rooms: "الغرف"
     gotoRoom: "الانتقال إلى {room}"
+    teacherMoves: "ينقلك معلمك بين الغرف"
     people: "عدد الأشخاص: {n}"
     close: "إغلاق الغرف"
     roomLabel:
@@ -105,6 +106,7 @@ classroom:
         taken: "هناك غرفة أخرى تحمل هذا الاسم"
   popup:
     close: "إغلاق"
+    moved: "نقلك معلمك إلى {room}"
 
 deploy:
   state:

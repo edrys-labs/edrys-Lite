@@ -90,6 +90,7 @@ classroom:
     newRoom: "Нова кімната"
     rooms: "Кімнати"
     gotoRoom: "Перейти до {room}"
+    teacherMoves: "Викладач переміщує тебе між кімнатами"
     people: "Людей: {n}"
     close: "Закрити кімнати"
     roomLabel:
@@ -105,6 +106,7 @@ classroom:
         taken: "Інша кімната вже має цю назву"
   popup:
     close: "Закрити"
+    moved: "Викладач перемістив тебе до {room}"
 
 deploy:
   state:

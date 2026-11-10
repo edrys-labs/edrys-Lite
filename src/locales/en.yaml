@@ -90,6 +90,7 @@ classroom:
     newRoom: "New room"
     rooms: "Rooms"
     gotoRoom: "Go to {room}"
+    teacherMoves: "Your teacher moves you between rooms"
     people: "{n} person | {n} people"
     close: "Close rooms"
     roomLabel:
@@ -105,6 +106,7 @@ classroom:
         taken: "Another room already has this name"
   popup:
     close: "Close"
+    moved: "Your teacher moved you to {room}"
 
 deploy:
   state:

@@ -90,6 +90,7 @@ classroom:
     newRoom: "Nueva sala"
     rooms: "Salas"
     gotoRoom: "Ir a {room}"
+    teacherMoves: "Tu profesor te mueve entre las salas"
     people: "{n} persona | {n} personas"
     close: "Cerrar salas"
     roomLabel:
@@ -105,6 +106,7 @@ classroom:
         taken: "Otra sala ya tiene este nombre"
   popup:
     close: "Cerrar"
+    moved: "Tu profesor te ha movido a {room}"
 
 deploy:
   state:

@@ -186,6 +186,15 @@ export default {
       const data = this.configuration?.data;
       return [data?.createdBy, ...(data?.members?.teacher || [])].filter(Boolean);
     },
+    // only teachers move students in this class, and we are a student
+    locked(): boolean {
+      return (
+        !!this.configuration?.data?.meta?.teacherMovesStudents &&
+        !this.isOwner &&
+        !this.isTeacher &&
+        !this.isStation
+      );
+    },
     // Everything the drawer shows per room, built once per change.
     drawerRooms() {
       // the member lists decide who is a visitor
@@ -284,12 +293,19 @@ export default {
       return getDisplayPeerID();
     },
 
-    addPopup(message: string) {
+    addPopup(message: string, kind?: string) {
       this.popups.unshift({
         message,
         open: true,
         id: Date.now(),
+        kind,
       });
+    },
+
+    // a teacher moved us: only the newest move is worth a notice
+    showMoved(room: string) {
+      this.popups = this.popups.filter((popup: any) => popup.kind !== "moved");
+      this.addPopup(this.t("classroom.popup.moved", { room: this.translateRoomName(room) }), "moved");
     },
 
     async init() {
@@ -381,6 +397,7 @@ export default {
         });
 
         this.communication.on("popup", this.addPopup);
+        this.communication.on("moved", this.showMoved);
         this.communication.on("online", (online: boolean) => {
           self.online = online;
         });
@@ -1016,6 +1033,10 @@ export default {
               @click="showSettings = !showSettings"
             ></v-btn>
           </div>
+          <p v-if="locked" class="drawer-locked">
+            <v-icon icon="mdi-lock-outline" size="14"></v-icon>
+            {{ t("classroom.sideMenu.teacherMoves") }}
+          </p>
         </template>
 
         <div class="room-list">
@@ -1067,30 +1088,36 @@ export default {
               ></v-btn>
             </form>
             <div v-else class="room-head">
-              <button
-                type="button"
+              <!-- a locked student sees the rooms but can't go to them -->
+              <component
+                :is="locked ? 'div' : 'button'"
+                :type="locked ? undefined : 'button'"
                 class="room-row"
                 :class="{
                   'room-row--current': room.name === currentRoom,
                   'room-row--renamable': canRenameRoom(room.name),
+                  'room-row--locked': locked,
                 }"
                 :aria-current="room.name === currentRoom ? 'true' : undefined"
-                :aria-label="room.gotoLabel"
-                @click="gotoRoom(room.name)"
+                :aria-label="locked ? undefined : room.gotoLabel"
+                @click="locked || gotoRoom(room.name)"
               >
                 <span class="room-tile" :style="{ background: room.tile.bg, color: room.tile.fg }">
                   <v-icon v-if="room.icon" :icon="room.icon" size="18"></v-icon>
                   <template v-else>{{ room.initial }}</template>
                 </span>
-                <span class="room-name">{{ room.label }}</span>
-                <span v-if="room.people" class="room-count">
+                <span class="room-name"
+                  >{{ room.label
+                  }}<span v-if="locked && room.people" class="d-sr-only">, {{ peopleLabel(room.people) }}</span></span
+                >
+                <span v-if="room.people" class="room-count" :aria-hidden="locked ? 'true' : undefined">
                   <v-icon icon="mdi-account-outline" size="13"></v-icon>
                   {{ room.people }}
                 </span>
-                <span class="room-enter">
+                <span v-if="!locked" class="room-enter">
                   <v-icon :icon="rtl ? 'mdi-arrow-left' : 'mdi-arrow-right'" size="15"></v-icon>
                 </span>
-              </button>
+              </component>
               <button
                 v-if="canRenameRoom(room.name)"
                 type="button"
@@ -1544,6 +1571,26 @@ export default {
 
 .room-row:hover {
   background: rgb(var(--v-theme-room-hover));
+}
+
+.room-row--locked {
+  cursor: default;
+}
+
+.room-row--locked:not(.room-row--current):hover {
+  background: transparent;
+}
+
+.drawer-locked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  /* lines up with the class name; the room list adds its own gap below */
+  padding: 6px 18px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgb(var(--v-theme-muted));
 }
 
 .room-row--current,

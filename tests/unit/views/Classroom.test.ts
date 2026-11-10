@@ -277,6 +277,68 @@ describe('Classroom View', () => {
       expect(mockCommunication.gotoRoom).toHaveBeenCalledWith('Room 1');
     });
 
+    // a new setup replaces the configuration, as the database observer does
+    const lockClass = async (wrapper: any) => {
+      const { data } = wrapper.vm.configuration;
+      wrapper.vm.configuration = {
+        ...wrapper.vm.configuration,
+        data: { ...data, meta: { ...data.meta, teacherMovesStudents: true } },
+      };
+      await wrapper.vm.$nextTick();
+    };
+
+    test('a locked student sees the rooms and who is in them, but no way to go there', async () => {
+      const wrapper = await openDrawer();
+      await lockClass(wrapper);
+
+      const rows = wrapper.findAll('.room-row');
+      expect(rows).toHaveLength(3);
+      for (const row of rows) {
+        expect(row.element.tagName).toBe('DIV');
+        expect(row.attributes('aria-label')).toBeUndefined();
+        expect(row.find('.room-enter').exists()).toBe(false);
+      }
+      expect(rows[0].attributes('aria-current')).toBe('true');
+      expect(rows[1].find('.room-name').text()).toBe('Room 1, 1 person');
+      expect(wrapper.find('.drawer-locked').text()).toBe('Your teacher moves you between rooms');
+      expect(wrapper.findAll('.room-user').length).toBeGreaterThan(0);
+
+      mockCommunication.gotoRoom.mockClear();
+      await rows[1].trigger('click');
+      expect(mockCommunication.gotoRoom).not.toHaveBeenCalled();
+    });
+
+    test('teachers, the owner and stations keep the room buttons', async () => {
+      for (const role of ['isTeacher', 'isOwner', 'isStation']) {
+        const wrapper = await openDrawer();
+        await lockClass(wrapper);
+        wrapper.vm[role] = true;
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.vm.locked).toBe(false);
+        expect(wrapper.findAll('.room-row')[1].element.tagName).toBe('BUTTON');
+        expect(wrapper.find('.drawer-locked').exists()).toBe(false);
+      }
+    });
+
+    test('a move shows one notice with the room label, replacing the last move notice only', async () => {
+      const wrapper = await openDrawer();
+      expect(mockCommunication.on).toHaveBeenCalledWith('moved', wrapper.vm.showMoved);
+      await nameRooms(wrapper, { 'Room 1': 'Group B' });
+      wrapper.vm.addPopup('something else');
+
+      wrapper.vm.showMoved('Room 1');
+      wrapper.vm.showMoved('Lobby');
+
+      expect(wrapper.vm.popups.map((p: any) => p.message)).toEqual([
+        'Your teacher moved you to Lobby',
+        'something else',
+      ]);
+      wrapper.vm.showMoved('Room 1');
+      expect(wrapper.vm.popups[0].message).toBe('Your teacher moved you to Group B');
+      expect(wrapper.vm.popups).toHaveLength(2);
+    });
+
     test('shows a room label but still goes to the internal room', async () => {
       const wrapper = await openDrawer();
       await nameRooms(wrapper, { 'Room 1': 'Group B' });
