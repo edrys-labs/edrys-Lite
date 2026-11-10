@@ -31,8 +31,9 @@ describe('Main Settings Component', () => {
             inheritAttrs: false
           },
           'v-checkbox': {
-            template: '<input type="checkbox" :label="$attrs.label" v-model="value" />',
-            props: ['value'],
+            template: '<input type="checkbox" v-bind="$attrs" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
             inheritAttrs: false
           },
         }
@@ -64,5 +65,16 @@ describe('Main Settings Component', () => {
     await img.trigger('error');
     expect(wrapper.find('img').exists()).toBe(false);
     expect(wrapper.find('svg.class-art').exists()).toBe(true);
+  });
+
+  test('the "only teachers move students" box sets meta.teacherMovesStudents and points to its hint', async () => {
+    const config = { id: 'class-1', name: 'Lab', meta: { teacherMovesStudents: false } };
+    const wrapper = createWrapper({ config });
+    const box = wrapper.find('input.teacher-moves');
+    expect(box.attributes('aria-describedby')).toBe('teacher-moves-hint');
+    expect(wrapper.find('#teacher-moves-hint').exists()).toBe(true);
+
+    await box.setValue(true);
+    expect(config.meta.teacherMovesStudents).toBe(true);
   });
 });

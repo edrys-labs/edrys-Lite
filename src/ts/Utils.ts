@@ -131,6 +131,7 @@ export function normalizeClassroom(data: any) {
     logo: '',
     description: '',
     selfAssign: false,
+    teacherMovesStudents: false,
     defaultNumberOfRooms: 0,
     ...(data.meta && typeof data.meta === 'object' ? data.meta : {}),
   }

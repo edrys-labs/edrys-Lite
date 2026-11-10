@@ -148,6 +148,9 @@ settings:
     roomsTitle: "Salas"
     roomsText: "Con cuántas salas se abre la clase, además del Vestíbulo. Las estaciones añaden sus propias salas."
     roomsNum: "Número de salas"
+    teacherMoves:
+      label: "Solo los profesores pueden mover a los estudiantes"
+      hint: "Los estudiantes empiezan en el Vestíbulo y solo pasan a una sala o estación cuando un profesor los envía allí. Siguen viendo todas las salas y quién está en ellas."
     selfAssign: "Habilitar auto-asignación"
   members:
     linkTitle: "Enlace de la clase"

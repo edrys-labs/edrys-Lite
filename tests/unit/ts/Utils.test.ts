@@ -719,7 +719,7 @@ describe('runMigrationIfNeeded', () => {
       id,
       createdBy,
       name: 'Test Class',
-      meta: { logo: '', description: '', selfAssign: false, defaultNumberOfRooms: 0 },
+      meta: { logo: '', description: '', selfAssign: false, teacherMovesStudents: false, defaultNumberOfRooms: 0 },
       members: { teacher: teachers, student: [] },
       modules: [],
     },

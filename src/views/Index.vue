@@ -147,6 +147,7 @@ export default {
           logo: "",
           description: "",
           selfAssign: false,
+          teacherMovesStudents: false,
           defaultNumberOfRooms: 0,
         },
         members: {

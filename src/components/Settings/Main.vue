@@ -49,6 +49,17 @@
     ></v-text-field>
   </FieldLabel>
 
+  <v-checkbox
+    v-model="config.meta.teacherMovesStudents"
+    :label="t('settings.main.teacherMoves.label')"
+    aria-describedby="teacher-moves-hint"
+    hide-details
+    density="compact"
+    class="teacher-moves"
+    color="primary"
+  ></v-checkbox>
+  <p id="teacher-moves-hint" class="teacher-moves-hint">{{ t('settings.main.teacherMoves.hint') }}</p>
+
   <!-- selfAssign checkbox hidden until the feature is implemented
   <v-checkbox
     v-model="config.meta.selfAssign"
@@ -147,6 +158,26 @@ export default {
 
 .rooms-num {
   max-width: 120px;
+}
+
+/* the box lines up with the field edge above, the hint with the label */
+.teacher-moves {
+  margin-top: 12px;
+  margin-inline-start: -6px;
+}
+
+.teacher-moves :deep(.v-label) {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 1;
+}
+
+.teacher-moves-hint {
+  margin: -4px 0 0;
+  padding-inline-start: 22px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgb(var(--v-theme-muted));
 }
 
 @media (max-width: 599px) {

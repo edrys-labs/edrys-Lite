@@ -148,6 +148,9 @@ settings:
     roomsTitle: "Rooms"
     roomsText: "How many rooms the class opens with, next to the Lobby. Stations add their own rooms."
     roomsNum: "Number of rooms"
+    teacherMoves:
+      label: "Only teachers can move students"
+      hint: "Students start in the Lobby and go to a room or station only when a teacher sends them there. They can still see all rooms and who is in them."
     selfAssign: "Enable self-assignment"
   members:
     linkTitle: "Class link"
