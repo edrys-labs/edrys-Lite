@@ -274,7 +274,7 @@ export default {
 }
 
 .settings-body {
-  height: 550px;
+  height: 600px;
   padding: 0 !important;
 }
 
