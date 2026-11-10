@@ -1174,7 +1174,8 @@ export default class Peer {
       | 'connected'
       | 'chat'
       | 'popup'
-      | 'online',
+      | 'online'
+      | 'moved',
     message?: any
   ) {
     const callback = this.callback[event]
@@ -1185,6 +1186,11 @@ export default class Peer {
           message.date = Date.now()
           callback(message)
         }
+        break
+      }
+      // a teacher moved us to the room `message`; only of interest as it happens
+      case 'moved': {
+        callback?.(message)
         break
       }
       case 'setup': {
@@ -1258,7 +1264,7 @@ export default class Peer {
    * @param callback The callback function.
    */
   on(
-    event: 'setup' | 'room' | 'connected' | 'chat' | 'popup' | 'online',
+    event: 'setup' | 'room' | 'connected' | 'chat' | 'popup' | 'online' | 'moved',
     callback: any
   ) {
     if (callback) {
@@ -1381,7 +1387,9 @@ export default class Peer {
     this._receiveQueue = this._receiveQueue
       .then(async () => {
         if (!(await this._isValidMessage(msg))) return
-        if (msg.tutor === undefined) this.update('message', msg)
+        if (msg.move !== undefined) {
+          if (msg.user) this._followMove(msg)
+        } else if (msg.tutor === undefined) this.update('message', msg)
         else if (msg.user) this._onTutor?.(msg)
       })
       .catch((e) => LOG('message dropped', e))
@@ -1537,6 +1545,38 @@ export default class Peer {
   sendTutor(to: string, tutor: any) {
     if (!this.connected) return
     this._sendSigned({ from: this.peerID, user: to, tutor }, this.user()?.room || LOBBY, [to])
+  }
+
+  /**
+   * Sends the user `id` to `room`, all of their open tabs. Each is a signed
+   * message to that tab; the tab follows it only while it is locked and the
+   * signer is a teacher of the class.
+   */
+  moveUser(id: string, room: string) {
+    if (!this.connected) return
+    const base = getBasePeerID(id)
+    const from = this.user()?.room || LOBBY
+    for (const tab of Object.keys(this.presence.visible)) {
+      if (tab === this.peerID || getBasePeerID(tab) !== base) continue
+      this._sendSigned({ from: this.peerID, user: tab, move: room }, from, [tab])
+    }
+  }
+
+  /** Follows a teacher's move, if we are locked and the room exists. */
+  private _followMove(msg: { from: string; move: unknown }) {
+    const room = msg.move
+    if (!this.isLocked() || typeof room !== 'string') return
+    if (this._viewUsers()[msg.from]?.role !== 'teacher') {
+      LOG('move ignored (not from a teacher)', msg.from)
+      return
+    }
+    if (!(room in this._viewRooms(false))) {
+      LOG('move ignored (no such room)', room)
+      return
+    }
+    if (this.user()?.room === room) return
+    this._moveTo(room)
+    this.update('moved', room)
   }
 
   /**
