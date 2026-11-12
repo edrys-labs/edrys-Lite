@@ -38,7 +38,9 @@ Whether you're a student, educator, researcher, or enthusiast, edrys-Lite invite
 
 ## 📸 Demo
 
-https://github.com/edrys-labs/edrys-Lite/assets/3089101/b7188ba0-b91e-469c-8a9f-413229683bcc
+[![edrys-Lite tutorial: a remote Arduino lab in the browser](https://img.youtube.com/vi/SSuDf0Idthk/maxresdefault.jpg)](https://youtu.be/SSuDf0Idthk)
+
+A 4-minute walkthrough: a teacher builds a class, a station shares a real Arduino, and two students code it together.
 
 ## 💡 Use cases
 
