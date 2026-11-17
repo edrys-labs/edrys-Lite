@@ -420,6 +420,39 @@ export default {
   padding: 10px 12px 14px;
 }
 
+/* Compact: messages as a flat list with lines between them */
+[data-design='compact'] .chat-title {
+  height: 34px;
+  padding: 0 14px;
+}
+
+[data-design='compact'] .chat-log {
+  gap: 0;
+  padding: 0;
+}
+
+[data-design='compact'] .chat-note {
+  padding: 6px 0;
+}
+
+[data-design='compact'] .chat-message {
+  padding: 8px 14px;
+  border-radius: 0;
+  border-bottom: 1px solid rgb(var(--v-theme-message-edge));
+  box-shadow: none;
+}
+
+[data-design='compact'] .chat-compose {
+  gap: 6px;
+  padding: 8px;
+}
+
+@media (min-width: 600px) {
+  [data-design='compact'] .chat-compose .v-btn {
+    height: 30px !important;
+  }
+}
+
 .chat-panel--phone .chat-compose textarea {
   flex: 1;
   min-height: 44px;

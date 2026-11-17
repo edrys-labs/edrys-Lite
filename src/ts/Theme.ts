@@ -194,12 +194,163 @@ const dark: ThemeDefinition = {
   },
 }
 
+/** A design's half: Standard's, with some colors and variables replaced. */
+function derive(
+  base: ThemeDefinition,
+  colors: Record<string, string>,
+  variables: Record<string, string>
+): ThemeDefinition {
+  return {
+    ...base,
+    colors: { ...base.colors, ...colors },
+    variables: { ...base.variables, ...variables },
+  }
+}
+
+/**
+ * Compact: IBM Plex Sans, smaller text, nearly square corners, a white bar
+ * and a slate blue accent. Its CSS (`[data-design='compact']`) tightens the
+ * drawer and chat and turns the chat into a flat list.
+ */
+const compactShape = {
+  font: "'IBM Plex Sans Variable', 'Noto Sans Variable', 'Noto Sans', system-ui, sans-serif",
+  'bar-button': '28px',
+  'module-head': '26px',
+  'head-case': 'uppercase',
+  'head-track': '0.07em',
+
+  'radius-dialog': '4px',
+  'radius-card': '2px',
+  'radius-row': '3px',
+  'radius-control': '3px',
+  'radius-chip': '2px',
+  'radius-tile': '2px',
+
+  'text-10': '9.5px',
+  'text-11': '10.5px',
+  'text-12': '11px',
+  'text-13': '12px',
+  'text-14': '13px',
+  'text-15': '13.5px',
+  'text-16': '14px',
+  'text-17': '14.5px',
+  'text-18': '16px',
+  'text-20': '18px',
+  'text-22': '20px',
+}
+
+const compactLight = derive(
+  light,
+  {
+    background: '#eceef1',
+    surface: '#ffffff',
+    'surface-variant': '#ffffff',
+    'on-surface-variant': '#111827',
+    'on-background': '#111827',
+    'on-surface': '#111827',
+    primary: '#3d5a80',
+    secondary: '#5b6472',
+
+    'bar-line': '#d9dde3',
+    'bar-icon': '#374151',
+    'bar-active': '#eef1f4',
+    'bar-divider': '#d9dde3',
+    panel: '#ffffff',
+    'panel-line': '#d9dde3',
+    'room-current': '#eef1f4',
+    'room-hover': '#f5f6f8',
+    avatar: '#e5e7eb',
+    'text-2': '#374151',
+    line: '#cfd4da',
+    dashed: '#c3c9d2',
+    muted: '#5b6472',
+    focus: '#3d5a80',
+    'primary-tint': '#e8edf4',
+    'primary-text': '#2f4868',
+    'teacher-tint': '#fff1dc',
+    'own-message': '#edf1f6',
+    you: '#3d5a80',
+    message: '#ffffff',
+    'message-edge': '#eceef1',
+    module: '#ffffff',
+    'module-head': '#fafbfc',
+    'module-line': '#e3e6ea',
+    'module-edge': '#d9dde3',
+    'module-icon': '#6b7280',
+    'row-edge': '#e3e6ea',
+    'icon-tile': '#eef1f4',
+    tonal: '#eef1f4',
+    faint: '#9aa1ab',
+    subtle: '#f5f6f8',
+    track: '#d9dde3',
+    spinner: '#3d5a80',
+    'menu-line': '#e3e6ea',
+    'field-line': '#cfd4da',
+  },
+  compactShape
+)
+
+const compactDark = derive(
+  dark,
+  {
+    background: '#0a0c10',
+    surface: '#12161c',
+    'surface-variant': '#0d1015',
+    'on-surface-variant': '#e6e9ee',
+    'on-background': '#e6e9ee',
+    'on-surface': '#e6e9ee',
+    primary: '#4a6a94',
+    secondary: '#8f98a6',
+
+    'bar-line': '#242a33',
+    'bar-icon': '#c3c9d2',
+    'bar-active': '#1c2129',
+    'bar-divider': '#2b313b',
+    panel: '#0f1217',
+    'panel-line': '#242a33',
+    'room-current': '#1c2129',
+    'room-hover': '#161a20',
+    avatar: '#2b313b',
+    'text-2': '#c3c9d2',
+    line: '#2f3640',
+    dashed: '#3a414c',
+    muted: '#8f98a6',
+    focus: '#9fb6d6',
+    'primary-tint': '#25303f',
+    'primary-text': '#b9cbe3',
+    'own-message': '#1d2635',
+    you: '#a9c0e0',
+    message: '#0f1217',
+    'message-edge': '#1a1f26',
+    field: '#0d1015',
+    module: '#14181e',
+    'module-head': '#12161c',
+    'module-line': '#20262e',
+    'module-edge': '#242a33',
+    'module-icon': '#8f98a6',
+    row: '#14181e',
+    'row-edge': '#242a33',
+    'icon-tile': '#2b313b',
+    tonal: '#1c2129',
+    faint: '#5b6472',
+    subtle: '#14181e',
+    track: '#2b313b',
+    spinner: '#8aa6cc',
+    menu: '#12161c',
+    'menu-line': '#242a33',
+    'field-line': '#2f3640',
+    segment: '#2b313b',
+  },
+  compactShape
+)
+
 /**
  * Designs, each with a Light and a Dark half. The user's Light/Dark/System
  * choice picks the half, the class picks the design.
  */
 const designs = {
   standard: { light, dark },
+  compact: { light: compactLight, dark: compactDark },
 }
 
 export type Design = keyof typeof designs
@@ -211,6 +362,7 @@ export const DESIGNS = Object.keys(designs) as Design[]
  */
 const layouts: Record<Design, { bar: number; drawer: number; chat: number }> = {
   standard: { bar: 56, drawer: 264, chat: 360 },
+  compact: { bar: 40, drawer: 228, chat: 300 },
 }
 
 export function designLayout(design: Design) {

@@ -2243,4 +2243,71 @@ export default {
   align-self: flex-start;
   border-color: rgb(var(--v-theme-line));
 }
+
+/* Compact: a tighter bar and drawer, flat rows */
+[data-design='compact'] .bar-start {
+  gap: 8px;
+  padding-inline: 6px;
+}
+
+[data-design='compact'] .bar-end {
+  padding-inline: 6px;
+}
+
+[data-design='compact'] .room-pill {
+  padding-block: 2px;
+  padding-inline: 3px 8px;
+}
+
+[data-design='compact'] .room-tile--small {
+  width: 18px;
+  height: 18px;
+}
+
+[data-design='compact'] .drawer-head {
+  margin: 8px 6px 4px;
+  padding-bottom: 8px;
+}
+
+[data-design='compact'] .room-list {
+  gap: 1px;
+  padding: 4px 6px 8px;
+}
+
+[data-design='compact'] .room-row {
+  gap: 8px;
+  padding: 4px 6px;
+}
+
+[data-design='compact'] .room-row--current {
+  box-shadow: none;
+}
+
+[data-design='compact'] .room-row .room-tile,
+[data-design='compact'] .room-enter {
+  width: 22px;
+  height: 22px;
+}
+
+[data-design='compact'] .room-rename-open {
+  inset-inline-end: 32px;
+}
+
+[data-design='compact'] .room-user {
+  padding-block: 2px 3px;
+  padding-inline: 36px 6px;
+}
+
+[data-design='compact'] .drawer-foot {
+  gap: 6px;
+  padding: 8px;
+}
+
+@media (min-width: 600px) {
+  [data-design='compact'] .drawer-btn,
+  [data-design='compact'] .select-cancel,
+  [data-design='compact'] .select-move {
+    height: 30px !important;
+  }
+}
 </style>

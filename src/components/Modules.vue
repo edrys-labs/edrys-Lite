@@ -785,6 +785,23 @@ export default {
   }
 }
 
+/* Compact: square frames with a hairline */
+[data-design='compact'] .item {
+  border-radius: 0;
+  box-shadow: 0 0 0 1px rgb(var(--v-theme-module-edge));
+}
+
+[data-design='compact'] .item-header {
+  padding-inline: 10px 2px;
+}
+
+@media (min-width: 600px) {
+  [data-design='compact'] .item-expand {
+    width: 22px;
+    height: 22px;
+  }
+}
+
 .item-overlay-protection {
   width: 100%;
   height: 100%;

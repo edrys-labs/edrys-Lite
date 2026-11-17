@@ -166,6 +166,9 @@ settings:
       standard:
         name: "Standard"
         hint: "The usual edrys look"
+      compact:
+        name: "Compact"
+        hint: "Denser, fits more modules on screen"
     roomsTitle: "Rooms"
     roomsText: "How many rooms the class opens with, next to the Lobby. Stations add their own rooms."
     roomsNum: "Number of rooms"

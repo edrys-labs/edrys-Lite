@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest'
 import { ref, nextTick } from 'vue'
+import en from '@/locales/en.yaml'
 
 // Theme.ts reads the saved choice and the OS setting when it loads, so each
 // test sets those up first and then imports a fresh copy of the module.
@@ -150,6 +151,15 @@ describe('Theme', () => {
         expect(Object.keys(half.colors!).sort()).toEqual(Object.keys(standard.colors!).sort())
         expect(Object.keys(half.variables!).sort()).toEqual(Object.keys(standard.variables!).sort())
       }
+    }
+  })
+
+  test('every design has a bar height, panel widths and a name with a hint (the other locales copy the keys)', async () => {
+    const { DESIGNS, designLayout } = await loadTheme()
+    for (const design of DESIGNS) {
+      const { bar, drawer, chat } = designLayout(design)
+      for (const px of [bar, drawer, chat]) expect(px).toBeGreaterThan(0)
+      expect((en as any).settings.main.designs[design]).toEqual({ name: expect.any(String), hint: expect.any(String) })
     }
   })
 })

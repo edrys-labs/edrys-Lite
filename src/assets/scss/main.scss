@@ -243,3 +243,34 @@ code, kbd, pre, samp {
 .field .v-input__details {
     padding-inline: 0;
 }
+
+// Compact: lower fields and smaller text in buttons and fields; phones keep
+// their touch sizes
+@media (min-width: 600px) {
+    [data-design='compact'] .v-input--density-compact {
+        --v-input-control-height: 32px;
+        --v-input-padding-top: 4px;
+    }
+}
+
+[data-design='compact'] .v-field {
+    font-size: var(--v-text-14);
+}
+
+[data-design='compact'] .v-btn--size-default {
+    font-size: var(--v-text-13);
+}
+
+[data-design='compact'] .v-dialog > .v-overlay__content > .v-card,
+[data-design='compact'] .v-dialog > .v-overlay__content > form > .v-card {
+    box-shadow: 0 0 0 1px rgb(var(--v-theme-panel-line)), 0 12px 32px rgba(17, 24, 39, 0.16);
+}
+
+// Vuetify spaces card text, dialogs and field hints out, too loose for the smaller text
+[data-design='compact'] .v-card-text,
+[data-design='compact'] .v-dialog > .v-overlay__content > .v-card > .v-card-text,
+[data-design='compact'] .v-dialog > .v-overlay__content > form > .v-card > .v-card-text,
+[data-design='compact'] .v-field__input,
+[data-design='compact'] .v-input__details {
+    letter-spacing: normal;
+}

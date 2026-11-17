@@ -271,6 +271,7 @@ export default {
 .design-preview-text {
   align-items: center;
   justify-content: center;
+  font-family: var(--v-font);
   font-size: var(--v-text-20);
   font-weight: 700;
   color: rgb(var(--v-theme-on-surface));

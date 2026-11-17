@@ -166,6 +166,9 @@ settings:
       standard:
         name: "Standard"
         hint: "Das gewohnte Aussehen von edrys"
+      compact:
+        name: "Kompakt"
+        hint: "Dichter, mehr Module passen auf den Bildschirm"
     roomsTitle: "Räume"
     roomsText: "Mit wie vielen Räumen die Klasse neben der Lobby startet. Stationen fügen eigene Räume hinzu."
     roomsNum: "Anzahl der Räume"

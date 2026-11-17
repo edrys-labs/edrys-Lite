@@ -166,6 +166,9 @@ settings:
       standard:
         name: "Estándar"
         hint: "El aspecto habitual de edrys"
+      compact:
+        name: "Compacto"
+        hint: "Más denso, caben más módulos en la pantalla"
     roomsTitle: "Salas"
     roomsText: "Con cuántas salas se abre la clase, además del Vestíbulo. Las estaciones añaden sus propias salas."
     roomsNum: "Número de salas"
