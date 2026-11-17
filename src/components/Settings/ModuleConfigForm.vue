@@ -630,8 +630,8 @@ export default {
 .config-tabs :deep(.v-tab) {
   min-width: 0;
   padding: 0 12px;
-  border-radius: 8px 8px 0 0;
-  font-size: 13px;
+  border-radius: var(--v-radius-control) var(--v-radius-control) 0 0;
+  font-size: var(--v-text-13);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
@@ -643,7 +643,7 @@ export default {
 }
 
 .config-tabs :deep(.v-tab .v-icon) {
-  font-size: 16px;
+  font-size: var(--v-text-16);
 }
 
 .preset-note {
@@ -651,7 +651,7 @@ export default {
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-muted));
 }
 
@@ -679,12 +679,12 @@ export default {
 
 .color-value {
   font-family: monospace;
-  font-size: 14px;
+  font-size: var(--v-text-14);
 }
 
 .code-editor-container {
   border: 1px solid rgb(var(--v-theme-field-line));
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-field));
   max-height: 300px;
   overflow: auto;
@@ -698,6 +698,6 @@ export default {
 .code-editor-container :deep(.prism-editor__container) {
   min-height: 100px;
   font-family: monospace;
-  font-size: 14px;
+  font-size: var(--v-text-14);
 }
 </style>

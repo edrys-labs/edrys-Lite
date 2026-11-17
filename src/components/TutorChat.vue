@@ -242,7 +242,7 @@ export default {
 }
 .tutor-title h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 600;
 }
 .tutor-log {
@@ -257,17 +257,17 @@ export default {
 .tutor-intro,
 .tutor-privacy {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-muted));
 }
 .tutor-entry {
   align-self: flex-start;
   padding: 10px 12px;
   /* the corner towards the sender stays sharp */
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   border-end-start-radius: 4px;
   max-width: 92%;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.55;
   overflow-wrap: anywhere;
   background: rgb(var(--v-theme-message));
@@ -280,7 +280,7 @@ export default {
   align-self: flex-end;
   max-width: 85%;
   padding: 9px 12px;
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   border-end-end-radius: 4px;
   background: rgb(var(--v-theme-primary));
   color: rgb(var(--v-theme-on-primary));
@@ -303,7 +303,7 @@ export default {
   border-top: 1px solid rgb(var(--v-theme-panel-line));
 }
 .tutor-compose label {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
@@ -313,10 +313,10 @@ export default {
   padding: 10px 12px;
   resize: none;
   border: 1px solid rgb(var(--v-theme-line));
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-field));
   color: rgb(var(--v-theme-on-surface));
-  font-size: 14px;
+  font-size: var(--v-text-14);
   line-height: 1.5;
 }
 .tutor-compose textarea:focus-visible {
@@ -338,6 +338,6 @@ export default {
   padding: 0 4px;
 }
 .tutor-panel--phone .tutor-title h2 {
-  font-size: 16px;
+  font-size: var(--v-text-16);
 }
 </style>

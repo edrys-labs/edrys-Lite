@@ -141,17 +141,17 @@ export default {
 }
 
 .class-link :deep(input) {
-  font-size: 13px;
+  font-size: var(--v-text-13);
 }
 
 .ids :deep(textarea) {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   line-height: 1.6;
 }
 
 .link-note {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   line-height: 1.5;
   color: rgb(var(--v-theme-muted));
 }

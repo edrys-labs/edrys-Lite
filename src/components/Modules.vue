@@ -592,7 +592,7 @@ export default {
   max-width: 99%;
   flex-direction: column;
   background: rgb(var(--v-theme-module));
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   resize: both;
   overflow: hidden;
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
@@ -663,7 +663,7 @@ export default {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 600;
   color: rgb(var(--v-theme-muted));
 }
@@ -674,7 +674,7 @@ export default {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 7px;
+  border-radius: var(--v-radius-chip);
   color: rgb(var(--v-theme-module-icon));
   cursor: pointer;
 }
@@ -721,7 +721,7 @@ export default {
 .grid--stacked .item-expand {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
 }
 
 /* filling the window instead of full screen (on phones too) */
@@ -739,10 +739,10 @@ export default {
 
 .modules-note {
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   background: rgb(var(--v-theme-surface));
   color: rgb(var(--v-theme-text-2));
-  font-size: 14px;
+  font-size: var(--v-text-14);
   line-height: 1.5;
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
 }

@@ -212,7 +212,8 @@ const vuetify = createVuetify({
     VColorPicker,
   },
   directives: { ...directives },
-  // 8px corners, outlined 40px fields, tinted alerts (main.scss does the rest)
+  // control corners (--v-radius-control), outlined 40px fields, tinted alerts
+  // (main.scss does the rest)
   defaults: {
     VBtn: { rounded: 'lg' },
     VTextField: { variant: 'outlined', density: 'compact', rounded: 'lg' },

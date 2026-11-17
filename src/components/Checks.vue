@@ -293,7 +293,7 @@ export default {
 
 .checks h2 {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--v-text-17);
   font-weight: 600;
 }
 
@@ -302,7 +302,7 @@ export default {
 }
 
 .class-name {
-  font-size: 13px;
+  font-size: var(--v-text-13);
   color: rgb(var(--v-theme-muted));
   overflow: hidden;
   text-overflow: ellipsis;
@@ -351,13 +351,13 @@ li {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-subtle));
 }
 
 .label {
   flex: 1;
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 500;
 }
 
@@ -367,7 +367,7 @@ li {
 
 .status {
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-muted));
 }
 
@@ -401,14 +401,14 @@ li {
 
 .note {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   line-height: 1.5;
   color: rgb(var(--v-theme-muted));
 }
 
 .checks--error p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--v-text-14);
   line-height: 1.5;
 }
 
@@ -424,12 +424,12 @@ li {
 
 .checks--error h3 {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 600;
 }
 
 .checks--error .note {
-  font-size: 12px;
+  font-size: var(--v-text-12);
 }
 
 .error-badge {
@@ -439,7 +439,7 @@ li {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: var(--v-radius-pill);
   background: rgb(var(--v-theme-danger-tint));
   color: rgb(var(--v-theme-error));
 }

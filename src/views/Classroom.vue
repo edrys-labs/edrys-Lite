@@ -1519,10 +1519,10 @@ export default {
   height: 28px;
   margin-inline-end: 8px;
   padding-inline: 10px 12px;
-  border-radius: 999px;
+  border-radius: var(--v-radius-pill);
   background: rgb(var(--v-theme-warning-tint));
   color: rgb(var(--v-theme-warning));
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -1541,7 +1541,7 @@ export default {
 .edrys-bar--phone .room-pill {
   flex: 1;
   height: 36px;
-  font-size: 14px;
+  font-size: var(--v-text-14);
 }
 
 .edrys-bar--phone .room-pill-name {
@@ -1563,11 +1563,11 @@ export default {
   padding-block: 4px;
   padding-inline: 6px 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-bar-active));
   color: rgb(var(--v-theme-on-surface-variant));
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 500;
   cursor: pointer;
 }
@@ -1591,7 +1591,7 @@ export default {
   margin-inline-start: 2px;
   border-inline-start: 1px solid rgb(var(--v-theme-bar-divider));
   color: rgb(var(--v-theme-bar-icon));
-  font-size: 12px;
+  font-size: var(--v-text-12);
 }
 
 .room-tile {
@@ -1601,16 +1601,16 @@ export default {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: var(--v-radius-control);
+  font-size: var(--v-text-12);
   font-weight: 700;
 }
 
 .room-tile--small {
   width: 20px;
   height: 20px;
-  border-radius: 6px;
-  font-size: 11px;
+  border-radius: var(--v-radius-tile);
+  font-size: var(--v-text-11);
 }
 
 /* Drawer */
@@ -1637,12 +1637,12 @@ export default {
 }
 
 .drawer-class-name {
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 600;
 }
 
 .drawer-online {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-muted));
 }
 
@@ -1668,7 +1668,7 @@ export default {
 .room-group {
   margin: 10px 0 0;
   padding: 4px 8px;
-  font-size: 11px;
+  font-size: var(--v-text-11);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1712,7 +1712,7 @@ export default {
   height: 24px;
   margin-block: auto;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--v-radius-tile);
   background: transparent;
   color: rgb(var(--v-theme-muted));
   cursor: pointer;
@@ -1746,7 +1746,7 @@ export default {
   width: 100%;
   padding: 8px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: transparent;
   color: inherit;
   font-family: inherit;
@@ -1773,7 +1773,7 @@ export default {
   margin: 0;
   /* lines up with the class name; the room list adds its own gap below */
   padding: 6px 18px 0;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   line-height: 1.4;
   color: rgb(var(--v-theme-muted));
 }
@@ -1804,7 +1804,7 @@ export default {
 }
 
 .room-name {
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
@@ -1813,7 +1813,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--v-text-11);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
@@ -1841,7 +1841,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
@@ -1897,7 +1897,7 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   color: rgb(var(--v-theme-text-2));
 }
 
@@ -1934,13 +1934,13 @@ export default {
 .user-short-id {
   flex-shrink: 0;
   font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
-  font-size: 11px;
+  font-size: var(--v-text-11);
   color: rgb(var(--v-theme-muted));
 }
 
 .user-tag {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--v-text-11);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
@@ -1954,7 +1954,7 @@ export default {
   height: 28px;
   margin-inline-start: auto;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--v-radius-chip);
   background: transparent;
   color: rgb(var(--v-theme-muted));
   cursor: pointer;
@@ -1962,12 +1962,12 @@ export default {
 
 /* the row whose student is being moved */
 .room-user:has(.user-move--open) {
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-room-hover));
 }
 
 .room-user--selected {
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-primary-tint));
 }
 
@@ -2003,7 +2003,7 @@ export default {
 .user-move--phone {
   width: 44px;
   height: 44px;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
 }
 
 .user-move:hover {
@@ -2026,7 +2026,7 @@ export default {
 .move-menu {
   width: 240px;
   padding: 6px;
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   background: rgb(var(--v-theme-menu));
   color: rgb(var(--v-theme-on-surface));
   box-shadow: 0 12px 32px rgba(20, 25, 35, 0.14), 0 0 0 1px rgb(var(--v-theme-module-edge));
@@ -2038,7 +2038,7 @@ export default {
 
 .move-menu-title {
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 600;
   color: rgb(var(--v-theme-muted));
   overflow-wrap: anywhere;
@@ -2052,7 +2052,7 @@ export default {
   min-height: 44px;
   padding: 6px 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: transparent;
   color: inherit;
   font-family: inherit;
@@ -2078,22 +2078,22 @@ export default {
   flex-shrink: 0;
   width: 26px;
   height: 26px;
-  border-radius: 7px;
-  font-size: 11px;
+  border-radius: var(--v-radius-chip);
+  font-size: var(--v-text-11);
   font-weight: 700;
 }
 
 .move-target-name {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 
 .move-target-note {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--v-text-11);
   color: rgb(var(--v-theme-muted));
 }
 
@@ -2110,7 +2110,7 @@ export default {
 }
 
 .rooms-drawer--phone .drawer-class-name {
-  font-size: 15px;
+  font-size: var(--v-text-15);
 }
 
 .rooms-drawer--phone .room-row {
@@ -2118,12 +2118,12 @@ export default {
 }
 
 .rooms-drawer--phone .room-name {
-  font-size: 15px;
+  font-size: var(--v-text-15);
 }
 
 .drawer-btn {
   border: 1px solid rgb(var(--v-theme-line));
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 600;
 }
 
@@ -2149,22 +2149,22 @@ export default {
   flex: 1;
   min-width: 0;
   padding-inline-start: 4px;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 600;
 }
 
 .rooms-drawer--phone .select-count {
-  font-size: 14px;
+  font-size: var(--v-text-14);
 }
 
 .select-cancel {
   color: rgb(var(--v-theme-text-2));
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 600;
 }
 
 .select-move {
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 600;
 }
 
@@ -2175,7 +2175,7 @@ export default {
   gap: 14px;
   margin-inline: 12px;
   padding: 20px;
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
 }
 
 .station-card-head {
@@ -2191,19 +2191,19 @@ export default {
   flex-shrink: 0;
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
 }
 
 .station-card-title {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--v-text-15);
   font-weight: 600;
 }
 
 .station-card-label {
   display: block;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
@@ -2216,7 +2216,7 @@ export default {
 
 .station-card-text {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.5;
   color: rgb(var(--v-theme-text-2));
 }

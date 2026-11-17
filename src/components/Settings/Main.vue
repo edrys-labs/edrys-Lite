@@ -111,14 +111,14 @@ export default {
 
 .preview figcaption {
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
 
 /* a small copy of the class card on the start page */
 .preview-card {
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   overflow: hidden;
   background: rgb(var(--v-theme-surface));
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
@@ -140,7 +140,7 @@ export default {
 }
 
 .preview-name {
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -151,7 +151,7 @@ export default {
   -webkit-line-clamp: 2;
   overflow: hidden;
   margin-top: 2px;
-  font-size: 11px;
+  font-size: var(--v-text-11);
   line-height: 1.4;
   color: rgb(var(--v-theme-muted));
 }
@@ -167,7 +167,7 @@ export default {
 }
 
 .teacher-moves :deep(.v-label) {
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 500;
   opacity: 1;
 }
@@ -175,7 +175,7 @@ export default {
 .teacher-moves-hint {
   margin: -4px 0 0;
   padding-inline-start: 22px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   line-height: 1.4;
   color: rgb(var(--v-theme-muted));
 }

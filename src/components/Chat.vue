@@ -269,7 +269,7 @@ export default {
 
 .chat-title h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 600;
 }
 
@@ -281,7 +281,7 @@ export default {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-muted));
 }
 
@@ -298,7 +298,7 @@ export default {
 .chat-note {
   padding: 4px 0;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-muted));
 }
 
@@ -307,10 +307,10 @@ export default {
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-message));
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.06), 0 0 0 1px rgb(var(--v-theme-message-edge));
-  font-size: 14px;
+  font-size: var(--v-text-14);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -333,12 +333,12 @@ export default {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--v-text-11);
   color: rgb(var(--v-theme-muted));
 }
 
 .chat-name {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 600;
   color: rgb(var(--v-theme-on-surface));
 }
@@ -355,7 +355,7 @@ export default {
 
 .chat-teacher {
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--v-radius-pill);
   background: rgb(var(--v-theme-teacher-tint));
   color: rgb(var(--v-theme-teacher));
   font-weight: 600;
@@ -371,7 +371,7 @@ export default {
 }
 
 .chat-compose label {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
@@ -382,10 +382,10 @@ export default {
   padding: 10px 12px;
   resize: none;
   border: 1px solid rgb(var(--v-theme-line));
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-field));
   color: rgb(var(--v-theme-on-surface));
-  font-size: 14px;
+  font-size: var(--v-text-14);
   line-height: 1.5;
 }
 
@@ -401,7 +401,7 @@ export default {
 }
 
 .chat-panel--phone .chat-title h2 {
-  font-size: 16px;
+  font-size: var(--v-text-16);
 }
 
 .chat-panel--phone .chat-log {
@@ -409,8 +409,8 @@ export default {
 }
 
 .chat-panel--phone .chat-message {
-  border-radius: 12px;
-  font-size: 15px;
+  border-radius: var(--v-radius-card);
+  font-size: var(--v-text-15);
 }
 
 .chat-panel--phone .chat-compose {
@@ -424,7 +424,7 @@ export default {
   min-height: 44px;
   padding: 11px 14px;
   border-radius: 22px;
-  font-size: 15px;
+  font-size: var(--v-text-15);
   line-height: 1.4;
 }
 </style>

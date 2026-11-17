@@ -146,7 +146,7 @@ export default {
   margin: 0;
   padding: 24px 28px;
   font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.8;
   color: rgb(var(--v-theme-muted));
   overflow-wrap: anywhere;
@@ -169,7 +169,7 @@ export default {
 
 .ready h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--v-text-18);
   font-weight: 600;
 }
 
@@ -180,26 +180,26 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: var(--v-radius-pill);
   background: rgb(var(--v-theme-success-tint));
   color: rgb(var(--v-theme-success));
 }
 
 .ready p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--v-text-14);
   line-height: 1.6;
   color: rgb(var(--v-theme-text-2));
 }
 
 .ready .info {
-  font-size: 13px;
+  font-size: var(--v-text-13);
   color: rgb(var(--v-theme-muted));
 }
 
 .classroom-link {
   font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 500;
   color: rgb(var(--v-theme-link));
   overflow-wrap: anywhere;

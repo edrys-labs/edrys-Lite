@@ -279,7 +279,7 @@ export default {
   display: inline-flex;
   gap: 3px;
   padding: 3px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-tonal));
 }
 
@@ -288,9 +288,9 @@ export default {
   align-items: center;
   height: 34px;
   padding: 0 16px;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   color: rgb(var(--v-theme-muted));
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 500;
   cursor: pointer;
 }
@@ -329,7 +329,7 @@ export default {
 }
 
 .keep-config :deep(.v-label) {
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 500;
   opacity: 1;
 }
@@ -337,7 +337,7 @@ export default {
 .keep-config-hint {
   margin: -4px 0 0;
   padding-inline-start: 22px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   line-height: 1.4;
   color: rgb(var(--v-theme-muted));
 }
@@ -345,7 +345,7 @@ export default {
 .mono :deep(input),
 .mono :deep(textarea) {
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 13px;
+  font-size: var(--v-text-13);
 }
 
 @media (max-width: 599px) {

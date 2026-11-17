@@ -741,7 +741,7 @@ html.agent-chat-resizing iframe {
 }
 .agent-title h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 600;
 }
 .agent-spacer {
@@ -751,7 +751,7 @@ html.agent-chat-resizing iframe {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 500;
   white-space: nowrap;
   color: rgb(var(--v-theme-muted));
@@ -761,7 +761,7 @@ html.agent-chat-resizing iframe {
   display: flex;
   gap: 2px;
   padding: 3px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-tonal));
 }
 .agent-tabs button {
@@ -770,8 +770,8 @@ html.agent-chat-resizing iframe {
   gap: 6px;
   height: 30px;
   padding: 0 12px;
-  border-radius: 7px;
-  font-size: 12px;
+  border-radius: var(--v-radius-chip);
+  font-size: var(--v-text-12);
   font-weight: 600;
   color: rgb(var(--v-theme-muted));
 }
@@ -786,10 +786,10 @@ html.agent-chat-resizing iframe {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: var(--v-radius-pill);
   background: rgb(var(--v-theme-badge));
   color: #fff;
-  font-size: 11px;
+  font-size: var(--v-text-11);
   font-weight: 700;
   line-height: 18px;
   text-align: center;
@@ -805,7 +805,7 @@ html.agent-chat-resizing iframe {
 }
 .agent-label,
 .agent-compose label {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
@@ -824,20 +824,20 @@ html.agent-chat-resizing iframe {
   height: 36px;
   padding: 0 10px;
   border: 1px solid rgb(var(--v-theme-field-line));
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-field));
   color: rgb(var(--v-theme-on-surface));
-  font-size: 12px;
+  font-size: var(--v-text-12);
 }
 .agent-warn {
   display: flex;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   line-height: 1.45;
   color: rgb(var(--v-theme-warning));
 }
 .agent-note {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   line-height: 1.45;
   color: rgb(var(--v-theme-muted));
 }
@@ -845,8 +845,8 @@ html.agent-chat-resizing iframe {
   display: flex;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: var(--v-radius-control);
+  font-size: var(--v-text-12);
   line-height: 1.45;
 }
 .agent-alert .v-icon,
@@ -873,10 +873,10 @@ html.agent-chat-resizing iframe {
   gap: 10px;
   margin: 12px 12px 0;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-danger-tint));
   color: rgb(var(--v-theme-error));
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.5;
 }
 .agent-problem > div {
@@ -888,14 +888,14 @@ html.agent-chat-resizing iframe {
 }
 .agent-problem summary {
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 600;
 }
 .agent-problem pre {
   margin: 6px 0 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: var(--v-text-12);
 }
 .agent-log {
   flex: 1;
@@ -908,13 +908,13 @@ html.agent-chat-resizing iframe {
 }
 .agent-muted {
   align-self: center;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-muted));
 }
 .agent-msg {
   max-width: 85%;
   padding: 9px 12px;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
@@ -922,7 +922,7 @@ html.agent-chat-resizing iframe {
 .agent-msg.ai {
   align-self: flex-start;
   max-width: 92%;
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   border-end-start-radius: 4px;
   background: rgb(var(--v-theme-message));
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.06), 0 0 0 1px rgb(var(--v-theme-message-edge));
@@ -933,7 +933,7 @@ html.agent-chat-resizing iframe {
 .agent-msg.user,
 .agent-msg.answer {
   align-self: flex-end;
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   border-end-end-radius: 4px;
   background: rgb(var(--v-theme-primary));
   color: rgb(var(--v-theme-on-primary));
@@ -944,14 +944,14 @@ html.agent-chat-resizing iframe {
 }
 .agent-msg :deep(pre) {
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   overflow-x: auto;
   background: rgb(var(--v-theme-tonal));
-  font-size: 12px;
+  font-size: var(--v-text-12);
 }
 .agent-msg :deep(code) {
   font-family: "JetBrains Mono Variable", ui-monospace, monospace;
-  font-size: 12px;
+  font-size: var(--v-text-12);
 }
 .agent-msg :deep(:not(pre) > code) {
   padding: 1px 4px;
@@ -981,7 +981,7 @@ html.agent-chat-resizing iframe {
 }
 .agent-form legend {
   padding: 0 0 6px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
@@ -990,7 +990,7 @@ html.agent-chat-resizing iframe {
   align-items: center;
   gap: 8px;
   width: 100%;
-  font-size: 13px;
+  font-size: var(--v-text-13);
 }
 .agent-option input {
   margin: 0;
@@ -1000,10 +1000,10 @@ html.agent-chat-resizing iframe {
   height: 34px;
   padding: 0 14px;
   border: 1px solid rgb(var(--v-theme-field-line));
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-field));
   color: rgb(var(--v-theme-on-surface));
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 600;
 }
 .agent-choice[aria-pressed="true"],
@@ -1024,12 +1024,12 @@ html.agent-chat-resizing iframe {
   align-items: center;
   gap: 8px;
   padding: 0 12px 10px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-muted));
 }
 .agent-hint {
   padding: 0 12px 10px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-style: italic;
   color: rgb(var(--v-theme-muted));
 }
@@ -1047,10 +1047,10 @@ html.agent-chat-resizing iframe {
   padding: 10px 12px;
   resize: none;
   border: 1px solid rgb(var(--v-theme-line));
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-field));
   color: rgb(var(--v-theme-on-surface));
-  font-size: 14px;
+  font-size: var(--v-text-14);
   line-height: 1.5;
 }
 .agent-compose textarea:focus-visible,
@@ -1062,7 +1062,7 @@ html.agent-chat-resizing iframe {
 
 .agent-thread {
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   background: rgb(var(--v-theme-message));
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
 }
@@ -1090,10 +1090,10 @@ html.agent-chat-resizing iframe {
   flex-shrink: 0;
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-own-message));
   color: rgb(var(--v-theme-you));
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 700;
 }
 .agent-who {
@@ -1105,13 +1105,13 @@ html.agent-chat-resizing iframe {
 }
 .agent-name {
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .agent-where {
-  font-size: 11px;
+  font-size: var(--v-text-11);
   color: rgb(var(--v-theme-muted));
 }
 .agent-entries {
@@ -1123,7 +1123,7 @@ html.agent-chat-resizing iframe {
 .agent-msg.tutor-student {
   align-self: flex-start;
   max-width: 88%;
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   border-end-start-radius: 4px;
   background: rgb(var(--v-theme-tonal));
   white-space: pre-wrap;
@@ -1131,13 +1131,13 @@ html.agent-chat-resizing iframe {
 .agent-msg.tutor-tutor {
   align-self: flex-end;
   max-width: 88%;
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   border-end-end-radius: 4px;
   background: rgb(var(--v-theme-own-message));
 }
 .agent-meta {
   display: block;
-  font-size: 11px;
+  font-size: var(--v-text-11);
   white-space: normal;
   color: rgb(var(--v-theme-muted));
 }
@@ -1155,6 +1155,6 @@ html.agent-chat-resizing iframe {
   padding-inline: 4px 12px;
 }
 .agent-panel--phone .agent-title h2 {
-  font-size: 16px;
+  font-size: var(--v-text-16);
 }
 </style>

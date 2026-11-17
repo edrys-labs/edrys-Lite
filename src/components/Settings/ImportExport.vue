@@ -256,7 +256,7 @@ export default {
 }
 
 .restore-btn {
-  font-size: 12px;
+  font-size: var(--v-text-12);
 }
 
 /* a faded primary button still reads as clickable, in dark especially */
@@ -275,7 +275,7 @@ export default {
   align-items: center;
   gap: 6px;
   margin: 10px 0 0;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   color: rgb(var(--v-theme-success));
 }
 

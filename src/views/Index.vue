@@ -360,7 +360,7 @@ export default {
   gap: 12px;
   padding-block: 12px;
   padding-inline: 16px 12px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-info-tint));
   color: rgb(var(--v-theme-info));
 }
@@ -374,12 +374,12 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.5;
 }
 
 .migration-text strong {
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 600;
 }
 
@@ -389,7 +389,7 @@ export default {
   gap: 12px;
   padding: 12px 16px;
   border: 1px solid rgb(var(--v-theme-warning-tint));
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   /* a softer yellow than the tint itself, which also colours status pills */
   background: color-mix(in srgb, rgb(var(--v-theme-warning-tint)) 45%, rgb(var(--v-theme-surface)));
   color: rgb(var(--v-theme-on-background));
@@ -401,7 +401,7 @@ export default {
 
 .storage-note p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.5;
 }
 
@@ -418,14 +418,14 @@ export default {
 
 .list-heading h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--v-text-22);
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.01em;
 }
 
 .list-heading span {
-  font-size: 13px;
+  font-size: var(--v-text-13);
   color: rgb(var(--v-theme-muted));
 }
 
@@ -440,7 +440,7 @@ export default {
   position: relative;
   display: flex;
   flex-direction: column;
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   overflow: hidden;
   background: rgb(var(--v-theme-surface));
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
@@ -468,7 +468,7 @@ export default {
 
 .class-body h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--v-text-16);
   font-weight: 600;
   line-height: 1.3;
   overflow-wrap: anywhere;
@@ -506,14 +506,14 @@ export default {
 }
 
 .class-role {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
 
 .class-body p {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.55;
   color: rgb(var(--v-theme-text-2));
   white-space: pre-line;
@@ -538,7 +538,7 @@ export default {
 }
 
 .card-icon-btn :deep(.v-icon) {
-  font-size: 20px;
+  font-size: var(--v-text-20);
 }
 
 .create-card {
@@ -550,7 +550,7 @@ export default {
   min-height: 320px;
   padding: 24px;
   border: 1.5px dashed rgba(var(--v-theme-primary), 0.5);
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   background: rgba(var(--v-theme-primary), 0.06);
   color: rgb(var(--v-theme-on-background));
   text-align: center;
@@ -582,13 +582,13 @@ export default {
 }
 
 .create-title {
-  font-size: 16px;
+  font-size: var(--v-text-16);
   font-weight: 600;
 }
 
 .create-sub {
   max-width: 240px;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.5;
   color: rgb(var(--v-theme-text-2));
 }
@@ -600,7 +600,7 @@ export default {
 }
 
 .class-list--phone .list-heading h1 {
-  font-size: 20px;
+  font-size: var(--v-text-20);
 }
 
 .class-list--phone .class-grid {
@@ -619,7 +619,7 @@ export default {
   flex-shrink: 0;
   width: 48px;
   height: 48px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
 }
 
 .class-list--phone .class-body {
@@ -632,7 +632,7 @@ export default {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 15px;
+  font-size: var(--v-text-15);
 }
 
 .class-list--phone .class-body p {
@@ -655,12 +655,12 @@ export default {
 .class-list--phone .create-icon {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   box-shadow: none;
 }
 
 .class-list--phone .create-title {
-  font-size: 14px;
+  font-size: var(--v-text-14);
 }
 
 .class-list--phone .create-sub {

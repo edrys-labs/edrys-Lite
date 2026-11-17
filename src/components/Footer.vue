@@ -84,6 +84,6 @@ export default {
 
 <style scoped>
 .footer .bar-btn :deep(.v-icon) {
-  font-size: 18px;
+  font-size: var(--v-text-18);
 }
 </style>

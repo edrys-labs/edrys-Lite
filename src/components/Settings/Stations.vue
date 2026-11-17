@@ -122,7 +122,7 @@ export default {
   margin: 0 0 20px;
   padding-inline-start: 44px;
   list-style: none;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.5;
 }
 
@@ -144,7 +144,7 @@ export default {
   border-radius: 50%;
   background: rgb(var(--v-theme-primary-tint));
   color: rgb(var(--v-theme-primary-text));
-  font-size: 11px;
+  font-size: var(--v-text-11);
   font-weight: 700;
 }
 
@@ -165,7 +165,7 @@ export default {
   margin-bottom: 6px;
   padding-block: 8px;
   padding-inline: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-row));
   box-shadow: 0 0 0 1px rgb(var(--v-theme-row-edge));
 }
@@ -177,8 +177,8 @@ export default {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: var(--v-radius-control);
+  font-size: var(--v-text-12);
   font-weight: 700;
 }
 
@@ -188,7 +188,7 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 600;
 }
 
@@ -198,7 +198,7 @@ export default {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-text-2));
 }
 
@@ -216,6 +216,6 @@ export default {
 
 .station-link :deep(input) {
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 13px;
+  font-size: var(--v-text-13);
 }
 </style>

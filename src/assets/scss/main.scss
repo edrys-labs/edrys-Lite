@@ -34,14 +34,20 @@ code, kbd, pre, samp {
     background: rgb(var(--v-theme-field));
 }
 
-// Cards 12px, dialogs 16px, unless a component asks for other corners
+// rounded="lg" (buttons and fields, see the defaults in index.ts) follows
+// the theme's control corners instead of Vuetify's fixed 8px
+.rounded-lg {
+    border-radius: var(--v-radius-control) !important;
+}
+
+// Cards and dialogs, unless a component asks for other corners
 .v-card:not([class*='rounded']) {
-    border-radius: 12px;
+    border-radius: var(--v-radius-card);
 }
 
 .v-dialog > .v-overlay__content > .v-card:not([class*='rounded']),
 .v-dialog > .v-overlay__content > form > .v-card:not([class*='rounded']) {
-    border-radius: 16px;
+    border-radius: var(--v-radius-dialog);
 }
 
 // App bar and footer: flat, with a hairline towards the page
@@ -58,7 +64,7 @@ code, kbd, pre, samp {
     color: rgb(var(--v-theme-bar-icon));
 
     .v-icon {
-        font-size: 20px;
+        font-size: var(--v-text-20);
     }
 
     &:focus-visible {
@@ -120,7 +126,7 @@ code, kbd, pre, samp {
 
 .confirm p {
     margin: 0 0 10px;
-    font-size: 14px;
+    font-size: var(--v-text-14);
     font-weight: 500;
 }
 
@@ -150,9 +156,9 @@ code, kbd, pre, samp {
 .v-alert.text-info {
     padding-block: 12px;
     padding-inline: 14px 10px;
-    border-radius: 10px;
+    border-radius: var(--v-radius-row);
     background: rgb(var(--v-theme-info-tint));
-    font-size: 13px;
+    font-size: var(--v-text-13);
     line-height: 1.5;
 
     .v-alert__underlay {
@@ -164,7 +170,7 @@ code, kbd, pre, samp {
     }
 
     .v-alert__prepend .v-icon {
-        font-size: 18px;
+        font-size: var(--v-text-18);
     }
 }
 
@@ -178,11 +184,11 @@ code, kbd, pre, samp {
 // Tooltips: the colors of the toasts, small and rounded
 .v-tooltip > .v-overlay__content {
     padding: 5px 9px;
-    border-radius: 7px;
+    border-radius: var(--v-radius-chip);
     background: rgb(var(--v-theme-toast));
     color: rgb(var(--v-theme-on-toast));
     font-family: 'Noto Sans Variable', sans-serif;
-    font-size: 12px;
+    font-size: var(--v-text-12);
     font-weight: 500;
     line-height: 1.4;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -190,17 +196,17 @@ code, kbd, pre, samp {
 
 // Toasts (<v-snackbar color="toast" class="edrys-toast">)
 .edrys-toast .v-snackbar__wrapper {
-    border-radius: 10px;
+    border-radius: var(--v-radius-row);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 .edrys-toast .v-snackbar__content {
-    font-size: 13px;
+    font-size: var(--v-text-13);
     line-height: 1.45;
 }
 
 .toast-action.v-btn {
-    border-radius: 7px;
+    border-radius: var(--v-radius-chip);
     color: rgb(var(--v-theme-toast-action));
 }
 
@@ -213,7 +219,7 @@ code, kbd, pre, samp {
 }
 
 .field-label {
-    font-size: 12px;
+    font-size: var(--v-text-12);
     font-weight: 500;
     color: rgb(var(--v-theme-muted));
 }

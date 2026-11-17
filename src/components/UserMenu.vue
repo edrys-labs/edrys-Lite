@@ -147,7 +147,7 @@ export default defineComponent({
 .user-menu {
   width: 300px;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   background: rgb(var(--v-theme-menu));
   color: rgb(var(--v-theme-on-surface));
   box-shadow: 0 12px 32px rgba(20, 25, 35, 0.14), 0 0 0 1px rgb(var(--v-theme-module-edge));
@@ -177,13 +177,13 @@ section:last-child {
 }
 
 .label {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 600;
   color: rgb(var(--v-theme-muted));
 }
 
 .value {
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 500;
 }
 
@@ -198,21 +198,21 @@ section:last-child {
   min-width: 0;
   overflow-wrap: anywhere;
   font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 500;
 }
 
 .copy-btn {
-  border-radius: 7px;
+  border-radius: var(--v-radius-chip);
   color: rgb(var(--v-theme-text-2)) !important;
 }
 
 .copy-btn :deep(.v-icon) {
-  font-size: 15px;
+  font-size: var(--v-text-15);
 }
 
 .hint {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-muted));
 }
 
@@ -222,11 +222,11 @@ section:last-child {
   height: 38px;
   padding-inline: 12px;
   border: 1px solid rgb(var(--v-theme-field-line));
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-field));
   color: inherit;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--v-text-14);
 }
 
 .name-field:focus-visible {
@@ -244,11 +244,11 @@ section:last-child {
   height: 38px;
   padding-inline: 12px 32px;
   border: 1px solid rgb(var(--v-theme-field-line));
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-field));
   color: inherit;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--v-text-14);
   appearance: none;
   cursor: pointer;
 }
@@ -273,7 +273,7 @@ section:last-child {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
   padding: 3px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-tonal));
 }
 
@@ -283,9 +283,9 @@ section:last-child {
   justify-content: center;
   gap: 6px;
   height: 32px;
-  border-radius: 7px;
+  border-radius: var(--v-radius-chip);
   color: rgb(var(--v-theme-muted));
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 600;
   cursor: pointer;
 }

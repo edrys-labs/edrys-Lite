@@ -238,7 +238,7 @@ export default {
 .settings-head h2 {
   flex: 1;
   margin: 0;
-  font-size: 18px;
+  font-size: var(--v-text-18);
   font-weight: 600;
 }
 
@@ -254,13 +254,13 @@ export default {
 .settings-tabs :deep(.v-tab) {
   padding: 0 14px;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
 
 .settings-tabs :deep(.v-tab) {
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--v-radius-control) var(--v-radius-control) 0 0;
 }
 
 .settings-tabs :deep(.v-tab.v-tab--selected) {
@@ -270,7 +270,7 @@ export default {
 }
 
 .settings-tabs :deep(.v-tab .v-icon) {
-  font-size: 17px;
+  font-size: var(--v-text-17);
 }
 
 .settings-body {
@@ -297,7 +297,7 @@ export default {
 }
 
 .unsaved {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-muted));
 }
 </style>

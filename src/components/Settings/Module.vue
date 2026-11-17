@@ -418,14 +418,14 @@ export default {
 .field-label {
   display: block;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
 }
 
 .mono :deep(input) {
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 13px;
+  font-size: var(--v-text-13);
 }
 
 .design {
@@ -439,7 +439,7 @@ export default {
   flex-wrap: wrap;
   gap: 3px;
   padding: 3px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-tonal));
 }
 
@@ -448,9 +448,9 @@ export default {
   align-items: center;
   height: 32px;
   padding: 0 14px;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   color: rgb(var(--v-theme-muted));
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 500;
   cursor: pointer;
 }
@@ -493,10 +493,10 @@ export default {
   padding-block: 0;
   padding-inline: 7px 12px;
   border: 1px solid rgb(var(--v-theme-field-line));
-  border-radius: 999px;
+  border-radius: var(--v-radius-pill);
   background: rgb(var(--v-theme-field));
   color: rgb(var(--v-theme-text-2));
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 500;
 }
 
@@ -518,7 +518,7 @@ export default {
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  font-size: 10px;
+  font-size: var(--v-text-10);
   font-weight: 700;
 }
 </style>

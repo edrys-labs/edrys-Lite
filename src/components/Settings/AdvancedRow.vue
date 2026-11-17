@@ -70,7 +70,7 @@ export default {
 
 <style scoped>
 .advanced-row {
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-row));
   box-shadow: 0 0 0 1px rgb(var(--v-theme-row-edge));
 }
@@ -86,7 +86,7 @@ export default {
   width: 100%;
   padding-block: 8px;
   padding-inline: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   text-align: start;
   color: rgb(var(--v-theme-on-surface));
 }
@@ -103,7 +103,7 @@ export default {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
 }
 
 .row-words {
@@ -115,13 +115,13 @@ export default {
 }
 
 .row-title {
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 600;
 }
 
 .row-summary {
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-muted));
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -137,10 +137,10 @@ export default {
   gap: 6px;
   flex-shrink: 0;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: var(--v-radius-pill);
   background: rgb(var(--v-theme-danger-tint));
   color: rgb(var(--v-theme-error));
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 600;
 }
 

@@ -392,13 +392,13 @@ export default {
 
 .labs-head h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--v-text-18);
   font-weight: 600;
 }
 
 .labs-head p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.5;
   color: rgb(var(--v-theme-text-2));
 }
@@ -429,7 +429,7 @@ export default {
   align-items: flex-start;
   gap: 10px;
   padding: 20px;
-  border-radius: 12px;
+  border-radius: var(--v-radius-card);
   border: 1px solid rgb(var(--v-theme-row-edge));
   background: rgb(var(--v-theme-row));
   color: rgb(var(--v-theme-on-surface));
@@ -478,13 +478,13 @@ export default {
 }
 
 .choice-title {
-  font-size: 15px;
+  font-size: var(--v-text-15);
   font-weight: 600;
 }
 
 .choice-text {
   flex: 1;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.5;
   color: rgb(var(--v-theme-text-2));
 }
@@ -500,8 +500,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 7px;
-  font-size: 11px;
+  border-radius: var(--v-radius-chip);
+  font-size: var(--v-text-11);
   font-weight: 700;
 }
 
@@ -509,7 +509,7 @@ export default {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 600;
   color: rgb(var(--v-theme-primary-text));
 }
@@ -531,7 +531,7 @@ export default {
   gap: 8px;
   height: 40px;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   border: 1px solid rgb(var(--v-theme-field-line));
   background: rgb(var(--v-theme-field));
   color: rgb(var(--v-theme-muted));
@@ -549,7 +549,7 @@ export default {
   outline: none;
   background: transparent;
   color: rgb(var(--v-theme-on-surface));
-  font-size: 13px;
+  font-size: var(--v-text-13);
 }
 
 .sr-only {
@@ -565,7 +565,7 @@ export default {
   display: inline-flex;
   gap: 3px;
   padding: 3px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-tonal));
 }
 
@@ -574,9 +574,9 @@ export default {
   align-items: center;
   height: 34px;
   padding: 0 14px;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   color: rgb(var(--v-theme-muted));
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -630,7 +630,7 @@ export default {
 
 .group-head h3 {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -639,7 +639,7 @@ export default {
 
 .group-head a {
   font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   color: rgb(var(--v-theme-faint));
   text-decoration: none;
 }
@@ -651,7 +651,7 @@ export default {
 .lab {
   display: flex;
   flex-direction: column;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-row));
   /* a border, not an outer shadow: the list scrolls and would clip it */
   border: 1px solid rgb(var(--v-theme-row-edge));
@@ -676,8 +676,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  font-size: 14px;
+  border-radius: var(--v-radius-row);
+  font-size: var(--v-text-14);
   font-weight: 700;
 }
 
@@ -690,13 +690,13 @@ export default {
 }
 
 .lab-name {
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 600;
   line-height: 1.3;
 }
 
 .lab-desc {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   line-height: 1.4;
   color: rgb(var(--v-theme-muted));
   white-space: nowrap;
@@ -720,8 +720,8 @@ export default {
   flex-shrink: 0;
   height: 20px;
   padding: 0 8px;
-  border-radius: 999px;
-  font-size: 11px;
+  border-radius: var(--v-radius-pill);
+  font-size: var(--v-text-11);
   font-weight: 600;
 }
 
@@ -737,7 +737,7 @@ export default {
 
 .lab-modules {
   min-width: 0;
-  font-size: 11px;
+  font-size: var(--v-text-11);
   color: rgb(var(--v-theme-muted));
   white-space: nowrap;
   overflow: hidden;
@@ -753,7 +753,7 @@ export default {
   margin-inline: 8px;
   padding-block: 10px;
   padding-inline: 12px 8px;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-primary-tint));
   color: rgb(var(--v-theme-primary-text));
 }
@@ -762,7 +762,7 @@ export default {
   flex: 1;
   min-width: 220px;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.45;
 }
 
@@ -776,7 +776,7 @@ export default {
   gap: 6px;
   margin-block: 0 10px;
   margin-inline: 12px;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   color: rgb(var(--v-theme-error));
 }
 
@@ -784,7 +784,7 @@ export default {
   margin: 0;
   padding: 24px;
   text-align: center;
-  font-size: 14px;
+  font-size: var(--v-text-14);
   color: rgb(var(--v-theme-muted));
 }
 
@@ -799,7 +799,7 @@ export default {
 
 .labs-error p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--v-text-14);
   color: rgb(var(--v-theme-text-2));
 }
 
@@ -814,7 +814,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: var(--v-radius-pill);
   background: rgb(var(--v-theme-danger-tint));
   color: rgb(var(--v-theme-error));
 }

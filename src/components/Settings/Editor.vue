@@ -95,7 +95,7 @@ export default {
   max-height: 40vh;
   overflow: auto;
   border: 1px solid rgb(var(--v-theme-field-line));
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-field));
 }
 
@@ -107,12 +107,12 @@ export default {
 .code-field :deep(.prism-editor__container) {
   min-height: 96px;
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 13px;
+  font-size: var(--v-text-13);
 }
 
 .code-note {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--v-text-12);
   line-height: 1.4;
   color: rgb(var(--v-theme-muted));
 }

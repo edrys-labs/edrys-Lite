@@ -187,7 +187,7 @@ export default {
 .explorer-head h2 {
   flex: 1;
   margin: 0;
-  font-size: 18px;
+  font-size: var(--v-text-18);
   font-weight: 600;
 }
 
@@ -210,7 +210,7 @@ export default {
 .module-item {
   padding-block: 10px !important;
   padding-inline: 14px 8px !important;
-  border-radius: 10px !important;
+  border-radius: var(--v-radius-row) !important;
   background: rgb(var(--v-theme-row));
   /* a border, not an outer shadow: the list scrolls and would clip it */
   border: 1px solid rgb(var(--v-theme-row-edge)) !important;
@@ -231,12 +231,12 @@ export default {
 }
 
 .module-name {
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 600;
 }
 
 .module-description {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   line-height: 1.4;
   white-space: normal;
   color: rgb(var(--v-theme-muted));
@@ -255,7 +255,7 @@ export default {
 
 .explorer-error p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--v-text-14);
   color: rgb(var(--v-theme-text-2));
 }
 
@@ -270,7 +270,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: var(--v-radius-pill);
   background: rgb(var(--v-theme-danger-tint));
   color: rgb(var(--v-theme-error));
 }

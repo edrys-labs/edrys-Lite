@@ -48,19 +48,19 @@ export default {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
 }
 
 .section-title {
   margin: 0 0 2px;
-  font-size: 15px;
+  font-size: var(--v-text-15);
   font-weight: 600;
   line-height: 1.35;
 }
 
 .section-text {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   line-height: 1.5;
   color: rgb(var(--v-theme-text-2));
 }

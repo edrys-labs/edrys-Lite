@@ -578,7 +578,7 @@ export default {
 
 .room-group-header h3 {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 600;
   color: rgb(var(--v-theme-muted));
 }
@@ -596,7 +596,7 @@ export default {
   margin-bottom: 6px;
   padding-block: 8px;
   padding-inline: 10px 8px;
-  border-radius: 10px;
+  border-radius: var(--v-radius-row);
   background: rgb(var(--v-theme-row));
   box-shadow: 0 0 0 1px rgb(var(--v-theme-row-edge));
   cursor: grab;
@@ -635,7 +635,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   background: rgb(var(--v-theme-icon-tile));
   color: rgb(var(--v-theme-text-2));
 }
@@ -649,12 +649,12 @@ export default {
 }
 
 .module-name {
-  font-size: 14px;
+  font-size: var(--v-text-14);
   font-weight: 600;
 }
 
 .module-description {
-  font-size: 12px;
+  font-size: var(--v-text-12);
   line-height: 1.4;
   color: rgb(var(--v-theme-muted));
   display: -webkit-box;
@@ -673,10 +673,10 @@ export default {
   gap: 6px;
   flex-shrink: 0;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: var(--v-radius-pill);
   background: rgb(var(--v-theme-danger-tint));
   color: rgb(var(--v-theme-error));
-  font-size: 12px;
+  font-size: var(--v-text-12);
   font-weight: 600;
 }
 
@@ -718,7 +718,7 @@ export default {
 .dialog-head h2 {
   flex: 1;
   margin: 0;
-  font-size: 18px;
+  font-size: var(--v-text-18);
   font-weight: 600;
 }
 
@@ -731,7 +731,7 @@ export default {
 }
 
 .editor-panel-title {
-  font-size: 13px;
+  font-size: var(--v-text-13);
   font-weight: 600;
   min-height: 48px;
 }

@@ -2,6 +2,35 @@ import { ref, watch, type Ref } from 'vue'
 import type { ThemeDefinition } from 'vuetify'
 
 /**
+ * Corners and text sizes, the same in Light and Dark. Vuetify emits each as a
+ * CSS variable (`border-radius: var(--v-radius-card)`,
+ * `font-size: var(--v-text-13)`). Text sizes are named after their size here,
+ * so a design with smaller or larger text keeps the steps apart. Circles
+ * (dots, avatars, round icons) keep `999px` or `50%`: those are shapes.
+ */
+const shape = {
+  'radius-dialog': '16px',
+  'radius-card': '12px', // cards, module frames, pop-up menus
+  'radius-row': '10px', // list rows, chat messages, notes, segmented switches
+  'radius-control': '8px', // buttons and fields (rounded="lg"), tiles in rows
+  'radius-chip': '7px', // small buttons and tooltips
+  'radius-tile': '6px', // small room tiles
+  'radius-pill': '999px', // badges and tags with text
+
+  'text-10': '10px',
+  'text-11': '11px',
+  'text-12': '12px',
+  'text-13': '13px',
+  'text-14': '14px',
+  'text-15': '15px',
+  'text-16': '16px',
+  'text-17': '17px',
+  'text-18': '18px',
+  'text-20': '20px',
+  'text-22': '22px',
+}
+
+/**
  * The Light and Dark themes. Vuetify's own names carry the base roles
  * (`surface-variant` is the app bar, which already uses that color). The
  * others are custom colors, available as `color="panel"` on components and
@@ -78,6 +107,7 @@ const light: ThemeDefinition = {
   },
   variables: {
     'border-color': '#1b2029',
+    ...shape,
   },
 }
 
@@ -152,6 +182,7 @@ const dark: ThemeDefinition = {
   },
   variables: {
     'border-color': '#eef0f3',
+    ...shape,
   },
 }
 

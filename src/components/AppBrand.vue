@@ -22,10 +22,10 @@ export default {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  border-radius: 8px;
+  border-radius: var(--v-radius-control);
   color: inherit;
   text-decoration: none;
-  font-size: 17px;
+  font-size: var(--v-text-17);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
