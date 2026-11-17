@@ -5,7 +5,7 @@ import Deploy from './views/Deploy.vue'
 import { initCryptoIdentity, runMigrationIfNeeded } from './ts/Utils'
 import { installWorkerTimers } from './ts/WorkerTimers'
 import { isDevEntry, openDevLab } from './ts/DevBridge'
-import { themes, themePreference, resolveTheme, followThemePreference } from './ts/Theme'
+import { themes, themeName, themePreference, resolveTheme, followThemePreference } from './ts/Theme'
 
 // Keep presence and heartbeats on time while the tab is in the background.
 // Runs after all imports have loaded: fine as long as none starts a timer at
@@ -233,7 +233,7 @@ const vuetify = createVuetify({
     adapter: createVueI18nAdapter({ i18n, useI18n }),
   },
   theme: {
-    defaultTheme: resolveTheme(themePreference.value),
+    defaultTheme: themeName('standard', resolveTheme(themePreference.value)),
     themes,
   },
 })

@@ -319,7 +319,7 @@ export default {
   background: rgb(var(--v-theme-own-message));
 }
 
-.v-theme--dark .chat-message {
+[data-theme='dark'] .chat-message {
   box-shadow: none;
 }
 

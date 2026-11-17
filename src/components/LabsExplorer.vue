@@ -589,7 +589,7 @@ export default {
   font-weight: 600;
 }
 
-.v-theme--dark .segment.selected {
+[data-theme='dark'] .segment.selected {
   box-shadow: none;
 }
 

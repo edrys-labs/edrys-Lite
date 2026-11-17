@@ -779,7 +779,7 @@ html.agent-chat-resizing iframe {
   background: rgb(var(--v-theme-segment));
   color: rgb(var(--v-theme-on-surface));
 }
-.v-theme--light .agent-tabs button[aria-selected="true"] {
+[data-theme='light'] .agent-tabs button[aria-selected="true"] {
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.12);
 }
 .agent-count {
@@ -927,7 +927,7 @@ html.agent-chat-resizing iframe {
   background: rgb(var(--v-theme-message));
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.06), 0 0 0 1px rgb(var(--v-theme-message-edge));
 }
-.v-theme--dark .agent-msg.ai {
+[data-theme='dark'] .agent-msg.ai {
   box-shadow: none;
 }
 .agent-msg.user,
@@ -1066,7 +1066,7 @@ html.agent-chat-resizing iframe {
   background: rgb(var(--v-theme-message));
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
 }
-.v-theme--dark .agent-thread {
+[data-theme='dark'] .agent-thread {
   box-shadow: 0 0 0 1px rgb(var(--v-theme-module-line));
 }
 .agent-thread summary {

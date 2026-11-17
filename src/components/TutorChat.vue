@@ -273,7 +273,7 @@ export default {
   background: rgb(var(--v-theme-message));
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.06), 0 0 0 1px rgb(var(--v-theme-message-edge));
 }
-.v-theme--dark .tutor-entry {
+[data-theme='dark'] .tutor-entry {
   box-shadow: none;
 }
 .tutor-entry.student {

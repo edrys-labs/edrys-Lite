@@ -31,7 +31,7 @@ const shape = {
 }
 
 /**
- * The Light and Dark themes. Vuetify's own names carry the base roles
+ * The Light and Dark halves of the Standard design. Vuetify's own names carry the base roles
  * (`surface-variant` is the app bar, which already uses that color). The
  * others are custom colors, available as `color="panel"` on components and
  * as `rgb(var(--v-theme-panel))` in CSS.
@@ -186,7 +186,27 @@ const dark: ThemeDefinition = {
   },
 }
 
-export const themes = { light, dark }
+/**
+ * Designs, each with a Light and a Dark half. The user's Light/Dark/System
+ * choice picks the half, the class picks the design.
+ */
+const designs = {
+  standard: { light, dark },
+}
+
+export type Design = keyof typeof designs
+export const DESIGNS = Object.keys(designs) as Design[]
+
+/** Vuetify's name for one half of a design, e.g. `standard-dark`. */
+export function themeName(design: Design, theme: 'light' | 'dark') {
+  return `${design}-${theme}`
+}
+
+export const themes: Record<string, ThemeDefinition> = Object.fromEntries(
+  DESIGNS.flatMap((design) =>
+    (['light', 'dark'] as const).map((theme) => [themeName(design, theme), designs[design][theme]])
+  )
+)
 
 export type ThemePreference = 'light' | 'dark' | 'system'
 
@@ -225,13 +245,26 @@ export function setThemePreference(preference: ThemePreference) {
   }
 }
 
-/** Keeps Vuetify's theme in step with the preference and, for 'system', the OS. */
-export function followThemePreference(themeName: Ref<string>) {
+/** The design on screen; anything unknown shows as Standard. */
+export const activeDesign = ref<Design>('standard')
+
+export function setDesign(design: unknown) {
+  activeDesign.value = DESIGNS.includes(design as Design) ? (design as Design) : 'standard'
+}
+
+/**
+ * Keeps Vuetify's theme in step with the design, the preference and, for
+ * 'system', the OS. `<html data-theme>` carries the half for styles that
+ * differ between Light and Dark (`[data-theme='dark'] .card`), whatever the
+ * design.
+ */
+export function followThemePreference(vuetifyTheme: Ref<string>) {
   const apply = () => {
     activeTheme.value = resolveTheme(themePreference.value)
-    themeName.value = activeTheme.value
+    vuetifyTheme.value = themeName(activeDesign.value, activeTheme.value)
+    document.documentElement.dataset.theme = activeTheme.value
   }
-  watch(themePreference, apply)
+  watch([themePreference, activeDesign], apply)
   darkQuery?.addEventListener?.('change', apply)
   apply()
 }

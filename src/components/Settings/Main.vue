@@ -124,7 +124,7 @@ export default {
   box-shadow: 0 1px 2px rgba(20, 25, 35, 0.05), 0 0 0 1px rgb(var(--v-theme-module-edge));
 }
 
-.v-theme--dark .preview-card {
+[data-theme='dark'] .preview-card {
   box-shadow: 0 0 0 1px rgb(var(--v-theme-panel-line));
 }
 

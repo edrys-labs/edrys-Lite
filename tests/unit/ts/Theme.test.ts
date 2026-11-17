@@ -69,19 +69,40 @@ describe('Theme', () => {
     const { followThemePreference, setThemePreference } = await loadTheme()
     const themeName = ref('')
     followThemePreference(themeName)
-    expect(themeName.value).toBe('light')
+    expect(themeName.value).toBe('standard-light')
+    expect(document.documentElement.dataset.theme).toBe('light')
 
     setThemePreference('dark')
     await nextTick()
-    expect(themeName.value).toBe('dark')
+    expect(themeName.value).toBe('standard-dark')
+    expect(document.documentElement.dataset.theme).toBe('dark')
 
     setThemePreference('system')
     await nextTick()
-    expect(themeName.value).toBe('light')
+    expect(themeName.value).toBe('standard-light')
 
     osDark = true
     osListener?.()
-    expect(themeName.value).toBe('dark')
+    expect(themeName.value).toBe('standard-dark')
+  })
+
+  test('the design picks the theme, the preference picks its half', async () => {
+    const { followThemePreference, setThemePreference, setDesign, activeDesign } = await loadTheme()
+    const themeName = ref('')
+    followThemePreference(themeName)
+    setDesign('standard')
+    setThemePreference('dark')
+    await nextTick()
+    expect(themeName.value).toBe('standard-dark')
+    expect(activeDesign.value).toBe('standard')
+  })
+
+  test('an unknown design shows as Standard', async () => {
+    const { setDesign, activeDesign } = await loadTheme()
+    for (const design of ['neon', '', null, undefined, 42, { light: {} }, '__proto__', 'constructor']) {
+      setDesign(design)
+      expect(activeDesign.value).toBe('standard')
+    }
   })
 
   test('tells computed colors which theme is on screen', async () => {
@@ -116,8 +137,19 @@ describe('Theme', () => {
     }
   })
 
-  test('both themes define the same colors', async () => {
-    const { themes } = await loadTheme()
-    expect(Object.keys(themes.dark.colors!).sort()).toEqual(Object.keys(themes.light.colors!).sort())
+  test('every design has a light and a dark half with the same colors and variables', async () => {
+    const { themes, DESIGNS, themeName } = await loadTheme()
+    expect(Object.keys(themes).sort()).toEqual(DESIGNS.flatMap((d) => [themeName(d, 'dark'), themeName(d, 'light')]).sort())
+    const standard = themes[themeName('standard', 'light')]
+    for (const design of DESIGNS) {
+      const light = themes[themeName(design, 'light')]
+      const dark = themes[themeName(design, 'dark')]
+      expect(light.dark).toBe(false)
+      expect(dark.dark).toBe(true)
+      for (const half of [light, dark]) {
+        expect(Object.keys(half.colors!).sort()).toEqual(Object.keys(standard.colors!).sort())
+        expect(Object.keys(half.variables!).sort()).toEqual(Object.keys(standard.variables!).sort())
+      }
+    }
   })
 })
