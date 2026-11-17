@@ -1643,7 +1643,7 @@ export default {
   margin: 16px 12px 4px;
   padding: 0 0 12px;
   padding-inline-start: 6px;
-  border-bottom: 1px solid rgb(var(--v-theme-panel-line));
+  border-bottom: 1px solid rgb(var(--v-theme-panel-divider));
 }
 
 .drawer-head-text {
@@ -2120,7 +2120,7 @@ export default {
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border-top: 1px solid rgb(var(--v-theme-panel-line));
+  border-top: 1px solid rgb(var(--v-theme-panel-divider));
 }
 
 .rooms-drawer--phone .drawer-head {
@@ -2301,6 +2301,78 @@ export default {
 [data-design='compact'] .drawer-foot {
   gap: 6px;
   padding: 8px;
+}
+
+/* Playful: a tilted room pill, round tiles with outlines, the current room
+   lifted on a hard shadow */
+[data-design='playful'] .room-pill {
+  padding-block: 4px;
+  padding-inline: 4px 14px;
+  border: 2.5px solid rgb(var(--v-theme-bar-icon));
+  border-radius: 999px;
+  transform: rotate(-2deg);
+}
+
+[data-design='playful'] .room-tile--small {
+  width: 26px;
+  height: 26px;
+}
+
+[data-design='playful'] .room-tile {
+  box-sizing: border-box;
+  border: 2px solid rgb(var(--v-theme-ink));
+}
+
+[data-design='playful'] .drawer-head {
+  margin: 18px 16px 4px;
+}
+
+[data-design='playful'] .room-list {
+  gap: 10px;
+  padding: 8px 16px 18px;
+}
+
+[data-design='playful'] .room-row {
+  padding: 10px;
+}
+
+[data-design='playful'] .room-row .room-tile {
+  width: 40px;
+  height: 40px;
+}
+
+[data-design='playful'] .room-row--current {
+  box-shadow: 0 0 0 2.5px rgb(var(--v-theme-ink)), 4px 4px 0 2.5px rgb(var(--v-theme-pop-2));
+}
+
+[data-design='playful'] .room-enter {
+  width: 34px;
+  height: 34px;
+  border: 2.5px solid rgb(var(--v-theme-ink));
+}
+
+[data-design='playful'] .room-row--current .room-enter {
+  border-color: rgb(var(--v-theme-ink));
+}
+
+[data-design='playful'] .room-rename-open {
+  inset-inline-end: 52px;
+}
+
+[data-design='playful'] .room-user {
+  padding-inline: 64px 8px;
+}
+
+[data-design='playful'] .drawer-foot {
+  padding: 14px 16px;
+}
+
+@media (min-width: 600px) {
+  [data-design='playful'] .drawer-btn,
+  [data-design='playful'] .select-cancel,
+  [data-design='playful'] .select-move {
+    height: 48px !important;
+  }
 }
 
 @media (min-width: 600px) {

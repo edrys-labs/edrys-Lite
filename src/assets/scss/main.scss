@@ -266,11 +266,50 @@ code, kbd, pre, samp {
     box-shadow: 0 0 0 1px rgb(var(--v-theme-panel-line)), 0 12px 32px rgba(17, 24, 39, 0.16);
 }
 
-// Vuetify spaces card text, dialogs and field hints out, too loose for the smaller text
-[data-design='compact'] .v-card-text,
-[data-design='compact'] .v-dialog > .v-overlay__content > .v-card > .v-card-text,
-[data-design='compact'] .v-dialog > .v-overlay__content > form > .v-card > .v-card-text,
-[data-design='compact'] .v-field__input,
-[data-design='compact'] .v-input__details {
+// Vuetify spaces card text, dialogs and field hints out, too loose for the designs' fonts
+:is([data-design='compact'], [data-design='playful']) .v-card-text,
+:is([data-design='compact'], [data-design='playful']) .v-dialog > .v-overlay__content > .v-card > .v-card-text,
+:is([data-design='compact'], [data-design='playful']) .v-dialog > .v-overlay__content > form > .v-card > .v-card-text,
+:is([data-design='compact'], [data-design='playful']) .v-field__input,
+:is([data-design='compact'], [data-design='playful']) .v-input__details {
     letter-spacing: normal;
+}
+
+// Playful: a dotted sky behind the modules, buttons and dialogs with thick
+// outlines on hard shadows, taller fields with thick outlines
+[data-design='playful'] body,
+[data-design='playful'] .v-application {
+    background-image: radial-gradient(rgb(var(--v-theme-dots)) 1.6px, transparent 1.8px);
+    background-size: 20px 20px;
+}
+
+[data-design='playful'] .v-btn.v-btn--variant-flat:not(.v-btn--disabled),
+[data-design='playful'] .v-btn.v-btn--variant-outlined:not(.v-btn--disabled) {
+    border: 2.5px solid rgb(var(--v-theme-ink));
+    box-shadow: 3px 3px 0 rgb(var(--v-theme-pop-2));
+}
+
+[data-design='playful'] .v-btn--size-default {
+    font-size: var(--v-text-14);
+}
+
+[data-design='playful'] .v-dialog > .v-overlay__content > .v-card,
+[data-design='playful'] .v-dialog > .v-overlay__content > form > .v-card {
+    border: 3px solid rgb(var(--v-theme-ink));
+    box-shadow: 10px 10px 0 rgb(var(--v-theme-pop));
+}
+
+@media (min-width: 600px) {
+    [data-design='playful'] .v-input--density-compact {
+        --v-input-control-height: 48px;
+        --v-input-padding-top: 12px;
+    }
+}
+
+[data-design='playful'] .v-field {
+    font-size: var(--v-text-14);
+}
+
+[data-design='playful'] .v-field .v-field__outline {
+    --v-field-border-width: 2.5px;
 }

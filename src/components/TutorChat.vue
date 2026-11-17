@@ -226,7 +226,7 @@ export default {
 
 <style scoped>
 .tutor-panel:not(.tutor-panel--phone) {
-  border-inline-start: 1px solid rgb(var(--v-theme-panel-line)) !important;
+  border-inline-start: var(--v-line) solid rgb(var(--v-theme-panel-line)) !important;
 }
 .tutor-box {
   display: flex;
@@ -244,7 +244,7 @@ export default {
   height: 48px;
   padding-block: 0;
   padding-inline: 16px 8px;
-  border-bottom: 1px solid rgb(var(--v-theme-panel-line));
+  border-bottom: 1px solid rgb(var(--v-theme-panel-divider));
 }
 .tutor-title h2 {
   margin: 0;
@@ -306,7 +306,7 @@ export default {
   flex-shrink: 0;
   gap: 8px;
   padding: 12px;
-  border-top: 1px solid rgb(var(--v-theme-panel-line));
+  border-top: 1px solid rgb(var(--v-theme-panel-divider));
 }
 .tutor-compose label {
   font-size: var(--v-text-12);

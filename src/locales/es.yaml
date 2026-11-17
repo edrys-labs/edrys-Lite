@@ -169,6 +169,9 @@ settings:
       compact:
         name: "Compacto"
         hint: "Más denso, caben más módulos en la pantalla"
+      playful:
+        name: "Divertido"
+        hint: "Texto más grande y formas más redondas, ideal para estudiantes más jóvenes"
     roomsTitle: "Salas"
     roomsText: "Con cuántas salas se abre la clase, además del Vestíbulo. Las estaciones añaden sus propias salas."
     roomsNum: "Número de salas"

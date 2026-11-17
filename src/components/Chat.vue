@@ -103,6 +103,14 @@ export default {
       return sameKey(msg.signer, this.me);
     },
 
+    // one of four colors per sender, the same on every screen (drawn by Playful)
+    person(msg: { signer?: string; user?: string }): number {
+      const key = msg.signer || msg.user || "";
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0;
+      return (Math.abs(hash) % 4) + 1;
+    },
+
     isFromTeacher(msg: { signer?: string }): boolean {
       return !!msg.signer && isMember(this.teachers, msg.signer);
     },
@@ -171,7 +179,7 @@ export default {
         <div
           v-for="msg in history"
           :key="msg.signature"
-          :class="['chat-message', { mine: isMine(msg) }]"
+          :class="['chat-message', 'chat-message--p' + person(msg), { mine: isMine(msg) }]"
         >
           <div class="markdown" v-html="render(msg.id, msg.msg)"></div>
           <div class="chat-meta">
@@ -265,7 +273,7 @@ export default {
   flex-shrink: 0;
   height: 48px;
   padding: 0 16px;
-  border-bottom: 1px solid rgb(var(--v-theme-panel-line));
+  border-bottom: 1px solid rgb(var(--v-theme-panel-divider));
 }
 
 .chat-title h2 {
@@ -368,7 +376,7 @@ export default {
   flex-shrink: 0;
   gap: 8px;
   padding: 12px;
-  border-top: 1px solid rgb(var(--v-theme-panel-line));
+  border-top: 1px solid rgb(var(--v-theme-panel-divider));
 }
 
 .chat-compose label {
@@ -450,6 +458,55 @@ export default {
 @media (min-width: 600px) {
   [data-design='compact'] .chat-compose .v-btn {
     height: 30px !important;
+  }
+}
+
+/* Playful: outlined bubbles with a hard shadow, a color per person */
+[data-design='playful'] .chat-title {
+  height: 58px;
+}
+
+[data-design='playful'] .chat-log {
+  gap: 14px;
+  padding: 14px;
+}
+
+[data-design='playful'] .chat-message {
+  border: 2px solid rgb(var(--v-theme-ink));
+  box-shadow: 3px 3px 0 rgb(var(--v-theme-pop-2));
+}
+
+[data-design='playful'][data-theme='dark'] .chat-message {
+  box-shadow: none;
+}
+
+[data-design='playful'] .chat-message--p1 {
+  background: rgb(var(--v-theme-person-1));
+}
+
+[data-design='playful'] .chat-message--p2 {
+  background: rgb(var(--v-theme-person-2));
+}
+
+[data-design='playful'] .chat-message--p3 {
+  background: rgb(var(--v-theme-person-3));
+}
+
+[data-design='playful'] .chat-message--p4 {
+  background: rgb(var(--v-theme-person-4));
+}
+
+[data-design='playful'] .chat-compose textarea {
+  border-width: var(--v-line);
+}
+
+[data-design='playful'] .chat-compose .v-btn {
+  border-radius: 999px !important;
+}
+
+@media (min-width: 600px) {
+  [data-design='playful'] .chat-compose .v-btn {
+    height: 50px !important;
   }
 }
 

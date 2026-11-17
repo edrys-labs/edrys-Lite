@@ -169,6 +169,9 @@ settings:
       compact:
         name: "Kompakt"
         hint: "Dichter, mehr Module passen auf den Bildschirm"
+      playful:
+        name: "Verspielt"
+        hint: "Größere Schrift und rundere Formen, gut für jüngere Lernende"
     roomsTitle: "Räume"
     roomsText: "Mit wie vielen Räumen die Klasse neben der Lobby startet. Stationen fügen eigene Räume hinzu."
     roomsNum: "Anzahl der Räume"

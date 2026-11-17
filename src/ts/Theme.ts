@@ -67,6 +67,7 @@ const light: ThemeDefinition = {
     'bar-divider': '#6a6a6a',
     panel: '#f3f3f3', // drawer, chat, module header
     'panel-line': '#dedede',
+    'panel-divider': '#dedede', // lines inside the drawer and chat
     'room-current': '#ffffff', // drawer row of the room you are in
     'room-hover': '#fafafa',
     avatar: '#e6e8ec', // behind a user's dot in the drawer
@@ -112,6 +113,21 @@ const light: ThemeDefinition = {
     toast: '#1b2029', // short notices at the bottom
     'on-toast': '#eef0f3',
     'toast-action': '#9dc9f7',
+
+    // drawn only by designs that ask for them (Playful): outlines, hard
+    // shadows, the dotted background, module header and chat colors
+    ink: '#1b2029',
+    pop: '#1b2029', // shadow of modules and dialogs
+    'pop-2': '#1b2029', // shadow of buttons and the current room
+    dots: '#dedede',
+    'head-1': '#f3f3f3',
+    'head-2': '#f3f3f3',
+    'head-3': '#f3f3f3',
+    'head-4': '#f3f3f3',
+    'person-1': '#ffffff',
+    'person-2': '#ffffff',
+    'person-3': '#ffffff',
+    'person-4': '#ffffff',
   },
   variables: {
     'border-color': '#1b2029',
@@ -142,6 +158,7 @@ const dark: ThemeDefinition = {
     'bar-divider': '#39414c',
     panel: '#1d222a',
     'panel-line': '#262c35',
+    'panel-divider': '#262c35',
     'room-current': '#2c333d',
     'room-hover': '#262c35',
     avatar: '#39414c',
@@ -187,6 +204,19 @@ const dark: ThemeDefinition = {
     toast: '#eef0f3',
     'on-toast': '#1b2029',
     'toast-action': '#00579a',
+
+    ink: '#eef0f3',
+    pop: '#eef0f3',
+    'pop-2': '#eef0f3',
+    dots: '#2a303a',
+    'head-1': '#1a1f26',
+    'head-2': '#1a1f26',
+    'head-3': '#1a1f26',
+    'head-4': '#1a1f26',
+    'person-1': '#262c35',
+    'person-2': '#262c35',
+    'person-3': '#262c35',
+    'person-4': '#262c35',
   },
   variables: {
     'border-color': '#eef0f3',
@@ -257,6 +287,7 @@ const compactLight = derive(
     'bar-divider': '#d9dde3',
     panel: '#ffffff',
     'panel-line': '#d9dde3',
+    'panel-divider': '#eceef1',
     'room-current': '#eef1f4',
     'room-hover': '#f5f6f8',
     avatar: '#e5e7eb',
@@ -308,6 +339,7 @@ const compactDark = derive(
     'bar-divider': '#2b313b',
     panel: '#0f1217',
     'panel-line': '#242a33',
+    'panel-divider': '#1a1f26',
     'room-current': '#1c2129',
     'room-hover': '#161a20',
     avatar: '#2b313b',
@@ -345,12 +377,189 @@ const compactDark = derive(
 )
 
 /**
+ * Playful: Fredoka, bigger text, round shapes, a yellow bar, a dotted sky,
+ * thick outlines with hard shadows and a color per module header and per
+ * person in the chat (its CSS: `[data-design='playful']`).
+ */
+const INK = '#1b1530'
+
+const playfulShape = {
+  font: "'Fredoka Variable', 'Noto Sans Variable', 'Noto Sans', system-ui, sans-serif",
+  line: '2.5px',
+  'bar-button': '46px',
+  'module-head': '46px',
+
+  'radius-dialog': '28px',
+  'radius-card': '22px',
+  'radius-row': '20px',
+  'radius-control': '16px',
+  'radius-chip': '999px',
+  'radius-tile': '999px',
+
+  'text-10': '12px',
+  'text-11': '13px',
+  'text-12': '14px',
+  'text-13': '15.5px',
+  'text-14': '16.5px',
+  'text-15': '17px',
+  'text-16': '18px',
+  'text-17': '19px',
+  'text-18': '20px',
+  'text-20': '22px',
+  'text-22': '26px',
+}
+
+const playfulLight = derive(
+  light,
+  {
+    background: '#bfe3ff',
+    surface: '#ffffff',
+    'surface-variant': '#ffd23f',
+    'on-surface-variant': INK,
+    'on-background': INK,
+    'on-surface': INK,
+    primary: '#ff6fa5',
+    'on-primary': INK,
+    secondary: '#4d4470',
+    success: '#0a7d45',
+
+    'bar-line': INK,
+    'bar-icon': INK,
+    'bar-active': '#ffffff',
+    'bar-divider': INK,
+    panel: '#fff7e8',
+    'panel-line': INK,
+    'panel-divider': '#eadcc4',
+    'room-current': '#ffffff',
+    'room-hover': '#fff0d6',
+    avatar: '#ffe9a8',
+    'text-2': '#2e2650',
+    line: INK,
+    dashed: '#4d4470',
+    muted: '#4d4470',
+    focus: '#8a1144',
+    'primary-tint': '#ffe0ec',
+    'primary-text': '#8a1144',
+    'teacher-tint': INK,
+    teacher: '#ffd23f',
+    'own-message': '#ffe0ec',
+    you: '#8a1144',
+    message: '#ffffff',
+    'message-edge': INK,
+    field: '#ffffff',
+    module: '#ffffff',
+    'module-head': '#fff3e3',
+    'module-line': INK,
+    'module-edge': INK,
+    'module-icon': INK,
+    row: '#ffffff',
+    'row-edge': '#eadcc4',
+    'icon-tile': '#ffe9a8',
+    tonal: '#ffe9a8',
+    faint: '#7a6f99',
+    subtle: '#fff0d6',
+    track: '#eadcc4',
+    spinner: '#d6336c',
+    'menu-line': '#eadcc4',
+    'field-line': INK,
+    segment: '#ffffff',
+
+    ink: INK,
+    pop: INK,
+    'pop-2': INK,
+    dots: '#8fc9f2',
+    'head-1': '#ff9ec4',
+    'head-2': '#9be7c4',
+    'head-3': '#c9b6ff',
+    'head-4': '#ffc46b',
+    'person-1': '#ffd6e7',
+    'person-2': '#d4f7e6',
+    'person-3': '#fff1b8',
+    'person-4': '#e6ddff',
+  },
+  playfulShape
+)
+
+const playfulDark = derive(
+  dark,
+  {
+    background: '#1a1433',
+    surface: '#2d2452',
+    'surface-variant': '#241c45',
+    'on-surface-variant': '#ffd23f',
+    'on-background': '#f5f0ff',
+    'on-surface': '#f5f0ff',
+    primary: '#ff6fa5',
+    'on-primary': INK,
+    secondary: '#b9add9',
+    success: '#5ee6a1',
+
+    'bar-line': '#0b0818',
+    'bar-icon': '#ffd23f',
+    'bar-active': '#3a2f6b',
+    'bar-divider': '#4b3f85',
+    panel: '#221a40',
+    'panel-line': '#e9e3ff',
+    'panel-divider': '#3a2f6b',
+    'room-current': '#3a2f6b',
+    'room-hover': '#2a2150',
+    avatar: '#4b3f85',
+    'text-2': '#ddd3ff',
+    line: '#e9e3ff',
+    dashed: '#4b3f85',
+    muted: '#b9add9',
+    focus: '#ffd23f',
+    'primary-tint': '#4a1d36',
+    'primary-text': '#ffb3cf',
+    'teacher-tint': '#ffd23f',
+    teacher: INK,
+    'own-message': '#3a2f55',
+    you: '#ffb3cf',
+    message: '#2d2452',
+    'message-edge': '#e9e3ff',
+    field: '#150f2b',
+    module: '#2d2452',
+    'module-head': '#261f30',
+    'module-line': '#e9e3ff',
+    'module-edge': '#e9e3ff',
+    'module-icon': '#ffffff',
+    row: '#2d2452',
+    'row-edge': '#4b3f85',
+    'icon-tile': '#4b3f85',
+    tonal: '#3a2f6b',
+    faint: '#7a6fa8',
+    subtle: '#2a2150',
+    track: '#4b3f85',
+    spinner: '#ff6fa5',
+    menu: '#2d2452',
+    'menu-line': '#3a2f6b',
+    'field-line': '#e9e3ff',
+    segment: '#4b3f85',
+
+    ink: '#e9e3ff',
+    pop: '#ff6fa5',
+    'pop-2': '#ffd23f',
+    dots: '#3a2f6b',
+    'head-1': '#a8326a',
+    'head-2': '#16795a',
+    'head-3': '#5b45b8',
+    'head-4': '#b0621a',
+    'person-1': '#4a1d36',
+    'person-2': '#123f33',
+    'person-3': '#4a3d0e',
+    'person-4': '#2f2560',
+  },
+  playfulShape
+)
+
+/**
  * Designs, each with a Light and a Dark half. The user's Light/Dark/System
  * choice picks the half, the class picks the design.
  */
 const designs = {
   standard: { light, dark },
   compact: { light: compactLight, dark: compactDark },
+  playful: { light: playfulLight, dark: playfulDark },
 }
 
 export type Design = keyof typeof designs
@@ -363,6 +572,7 @@ export const DESIGNS = Object.keys(designs) as Design[]
 const layouts: Record<Design, { bar: number; drawer: number; chat: number }> = {
   standard: { bar: 56, drawer: 264, chat: 360 },
   compact: { bar: 40, drawer: 228, chat: 300 },
+  playful: { bar: 68, drawer: 300, chat: 390 },
 }
 
 export function designLayout(design: Design) {

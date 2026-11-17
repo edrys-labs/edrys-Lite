@@ -690,7 +690,7 @@ html.agent-chat-resizing iframe {
 
 <style scoped>
 .agent-panel:not(.agent-panel--phone) {
-  border-inline-start: 1px solid rgb(var(--v-theme-panel-line)) !important;
+  border-inline-start: var(--v-line) solid rgb(var(--v-theme-panel-line)) !important;
 }
 /* the drawer follows the handle at once */
 .agent-panel--resizing {
@@ -737,7 +737,7 @@ html.agent-chat-resizing iframe {
   gap: 8px;
   height: 48px;
   padding-inline: 16px 8px;
-  border-bottom: 1px solid rgb(var(--v-theme-panel-line));
+  border-bottom: 1px solid rgb(var(--v-theme-panel-divider));
 }
 .agent-title h2 {
   margin: 0;
@@ -801,7 +801,7 @@ html.agent-chat-resizing iframe {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border-bottom: 1px solid rgb(var(--v-theme-panel-line));
+  border-bottom: 1px solid rgb(var(--v-theme-panel-divider));
 }
 .agent-label,
 .agent-compose label {
@@ -1039,7 +1039,7 @@ html.agent-chat-resizing iframe {
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border-top: 1px solid rgb(var(--v-theme-panel-line));
+  border-top: 1px solid rgb(var(--v-theme-panel-divider));
 }
 .agent-compose textarea {
   box-sizing: border-box;

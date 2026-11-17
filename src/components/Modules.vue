@@ -523,7 +523,11 @@ export default {
         v-for="(m, i) in scrapedModulesFilter"
         :key="itemKey(m, i)"
         :data-item-key="itemKey(m, i)"
-        :class="[size(m.height, m.width), { 'item--expanded': expandedKey === itemKey(m, i) }]"
+        :class="[
+          size(m.height, m.width),
+          'item--head-' + ((Number(i) % 4) + 1),
+          { 'item--expanded': expandedKey === itemKey(m, i) },
+        ]"
         :width="width(m.width)"
         :height="height(m.height)"
         :style="styling(m.height, m.width, itemKey(m, i))"
@@ -799,6 +803,43 @@ export default {
   [data-design='compact'] .item-expand {
     width: 22px;
     height: 22px;
+  }
+}
+
+/* Playful: thick outlines on a hard shadow (small enough for the 10 px gap
+   between modules), a color per header */
+[data-design='playful'] .item {
+  box-shadow: 0 0 0 2.5px rgb(var(--v-theme-module-edge)), 4px 4px 0 2.5px rgb(var(--v-theme-pop));
+}
+
+[data-design='playful'] .item-header {
+  padding-inline: 18px 8px;
+}
+
+[data-design='playful'] .item-title {
+  color: rgb(var(--v-theme-module-icon));
+}
+
+[data-design='playful'] .item--head-1 .item-header {
+  background: rgb(var(--v-theme-head-1));
+}
+
+[data-design='playful'] .item--head-2 .item-header {
+  background: rgb(var(--v-theme-head-2));
+}
+
+[data-design='playful'] .item--head-3 .item-header {
+  background: rgb(var(--v-theme-head-3));
+}
+
+[data-design='playful'] .item--head-4 .item-header {
+  background: rgb(var(--v-theme-head-4));
+}
+
+@media (min-width: 600px) {
+  [data-design='playful'] .item-expand {
+    width: 34px;
+    height: 34px;
   }
 }
 
