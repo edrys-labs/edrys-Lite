@@ -4,6 +4,7 @@ import markdownit from "markdown-it";
 import { useI18n } from 'vue-i18n';
 import { useDisplay, useRtl } from "vuetify";
 import { isMember, sameKey } from "../ts/Utils";
+import { activeLayout } from "../ts/Theme";
 
 export default {
   name: "Chat",
@@ -84,13 +85,13 @@ export default {
     },
 
     permanent() {
-      return window.innerWidth > 1000 + 360;
+      return window.innerWidth > 1000 + activeLayout.value.chat;
     },
 
     panelProps() {
       return this.phone
         ? { fullscreen: true, transition: "dialog-bottom-transition" }
-        : { width: 360, permanent: this.permanent(), location: "right", color: "panel" };
+        : { width: activeLayout.value.chat, permanent: this.permanent(), location: "right", color: "panel" };
     },
 
     // closed by its scrim, Escape or the back button
@@ -246,7 +247,7 @@ export default {
 
 <style scoped>
 .chat-panel:not(.chat-panel--phone) {
-  border-inline-start: 1px solid rgb(var(--v-theme-panel-line)) !important;
+  border-inline-start: var(--v-line) solid rgb(var(--v-theme-panel-line)) !important;
 }
 
 .chat-box {

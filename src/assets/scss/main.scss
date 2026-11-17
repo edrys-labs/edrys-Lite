@@ -1,9 +1,9 @@
 @import './materialdesignicons.min.css';
 
-// Noto Sans and JetBrains Mono come from the @fontsource-variable packages,
+// The design's font (--v-font) and JetBrains Mono come from the @fontsource-variable packages,
 // linked in index.html; the browser loads only the scripts a page uses.
 html, body {
-    font-family: 'Noto Sans Variable', 'Noto Sans', system-ui, sans-serif !important;
+    font-family: var(--v-font) !important;
     // body is the scroll box: content taller than the window runs past the
     // app's own background
     background: rgb(var(--v-theme-background));
@@ -52,15 +52,17 @@ code, kbd, pre, samp {
 
 // App bar and footer: flat, with a hairline towards the page
 .edrys-bar.v-app-bar {
-    border-bottom: 1px solid rgb(var(--v-theme-bar-line));
+    border-bottom: var(--v-line) solid rgb(var(--v-theme-bar-line));
 }
 
 .edrys-bar.v-footer {
     border-top: 1px solid rgb(var(--v-theme-bar-line));
 }
 
-// 36px icon buttons on the bars (use with icon size="36" rounded="lg")
+// icon buttons on the bars (use with icon size="36" rounded="lg"), sized by the design
 .bar-btn.v-btn {
+    width: var(--v-bar-button) !important;
+    height: var(--v-bar-button) !important;
     color: rgb(var(--v-theme-bar-icon));
 
     .v-icon {
@@ -187,7 +189,7 @@ code, kbd, pre, samp {
     border-radius: var(--v-radius-chip);
     background: rgb(var(--v-theme-toast));
     color: rgb(var(--v-theme-on-toast));
-    font-family: 'Noto Sans Variable', sans-serif;
+    font-family: var(--v-font);
     font-size: var(--v-text-12);
     font-weight: 500;
     line-height: 1.4;

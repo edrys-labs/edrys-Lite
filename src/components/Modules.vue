@@ -650,10 +650,10 @@ export default {
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
-  height: 36px;
+  height: var(--v-module-head);
   padding-inline: 14px 6px;
   background: rgb(var(--v-theme-module-head));
-  border-bottom: 1px solid rgb(var(--v-theme-module-line));
+  border-bottom: var(--v-line) solid rgb(var(--v-theme-module-line));
   cursor: grab;
 }
 
@@ -665,6 +665,8 @@ export default {
   text-overflow: ellipsis;
   font-size: var(--v-text-12);
   font-weight: 600;
+  text-transform: var(--v-head-case);
+  letter-spacing: var(--v-head-track);
   color: rgb(var(--v-theme-muted));
 }
 

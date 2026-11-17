@@ -1,14 +1,22 @@
-import { ref, watch, type Ref } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
 import type { ThemeDefinition } from 'vuetify'
 
 /**
- * Corners and text sizes, the same in Light and Dark. Vuetify emits each as a
- * CSS variable (`border-radius: var(--v-radius-card)`,
- * `font-size: var(--v-text-13)`). Text sizes are named after their size here,
- * so a design with smaller or larger text keeps the steps apart. Circles
- * (dots, avatars, round icons) keep `999px` or `50%`: those are shapes.
+ * Font, corners, text sizes and a few heights, the same in Light and Dark.
+ * Vuetify emits each as a CSS variable (`border-radius: var(--v-radius-card)`,
+ * `font-size: var(--v-text-13)`). Text sizes are named after their size in
+ * Standard, so a design with smaller or larger text keeps the steps apart.
+ * Circles (dots, avatars, round icons) keep `999px` or `50%`: those are shapes.
  */
 const shape = {
+  font: "'Noto Sans Variable', 'Noto Sans', system-ui, sans-serif",
+  line: '1px', // side lines of the drawer and chat, below a module's header
+  'bar-button': '36px', // icon buttons on the app bar
+  'module-head': '36px', // a module's header strip
+  'head-case': 'none', // module titles: none or uppercase
+  'head-track': 'normal', // their letter spacing
+
+
   'radius-dialog': '16px',
   'radius-card': '12px', // cards, module frames, pop-up menus
   'radius-row': '10px', // list rows, chat messages, notes, segmented switches
@@ -197,6 +205,18 @@ const designs = {
 export type Design = keyof typeof designs
 export const DESIGNS = Object.keys(designs) as Design[]
 
+/**
+ * Sizes Vuetify takes as props (in px): the app bar's height, the rooms
+ * drawer's and the chat's width. Phones keep their own.
+ */
+const layouts: Record<Design, { bar: number; drawer: number; chat: number }> = {
+  standard: { bar: 56, drawer: 264, chat: 360 },
+}
+
+export function designLayout(design: Design) {
+  return layouts[design]
+}
+
 /** Vuetify's name for one half of a design, e.g. `standard-dark`. */
 export function themeName(design: Design, theme: 'light' | 'dark') {
   return `${design}-${theme}`
@@ -252,17 +272,22 @@ export function setDesign(design: unknown) {
   activeDesign.value = DESIGNS.includes(design as Design) ? (design as Design) : 'standard'
 }
 
+/** The active design's bar height and panel widths. */
+export const activeLayout = computed(() => designLayout(activeDesign.value))
+
 /**
  * Keeps Vuetify's theme in step with the design, the preference and, for
  * 'system', the OS. `<html data-theme>` carries the half for styles that
  * differ between Light and Dark (`[data-theme='dark'] .card`), whatever the
- * design.
+ * design; `<html data-design>` the design, for what only one design draws
+ * (`[data-design='playful'] .item`).
  */
 export function followThemePreference(vuetifyTheme: Ref<string>) {
   const apply = () => {
     activeTheme.value = resolveTheme(themePreference.value)
     vuetifyTheme.value = themeName(activeDesign.value, activeTheme.value)
     document.documentElement.dataset.theme = activeTheme.value
+    document.documentElement.dataset.design = activeDesign.value
   }
   watch([themePreference, activeDesign], apply)
   darkQuery?.addEventListener?.('change', apply)

@@ -33,7 +33,7 @@ import { defineAsyncComponent, markRaw, onMounted } from "vue";
 import Peer, { MAX_ROOMS } from "../ts/Peer";
 
 import { copyToClipboard, deepEqual, roomSlot } from "../ts/Utils";
-import { activeTheme, roomTile, setDesign } from "../ts/Theme";
+import { activeLayout, activeTheme, roomTile, setDesign } from "../ts/Theme";
 
 import { debug } from "../api/debugHandler";
 import {
@@ -289,7 +289,11 @@ export default {
         : "";
     },
     drawerWidth(): number {
-      return this.phone ? 312 : 264;
+      return this.phone ? 312 : activeLayout.value.drawer;
+    },
+    // phones keep 56 px: room for 44 px touch targets
+    barHeight(): number {
+      return this.phone ? 56 : activeLayout.value.bar;
     },
     // the class lets only teachers move students, and we are one (the owner too)
     canMoveStudents(): boolean {
@@ -876,7 +880,7 @@ export default {
 
   <v-app>
     <v-layout>
-      <v-app-bar color="surface-variant" height="56" flat class="edrys-bar" :class="{ 'edrys-bar--phone': phone }">
+      <v-app-bar color="surface-variant" :height="barHeight" flat class="edrys-bar" :class="{ 'edrys-bar--phone': phone }">
         <div class="bar-start">
           <v-btn
             icon="mdi-menu"
@@ -1629,7 +1633,7 @@ export default {
 
 /* Drawer */
 .rooms-drawer {
-  border-inline-end: 1px solid rgb(var(--v-theme-panel-line)) !important;
+  border-inline-end: var(--v-line) solid rgb(var(--v-theme-panel-line)) !important;
 }
 
 .drawer-head {
