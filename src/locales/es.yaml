@@ -160,6 +160,12 @@ settings:
     logoUrl: "URL del logo (opcional)"
     logoHint: "Déjalo vacío para usar la imagen de la clase."
     preview: "Vista previa"
+    designTitle: "Diseño"
+    designText: "Cómo se ve la clase para todos los que están en ella. La elección de cada persona entre Claro u Oscuro se mantiene."
+    designs:
+      standard:
+        name: "Estándar"
+        hint: "El aspecto habitual de edrys"
     roomsTitle: "Salas"
     roomsText: "Con cuántas salas se abre la clase, además del Vestíbulo. Las estaciones añaden sus propias salas."
     roomsNum: "Número de salas"

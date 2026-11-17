@@ -36,7 +36,7 @@ export default {
     },
   },
 
-  emits: ["close", "saveClass", "deleteClass", "updateClass"],
+  emits: ["close", "saveClass", "deleteClass", "updateClass", "previewDesign"],
 
   setup() {
     const { t, locale } = useI18n();
@@ -110,6 +110,13 @@ export default {
   watch: {
     configClone: { handler: "refreshConfigChanged", deep: true },
     config: { handler: "refreshConfigChanged", deep: true },
+    // the classroom shows the design picked here until the dialog closes
+    "configClone.meta.design": {
+      handler(design: string) {
+        this.$emit("previewDesign", design);
+      },
+      immediate: true,
+    },
   },
 
   computed: {

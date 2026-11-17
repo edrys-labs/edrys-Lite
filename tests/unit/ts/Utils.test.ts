@@ -145,6 +145,11 @@ describe('Utils', () => {
       expect(data.members).toEqual({ teacher: ['t1'], student: ['*'] });
     });
 
+    test('a class without a design gets Standard, one with a design keeps it', () => {
+      expect(normalizeClassroom({}).meta.design).toBe('standard');
+      expect(normalizeClassroom({ meta: { design: 'compact' } }).meta.design).toBe('compact');
+    });
+
     test('is undefined for text that is not a classroom', () => {
       expect(parseClassroom('"just a string"')).toBeUndefined();
       expect(parseClassroom('[1, 2]')).toBeUndefined();

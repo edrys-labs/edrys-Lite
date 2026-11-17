@@ -36,6 +36,46 @@
 
   <v-divider class="my-4"></v-divider>
 
+  <SectionHead
+    :title="t('settings.main.designTitle')"
+    :text="t('settings.main.designText')"
+    icon="mdi-palette-outline"
+    :color="3"
+  />
+
+  <div role="radiogroup" :aria-label="t('settings.main.designTitle')" class="designs">
+    <label
+      v-for="design in designs"
+      :key="design"
+      class="design"
+      :class="{ 'design--selected': design === selectedDesign }"
+    >
+      <!-- a small classroom in that design's own colors and corners: Vuetify
+           sets each theme's variables on its v-theme--<name> class -->
+      <div :class="['design-preview', 'v-theme--' + themeName(design, activeTheme)]" aria-hidden="true">
+        <div class="design-preview-bar"></div>
+        <div class="design-preview-modules">
+          <div class="design-preview-module"><span class="design-preview-button"></span></div>
+          <div class="design-preview-module design-preview-text">Aa</div>
+        </div>
+      </div>
+      <span class="design-name">
+        <input
+          type="radio"
+          name="design"
+          :value="design"
+          :checked="design === selectedDesign"
+          :aria-describedby="'design-hint-' + design"
+          @change="config.meta.design = design"
+        />
+        {{ t('settings.main.designs.' + design + '.name') }}
+      </span>
+      <span :id="'design-hint-' + design" class="design-hint">{{ t('settings.main.designs.' + design + '.hint') }}</span>
+    </label>
+  </div>
+
+  <v-divider class="my-4"></v-divider>
+
   <SectionHead :title="t('settings.main.roomsTitle')" :text="t('settings.main.roomsText')" icon="mdi-door-open" :color="0" />
 
   <FieldLabel :label="t('settings.main.roomsNum')">
@@ -74,6 +114,7 @@ import { useI18n } from 'vue-i18n';
 import FieldLabel from "../FieldLabel.vue";
 import SectionHead from "./SectionHead.vue";
 import ClassBanner from "../ClassBanner.vue";
+import { DESIGNS, activeTheme, themeName } from "../../ts/Theme";
 
 export default {
   name: "Settings-Main",
@@ -88,11 +129,15 @@ export default {
 
   setup() {
     const { t, locale } = useI18n();
-    return { t, locale };
+    return { t, locale, activeTheme, themeName, designs: DESIGNS };
   },
 
-  data() {
-    return {};
+  computed: {
+    // classes from before designs, or with an unknown one, show as Standard
+    selectedDesign(): string {
+      const design = this.config.meta?.design;
+      return DESIGNS.includes(design) ? design : "standard";
+    },
   },
 };
 </script>
@@ -153,6 +198,102 @@ export default {
   margin-top: 2px;
   font-size: var(--v-text-11);
   line-height: 1.4;
+  color: rgb(var(--v-theme-muted));
+}
+
+.designs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.design {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 12px;
+  border: 2px solid rgb(var(--v-theme-row-edge));
+  border-radius: var(--v-radius-card);
+  background: rgb(var(--v-theme-row));
+  cursor: pointer;
+}
+
+.design--selected {
+  border-color: rgb(var(--v-theme-primary));
+}
+
+.design:has(input:focus-visible) {
+  outline: 2px solid rgb(var(--v-theme-focus));
+  outline-offset: 2px;
+}
+
+/* everything inside reads the previewed design's variables */
+.design-preview {
+  display: flex;
+  flex-direction: column;
+  height: 104px;
+  overflow: hidden;
+  border-radius: calc(var(--v-radius-card) * 2 / 3);
+  background: rgb(var(--v-theme-background));
+}
+
+.design-preview-bar {
+  flex-shrink: 0;
+  height: 12px;
+  background: rgb(var(--v-theme-surface-variant));
+  border-bottom: 1px solid rgb(var(--v-theme-bar-line));
+}
+
+.design-preview-modules {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 6px;
+  padding: 6px;
+}
+
+.design-preview-module {
+  display: flex;
+  align-items: flex-end;
+  padding: 6px;
+  border-radius: calc(var(--v-radius-card) * 0.4);
+  background: rgb(var(--v-theme-module));
+  box-shadow: 0 0 0 1px rgb(var(--v-theme-module-edge));
+}
+
+.design-preview-button {
+  width: 34px;
+  height: 12px;
+  border-radius: calc(var(--v-radius-control) / 2);
+  background: rgb(var(--v-theme-primary));
+}
+
+.design-preview-text {
+  align-items: center;
+  justify-content: center;
+  font-size: var(--v-text-20);
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.design-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--v-text-14);
+  font-weight: 600;
+}
+
+.design-name input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: rgb(var(--v-theme-primary));
+}
+
+.design-hint {
+  font-size: var(--v-text-12);
+  line-height: 1.45;
   color: rgb(var(--v-theme-muted));
 }
 

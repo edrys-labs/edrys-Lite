@@ -33,7 +33,7 @@ import { defineAsyncComponent, markRaw, onMounted } from "vue";
 import Peer, { MAX_ROOMS } from "../ts/Peer";
 
 import { copyToClipboard, deepEqual, roomSlot } from "../ts/Utils";
-import { activeTheme, roomTile } from "../ts/Theme";
+import { activeTheme, roomTile, setDesign } from "../ts/Theme";
 
 import { debug } from "../api/debugHandler";
 import {
@@ -113,6 +113,8 @@ export default {
 
       showSideMenu: true,
       showSettings: false,
+      // the design picked in the open Settings dialog, not saved yet
+      previewDesign: null as string | null,
 
       renamingRoom: null as string | null,
       roomLabelInput: "",
@@ -189,6 +191,10 @@ export default {
     teacherKeys(): string[] {
       const data = this.configuration?.data;
       return [data?.createdBy, ...(data?.members?.teacher || [])].filter(Boolean);
+    },
+    // the class's design, or the one being tried in Settings
+    shownDesign(): unknown {
+      return this.previewDesign ?? this.configuration?.data?.meta?.design;
     },
     // only teachers move students in this class, and we are a student
     locked(): boolean {
@@ -306,7 +312,14 @@ export default {
     showSettings() {
       if (!this.showSettings) {
         this.data = clone(this.configuration.data);
+        this.previewDesign = null;
       }
+    },
+    shownDesign: {
+      handler(design: unknown) {
+        setDesign(design);
+      },
+      immediate: true,
     },
   },
   // The router remounts the app on popstate (back/forward, hash-only
@@ -1439,6 +1452,7 @@ export default {
         @saveClass="saveClass"
         @deleteClass="deleteClass"
         @updateClass="updateClass"
+        @previewDesign="previewDesign = $event"
       ></Settings>
     </v-dialog>
 

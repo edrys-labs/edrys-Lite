@@ -160,6 +160,12 @@ settings:
     logoUrl: "Logo-URL (optional)"
     logoHint: "Leer lassen, um das Klassenbild zu verwenden."
     preview: "Vorschau"
+    designTitle: "Design"
+    designText: "So sieht die Klasse für alle darin aus. Die eigene Wahl von Hell oder Dunkel gilt weiterhin."
+    designs:
+      standard:
+        name: "Standard"
+        hint: "Das gewohnte Aussehen von edrys"
     roomsTitle: "Räume"
     roomsText: "Mit wie vielen Räumen die Klasse neben der Lobby startet. Stationen fügen eigene Räume hinzu."
     roomsNum: "Anzahl der Räume"

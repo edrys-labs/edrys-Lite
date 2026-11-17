@@ -111,4 +111,13 @@ describe('Settings Component', () => {
     expect(wrapper.vm.configChanged).toBe(false);
   });
 
+
+  test('reports the design picked in the dialog so the classroom can show it before saving', async () => {
+    const wrapper = createWrapper({ config: { ...mockConfig, meta: { design: 'standard' } } });
+    expect(wrapper.emitted('previewDesign')?.[0]).toEqual(['standard']);
+
+    (wrapper.vm as any).$data.configClone.meta.design = 'other';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('previewDesign')?.at(-1)).toEqual(['other']);
+  });
 });

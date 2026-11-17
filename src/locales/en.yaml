@@ -160,6 +160,12 @@ settings:
     logoUrl: "Logo URL (optional)"
     logoHint: "Leave empty to use the class picture."
     preview: "Preview"
+    designTitle: "Design"
+    designText: "How the class looks for everyone in it. Each person's Light or Dark choice still applies."
+    designs:
+      standard:
+        name: "Standard"
+        hint: "The usual edrys look"
     roomsTitle: "Rooms"
     roomsText: "How many rooms the class opens with, next to the Lobby. Stations add their own rooms."
     roomsNum: "Number of rooms"

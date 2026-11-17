@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Main from '../../../../src/components/Settings/Main.vue';
+import { activeTheme } from '../../../../src/ts/Theme';
 
 describe('Main Settings Component', () => {
   const mockConfig = {
@@ -76,5 +77,37 @@ describe('Main Settings Component', () => {
 
     await box.setValue(true);
     expect(config.meta.teacherMovesStudents).toBe(true);
+  });
+
+  test('the design picker offers every design with its name and hint, and picking one sets meta.design', async () => {
+    const config = { id: 'class-1', name: 'Lab', meta: { design: 'standard' } };
+    const wrapper = createWrapper({ config });
+    const group = wrapper.find('[role=radiogroup]');
+    expect(group.attributes('aria-label')).toBe('Design');
+    const radio = group.find('input[type=radio][value=standard]');
+    expect(radio.attributes('aria-describedby')).toBe('design-hint-standard');
+    expect(wrapper.find('#design-hint-standard').text()).toBe('The usual edrys look');
+    expect(wrapper.find('.design--selected .design-name').text()).toBe('Standard');
+
+    config.meta.design = 'something-else';
+    await wrapper.vm.$nextTick();
+    await radio.trigger('change');
+    expect(config.meta.design).toBe('standard');
+  });
+
+  test('a class without a design, or with an unknown one, shows Standard as picked', async () => {
+    for (const meta of [{}, { design: 'neon' }, { design: 7 }]) {
+      const wrapper = createWrapper({ config: { id: 'class-1', name: 'Lab', meta } });
+      expect((wrapper.find('input[value=standard]').element as HTMLInputElement).checked).toBe(true);
+    }
+  });
+
+  test("each preview is drawn in that design's own theme, in the user's light or dark half", async () => {
+    activeTheme.value = 'dark';
+    const wrapper = createWrapper({ config: { id: 'class-1', name: 'Lab', meta: {} } });
+    expect(wrapper.find('.design-preview').classes()).toContain('v-theme--standard-dark');
+    activeTheme.value = 'light';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.design-preview').classes()).toContain('v-theme--standard-light');
   });
 });

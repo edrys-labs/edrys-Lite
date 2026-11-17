@@ -149,6 +149,7 @@ export default {
           selfAssign: false,
           teacherMovesStudents: false,
           defaultNumberOfRooms: 0,
+          design: "standard",
         },
         members: {
           teacher: [],

@@ -6,6 +6,18 @@ import { scrapeModule, getPeerID } from '../../../src/ts/Utils';
 const flushPromises = () => new Promise((r) => setTimeout(r, 0));
 
 // Mock dependencies
+const setDesignSpy = vi.hoisted(() => vi.fn());
+vi.mock('../../../src/ts/Theme', async (importOriginal) => {
+  const actual: any = await importOriginal();
+  return {
+    ...actual,
+    setDesign: (design: unknown) => {
+      setDesignSpy(design);
+      actual.setDesign(design);
+    },
+  };
+});
+
 vi.mock('../../../src/ts/Database', () => ({
   Database: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({
@@ -686,6 +698,26 @@ describe('Classroom View', () => {
       await pill.trigger('click');
       expect(wrapper.vm.showSideMenu).toBe(true);
     });
+  });
+
+  test("shows the class's design, the one tried in Settings while it is open, and the saved one after closing", async () => {
+    const wrapper = createWrapper();
+    await wrapper.vm.init();
+    const { data } = wrapper.vm.configuration;
+    wrapper.vm.configuration = { ...wrapper.vm.configuration, data: { ...data, meta: { ...data.meta, design: 'saved-one' } } };
+    await wrapper.vm.$nextTick();
+    expect(setDesignSpy).toHaveBeenLastCalledWith('saved-one');
+
+    wrapper.vm.showSettings = true;
+    wrapper.vm.previewDesign = 'tried-one';
+    await wrapper.vm.$nextTick();
+    expect(setDesignSpy).toHaveBeenLastCalledWith('tried-one');
+
+    wrapper.vm.showSettings = false;
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.previewDesign).toBeNull();
+    expect(setDesignSpy).toHaveBeenLastCalledWith('saved-one');
   });
 
   test('handles user roles correctly', async () => {

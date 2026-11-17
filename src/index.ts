@@ -5,7 +5,7 @@ import Deploy from './views/Deploy.vue'
 import { initCryptoIdentity, runMigrationIfNeeded } from './ts/Utils'
 import { installWorkerTimers } from './ts/WorkerTimers'
 import { isDevEntry, openDevLab } from './ts/DevBridge'
-import { themes, themeName, themePreference, resolveTheme, followThemePreference } from './ts/Theme'
+import { themes, themeName, themePreference, resolveTheme, followThemePreference, setDesign } from './ts/Theme'
 
 // Keep presence and heartbeats on time while the tab is in the background.
 // Runs after all imports have loaded: fine as long as none starts a timer at
@@ -353,6 +353,8 @@ const router = async () => {
   const view = match.route.view
 
   app?.unmount()
+  // every page starts in Standard; a classroom switches to its own design
+  setDesign('standard')
   app = createApp(view, params)
 
   // Provide Prism functionality globally
