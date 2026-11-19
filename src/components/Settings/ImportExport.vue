@@ -132,7 +132,9 @@ export default {
 
       this.config.meta = newConfig.meta;
       this.config.createdBy = getPeerID(false);
-      this.config.dateCreated = newConfig.dateCreated;
+      // lab files often have no date; the class then keeps its own, as saving
+      // does, so the restored setup doesn't stay "unsaved" after a save
+      this.config.dateCreated = newConfig.dateCreated ?? this.config.dateCreated;
       // Settings.vue only backfills ids when it opens, and the drag list keys
       // on them, so files without ids need them here.
       for (const module of newConfig.modules) {

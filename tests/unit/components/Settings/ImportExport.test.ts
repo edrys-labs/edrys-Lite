@@ -164,6 +164,17 @@ describe('Import / Export Settings Component', () => {
     expect(config.name).toBe('Imported');
   });
 
+  test("import takes the file's date, or keeps the class's own when the file has none", () => {
+    const config: any = { ...mockConfig, dateCreated: 1000 };
+    const wrapper = createWrapper({ config });
+
+    wrapper.vm.updateConfig({ name: 'Lab without a date', meta: {}, modules: [] });
+    expect(config.dateCreated).toBe(1000);
+
+    wrapper.vm.updateConfig({ name: 'Backup', meta: {}, modules: [], dateCreated: 2000 });
+    expect(config.dateCreated).toBe(2000);
+  });
+
   test('import backfills missing module ids and keeps existing ones', () => {
     const config: any = { ...mockConfig, modules: [] };
     const wrapper = createWrapper({ config });
