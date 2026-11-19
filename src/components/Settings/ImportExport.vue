@@ -160,6 +160,11 @@ export default {
       // Members, identity and signature fields are dropped: an import ignores
       // them (parseClassroom), uses the importer's key and re-signs on save.
       const { createdBy, setupSigner, setupSignature, members, ...config } = this.config;
+      // classes made before it was removed still store an unused setting
+      if (config.meta && "selfAssign" in config.meta) {
+        const { selfAssign, ...meta } = config.meta;
+        config.meta = meta;
+      }
       const data =
         format === "yaml" ? yaml.dump(config) : JSON.stringify(config, null, 2);
 

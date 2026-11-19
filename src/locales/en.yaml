@@ -167,7 +167,6 @@ settings:
     teacherMoves:
       label: "Only teachers can move students"
       hint: "Students start in the Lobby and go to a room or station only when a teacher sends them there. They can still see all rooms and who is in them."
-    selfAssign: "Enable self-assignment"
   members:
     linkTitle: "Class link"
     linkText: "Send this link to the people in your class. Who may join, and as what, is set below."

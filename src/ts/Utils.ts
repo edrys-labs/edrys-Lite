@@ -142,12 +142,13 @@ export function normalizeClassroom(data: any) {
   data.meta = {
     logo: '',
     description: '',
-    selfAssign: false,
     teacherMovesStudents: false,
     defaultNumberOfRooms: 0,
     design: 'standard',
     ...(data.meta && typeof data.meta === 'object' ? data.meta : {}),
   }
+  // older files carry an unused setting from the first version
+  delete data.meta.selfAssign
   data.members = {
     teacher: strings(data.members?.teacher),
     student: strings(data.members?.student),

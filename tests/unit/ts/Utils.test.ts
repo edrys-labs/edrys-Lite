@@ -150,6 +150,11 @@ describe('Utils', () => {
       expect(normalizeClassroom({ meta: { design: 'compact' } }).meta.design).toBe('compact');
     });
 
+    test('drops the unused selfAssign setting of older files', () => {
+      expect(normalizeClassroom({ meta: { selfAssign: true } }).meta).not.toHaveProperty('selfAssign');
+      expect(normalizeClassroom({}).meta).not.toHaveProperty('selfAssign');
+    });
+
     test('is undefined for text that is not a classroom', () => {
       expect(parseClassroom('"just a string"')).toBeUndefined();
       expect(parseClassroom('[1, 2]')).toBeUndefined();
@@ -724,7 +729,7 @@ describe('runMigrationIfNeeded', () => {
       id,
       createdBy,
       name: 'Test Class',
-      meta: { logo: '', description: '', selfAssign: false, teacherMovesStudents: false, defaultNumberOfRooms: 0 },
+      meta: { logo: '', description: '', teacherMovesStudents: false, defaultNumberOfRooms: 0 },
       members: { teacher: teachers, student: [] },
       modules: [],
     },

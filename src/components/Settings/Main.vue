@@ -59,14 +59,6 @@
     color="primary"
   ></v-checkbox>
   <p id="teacher-moves-hint" class="teacher-moves-hint">{{ t('settings.main.teacherMoves.hint') }}</p>
-
-  <!-- selfAssign checkbox hidden until the feature is implemented
-  <v-checkbox
-    v-model="config.meta.selfAssign"
-    :label="t('settings.main.selfAssign')"
-    outlined
-  ></v-checkbox>
-  -->
 </template>
 
 <script lang="ts">

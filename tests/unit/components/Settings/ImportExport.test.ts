@@ -153,6 +153,22 @@ describe('Import / Export Settings Component', () => {
     expect(exported.modules[0].id).toBe('m1');
   });
 
+  test('export leaves out the unused selfAssign setting of older classes', async () => {
+    const config: any = {
+      ...mockConfig,
+      meta: { selfAssign: false, description: 'kept' },
+    };
+    const wrapper = createWrapper({ config });
+
+    wrapper.vm.downloadClass('json');
+    const blob = (global.URL.createObjectURL as any).mock.calls[0][0] as Blob;
+    const exported = JSON.parse(await readBlob(blob));
+
+    expect(exported.meta).not.toHaveProperty('selfAssign');
+    expect(exported.meta.description).toBe('kept');
+    expect(config.meta).toHaveProperty('selfAssign');
+  });
+
   test('import keeps the class its own members', () => {
     const members = { teacher: ['my-teacher'], student: ['*'] };
     const config: any = { ...mockConfig, members };

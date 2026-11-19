@@ -167,7 +167,6 @@ settings:
     teacherMoves:
       label: "Nur Lehrende können Studierende verschieben"
       hint: "Studierende starten in der Lobby und kommen nur in einen Raum oder eine Station, wenn eine Lehrkraft sie dorthin schickt. Sie sehen weiterhin alle Räume und wer darin ist."
-    selfAssign: "Selbstzuweisung aktivieren"
   members:
     linkTitle: "Link zur Klasse"
     linkText: "Senden Sie diesen Link an die Personen in Ihrer Klasse. Wer beitreten darf und in welcher Rolle, legen Sie unten fest."
