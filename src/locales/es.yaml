@@ -143,6 +143,7 @@ settings:
     Members: "Miembros"
     Modules: "Módulos"
     Stations: "Estaciones"
+    Design: "Diseño"
     ImportExport: "Importar / Exportar"
     Communication: "Comunicación"
     unsaved: "Cambios sin guardar"
@@ -160,34 +161,6 @@ settings:
     logoUrl: "URL del logo (opcional)"
     logoHint: "Déjalo vacío para usar la imagen de la clase."
     preview: "Vista previa"
-    designTitle: "Diseño"
-    designText: "Cómo se ve la clase para todos los que están en ella. La elección de cada persona entre Claro u Oscuro se mantiene."
-    designs:
-      standard:
-        name: "Estándar"
-        hint: "El aspecto habitual de edrys"
-      compact:
-        name: "Compacto"
-        hint: "Más denso, caben más módulos en la pantalla"
-      playful:
-        name: "Divertido"
-        hint: "Texto más grande y formas más redondas, ideal para estudiantes más jóvenes"
-      custom:
-        name: "Personalizado"
-        hint: "Tus propios colores, esquinas y tamaño de texto"
-    customDesign:
-      note: "Un archivo de diseño parte de uno de los diseños y cambia sus colores, fuente, esquinas y tamaños de texto y paneles, para Claro y Oscuro. Copia el ejemplo de la documentación, edítalo y súbelo."
-      basedOn: "basado en {base}"
-      upload: "Subir archivo de diseño"
-      ignored: "Estas líneas se omiten:"
-      reasons:
-        unknown: "no es un campo de diseño"
-        invalid: "valor no permitido"
-        needsPlayful: "necesita Divertido como base"
-      errors:
-        tooLarge: "El archivo pesa más de 50 KB."
-        unreadable: "El archivo no es YAML ni JSON."
-        notADesign: "El archivo no contiene un diseño."
     roomsTitle: "Salas"
     roomsText: "Con cuántas salas se abre la clase, además del Vestíbulo. Las estaciones añaden sus propias salas."
     roomsNum: "Número de salas"
@@ -291,6 +264,58 @@ settings:
     none: "Todavía no hay ninguna estación conectada."
     online: "En línea"
     reconnecting: "Reconectando…"
+  design:
+    title: "Diseño"
+    text: "Cómo se ve la clase para todos los que están en ella. La elección de cada persona entre Claro u Oscuro se mantiene."
+    designs:
+      standard:
+        name: "Estándar"
+        hint: "El aspecto habitual de edrys"
+      compact:
+        name: "Compacto"
+        hint: "Más denso, caben más módulos en la pantalla"
+      playful:
+        name: "Divertido"
+        hint: "Texto más grande y formas más redondas, ideal para estudiantes más jóvenes"
+      custom:
+        name: "Personalizado"
+        hint: "Tus propios colores, esquinas y tamaño de texto"
+    custom:
+      note: "Tu propio diseño parte de uno de los diseños. Cambia aquí sus colores principales, esquinas y tamaño de texto, para Claro y Oscuro."
+      basedOn: "basado en {base}"
+      more: "Para el resto de colores y tamaños, sube un archivo de diseño: copia el ejemplo de la documentación, edítalo y súbelo."
+      form:
+        base: "Parte de"
+        font: "Fuente"
+        colors: "Colores para"
+        primary: "Color principal"
+        background: "Fondo"
+        bar: "Barra superior"
+        reset: "Volver al color de {base}"
+        corners: "Esquinas"
+        cornerSteps:
+          square: "Rectas"
+          less: "Menos redondas"
+          normal: "Normales"
+          more: "Más redondas"
+          round: "Redondas"
+        text: "Tamaño de texto"
+        textSteps:
+          smaller: "Más pequeño"
+          small: "Pequeño"
+          normal: "Normal"
+          large: "Grande"
+          larger: "Más grande"
+      upload: "Subir archivo de diseño"
+      ignored: "Estas líneas se omiten:"
+      reasons:
+        unknown: "no es un campo de diseño"
+        invalid: "valor no permitido"
+        needsPlayful: "necesita Divertido como base"
+      errors:
+        tooLarge: "El archivo pesa más de 50 KB."
+        unreadable: "El archivo no es YAML ni JSON."
+        notADesign: "El archivo no contiene un diseño."
   importExport:
     downloadTitle: "Descargar"
     downloadText: "Guarda la clase como archivo, como copia de seguridad o para dársela a otro profesor. Los miembros, las claves y las firmas se omiten."

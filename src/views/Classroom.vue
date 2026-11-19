@@ -33,7 +33,7 @@ import { defineAsyncComponent, markRaw, onMounted } from "vue";
 import Peer, { MAX_ROOMS } from "../ts/Peer";
 
 import { copyToClipboard, deepEqual, roomSlot } from "../ts/Utils";
-import { activeLayout, activeTheme, roomTile } from "../ts/Theme";
+import { activeLayout, activeTheme, previewTheme, roomTile } from "../ts/Theme";
 import { showDesign } from "../ts/CustomDesign";
 
 import { debug } from "../api/debugHandler";
@@ -320,6 +320,7 @@ export default {
       if (!this.showSettings) {
         this.data = clone(this.configuration.data);
         this.previewDesign = null;
+        previewTheme.value = null;
       }
     },
     shownDesign: {

@@ -143,6 +143,7 @@ settings:
     Members: "Members"
     Modules: "Modules"
     Stations: "Stations"
+    Design: "Design"
     ImportExport: "Import / Export"
     Communication: "Communication"
     unsaved: "Unsaved changes"
@@ -160,34 +161,6 @@ settings:
     logoUrl: "Logo URL (optional)"
     logoHint: "Leave empty to use the class picture."
     preview: "Preview"
-    designTitle: "Design"
-    designText: "How the class looks for everyone in it. Each person's Light or Dark choice still applies."
-    designs:
-      standard:
-        name: "Standard"
-        hint: "The usual edrys look"
-      compact:
-        name: "Compact"
-        hint: "Denser, fits more modules on screen"
-      playful:
-        name: "Playful"
-        hint: "Bigger text and rounder shapes, good for younger learners"
-      custom:
-        name: "Custom"
-        hint: "Your own colors, corners and text size"
-    customDesign:
-      note: "A design file starts from one of the designs and changes its colors, font, corners, text and panel sizes, for Light and Dark. Copy the example from the documentation, edit it, then upload it."
-      basedOn: "based on {base}"
-      upload: "Upload design file"
-      ignored: "These lines are left out:"
-      reasons:
-        unknown: "not a design field"
-        invalid: "value not allowed"
-        needsPlayful: "needs Playful as the base"
-      errors:
-        tooLarge: "The file is larger than 50 KB."
-        unreadable: "The file is not YAML or JSON."
-        notADesign: "The file does not hold a design."
     roomsTitle: "Rooms"
     roomsText: "How many rooms the class opens with, next to the Lobby. Stations add their own rooms."
     roomsNum: "Number of rooms"
@@ -291,6 +264,58 @@ settings:
     none: "No station is connected yet."
     online: "Online"
     reconnecting: "Reconnecting…"
+  design:
+    title: "Design"
+    text: "How the class looks for everyone in it. Each person's Light or Dark choice still applies."
+    designs:
+      standard:
+        name: "Standard"
+        hint: "The usual edrys look"
+      compact:
+        name: "Compact"
+        hint: "Denser, fits more modules on screen"
+      playful:
+        name: "Playful"
+        hint: "Bigger text and rounder shapes, good for younger learners"
+      custom:
+        name: "Custom"
+        hint: "Your own colors, corners and text size"
+    custom:
+      note: "Your own design starts from one of the designs. Change its main colors, corners and text size here, for Light and Dark."
+      basedOn: "based on {base}"
+      more: "For every other color and size, upload a design file: copy the example from the documentation, edit it, then upload it."
+      form:
+        base: "Starts from"
+        font: "Font"
+        colors: "Colors for"
+        primary: "Main color"
+        background: "Background"
+        bar: "Top bar"
+        reset: "Back to the color of {base}"
+        corners: "Corners"
+        cornerSteps:
+          square: "Square"
+          less: "Less round"
+          normal: "Normal"
+          more: "Rounder"
+          round: "Round"
+        text: "Text size"
+        textSteps:
+          smaller: "Smaller"
+          small: "Small"
+          normal: "Normal"
+          large: "Large"
+          larger: "Larger"
+      upload: "Upload design file"
+      ignored: "These lines are left out:"
+      reasons:
+        unknown: "not a design field"
+        invalid: "value not allowed"
+        needsPlayful: "needs Playful as the base"
+      errors:
+        tooLarge: "The file is larger than 50 KB."
+        unreadable: "The file is not YAML or JSON."
+        notADesign: "The file does not hold a design."
   importExport:
     downloadTitle: "Download"
     downloadText: "Save the class as a file, as a backup or to give it to another teacher. Members, keys and signatures are left out."

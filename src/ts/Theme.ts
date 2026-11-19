@@ -634,6 +634,12 @@ export function resolveTheme(preference: ThemePreference): 'light' | 'dark' {
 /** The theme on screen, for colors that are computed rather than named. */
 export const activeTheme = ref<'light' | 'dark'>(resolveTheme(themePreference.value))
 
+/**
+ * A half shown for a while instead of the user's choice, without saving it:
+ * Settings shows the half whose colors are being changed. Null otherwise.
+ */
+export const previewTheme = ref<'light' | 'dark' | null>(null)
+
 export function setThemePreference(preference: ThemePreference) {
   themePreference.value = preference
   try {
@@ -707,7 +713,7 @@ export function followThemePreference(
   vuetifyThemes: Ref<Record<string, ThemeDefinition>> = ref({})
 ) {
   const apply = () => {
-    activeTheme.value = resolveTheme(themePreference.value)
+    activeTheme.value = previewTheme.value ?? resolveTheme(themePreference.value)
     const custom = activeDesign.value === 'custom' ? activeCustom.value : null
     if (custom) {
       const registered = vuetifyThemes.value
@@ -718,7 +724,7 @@ export function followThemePreference(
     document.documentElement.dataset.theme = activeTheme.value
     document.documentElement.dataset.design = activeBase.value
   }
-  watch([themePreference, activeDesign, activeCustom], apply)
+  watch([themePreference, previewTheme, activeDesign, activeCustom], apply)
   darkQuery?.addEventListener?.('change', apply)
   apply()
 }

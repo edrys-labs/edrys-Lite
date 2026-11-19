@@ -4,6 +4,11 @@ import {
   checkDesign,
   readDesignFile,
   showDesign,
+  steppedCorners,
+  steppedText,
+  currentStep,
+  readableOn,
+  NORMAL_STEP,
   designFile,
   MAX_DESIGN_FILE_SIZE,
   MAX_DESIGN_NAME_LENGTH,
@@ -280,6 +285,57 @@ describe('CustomDesign', () => {
     expect(activeBase.value).toBe('standard')
 
     showDesign('standard', undefined)
+  })
+
+  describe('steps for corners and text', () => {
+    test('Normal is the base as it is', () => {
+      for (const base of DESIGNS) {
+        const vars = designs[base].light.variables!
+        for (const [key, value] of Object.entries(steppedCorners(base, NORMAL_STEP))) expect(value).toBe(vars[key])
+        for (const [key, value] of Object.entries(steppedText(base, NORMAL_STEP))) expect(value).toBe(vars[key])
+      }
+    })
+
+    test('scales every corner, keeps round shapes round and goes square at the first step', () => {
+      expect(steppedCorners('standard', 4)).toMatchObject({ 'radius-card': '24px', 'radius-chip': '14px', 'radius-pill': '999px' })
+      expect(steppedCorners('standard', 1)['radius-chip']).toBe('3.5px')
+      expect(steppedCorners('playful', 3)['radius-chip']).toBe('999px')
+      const square = steppedCorners('playful', 0)
+      expect(square['radius-card']).toBe('0px')
+      expect(square['radius-chip']).toBe('0px')
+      expect(square['radius-pill']).toBe('999px') // badges stay round
+    })
+
+    test('scales text in half pixels and every step passes the check', () => {
+      expect(steppedText('standard', 4)['text-13']).toBe('15.5px')
+      for (const base of DESIGNS)
+        for (let step = 0; step < 5; step++) {
+          const check = checkDesign({ base, shape: steppedCorners(base, step), text: steppedText(base, step) })
+          expect(check.ignored, `${base} ${step}`).toEqual([])
+        }
+    })
+
+    test('reads which step a design is at, or none when set by hand', () => {
+      const at = (file: object) => ({
+        corners: currentStep(checkDesign(file).design, 'corners'),
+        text: currentStep(checkDesign(file).design, 'text'),
+      })
+      expect(at({})).toEqual({ corners: NORMAL_STEP, text: NORMAL_STEP })
+      expect(at({ base: 'compact', shape: steppedCorners('compact', 0), text: steppedText('compact', 4) })).toEqual({
+        corners: 0,
+        text: 4,
+      })
+      expect(at({ shape: { 'radius-card': '13px' }, text: { 'text-13': '14px' } })).toEqual({ corners: null, text: null })
+    })
+  })
+
+  test('text on a color is white on dark colors and near black on light ones', () => {
+    expect(readableOn('#000000')).toBe('#ffffff')
+    expect(readableOn('#3664be')).toBe('#ffffff')
+    expect(readableOn('#0077b6')).toBe('#ffffff')
+    expect(readableOn('#ffd23f')).toBe('#1b2029')
+    expect(readableOn('#ffffff')).toBe('#1b2029')
+    expect(readableOn('#caf0f8')).toBe('#1b2029')
   })
 
   describe('reading a file', () => {

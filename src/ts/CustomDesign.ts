@@ -233,6 +233,74 @@ export function checkDesign(file: unknown): DesignCheck {
   return { design, ignored }
 }
 
+/*
+ * The short form in Settings changes corners and text in steps, scaling all
+ * of a base design's values at once, so their sizes keep their order.
+ */
+export const CORNER_STEPS = [0, 0.5, 1, 1.5, 2]
+export const TEXT_STEPS = [0.85, 0.92, 1, 1.1, 1.2]
+/** The step that leaves the base's values as they are. */
+export const NORMAL_STEP = 2
+
+const RADIUS_KEYS = Object.keys(SHAPE).filter((key) => key.startsWith('radius-'))
+const TEXT_KEYS = Object.keys(TEXT)
+const halfPx = (n: number) => Math.round(n * 2) / 2
+
+function baseValue(base: Design, key: string) {
+  return parseFloat(String(designs[base].light.variables?.[key]))
+}
+
+/** The base's corners at a step. Fully round stays round, except at Square; badges always stay round. */
+export function steppedCorners(base: Design, step: number): Record<string, string> {
+  const factor = CORNER_STEPS[step] ?? 1
+  return Object.fromEntries(
+    RADIUS_KEYS.map((key) => {
+      const px = baseValue(base, key)
+      if (px >= 999) return [key, key === 'radius-pill' || factor > 0 ? '999px' : '0px']
+      return [key, `${Math.min(RADIUS.max, halfPx(px * factor))}px`]
+    })
+  )
+}
+
+/** The base's text sizes at a step. */
+export function steppedText(base: Design, step: number): Record<string, string> {
+  const factor = TEXT_STEPS[step] ?? 1
+  return Object.fromEntries(
+    TEXT_KEYS.map((key) => [
+      key,
+      `${Math.min(TEXT_SIZE.max, Math.max(TEXT_SIZE.min, halfPx(baseValue(base, key) * factor)))}px`,
+    ])
+  )
+}
+
+/**
+ * Which step a checked design's corners or text are at; null when they are
+ * set some other way (by hand in a file).
+ */
+export function currentStep(design: CustomDesign, kind: 'corners' | 'text'): number | null {
+  const stepped = kind === 'corners' ? steppedCorners : steppedText
+  const keys = kind === 'corners' ? RADIUS_KEYS : TEXT_KEYS
+  const steps = kind === 'corners' ? CORNER_STEPS : TEXT_STEPS
+  const normal = stepped(design.base, NORMAL_STEP)
+  const value = (key: string) => design.variables[key] ?? normal[key]
+  const step = steps.findIndex((_, i) => {
+    const at = stepped(design.base, i)
+    return keys.every((key) => value(key) === at[key])
+  })
+  return step === -1 ? null : step
+}
+
+/** Text that reads well on a color: white on dark colors, near black on light ones. */
+export function readableOn(color: string): string {
+  const channel = (i: number) => {
+    const c = parseInt(color.slice(1 + i * 2, 3 + i * 2), 16) / 255
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  }
+  const luminance = 0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2)
+  // where white and near black have the same contrast
+  return luminance > 0.18 ? '#1b2029' : '#ffffff'
+}
+
 /**
  * Shows a class's design (`meta.design`); for `custom` its own design
  * (`meta.customDesign`), checked first, on top of its base.

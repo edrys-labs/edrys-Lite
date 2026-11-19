@@ -3,6 +3,7 @@ import Main from "./Settings/Main.vue";
 import Members from "./Settings/Members.vue";
 import Modules from "./Settings/Modules.vue";
 import Stations from "./Settings/Stations.vue";
+import Design from "./Settings/Design.vue";
 import type { StationRoom } from "./Settings/Stations.vue";
 import type { PropType } from "vue";
 import ImportExport from "./Settings/ImportExport.vue";
@@ -60,6 +61,7 @@ export default {
         { key: "Members", icon: "mdi-account-group-outline" },
         { key: "Modules", icon: "mdi-view-grid-outline" },
         { key: "Stations", icon: "mdi-router-wireless" },
+        { key: "Design", icon: "mdi-palette-outline" },
         { key: "ImportExport", icon: "mdi-swap-vertical" },
         { key: "Communication", icon: "mdi-access-point-network" },
       ],
@@ -133,7 +135,7 @@ export default {
     },
   },
 
-  components: { Main, Members, Modules, Stations, ImportExport, Communication },
+  components: { Main, Members, Modules, Stations, Design, ImportExport, Communication },
 };
 </script>
 
@@ -189,6 +191,10 @@ export default {
 
         <v-window-item>
           <Stations :config="configClone" :stations="stations"></Stations>
+        </v-window-item>
+
+        <v-window-item>
+          <Design :config="configClone"></Design>
         </v-window-item>
 
         <v-window-item>

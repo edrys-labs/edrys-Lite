@@ -143,6 +143,7 @@ settings:
     Members: "Mitglieder"
     Modules: "Module"
     Stations: "Stationen"
+    Design: "Design"
     ImportExport: "Import / Export"
     Communication: "Kommunikation"
     unsaved: "Ungespeicherte Änderungen"
@@ -160,34 +161,6 @@ settings:
     logoUrl: "Logo-URL (optional)"
     logoHint: "Leer lassen, um das Klassenbild zu verwenden."
     preview: "Vorschau"
-    designTitle: "Design"
-    designText: "So sieht die Klasse für alle darin aus. Die eigene Wahl von Hell oder Dunkel gilt weiterhin."
-    designs:
-      standard:
-        name: "Standard"
-        hint: "Das gewohnte Aussehen von edrys"
-      compact:
-        name: "Kompakt"
-        hint: "Dichter, mehr Module passen auf den Bildschirm"
-      playful:
-        name: "Verspielt"
-        hint: "Größere Schrift und rundere Formen, gut für jüngere Lernende"
-      custom:
-        name: "Eigenes"
-        hint: "Eigene Farben, Ecken und Schriftgröße"
-    customDesign:
-      note: "Eine Design-Datei geht von einem der Designs aus und ändert Farben, Schrift, Ecken, Text- und Leistengrößen, für Hell und Dunkel. Kopiere das Beispiel aus der Dokumentation, bearbeite es und lade es dann hoch."
-      basedOn: "auf Basis von {base}"
-      upload: "Design-Datei hochladen"
-      ignored: "Diese Zeilen werden weggelassen:"
-      reasons:
-        unknown: "kein Design-Feld"
-        invalid: "Wert nicht erlaubt"
-        needsPlayful: "braucht Verspielt als Basis"
-      errors:
-        tooLarge: "Die Datei ist größer als 50 KB."
-        unreadable: "Die Datei ist kein YAML oder JSON."
-        notADesign: "Die Datei enthält kein Design."
     roomsTitle: "Räume"
     roomsText: "Mit wie vielen Räumen die Klasse neben der Lobby startet. Stationen fügen eigene Räume hinzu."
     roomsNum: "Anzahl der Räume"
@@ -291,6 +264,58 @@ settings:
     none: "Noch keine Station verbunden."
     online: "Online"
     reconnecting: "Verbindet neu…"
+  design:
+    title: "Design"
+    text: "So sieht die Klasse für alle darin aus. Die eigene Wahl von Hell oder Dunkel gilt weiterhin."
+    designs:
+      standard:
+        name: "Standard"
+        hint: "Das gewohnte Aussehen von edrys"
+      compact:
+        name: "Kompakt"
+        hint: "Dichter, mehr Module passen auf den Bildschirm"
+      playful:
+        name: "Verspielt"
+        hint: "Größere Schrift und rundere Formen, gut für jüngere Lernende"
+      custom:
+        name: "Eigenes"
+        hint: "Eigene Farben, Ecken und Schriftgröße"
+    custom:
+      note: "Dein eigenes Design geht von einem der Designs aus. Ändere hier seine Hauptfarben, Ecken und Schriftgröße, für Hell und Dunkel."
+      basedOn: "auf Basis von {base}"
+      more: "Für alle weiteren Farben und Größen lade eine Design-Datei hoch: Kopiere das Beispiel aus der Dokumentation, bearbeite es und lade es dann hoch."
+      form:
+        base: "Ausgehend von"
+        font: "Schrift"
+        colors: "Farben für"
+        primary: "Hauptfarbe"
+        background: "Hintergrund"
+        bar: "Obere Leiste"
+        reset: "Zurück zur Farbe von {base}"
+        corners: "Ecken"
+        cornerSteps:
+          square: "Eckig"
+          less: "Weniger rund"
+          normal: "Normal"
+          more: "Runder"
+          round: "Rund"
+        text: "Schriftgröße"
+        textSteps:
+          smaller: "Kleiner"
+          small: "Klein"
+          normal: "Normal"
+          large: "Groß"
+          larger: "Größer"
+      upload: "Design-Datei hochladen"
+      ignored: "Diese Zeilen werden weggelassen:"
+      reasons:
+        unknown: "kein Design-Feld"
+        invalid: "Wert nicht erlaubt"
+        needsPlayful: "braucht Verspielt als Basis"
+      errors:
+        tooLarge: "Die Datei ist größer als 50 KB."
+        unreadable: "Die Datei ist kein YAML oder JSON."
+        notADesign: "Die Datei enthält kein Design."
   importExport:
     downloadTitle: "Herunterladen"
     downloadText: "Speichern Sie die Klasse als Datei, als Sicherung oder um sie an andere Lehrkräfte weiterzugeben. Mitglieder, Schlüssel und Signaturen werden weggelassen."

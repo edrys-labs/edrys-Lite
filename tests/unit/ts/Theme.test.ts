@@ -170,6 +170,22 @@ describe('Theme', () => {
     expect(activeDesign.value).toBe('standard')
   })
 
+  test('a preview half is shown without changing the saved choice', async () => {
+    const { followThemePreference, previewTheme, activeTheme, themePreference } = await loadTheme()
+    const themeName = ref('')
+    followThemePreference(themeName)
+    previewTheme.value = 'dark'
+    await nextTick()
+    expect(themeName.value).toBe('standard-dark')
+    expect(activeTheme.value).toBe('dark')
+    expect(themePreference.value).toBe('system')
+    expect(localStorage.getItem('theme')).toBeNull()
+
+    previewTheme.value = null
+    await nextTick()
+    expect(themeName.value).toBe('standard-light')
+  })
+
   test('tells computed colors which theme is on screen', async () => {
     const { followThemePreference, setThemePreference, activeTheme } = await loadTheme()
     followThemePreference(ref(''))
@@ -223,7 +239,7 @@ describe('Theme', () => {
     for (const design of DESIGNS) {
       const { bar, drawer, chat } = designLayout(design)
       for (const px of [bar, drawer, chat]) expect(px).toBeGreaterThan(0)
-      expect((en as any).settings.main.designs[design]).toEqual({ name: expect.any(String), hint: expect.any(String) })
+      expect((en as any).settings.design.designs[design]).toEqual({ name: expect.any(String), hint: expect.any(String) })
     }
   })
 })

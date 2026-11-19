@@ -70,8 +70,8 @@ describe('Settings Component', () => {
 
   test('renders all tabs', () => {
     const wrapper = createWrapper();
-    const tabs = wrapper.findAll('.v-tab');
-    expect(tabs).toHaveLength(6);
+    const tabs = wrapper.findAll('.v-tab').map((tab) => tab.text());
+    expect(tabs).toEqual(['Main', 'Members', 'Modules', 'Stations', 'Design', 'Import / Export', 'Communication']);
   });
 
   test('emits close event', async () => {
