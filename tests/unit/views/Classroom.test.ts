@@ -11,9 +11,9 @@ vi.mock('../../../src/ts/Theme', async (importOriginal) => {
   const actual: any = await importOriginal();
   return {
     ...actual,
-    setDesign: (design: unknown) => {
-      setDesignSpy(design);
-      actual.setDesign(design);
+    setDesign: (design: unknown, custom?: unknown) => {
+      setDesignSpy(design, custom);
+      actual.setDesign(design, custom);
     },
   };
 });
@@ -704,20 +704,47 @@ describe('Classroom View', () => {
     const wrapper = createWrapper();
     await wrapper.vm.init();
     const { data } = wrapper.vm.configuration;
-    wrapper.vm.configuration = { ...wrapper.vm.configuration, data: { ...data, meta: { ...data.meta, design: 'saved-one' } } };
+    wrapper.vm.configuration = { ...wrapper.vm.configuration, data: { ...data, meta: { ...data.meta, design: 'compact' } } };
     await wrapper.vm.$nextTick();
-    expect(setDesignSpy).toHaveBeenLastCalledWith('saved-one');
+    expect(setDesignSpy).toHaveBeenLastCalledWith('compact', undefined);
 
     wrapper.vm.showSettings = true;
-    wrapper.vm.previewDesign = 'tried-one';
+    wrapper.vm.previewDesign = { design: 'playful', custom: undefined };
     await wrapper.vm.$nextTick();
-    expect(setDesignSpy).toHaveBeenLastCalledWith('tried-one');
+    expect(setDesignSpy).toHaveBeenLastCalledWith('playful', undefined);
 
     wrapper.vm.showSettings = false;
     await wrapper.vm.$nextTick();
     await wrapper.vm.$nextTick();
     expect(wrapper.vm.previewDesign).toBeNull();
-    expect(setDesignSpy).toHaveBeenLastCalledWith('saved-one');
+    expect(setDesignSpy).toHaveBeenLastCalledWith('compact', undefined);
+  });
+
+  test("shows the class's own design checked, and follows changes inside it", async () => {
+    const wrapper = createWrapper();
+    await wrapper.vm.init();
+    const { data } = wrapper.vm.configuration;
+    const customDesign = { base: 'compact', light: { colors: { primary: '#112233', surface: 'url(x)' } } };
+    wrapper.vm.configuration = {
+      ...wrapper.vm.configuration,
+      data: { ...data, meta: { ...data.meta, design: 'custom', customDesign } },
+    };
+    await wrapper.vm.$nextTick();
+    expect(setDesignSpy).toHaveBeenLastCalledWith('custom', expect.objectContaining({
+      base: 'compact',
+      colors: { light: { primary: '#112233' }, dark: {} },
+    }));
+
+    wrapper.vm.showSettings = true;
+    wrapper.vm.previewDesign = { design: 'custom', custom: { base: 'playful', light: { colors: { primary: '#445566' } } } };
+    await wrapper.vm.$nextTick();
+    // through $data: wrapper.vm hands back the plain object here
+    wrapper.vm.$data.previewDesign.custom.light.colors.primary = '#778899';
+    await wrapper.vm.$nextTick();
+    expect(setDesignSpy).toHaveBeenLastCalledWith('custom', expect.objectContaining({
+      base: 'playful',
+      colors: { light: { primary: '#778899' }, dark: {} },
+    }));
   });
 
   test('handles user roles correctly', async () => {

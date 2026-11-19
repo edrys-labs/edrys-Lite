@@ -1,5 +1,6 @@
-import { computed, ref, watch, type Ref } from 'vue'
+import { computed, ref, shallowRef, watch, type Ref } from 'vue'
 import type { ThemeDefinition } from 'vuetify'
+import type { CustomDesign } from './CustomDesign'
 
 /** The fonts a design can use, all bundled (no requests to font services). */
 export const FONTS = {
@@ -592,8 +593,11 @@ export function designLayout(design: Design) {
   return layouts[design]
 }
 
+/** A built-in design, or the class's own (`custom`, see CustomDesign.ts). */
+export type DesignChoice = Design | 'custom'
+
 /** Vuetify's name for one half of a design, e.g. `standard-dark`. */
-export function themeName(design: Design, theme: 'light' | 'dark') {
+export function themeName(design: DesignChoice, theme: 'light' | 'dark') {
   return `${design}-${theme}`
 }
 
@@ -641,30 +645,80 @@ export function setThemePreference(preference: ThemePreference) {
 }
 
 /** The design on screen; anything unknown shows as Standard. */
-export const activeDesign = ref<Design>('standard')
+export const activeDesign = ref<DesignChoice>('standard')
 
-export function setDesign(design: unknown) {
+/** The class's own design while `activeDesign` is `custom`, already checked. */
+const activeCustom = shallowRef<CustomDesign | null>(null)
+
+/**
+ * Shows a built-in design, or with `custom` the class's own (checked by
+ * CustomDesign.ts, which is where a class's setting comes in).
+ */
+export function setDesign(design: unknown, custom?: CustomDesign) {
+  if (design === 'custom' && custom) {
+    activeCustom.value = custom
+    activeDesign.value = 'custom'
+    return
+  }
+  activeCustom.value = null
   activeDesign.value = DESIGNS.includes(design as Design) ? (design as Design) : 'standard'
 }
 
+/** The built-in design on screen, or the one a class's own design is based on. */
+export const activeBase = computed<Design>(() =>
+  activeDesign.value === 'custom' ? activeCustom.value?.base ?? 'standard' : activeDesign.value
+)
+
 /** The active design's bar height and panel widths. */
-export const activeLayout = computed(() => designLayout(activeDesign.value))
+export const activeLayout = computed(() => ({
+  ...designLayout(activeBase.value),
+  ...(activeDesign.value === 'custom' ? activeCustom.value?.layout : {}),
+}))
+
+/**
+ * One half of the class's own design: its base's half (as Vuetify holds it,
+ * with Vuetify's own defaults filled in) with the checked colors and
+ * variables replaced.
+ */
+function customHalf(
+  custom: CustomDesign,
+  half: 'light' | 'dark',
+  registered: Record<string, ThemeDefinition>
+): ThemeDefinition {
+  const base = registered[themeName(custom.base, half)] ?? designs[custom.base][half]
+  return {
+    ...base,
+    colors: { ...base.colors, ...custom.colors[half] },
+    variables: { ...base.variables, ...custom.variables },
+  }
+}
 
 /**
  * Keeps Vuetify's theme in step with the design, the preference and, for
  * 'system', the OS. `<html data-theme>` carries the half for styles that
  * differ between Light and Dark (`[data-theme='dark'] .card`), whatever the
- * design; `<html data-design>` the design, for what only one design draws
- * (`[data-design='playful'] .item`).
+ * design; `<html data-design>` the built-in design, for what only one design
+ * draws (`[data-design='playful'] .item`), so a class's own design gets its
+ * base's. Its two halves go into Vuetify's themes as `custom-light` and
+ * `custom-dark`, replaced whenever it changes.
  */
-export function followThemePreference(vuetifyTheme: Ref<string>) {
+export function followThemePreference(
+  vuetifyTheme: Ref<string>,
+  vuetifyThemes: Ref<Record<string, ThemeDefinition>> = ref({})
+) {
   const apply = () => {
     activeTheme.value = resolveTheme(themePreference.value)
+    const custom = activeDesign.value === 'custom' ? activeCustom.value : null
+    if (custom) {
+      const registered = vuetifyThemes.value
+      vuetifyThemes.value['custom-light'] = customHalf(custom, 'light', registered)
+      vuetifyThemes.value['custom-dark'] = customHalf(custom, 'dark', registered)
+    }
     vuetifyTheme.value = themeName(activeDesign.value, activeTheme.value)
     document.documentElement.dataset.theme = activeTheme.value
-    document.documentElement.dataset.design = activeDesign.value
+    document.documentElement.dataset.design = activeBase.value
   }
-  watch([themePreference, activeDesign], apply)
+  watch([themePreference, activeDesign, activeCustom], apply)
   darkQuery?.addEventListener?.('change', apply)
   apply()
 }

@@ -238,7 +238,7 @@ const vuetify = createVuetify({
   },
 })
 
-followThemePreference(vuetify.theme.global.name)
+followThemePreference(vuetify.theme.global.name, vuetify.theme.themes)
 
 const pathToRegex = (path) =>
   new RegExp('^' + path.replace(/\//g, '\\/').replace(/:\w+/g, '(.+)') + '$')

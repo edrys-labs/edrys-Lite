@@ -1,5 +1,5 @@
 import * as YAML from 'js-yaml'
-import { DESIGNS, FONTS, designs, designLayout, type Design } from './Theme'
+import { DESIGNS, FONTS, designs, designLayout, setDesign, type Design } from './Theme'
 
 /**
  * A class's own design: a token file (YAML or JSON) on top of a built-in
@@ -231,6 +231,14 @@ export function checkDesign(file: unknown): DesignCheck {
   }
 
   return { design, ignored }
+}
+
+/**
+ * Shows a class's design (`meta.design`); for `custom` its own design
+ * (`meta.customDesign`), checked first, on top of its base.
+ */
+export function showDesign(design: unknown, custom: unknown) {
+  setDesign(design, design === 'custom' ? checkDesign(custom).design : undefined)
 }
 
 /** Reads and checks a token file's text (YAML or JSON). */

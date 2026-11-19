@@ -33,7 +33,8 @@ import { defineAsyncComponent, markRaw, onMounted } from "vue";
 import Peer, { MAX_ROOMS } from "../ts/Peer";
 
 import { copyToClipboard, deepEqual, roomSlot } from "../ts/Utils";
-import { activeLayout, activeTheme, roomTile, setDesign } from "../ts/Theme";
+import { activeLayout, activeTheme, roomTile } from "../ts/Theme";
+import { showDesign } from "../ts/CustomDesign";
 
 import { debug } from "../api/debugHandler";
 import {
@@ -114,7 +115,7 @@ export default {
       showSideMenu: true,
       showSettings: false,
       // the design picked in the open Settings dialog, not saved yet
-      previewDesign: null as string | null,
+      previewDesign: null as { design: unknown; custom: unknown } | null,
 
       renamingRoom: null as string | null,
       roomLabelInput: "",
@@ -192,9 +193,11 @@ export default {
       const data = this.configuration?.data;
       return [data?.createdBy, ...(data?.members?.teacher || [])].filter(Boolean);
     },
-    // the class's design, or the one being tried in Settings
-    shownDesign(): unknown {
-      return this.previewDesign ?? this.configuration?.data?.meta?.design;
+    // the class's design (with its own tokens for `custom`), or the one
+    // being tried in Settings
+    shownDesign(): { design: unknown; custom: unknown } {
+      const meta = this.configuration?.data?.meta;
+      return this.previewDesign ?? { design: meta?.design, custom: meta?.customDesign };
     },
     // only teachers move students in this class, and we are a student
     locked(): boolean {
@@ -320,10 +323,11 @@ export default {
       }
     },
     shownDesign: {
-      handler(design: unknown) {
-        setDesign(design);
+      handler({ design, custom }: { design: unknown; custom: unknown }) {
+        showDesign(design, custom);
       },
       immediate: true,
+      deep: true,
     },
   },
   // The router remounts the app on popstate (back/forward, hash-only

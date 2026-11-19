@@ -114,10 +114,20 @@ describe('Settings Component', () => {
 
   test('reports the design picked in the dialog so the classroom can show it before saving', async () => {
     const wrapper = createWrapper({ config: { ...mockConfig, meta: { design: 'standard' } } });
-    expect(wrapper.emitted('previewDesign')?.[0]).toEqual(['standard']);
+    expect(wrapper.emitted('previewDesign')?.[0]).toEqual([{ design: 'standard', custom: undefined }]);
 
     (wrapper.vm as any).$data.configClone.meta.design = 'other';
     await wrapper.vm.$nextTick();
-    expect(wrapper.emitted('previewDesign')?.at(-1)).toEqual(['other']);
+    expect(wrapper.emitted('previewDesign')?.at(-1)).toEqual([{ design: 'other', custom: undefined }]);
+  });
+
+  test("reports changes inside the class's own design too", async () => {
+    const customDesign = { light: { colors: { primary: '#112233' } } };
+    const wrapper = createWrapper({ config: { ...mockConfig, meta: { design: 'custom', customDesign } } });
+    (wrapper.vm as any).$data.configClone.meta.customDesign.light.colors.primary = '#445566';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('previewDesign')?.at(-1)).toEqual([
+      { design: 'custom', custom: { light: { colors: { primary: '#445566' } } } },
+    ]);
   });
 });

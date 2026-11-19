@@ -106,6 +106,70 @@ describe('Theme', () => {
     }
   })
 
+  test("a class's own design gets its own Vuetify themes on top of its base", async () => {
+    const { followThemePreference, setThemePreference, setDesign, activeDesign, activeBase, activeLayout, themes } =
+      await loadTheme()
+    const themeName = ref('')
+    // as Vuetify holds them: with its own defaults merged in
+    const registered = ref<Record<string, any>>(
+      Object.fromEntries(
+        Object.entries(themes).map(([name, t]) => [name, { ...t, variables: { ...t.variables, 'vuetify-default': '1' } }])
+      )
+    )
+    followThemePreference(themeName, registered)
+    const custom = {
+      name: 'Ocean',
+      base: 'playful' as const,
+      variables: { 'radius-card': '4px' },
+      layout: { chat: 300 },
+      colors: { light: { primary: '#112233' }, dark: { primary: '#445566' } },
+    }
+    setDesign('custom', custom)
+    await nextTick()
+
+    expect(activeDesign.value).toBe('custom')
+    expect(activeBase.value).toBe('playful')
+    expect(themeName.value).toBe('custom-light')
+    // Playful's own CSS still applies
+    expect(document.documentElement.dataset.design).toBe('playful')
+    expect(activeLayout.value).toEqual({ bar: 68, drawer: 300, chat: 300 })
+
+    const light = registered.value['custom-light']
+    expect(light.dark).toBe(false)
+    expect(light.colors.primary).toBe('#112233')
+    expect(light.colors.background).toBe(themes['playful-light'].colors!.background)
+    expect(light.variables['radius-card']).toBe('4px')
+    expect(light.variables.font).toBe(themes['playful-light'].variables!.font)
+    expect(light.variables['vuetify-default']).toBe('1')
+    // a missing dark color comes from the base's dark half, not from light
+    const dark = registered.value['custom-dark']
+    expect(dark.dark).toBe(true)
+    expect(dark.colors.primary).toBe('#445566')
+    expect(dark.colors.surface).toBe(themes['playful-dark'].colors!.surface)
+
+    setThemePreference('dark')
+    await nextTick()
+    expect(themeName.value).toBe('custom-dark')
+
+    // a change replaces the themes
+    setDesign('custom', { ...custom, base: 'compact', colors: { light: {}, dark: {} } })
+    await nextTick()
+    expect(document.documentElement.dataset.design).toBe('compact')
+    expect(registered.value['custom-dark'].colors.primary).toBe(themes['compact-dark'].colors!.primary)
+
+    setDesign('standard')
+    await nextTick()
+    expect(themeName.value).toBe('standard-dark')
+    expect(document.documentElement.dataset.design).toBe('standard')
+    expect(activeLayout.value).toEqual({ bar: 56, drawer: 264, chat: 360 })
+  })
+
+  test('custom without its own design shows as Standard', async () => {
+    const { setDesign, activeDesign } = await loadTheme()
+    setDesign('custom')
+    expect(activeDesign.value).toBe('standard')
+  })
+
   test('tells computed colors which theme is on screen', async () => {
     const { followThemePreference, setThemePreference, activeTheme } = await loadTheme()
     followThemePreference(ref(''))

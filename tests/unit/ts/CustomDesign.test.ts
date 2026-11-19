@@ -3,12 +3,13 @@ import * as YAML from 'js-yaml'
 import {
   checkDesign,
   readDesignFile,
+  showDesign,
   designFile,
   MAX_DESIGN_FILE_SIZE,
   MAX_DESIGN_NAME_LENGTH,
   type DesignCheck,
 } from '../../../src/ts/CustomDesign'
-import { DESIGNS, FONTS, designs, designLayout } from '../../../src/ts/Theme'
+import { DESIGNS, FONTS, designs, designLayout, activeDesign, activeBase } from '../../../src/ts/Theme'
 
 const paths = (check: DesignCheck) => check.ignored.map((i) => `${i.path}:${i.reason}`)
 
@@ -264,6 +265,21 @@ describe('CustomDesign', () => {
       if (rand(2) === 0) mutated.font = any()
       expectOnlySafeOutput(checkDesign(mutated))
     }
+  })
+
+  test('shows a custom design only after checking it, and ignores the file for built-ins', () => {
+    showDesign('custom', { base: 'compact', font: "x'; } body { display: none" })
+    expect(activeDesign.value).toBe('custom')
+    expect(activeBase.value).toBe('compact')
+
+    showDesign('playful', { base: 'compact' })
+    expect(activeDesign.value).toBe('playful')
+
+    showDesign('custom', 'not a design')
+    expect(activeDesign.value).toBe('custom')
+    expect(activeBase.value).toBe('standard')
+
+    showDesign('standard', undefined)
   })
 
   describe('reading a file', () => {

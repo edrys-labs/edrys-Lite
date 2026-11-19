@@ -111,15 +111,20 @@ export default {
     configClone: { handler: "refreshConfigChanged", deep: true },
     config: { handler: "refreshConfigChanged", deep: true },
     // the classroom shows the design picked here until the dialog closes
-    "configClone.meta.design": {
-      handler(design: string) {
-        this.$emit("previewDesign", design);
+    designPreview: {
+      handler(preview: { design: unknown; custom: unknown }) {
+        this.$emit("previewDesign", preview);
       },
       immediate: true,
+      deep: true,
     },
   },
 
   computed: {
+    designPreview() {
+      const meta = this.configClone.meta;
+      return { design: meta?.design, custom: meta?.customDesign };
+    },
     decodedCommunicationConfig() {
       const encodedConfig = this.configClone.communicationConfig;
       if (!encodedConfig) return {};
