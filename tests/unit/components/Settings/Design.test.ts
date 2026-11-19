@@ -263,6 +263,23 @@ light:
       });
     });
 
+    test('picking a built-in design clears the class\'s own, so Custom starts empty again', async () => {
+      const customDesign = { name: 'Ocean', base: 'playful', light: { colors: { primary: '#0077b6' } } };
+      const config = reactive({ id: 'class-1', name: 'Lab', meta: { design: 'custom', customDesign } as any });
+      const wrapper = createWrapper({ config });
+      expect(wrapper.find('.custom-current').text()).toBe('Ocean · based on Playful');
+
+      await wrapper.find('input[value=compact]').trigger('change');
+      expect(config.meta.design).toBe('compact');
+      expect(config.meta.customDesign).toBeUndefined();
+
+      await wrapper.find('input[value=custom]').trigger('change');
+      expect(config.meta.design).toBe('custom');
+      expect(config.meta.customDesign).toBeUndefined();
+      expect(wrapper.find('.custom-current').exists()).toBe(false);
+      expect(wrapper.find('.custom-base .v-btn--active').text()).toBe('Standard');
+    });
+
     test('lists what a design written into the lab file leaves out', () => {
       const customDesign = { base: 'compact', extras: { dots: true }, sizes: { bar: 500 } };
       const wrapper = createWrapper({ config: { id: 'class-1', name: 'Lab', meta: { design: 'custom', customDesign } } });

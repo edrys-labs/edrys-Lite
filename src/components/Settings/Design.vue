@@ -36,7 +36,7 @@
           :value="design"
           :checked="design === selectedDesign"
           :aria-describedby="'design-hint-' + design"
-          @change="config.meta.design = design"
+          @change="pickDesign(design)"
         />
         {{ t('settings.design.designs.' + design + '.name') }}
       </span>
@@ -296,6 +296,15 @@ export default {
     // the class's own design as written, made an empty one if there is none
     custom(): Record<string, any> {
       return section(this.config.meta, "customDesign");
+    },
+
+    // a built-in design replaces the class's own: Custom starts empty again
+    pickDesign(design: DesignChoice) {
+      this.config.meta.design = design;
+      if (design !== "custom") {
+        delete this.config.meta.customDesign;
+        this.uploadError = null;
+      }
     },
 
     setBase(base: Design) {
