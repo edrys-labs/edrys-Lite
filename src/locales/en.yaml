@@ -283,7 +283,7 @@ settings:
     custom:
       note: "Your own design starts from one of the designs. Change its main colors, corners and text size here, for Light and Dark."
       basedOn: "based on {base}"
-      more: "For every other color and size, upload a design file: copy the example from the documentation, edit it, then upload it."
+      more: "For every other color and size, use a design file: download yours or copy the example from the documentation, edit it, then upload it."
       form:
         base: "Starts from"
         font: "Font"
@@ -307,6 +307,7 @@ settings:
           large: "Large"
           larger: "Larger"
       upload: "Upload design file"
+      download: "Download design file"
       ignored: "These lines are left out:"
       reasons:
         unknown: "not a design field"

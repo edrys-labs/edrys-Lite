@@ -283,7 +283,7 @@ settings:
     custom:
       note: "Dein eigenes Design geht von einem der Designs aus. Ändere hier seine Hauptfarben, Ecken und Schriftgröße, für Hell und Dunkel."
       basedOn: "auf Basis von {base}"
-      more: "Für alle weiteren Farben und Größen lade eine Design-Datei hoch: Kopiere das Beispiel aus der Dokumentation, bearbeite es und lade es dann hoch."
+      more: "Für alle weiteren Farben und Größen nutze eine Design-Datei: Lade deine herunter oder kopiere das Beispiel aus der Dokumentation, bearbeite sie und lade sie dann hoch."
       form:
         base: "Ausgehend von"
         font: "Schrift"
@@ -307,6 +307,7 @@ settings:
           large: "Groß"
           larger: "Größer"
       upload: "Design-Datei hochladen"
+      download: "Design-Datei herunterladen"
       ignored: "Diese Zeilen werden weggelassen:"
       reasons:
         unknown: "kein Design-Feld"

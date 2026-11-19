@@ -170,6 +170,16 @@
         aria-hidden="true"
         @change="uploadDesign"
       />
+      <v-btn
+        v-if="customCheck"
+        variant="outlined"
+        height="36"
+        prepend-icon="mdi-download"
+        class="custom-download"
+        @click="downloadDesign"
+      >
+        {{ t('settings.design.custom.download') }}
+      </v-btn>
     </div>
 
     <p v-if="uploadError" class="custom-error" role="alert">
@@ -189,6 +199,7 @@
 
 <script lang="ts">
 import { useI18n } from 'vue-i18n';
+import * as YAML from "js-yaml";
 import FieldLabel from "../FieldLabel.vue";
 import SectionHead from "./SectionHead.vue";
 import { DESIGNS, FONTS, activeTheme, designs, previewTheme, themeName, type Design, type DesignChoice } from "../../ts/Theme";
@@ -385,6 +396,25 @@ export default {
       this.uploadError = null;
       this.config.meta.customDesign = result.file;
       this.config.meta.design = "custom";
+    },
+
+    // the class's own design as it is stored, form changes included, as a
+    // file that can be edited and uploaded again
+    downloadDesign() {
+      const custom = this.config.meta.customDesign;
+      const slug = String(this.customCheck?.design.name ?? "")
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, "-")
+        .replace(/^-+|-+$/g, "");
+      const blob = new Blob([YAML.dump(custom)], { type: "text/yaml" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = (slug || "design") + ".yml";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     },
   },
 };

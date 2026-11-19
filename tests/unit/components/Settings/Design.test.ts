@@ -88,7 +88,10 @@ describe('Design Settings Component', () => {
       await wrapper.vm.$nextTick();
     };
 
-    afterEach(() => vi.restoreAllMocks());
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
 
 
     test('is a fourth choice with a placeholder until it is picked, then its own preview and panel', async () => {
@@ -161,6 +164,46 @@ light:
       await uploadText(wrapper, 'name: Fixed');
       expect(wrapper.find('.custom-error').exists()).toBe(false);
       expect(config.meta.customDesign).toEqual({ name: 'Fixed' });
+    });
+
+    test('downloading saves the design as stored, form changes included, and it uploads again unchanged', async () => {
+      const config = reactive({ id: 'class-1', name: 'Lab', meta: { design: 'custom' } as any });
+      const wrapper = createWrapper({ config });
+      // nothing to download before the design has anything in it
+      expect(wrapper.find('.custom-download').exists()).toBe(false);
+
+      await uploadText(wrapper, 'name: Ocean Blue\nbase: compact\nlight:\n  colors:\n    primary: "#0077b6"\n');
+      await wrapper.find('.custom-font button:last-child').trigger('click');
+      const stored = JSON.parse(JSON.stringify(config.meta.customDesign));
+      expect(stored.font).toBe('fredoka');
+
+      // jsdom has neither
+      let blob: Blob | undefined;
+      vi.stubGlobal('URL', Object.assign(class extends URL {}, {
+        createObjectURL: (b: Blob) => {
+          blob = b;
+          return 'blob:design';
+        },
+        revokeObjectURL: () => {},
+      }));
+      let fileName = '';
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+        fileName = this.download;
+      });
+
+      await wrapper.find('.custom-download').trigger('click');
+      expect(fileName).toBe('ocean-blue.yml');
+      const text = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.readAsText(blob!);
+      });
+
+      config.meta.customDesign = { name: 'Other' };
+      await wrapper.vm.$nextTick();
+      await uploadText(wrapper, text);
+      expect(config.meta.customDesign).toEqual(stored);
+      expect(wrapper.find('.custom-ignored').exists()).toBe(false);
     });
 
     describe('the short form', () => {
