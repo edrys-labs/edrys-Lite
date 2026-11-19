@@ -85,7 +85,7 @@
 <script lang="ts">
 import * as yaml from "js-yaml";
 import { useI18n } from 'vue-i18n';
-import { getPeerID, parseClassroom } from "../../ts/Utils";
+import { downloadText, getPeerID, parseClassroom } from "../../ts/Utils";
 import { debug } from "../../api/debugHandler";
 import FieldLabel from "../FieldLabel.vue";
 import SectionHead from "./SectionHead.vue";
@@ -163,15 +163,7 @@ export default {
 
       const name = "class-" + this.config.id + (format === "yaml" ? ".yml" : ".json");
 
-      const blob = new Blob([data], { type: "text/" + format });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadText(name, data, "text/" + format);
     },
     async restoreURL() {
       this.restoreSuccess = false;

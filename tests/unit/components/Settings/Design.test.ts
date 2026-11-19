@@ -270,6 +270,15 @@ light:
         expect(previewTheme.value).toBeNull();
       });
 
+      test('picking a built-in design gives the half back to the user, as the switch goes with the form', async () => {
+        const { wrapper } = custom();
+        await clickIn(wrapper, '.custom-half', 'Dark');
+        expect(previewTheme.value).toBe('dark');
+        await wrapper.find('input[value=compact]').trigger('change');
+        expect(wrapper.find('.custom-half').exists()).toBe(false);
+        expect(previewTheme.value).toBeNull();
+      });
+
       test('corner and text steps write all sizes, and Normal takes them out again', async () => {
         const { config, wrapper } = custom();
         await clickIn(wrapper, '.custom-corners', 'Round');

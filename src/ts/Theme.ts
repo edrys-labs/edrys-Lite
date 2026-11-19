@@ -583,7 +583,9 @@ export const DESIGNS = Object.keys(designs) as Design[]
  * Sizes Vuetify takes as props (in px): the app bar's height, the rooms
  * drawer's and the chat's width. Phones keep their own.
  */
-const layouts: Record<Design, { bar: number; drawer: number; chat: number }> = {
+export type Layout = { bar: number; drawer: number; chat: number }
+
+const layouts: Record<Design, Layout> = {
   standard: { bar: 56, drawer: 264, chat: 360 },
   compact: { bar: 40, drawer: 228, chat: 300 },
   playful: { bar: 68, drawer: 300, chat: 390 },

@@ -207,15 +207,14 @@ import {
   NORMAL_STEP,
   checkDesign,
   currentStep,
+  isRecord,
   readDesignFile,
   readableOn,
   steppedCorners,
   steppedText,
   type DesignFileError,
 } from "../../ts/CustomDesign";
-
-const isRecord = (x: unknown): x is Record<string, unknown> =>
-  x !== null && typeof x === "object" && !Array.isArray(x);
+import { downloadText } from "../../ts/Utils";
 
 // the colors the form changes; the text on them follows (black or white)
 const COLOR_FIELDS = [
@@ -309,12 +308,14 @@ export default {
       return section(this.config.meta, "customDesign");
     },
 
-    // a built-in design replaces the class's own: Custom starts empty again
+    // a built-in design replaces the class's own: Custom starts empty again,
+    // and its Light/Dark switch (gone with it) no longer picks the half
     pickDesign(design: DesignChoice) {
       this.config.meta.design = design;
       if (design !== "custom") {
         delete this.config.meta.customDesign;
         this.uploadError = null;
+        previewTheme.value = null;
       }
     },
 
@@ -401,20 +402,11 @@ export default {
     // the class's own design as it is stored, form changes included, as a
     // file that can be edited and uploaded again
     downloadDesign() {
-      const custom = this.config.meta.customDesign;
       const slug = String(this.customCheck?.design.name ?? "")
         .toLowerCase()
         .replace(/[^\p{L}\p{N}]+/gu, "-")
         .replace(/^-+|-+$/g, "");
-      const blob = new Blob([YAML.dump(custom)], { type: "text/yaml" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = (slug || "design") + ".yml";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadText((slug || "design") + ".yml", YAML.dump(this.config.meta.customDesign), "text/yaml");
     },
   },
 };

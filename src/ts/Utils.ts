@@ -96,6 +96,18 @@ export function copyToClipboard(str: string) {
   navigator.clipboard.writeText(str)
 }
 
+/** Lets the browser save a text as a file. */
+export function downloadText(fileName: string, text: string, type: string) {
+  const url = URL.createObjectURL(new Blob([text], { type }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
 /**
  * A classroom from a YAML/JSON text (deploy link, restored file or URL),
  * normalized; undefined if it isn't one. It brings its setup only: who may

@@ -9,14 +9,43 @@ import {
   currentStep,
   readableOn,
   NORMAL_STEP,
-  designFile,
   MAX_DESIGN_FILE_SIZE,
   MAX_DESIGN_NAME_LENGTH,
   type DesignCheck,
 } from '../../../src/ts/CustomDesign'
-import { DESIGNS, FONTS, designs, designLayout, activeDesign, activeBase } from '../../../src/ts/Theme'
+import { DESIGNS, FONTS, designs, designLayout, activeDesign, activeBase, type Design } from '../../../src/ts/Theme'
 
 const paths = (check: DesignCheck) => check.ignored.map((i) => `${i.path}:${i.reason}`)
+
+/** A built-in design as a complete token file: every field, with its values. */
+function designFile(base: Design) {
+  const variables = designs[base].light.variables ?? {}
+  const v = (key: string) => String(variables[key])
+  const keys = (test: (key: string) => boolean) =>
+    Object.fromEntries(Object.keys(variables).filter(test).map((k) => [k, v(k)]))
+  const layout = designLayout(base)
+  return {
+    name: '',
+    base,
+    font: Object.keys(FONTS).find((f) => FONTS[f as keyof typeof FONTS] === v('font')),
+    shape: { ...keys((k) => k.startsWith('radius-')), line: v('line') },
+    text: keys((k) => k.startsWith('text-')),
+    sizes: {
+      bar: `${layout.bar}px`,
+      drawer: `${layout.drawer}px`,
+      chat: `${layout.chat}px`,
+      'bar-button': v('bar-button'),
+      'module-head': v('module-head'),
+    },
+    extras: {
+      'title-case': v('head-case'),
+      'title-spacing': v('head-track'),
+      ...(base === 'playful' ? { dots: v('dots-image') !== 'none', 'shadow-offset': v('pop-offset') } : {}),
+    },
+    light: { colors: { ...designs[base].light.colors } },
+    dark: { colors: { ...designs[base].dark.colors } },
+  }
+}
 
 // Everything checkDesign hands on must be one of these shapes, whatever came in.
 const SAFE_VARIABLE = new RegExp(
@@ -149,6 +178,11 @@ describe('CustomDesign', () => {
       expect(paths(check)).toEqual(['text.text-13:invalid'])
     }
     expect(checkDesign({ shape: { 'radius-chip': '999px' } }).design.variables).toEqual({ 'radius-chip': '999px' })
+    // a number written as text, as JSON files often have it
+    expect(checkDesign({ text: { 'text-13': '14' }, sizes: { bar: '60' } }).design).toMatchObject({
+      variables: { 'text-13': '14px' },
+      layout: { bar: 60 },
+    })
     expect(paths(checkDesign({ shape: { 'radius-chip': '100px', line: '7px' } }))).toEqual([
       'shape.radius-chip:invalid',
       'shape.line:invalid',
@@ -367,7 +401,7 @@ light:
   colors:
     primary: '#2d6a4f'
     background: url(https://evil.example/track.png)
-`) as DesignCheck
+`) as DesignCheck & { file: Record<string, unknown> }
       expect(check.design.colors.light).toEqual({ primary: '#2d6a4f' })
       expect(check.file.light).toEqual({
         colors: { primary: '#2d6a4f', background: 'url(https://evil.example/track.png)' },

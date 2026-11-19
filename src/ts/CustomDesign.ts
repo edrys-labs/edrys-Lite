@@ -1,5 +1,5 @@
 import * as YAML from 'js-yaml'
-import { DESIGNS, FONTS, designs, designLayout, setDesign, type Design } from './Theme'
+import { DESIGNS, FONTS, designs, setDesign, type Design, type Layout } from './Theme'
 
 /**
  * A class's own design: a token file (YAML or JSON) on top of a built-in
@@ -17,8 +17,6 @@ import { DESIGNS, FONTS, designs, designLayout, setDesign, type Design } from '.
 export const MAX_DESIGN_FILE_SIZE = 50_000 // bytes
 export const MAX_DESIGN_NAME_LENGTH = 40
 const MAX_IGNORED = 100
-
-export type Layout = { bar: number; drawer: number; chat: number }
 
 export interface CustomDesign {
   name: string
@@ -79,15 +77,18 @@ const TOP_LEVEL = new Set(['name', 'base', 'font', 'shape', 'text', 'sizes', 'ex
 const EXTRAS = new Set(['title-case', 'title-spacing', 'dots', 'shadow-offset'])
 const PLAYFUL_ONLY = new Set(['dots', 'shadow-offset'])
 
-const isRecord = (x: unknown): x is Record<string, unknown> =>
+export const isRecord = (x: unknown): x is Record<string, unknown> =>
   x !== null && typeof x === 'object' && !Array.isArray(x)
 
 const has = <T extends object>(obj: T, key: string): key is Extract<keyof T, string> =>
   Object.prototype.hasOwnProperty.call(obj, key)
 
-/** `12`, `12px` or `2.5px` within the range, as `12px`; undefined otherwise. */
+/**
+ * A number or text like `12`, `12px` or `2.5px` within the range, as `12px`;
+ * undefined otherwise.
+ */
 function px(value: unknown, range: Range): string | undefined {
-  const n = number(value, /^(\d{1,4}(?:\.\d{1,2})?)px$/)
+  const n = number(value, /^(\d{1,4}(?:\.\d{1,2})?)(?:px)?$/)
   if (n === undefined) return undefined
   if ((n < range.min || n > range.max) && !range.also?.includes(n)) return undefined
   return `${n}px`
@@ -333,39 +334,4 @@ export function readDesignFile(
   // plain data only (YAML dates become text), as it goes into the class's setup
   const plain = JSON.parse(JSON.stringify(file))
   return { ...checkDesign(plain), file: plain }
-}
-
-/**
- * A built-in design as a complete token file (every field the file can
- * have, with that design's values). Every value in it passes checkDesign.
- */
-export function designFile(base: Design) {
-  const variables = designs[base].light.variables ?? {}
-  const v = (key: string) => String(variables[key])
-  const layout = designLayout(base)
-  const font = (Object.keys(FONTS) as (keyof typeof FONTS)[]).find((f) => FONTS[f] === v('font'))
-  const pick = (ranges: Record<string, Range>) =>
-    Object.fromEntries(Object.keys(ranges).filter((k) => !LAYOUT_KEYS.has(k)).map((k) => [k, v(k)]))
-
-  return {
-    name: '',
-    base,
-    font,
-    shape: pick(SHAPE),
-    text: pick(TEXT),
-    sizes: {
-      bar: `${layout.bar}px`,
-      drawer: `${layout.drawer}px`,
-      chat: `${layout.chat}px`,
-      'bar-button': v('bar-button'),
-      'module-head': v('module-head'),
-    },
-    extras: {
-      'title-case': v('head-case'),
-      'title-spacing': v('head-track'),
-      ...(base === 'playful' ? { dots: v('dots-image') !== 'none', 'shadow-offset': v('pop-offset') } : {}),
-    },
-    light: { colors: { ...designs[base].light.colors } },
-    dark: { colors: { ...designs[base].dark.colors } },
-  }
 }
