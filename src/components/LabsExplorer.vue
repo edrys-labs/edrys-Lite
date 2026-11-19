@@ -241,6 +241,10 @@ export default {
               :style="{ background: tile.bg, color: tile.fg }"
             >{{ tile.text }}</span>
           </span>
+          <!-- empty tiles while the labs load, so the card doesn't grow when they come -->
+          <span v-else-if="isLoading" class="choice-tiles choice-tiles--loading" aria-hidden="true">
+            <span v-for="n in 4" :key="n"></span>
+          </span>
           <span class="choice-go" aria-hidden="true">
             {{ t('labs.chooseLab') }}
             <v-icon :icon="rtl ? 'mdi-arrow-left' : 'mdi-arrow-right'" size="16"></v-icon>
@@ -503,6 +507,10 @@ export default {
   border-radius: var(--v-radius-chip);
   font-size: var(--v-text-11);
   font-weight: 700;
+}
+
+.choice-tiles--loading span {
+  background: rgb(var(--v-theme-tonal));
 }
 
 .choice-go {
