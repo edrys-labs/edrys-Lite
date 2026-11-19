@@ -172,6 +172,22 @@ settings:
       playful:
         name: "Divertido"
         hint: "Texto más grande y formas más redondas, ideal para estudiantes más jóvenes"
+      custom:
+        name: "Personalizado"
+        hint: "Tus propios colores, esquinas y tamaño de texto"
+    customDesign:
+      note: "Un archivo de diseño parte de uno de los diseños y cambia sus colores, fuente, esquinas y tamaños de texto y paneles, para Claro y Oscuro. Copia el ejemplo de la documentación, edítalo y súbelo."
+      basedOn: "basado en {base}"
+      upload: "Subir archivo de diseño"
+      ignored: "Estas líneas se omiten:"
+      reasons:
+        unknown: "no es un campo de diseño"
+        invalid: "valor no permitido"
+        needsPlayful: "necesita Divertido como base"
+      errors:
+        tooLarge: "El archivo pesa más de 50 KB."
+        unreadable: "El archivo no es YAML ni JSON."
+        notADesign: "El archivo no contiene un diseño."
     roomsTitle: "Salas"
     roomsText: "Con cuántas salas se abre la clase, además del Vestíbulo. Las estaciones añaden sus propias salas."
     roomsNum: "Número de salas"

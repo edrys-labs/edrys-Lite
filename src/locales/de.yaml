@@ -172,6 +172,22 @@ settings:
       playful:
         name: "Verspielt"
         hint: "Größere Schrift und rundere Formen, gut für jüngere Lernende"
+      custom:
+        name: "Eigenes"
+        hint: "Eigene Farben, Ecken und Schriftgröße"
+    customDesign:
+      note: "Eine Design-Datei geht von einem der Designs aus und ändert Farben, Schrift, Ecken, Text- und Leistengrößen, für Hell und Dunkel. Kopiere das Beispiel aus der Dokumentation, bearbeite es und lade es dann hoch."
+      basedOn: "auf Basis von {base}"
+      upload: "Design-Datei hochladen"
+      ignored: "Diese Zeilen werden weggelassen:"
+      reasons:
+        unknown: "kein Design-Feld"
+        invalid: "Wert nicht erlaubt"
+        needsPlayful: "braucht Verspielt als Basis"
+      errors:
+        tooLarge: "Die Datei ist größer als 50 KB."
+        unreadable: "Die Datei ist kein YAML oder JSON."
+        notADesign: "Die Datei enthält kein Design."
     roomsTitle: "Räume"
     roomsText: "Mit wie vielen Räumen die Klasse neben der Lobby startet. Stationen fügen eigene Räume hinzu."
     roomsNum: "Anzahl der Räume"

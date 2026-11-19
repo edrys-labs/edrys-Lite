@@ -172,6 +172,22 @@ settings:
       playful:
         name: "Playful"
         hint: "Bigger text and rounder shapes, good for younger learners"
+      custom:
+        name: "Custom"
+        hint: "Your own colors, corners and text size"
+    customDesign:
+      note: "A design file starts from one of the designs and changes its colors, font, corners, text and panel sizes, for Light and Dark. Copy the example from the documentation, edit it, then upload it."
+      basedOn: "based on {base}"
+      upload: "Upload design file"
+      ignored: "These lines are left out:"
+      reasons:
+        unknown: "not a design field"
+        invalid: "value not allowed"
+        needsPlayful: "needs Playful as the base"
+      errors:
+        tooLarge: "The file is larger than 50 KB."
+        unreadable: "The file is not YAML or JSON."
+        notADesign: "The file does not hold a design."
     roomsTitle: "Rooms"
     roomsText: "How many rooms the class opens with, next to the Lobby. Stations add their own rooms."
     roomsNum: "Number of rooms"

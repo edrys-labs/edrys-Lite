@@ -241,8 +241,14 @@ export function showDesign(design: unknown, custom: unknown) {
   setDesign(design, design === 'custom' ? checkDesign(custom).design : undefined)
 }
 
-/** Reads and checks a token file's text (YAML or JSON). */
-export function readDesignFile(text: string): DesignCheck | { error: DesignFileError } {
+/**
+ * Reads and checks a token file's text (YAML or JSON). `file` is what it
+ * holds as plain data, to keep in the class as it was written: every peer
+ * checks it again before showing it.
+ */
+export function readDesignFile(
+  text: string
+): (DesignCheck & { file: Record<string, unknown> }) | { error: DesignFileError } {
   if (new TextEncoder().encode(text).length > MAX_DESIGN_FILE_SIZE) return { error: 'tooLarge' }
   let file: unknown
   try {
@@ -256,12 +262,14 @@ export function readDesignFile(text: string): DesignCheck | { error: DesignFileE
     }
   }
   if (!isRecord(file)) return { error: 'notADesign' }
-  return checkDesign(file)
+  // plain data only (YAML dates become text), as it goes into the class's setup
+  const plain = JSON.parse(JSON.stringify(file))
+  return { ...checkDesign(plain), file: plain }
 }
 
 /**
- * A built-in design as a complete token file, a starting point for a
- * class's own. Every value in it passes checkDesign.
+ * A built-in design as a complete token file (every field the file can
+ * have, with that design's values). Every value in it passes checkDesign.
  */
 export function designFile(base: Design) {
   const variables = designs[base].light.variables ?? {}

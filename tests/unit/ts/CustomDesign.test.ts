@@ -313,6 +313,9 @@ light:
     background: url(https://evil.example/track.png)
 `) as DesignCheck
       expect(check.design.colors.light).toEqual({ primary: '#2d6a4f' })
+      expect(check.file.light).toEqual({
+        colors: { primary: '#2d6a4f', background: 'url(https://evil.example/track.png)' },
+      })
       expect(paths(check)).toEqual(['light.colors.background:invalid'])
     })
   })
