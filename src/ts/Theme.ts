@@ -1,6 +1,13 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import type { ThemeDefinition } from 'vuetify'
 
+/** The fonts a design can use, all bundled (no requests to font services). */
+export const FONTS = {
+  'noto-sans': "'Noto Sans Variable', 'Noto Sans', system-ui, sans-serif",
+  'ibm-plex-sans': "'IBM Plex Sans Variable', 'Noto Sans Variable', 'Noto Sans', system-ui, sans-serif",
+  fredoka: "'Fredoka Variable', 'Noto Sans Variable', 'Noto Sans', system-ui, sans-serif",
+}
+
 /**
  * Font, corners, text sizes and a few heights, the same in Light and Dark.
  * Vuetify emits each as a CSS variable (`border-radius: var(--v-radius-card)`,
@@ -9,7 +16,7 @@ import type { ThemeDefinition } from 'vuetify'
  * Circles (dots, avatars, round icons) keep `999px` or `50%`: those are shapes.
  */
 const shape = {
-  font: "'Noto Sans Variable', 'Noto Sans', system-ui, sans-serif",
+  font: FONTS['noto-sans'],
   line: '1px', // side lines of the drawer and chat, below a module's header
   'bar-button': '36px', // icon buttons on the app bar
   'module-head': '36px', // a module's header strip
@@ -247,7 +254,7 @@ function derive(
  * drawer and chat and turns the chat into a flat list.
  */
 const compactShape = {
-  font: "'IBM Plex Sans Variable', 'Noto Sans Variable', 'Noto Sans', system-ui, sans-serif",
+  font: FONTS['ibm-plex-sans'],
   'bar-button': '28px',
   'module-head': '26px',
   'head-case': 'uppercase',
@@ -388,7 +395,7 @@ const compactDark = derive(
 const INK = '#1b1530'
 
 const playfulShape = {
-  font: "'Fredoka Variable', 'Noto Sans Variable', 'Noto Sans', system-ui, sans-serif",
+  font: FONTS.fredoka,
   line: '2.5px',
   'bar-button': '46px',
   'module-head': '46px',
@@ -562,7 +569,7 @@ const playfulDark = derive(
  * Designs, each with a Light and a Dark half. The user's Light/Dark/System
  * choice picks the half, the class picks the design.
  */
-const designs = {
+export const designs = {
   standard: { light, dark },
   compact: { light: compactLight, dark: compactDark },
   playful: { light: playfulLight, dark: playfulDark },
