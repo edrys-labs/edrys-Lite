@@ -155,7 +155,11 @@
       </FieldLabel>
     </div>
 
-    <p class="custom-more">{{ t('settings.design.custom.more') }}</p>
+    <i18n-t keypath="settings.design.custom.more" tag="p" scope="global" class="custom-more">
+      <template #docs>
+        <a :href="docsUrl" target="_blank" rel="noopener">{{ t('settings.design.custom.docs') }}</a>
+      </template>
+    </i18n-t>
 
     <div class="custom-actions">
       <v-btn variant="outlined" height="36" prepend-icon="mdi-upload" @click="openDesignFile">
@@ -223,6 +227,10 @@ const COLOR_FIELDS = [
   { key: "surface-variant", label: "bar", textOn: ["on-surface-variant", "bar-icon"] },
 ];
 
+// the documentation's section that lists every field of a design file
+const DOCS_URL =
+  "https://LiaScript.github.io/course/?https://raw.githubusercontent.com/edrys-labs/documentation/refs/heads/main/README.md#Design-file";
+
 // a font's own name, the same in every language
 const FONT_NAMES: Record<keyof typeof FONTS, string> = {
   "noto-sans": "Noto Sans",
@@ -259,6 +267,7 @@ export default {
       fonts: FONTS,
       fontNames: FONT_NAMES,
       colorFields: COLOR_FIELDS,
+      docsUrl: DOCS_URL,
       cornerSteps: ["square", "less", "normal", "more", "round"],
       textSteps: ["smaller", "small", "normal", "large", "larger"],
     };
@@ -644,6 +653,10 @@ export default {
   font-size: var(--v-text-12);
   line-height: 1.45;
   color: rgb(var(--v-theme-muted));
+}
+
+.custom-more a {
+  color: rgb(var(--v-theme-link));
 }
 
 .custom-current {

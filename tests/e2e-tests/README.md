@@ -93,6 +93,7 @@ Failing tests in `messaging`/`station` attach `transport-log.txt`
 | `app.setup.spec.ts`   | owner configures name/rooms/module in the Settings UI (WS: + "keep in URL"); guest joins from the Communication tab's link: owner trust anchor enforced, signed setup applied (name, meta, module running, student role); promote to teacher via Members without reloading the owner; guest keeps the setup after the owner leaves |
 | `app.tutor.spec.ts`   | the student tutor of edrys-dev `--tutor`: the owner's `?dev` tab offers it, a student asks in its drawer and gets the answer through the owner tab; switched off in edrys-dev, the button goes, and comes back |
 | `app.teacher-moves.spec.ts` | "Only teachers can move students": the locked student sees the rooms but can't change them; the owner moves them from the move menu on their row, to a room and to a station; the owner picks two students with Select and moves them together; turning the setting on live keeps the student where they are, turning it off frees them |
+| `app.design.spec.ts` | the class design: a design tried in Settings shows only to the owner and goes back on close; a saved one (Playful) reaches the guest with its bar height and font, follows the guest's system Light/Dark, and the start page is Standard again; an uploaded design file shows its good entries to the guest (main color, base's look) and lists and drops the bad one |
 
 [`probe-module.ts`](app/probe-module.ts) serves a minimal module from the fake
 origin `http://e2e-module.test` (Playwright `context.route`; pass

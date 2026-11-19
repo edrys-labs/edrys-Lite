@@ -283,7 +283,8 @@ settings:
     custom:
       note: "Your own design starts from one of the designs. Change its main colors, corners and text size here, for Light and Dark."
       basedOn: "based on {base}"
-      more: "For every other color and size, use a design file: download yours or copy the example from the documentation, edit it, then upload it."
+      more: "For every other color and size, download your design file, edit it, then upload it. {docs} lists every field you can set."
+      docs: "The documentation"
       form:
         base: "Starts from"
         font: "Font"

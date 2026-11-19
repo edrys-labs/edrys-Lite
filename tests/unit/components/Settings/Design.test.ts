@@ -308,6 +308,16 @@ light:
         expect(wrapper.find('.custom-text .v-btn--active').text()).toBe('Normal');
       });
 
+      test('points to the documentation for every other field', () => {
+        const { wrapper } = custom();
+        const link = wrapper.find('.custom-more a');
+        expect(wrapper.find('.custom-more').text()).toContain('The documentation lists every field you can set.');
+        expect(link.text()).toBe('The documentation');
+        expect(link.attributes('href')).toMatch(/edrys-labs\/documentation\/.*README\.md#Design-file$/);
+        expect(link.attributes('target')).toBe('_blank');
+        expect(link.attributes('rel')).toBe('noopener');
+      });
+
       test('each font is named in its own font', () => {
         const { wrapper } = custom();
         const button = wrapper.findAll('.custom-font button').find((b) => b.text() === 'IBM Plex Sans')!;

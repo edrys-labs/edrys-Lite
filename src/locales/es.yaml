@@ -283,7 +283,8 @@ settings:
     custom:
       note: "Tu propio diseño parte de uno de los diseños. Cambia aquí sus colores principales, esquinas y tamaño de texto, para Claro y Oscuro."
       basedOn: "basado en {base}"
-      more: "Para el resto de colores y tamaños, usa un archivo de diseño: descarga el tuyo o copia el ejemplo de la documentación, edítalo y súbelo."
+      more: "Para el resto de colores y tamaños, descarga tu archivo de diseño, edítalo y vuelve a subirlo. {docs} recoge todos los campos que puedes definir."
+      docs: "La documentación"
       form:
         base: "Parte de"
         font: "Fuente"

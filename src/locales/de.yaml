@@ -283,7 +283,8 @@ settings:
     custom:
       note: "Dein eigenes Design geht von einem der Designs aus. Ändere hier seine Hauptfarben, Ecken und Schriftgröße, für Hell und Dunkel."
       basedOn: "auf Basis von {base}"
-      more: "Für alle weiteren Farben und Größen nutze eine Design-Datei: Lade deine herunter oder kopiere das Beispiel aus der Dokumentation, bearbeite sie und lade sie dann hoch."
+      more: "Für alle weiteren Farben und Größen lade deine Design-Datei herunter, bearbeite sie und lade sie wieder hoch. {docs} listet jedes Feld auf, das du setzen kannst."
+      docs: "Die Dokumentation"
       form:
         base: "Ausgehend von"
         font: "Schrift"
