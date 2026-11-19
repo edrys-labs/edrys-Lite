@@ -23,7 +23,7 @@
 
 <script lang="ts">
 import { debug } from "../api/debugHandler";
-import { activeTheme } from "../ts/Theme";
+import { activeAccent, activeTheme } from "../ts/Theme";
 
 export default {
   name: "Module",
@@ -66,6 +66,14 @@ export default {
     theme() {
       return activeTheme.value;
     },
+    // the class design's main color for the module's buttons; null = its own
+    accent() {
+      return activeAccent.value;
+    },
+    // one key for both, so a change of half that also changes the accent sends once
+    look() {
+      return JSON.stringify([this.theme, this.accent]);
+    },
   },
   watch: {
     liveClassProxy() {
@@ -74,20 +82,23 @@ export default {
     roomLabel() {
       if (this.loaded) this.updateIframe();
     },
-    theme(theme) {
+    look() {
+      this.sendTheme();
+    },
+  },
+
+  methods: {
+    sendTheme() {
       if (!this.loaded) return;
       try {
         this.$refs.iframe.contentWindow.postMessage(
-          { event: "theme", theme },
+          { event: "theme", theme: this.theme, accent: this.accent },
           this.targetOrigin()
         );
       } catch (e) {
         console.error("Module theme", e);
       }
     },
-  },
-
-  methods: {
     targetOrigin() {
       return this.scrapedModule.origin || this.iframeOrigin;
     },
@@ -113,6 +124,7 @@ export default {
             module: JSON.parse(JSON.stringify(this.scrapedModule)),
             class_id: this.class_id,
             theme: this.theme,
+            accent: this.accent,
             roomLabel: this.roomLabel,
           },
           this.targetOrigin()

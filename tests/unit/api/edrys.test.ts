@@ -284,6 +284,44 @@ describe('edrys.ts (module API bridge)', () => {
     expect(changed).not.toHaveBeenCalled();
   });
 
+  test("sets the class design's accent on <html> and clears it when none or a bad one comes", () => {
+    const style = document.documentElement.style;
+    const accent = () => [style.getPropertyValue('--edrys-primary'), style.getPropertyValue('--edrys-on-primary')];
+
+    sendInitialUpdate({ theme: 'light', accent: { primary: '#3d5a80', onPrimary: '#ffffff' } });
+    expect(accent()).toEqual(['#3d5a80', '#ffffff']);
+
+    sendFromParent({ event: 'theme', theme: 'dark', accent: { primary: '#4A6A94', onPrimary: '#000000' } });
+    expect(accent()).toEqual(['#4A6A94', '#000000']);
+
+    // from another window: nothing changes
+    sendFromParent({ event: 'theme', theme: 'dark', accent: { primary: '#ff0000', onPrimary: '#000000' } }, 'null', childFrameWindow());
+    expect(accent()).toEqual(['#4A6A94', '#000000']);
+
+    for (const bad of [
+      { primary: 'red', onPrimary: '#000000' },
+      { primary: '#112233; color: red', onPrimary: '#000000' },
+      { primary: 'url(https://evil.example)', onPrimary: '#000000' },
+      { primary: '#112233' },
+      'nope',
+    ]) {
+      sendFromParent({ event: 'theme', theme: 'dark', accent: { primary: '#123456', onPrimary: '#ffffff' } });
+      sendFromParent({ event: 'theme', theme: 'dark', accent: bad });
+      expect(accent()).toEqual(['', '']);
+    }
+
+    // onTheme handlers already see the new accent
+    let seen = '';
+    window['Edrys'].onTheme(() => (seen = style.getPropertyValue('--edrys-primary')));
+    sendFromParent({ event: 'theme', theme: 'light', accent: { primary: '#abcdef', onPrimary: '#000000' } });
+    expect(seen).toBe('#abcdef');
+
+    // an update without one (Standard, or an older edrys-Lite) clears it too
+    sendFromParent({ event: 'theme', theme: 'dark', accent: { primary: '#123456', onPrimary: '#ffffff' } });
+    sendInitialUpdate({ theme: 'dark' });
+    expect(accent()).toEqual(['', '']);
+  });
+
   test('init runs once and each change fires onUpdate once, however many updates arrive first', () => {
     vi.useFakeTimers();
     try {

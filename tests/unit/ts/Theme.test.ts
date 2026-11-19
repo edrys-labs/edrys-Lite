@@ -164,6 +164,26 @@ describe('Theme', () => {
     expect(activeLayout.value).toEqual({ bar: 56, drawer: 264, chat: 360 })
   })
 
+  test("the accent for modules is the design's main color in the half on screen, none for Standard's", async () => {
+    const { setDesign, activeTheme, activeAccent, designs } = await loadTheme()
+    activeTheme.value = 'light'
+    setDesign('standard')
+    expect(activeAccent.value).toBeNull()
+
+    setDesign('playful')
+    expect(activeAccent.value).toEqual({ primary: '#ff6fa5', onPrimary: designs.playful.light.colors!['on-primary'] })
+    setDesign('compact')
+    activeTheme.value = 'dark'
+    expect(activeAccent.value).toEqual({ primary: '#4a6a94', onPrimary: '#ffffff' })
+
+    const custom = (colors: any) => ({ name: '', base: 'standard' as const, variables: {}, layout: {}, colors })
+    setDesign('custom', custom({ light: {}, dark: { primary: '#112233', 'on-primary': '#ffffff' } }))
+    expect(activeAccent.value).toEqual({ primary: '#112233', onPrimary: '#ffffff' })
+    // a design whose colors are Standard's sends none
+    activeTheme.value = 'light'
+    expect(activeAccent.value).toBeNull()
+  })
+
   test('custom without its own design shows as Standard', async () => {
     const { setDesign, activeDesign } = await loadTheme()
     setDesign('custom')

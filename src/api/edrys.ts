@@ -110,6 +110,21 @@ function applyTheme(theme: any) {
   )
 }
 
+// The class design's main color and the text on it, sent with the theme.
+// Set over edrys-module.css's own as inline variables on <html>; anything
+// but two #rrggbb colors (Standard, or an older edrys-Lite) clears them.
+const HEX = /^#[0-9a-f]{6}$/i
+function applyAccent(accent: any) {
+  const style = document.documentElement.style
+  if (HEX.test(accent?.primary) && HEX.test(accent?.onPrimary)) {
+    style.setProperty('--edrys-primary', accent.primary)
+    style.setProperty('--edrys-on-primary', accent.onPrimary)
+  } else {
+    style.removeProperty('--edrys-primary')
+    style.removeProperty('--edrys-on-primary')
+  }
+}
+
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -575,6 +590,8 @@ window.addEventListener(
         } catch (e) {}
 
         window['Edrys'].class_id = e.data.class_id
+        // first: onTheme handlers read the colors
+        applyAccent(e.data.accent)
         applyTheme(e.data.theme)
 
         if (e.data.users) {
@@ -615,6 +632,8 @@ window.addEventListener(
         rtcConfig = e.data.config
         break
       case 'theme':
+        // first: onTheme handlers read the colors
+        applyAccent(e.data.accent)
         applyTheme(e.data.theme)
         break
       default:

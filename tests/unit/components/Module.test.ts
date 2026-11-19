@@ -2,7 +2,7 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import Module from '../../../src/components/Module.vue';
-import { activeTheme } from '../../../src/ts/Theme';
+import { activeTheme, setDesign } from '../../../src/ts/Theme';
 
 describe('Module Component', () => {
   let wrapper: any;
@@ -147,7 +147,34 @@ describe('Module Component', () => {
     mockPostMessage.mockClear();
     activeTheme.value = 'dark';
     await nextTick();
-    expect(mockPostMessage).toHaveBeenCalledWith({ event: 'theme', theme: 'dark' }, 'https://example.com');
+    expect(mockPostMessage).toHaveBeenCalledWith({ event: 'theme', theme: 'dark', accent: null }, 'https://example.com');
+    activeTheme.value = 'light';
+  });
+
+  test("sends the class design's accent with the update and once when the design changes", async () => {
+    activeTheme.value = 'light';
+    setDesign('standard');
+    wrapper = createWrapper();
+    await wrapper.find('iframe').trigger('load');
+    expect(mockPostMessage.mock.lastCall[0]).toMatchObject({ event: 'update', accent: null });
+
+    mockPostMessage.mockClear();
+    setDesign('compact');
+    await nextTick();
+    expect(mockPostMessage).toHaveBeenCalledTimes(1);
+    expect(mockPostMessage).toHaveBeenCalledWith(
+      { event: 'theme', theme: 'light', accent: { primary: '#3d5a80', onPrimary: '#ffffff' } },
+      'https://example.com'
+    );
+
+    // a change of half that also changes the accent sends one message
+    mockPostMessage.mockClear();
+    activeTheme.value = 'dark';
+    await nextTick();
+    expect(mockPostMessage).toHaveBeenCalledTimes(1);
+    expect(mockPostMessage.mock.lastCall[0].accent.primary).toBe('#4a6a94');
+
+    setDesign('standard');
     activeTheme.value = 'light';
   });
 

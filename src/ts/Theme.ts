@@ -682,6 +682,20 @@ export const activeLayout = computed(() => ({
 }))
 
 /**
+ * The active design's main color and the text on it, in the half on screen,
+ * for module pages (edrys.js sets them over edrys-module.css's own). Null
+ * when they are Standard's: modules already have those.
+ */
+export const activeAccent = computed<{ primary: string; onPrimary: string } | null>(() => {
+  const half = activeTheme.value
+  const custom = activeDesign.value === 'custom' ? activeCustom.value : null
+  const colors = { ...designs[activeBase.value][half].colors, ...custom?.colors[half] }
+  const standard = designs.standard[half].colors!
+  if (colors.primary === standard.primary && colors['on-primary'] === standard['on-primary']) return null
+  return { primary: colors.primary!, onPrimary: colors['on-primary']! }
+})
+
+/**
  * One half of the class's own design: its base's half (as Vuetify holds it,
  * with Vuetify's own defaults filled in) with the checked colors and
  * variables replaced.
