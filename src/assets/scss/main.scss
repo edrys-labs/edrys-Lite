@@ -279,14 +279,14 @@ code, kbd, pre, samp {
 // outlines on hard shadows, taller fields with thick outlines
 [data-design='playful'] body,
 [data-design='playful'] .v-application {
-    background-image: radial-gradient(rgb(var(--v-theme-dots)) 1.6px, transparent 1.8px);
+    background-image: var(--v-dots-image);
     background-size: 20px 20px;
 }
 
 [data-design='playful'] .v-btn.v-btn--variant-flat:not(.v-btn--disabled),
 [data-design='playful'] .v-btn.v-btn--variant-outlined:not(.v-btn--disabled) {
-    border: 2.5px solid rgb(var(--v-theme-ink));
-    box-shadow: 3px 3px 0 rgb(var(--v-theme-pop-2));
+    border: var(--v-line) solid rgb(var(--v-theme-ink));
+    box-shadow: calc(var(--v-pop-offset) * 0.75) calc(var(--v-pop-offset) * 0.75) 0 rgb(var(--v-theme-pop-2));
 }
 
 [data-design='playful'] .v-btn--size-default {
@@ -295,8 +295,8 @@ code, kbd, pre, samp {
 
 [data-design='playful'] .v-dialog > .v-overlay__content > .v-card,
 [data-design='playful'] .v-dialog > .v-overlay__content > form > .v-card {
-    border: 3px solid rgb(var(--v-theme-ink));
-    box-shadow: 10px 10px 0 rgb(var(--v-theme-pop));
+    border: calc(var(--v-line) * 1.2) solid rgb(var(--v-theme-ink));
+    box-shadow: calc(var(--v-pop-offset) * 2.5) calc(var(--v-pop-offset) * 2.5) 0 rgb(var(--v-theme-pop));
 }
 
 @media (min-width: 600px) {
@@ -311,5 +311,5 @@ code, kbd, pre, samp {
 }
 
 [data-design='playful'] .v-field .v-field__outline {
-    --v-field-border-width: 2.5px;
+    --v-field-border-width: var(--v-line);
 }

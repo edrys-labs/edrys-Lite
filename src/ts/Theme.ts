@@ -15,7 +15,11 @@ const shape = {
   'module-head': '36px', // a module's header strip
   'head-case': 'none', // module titles: none or uppercase
   'head-track': 'normal', // their letter spacing
-
+  // hard shadows and the dotted background, drawn only by designs whose CSS
+  // asks for them (Playful): outlines are --v-line wide (thinner ones 0.8x,
+  // dialogs 1.2x), shadows --v-pop-offset (buttons 0.75x, dialogs 2.5x)
+  'pop-offset': '0px',
+  'dots-image': 'none',
 
   'radius-dialog': '16px',
   'radius-card': '12px', // cards, module frames, pop-up menus
@@ -388,6 +392,8 @@ const playfulShape = {
   line: '2.5px',
   'bar-button': '46px',
   'module-head': '46px',
+  'pop-offset': '4px',
+  'dots-image': 'radial-gradient(rgb(var(--v-theme-dots)) 1.6px, transparent 1.8px)',
 
   'radius-dialog': '28px',
   'radius-card': '22px',

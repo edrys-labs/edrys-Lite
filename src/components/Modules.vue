@@ -809,7 +809,9 @@ export default {
 /* Playful: thick outlines on a hard shadow (small enough for the 10 px gap
    between modules), a color per header */
 [data-design='playful'] .item {
-  box-shadow: 0 0 0 2.5px rgb(var(--v-theme-module-edge)), 4px 4px 0 2.5px rgb(var(--v-theme-pop));
+  box-shadow:
+    0 0 0 var(--v-line) rgb(var(--v-theme-module-edge)),
+    var(--v-pop-offset) var(--v-pop-offset) 0 var(--v-line) rgb(var(--v-theme-pop));
 }
 
 [data-design='playful'] .item-header {

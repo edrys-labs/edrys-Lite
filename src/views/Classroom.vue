@@ -2308,7 +2308,7 @@ export default {
 [data-design='playful'] .room-pill {
   padding-block: 4px;
   padding-inline: 4px 14px;
-  border: 2.5px solid rgb(var(--v-theme-bar-icon));
+  border: var(--v-line) solid rgb(var(--v-theme-bar-icon));
   border-radius: 999px;
   transform: rotate(-2deg);
 }
@@ -2320,7 +2320,7 @@ export default {
 
 [data-design='playful'] .room-tile {
   box-sizing: border-box;
-  border: 2px solid rgb(var(--v-theme-ink));
+  border: calc(var(--v-line) * 0.8) solid rgb(var(--v-theme-ink));
 }
 
 [data-design='playful'] .drawer-head {
@@ -2342,13 +2342,15 @@ export default {
 }
 
 [data-design='playful'] .room-row--current {
-  box-shadow: 0 0 0 2.5px rgb(var(--v-theme-ink)), 4px 4px 0 2.5px rgb(var(--v-theme-pop-2));
+  box-shadow:
+    0 0 0 var(--v-line) rgb(var(--v-theme-ink)),
+    var(--v-pop-offset) var(--v-pop-offset) 0 var(--v-line) rgb(var(--v-theme-pop-2));
 }
 
 [data-design='playful'] .room-enter {
   width: 34px;
   height: 34px;
-  border: 2.5px solid rgb(var(--v-theme-ink));
+  border: var(--v-line) solid rgb(var(--v-theme-ink));
 }
 
 [data-design='playful'] .room-row--current .room-enter {

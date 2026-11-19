@@ -472,8 +472,8 @@ export default {
 }
 
 [data-design='playful'] .chat-message {
-  border: 2px solid rgb(var(--v-theme-ink));
-  box-shadow: 3px 3px 0 rgb(var(--v-theme-pop-2));
+  border: calc(var(--v-line) * 0.8) solid rgb(var(--v-theme-ink));
+  box-shadow: calc(var(--v-pop-offset) * 0.75) calc(var(--v-pop-offset) * 0.75) 0 rgb(var(--v-theme-pop-2));
 }
 
 [data-design='playful'][data-theme='dark'] .chat-message {
