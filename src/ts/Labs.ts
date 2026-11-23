@@ -44,6 +44,7 @@ const MODULE_LABELS: Record<string, string> = {
   'module-streaming': 'Camera',
   'module-avr8js': 'Arduino simulator',
   'module-blockly-duino-v2': 'BlockDuino',
+  'module-blockly-micropython': 'Blockly MicroPython',
   'module-serial': 'Serial',
   'module-micropython-webrepl': 'WebREPL',
   'module-micropython-simulator': 'MicroPython simulator',
