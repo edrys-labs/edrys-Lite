@@ -469,6 +469,8 @@ modules:
   loading: "Cargando módulos…"
   expand: "Ampliar módulo"
   collapse: "Salir de pantalla completa"
+  minimize: "Minimizar módulo"
+  restore: "Restaurar módulo"
   noModulesInRoom: "Ninguno de los módulos de esta clase está configurado para mostrarse en esta sala."
   noModules:
     teacher: "Esta clase aún no tiene módulos. Agrega algunos en la configuración de la clase para comenzar."

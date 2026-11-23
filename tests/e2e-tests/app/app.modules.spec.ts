@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
 import { createClassroom, joinClassroom, waitForMesh, inPeer, closeSessions, Session } from '../helpers'
 import { SCALE, eventually, marker, waitForVerified } from '../comm/helpers'
 import { routeProbeModule, ownerAddProbeModule, probe, inProbe, probeReceived } from './probe-module'
@@ -71,6 +71,42 @@ test.describe('App — modules in iframes', () => {
 
     await inProbe(owner!, () => (window as any).__probe.aw.setLocalState(null))
     await expect.poll(() => sees(guest!, o), { timeout: 15000 * SCALE }).toBe(false)
+  })
+
+  // the rooms drawer opens with the class, its scrim over the modules
+  async function closeRooms(page: Page) {
+    const rooms = page.getByRole('button', { name: 'Rooms' })
+    if ((await rooms.getAttribute('aria-expanded')) === 'true') await rooms.click()
+    await expect(page.locator('.rooms-drawer')).not.toBeInViewport()
+  }
+
+  test('a minimized module keeps running, and only for the viewer who minimized it', async () => {
+    const item = (s: Session) => s.page.locator('.item').first()
+    const kept = marker('unsynced')
+    const whileHidden = marker('while-minimized')
+
+    // Page state that only lives in this frame: lost if the frame reloaded.
+    await inProbe(owner!, (v) => ((window as any).__probe.kept = v), kept)
+    await closeRooms(owner!.page)
+    const fullHeight = (await item(owner!).boundingBox())!.height
+
+    await item(owner!).getByRole('button', { name: 'Minimize module' }).click()
+    await expect(item(owner!)).toHaveClass(/item--minimized/)
+    await expect(item(owner!).locator('iframe')).toBeHidden()
+    await expect.poll(async () => (await item(owner!).boundingBox())!.height).toBeLessThan(80)
+
+    // The other viewer still sees it open.
+    await expect(item(guest!)).not.toHaveClass(/item--minimized/)
+    await expect(item(guest!).locator('iframe')).toBeVisible()
+
+    // Messages still reach the hidden module.
+    await send(guest!, whileHidden, 'hi')
+    await expect.poll(() => probeReceived(owner!, whileHidden), { timeout: 10000 * SCALE }).toEqual(['hi'])
+
+    await item(owner!).getByRole('button', { name: 'Restore module' }).click()
+    await expect(item(owner!).locator('iframe')).toBeVisible()
+    await expect.poll(async () => (await item(owner!).boundingBox())!.height).toBeCloseTo(fullHeight, 0)
+    expect(await inProbe(owner!, () => (window as any).__probe.kept)).toBe(kept)
   })
 
   test('shared module text syncs both ways and survives a reload', async () => {

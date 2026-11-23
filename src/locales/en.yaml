@@ -469,6 +469,8 @@ modules:
   loading: "Loading modules…"
   expand: "Expand module"
   collapse: "Leave full screen"
+  minimize: "Minimize module"
+  restore: "Restore module"
   noModulesInRoom: "None of this classroom's modules are configured to show in this room."
   noModules:
     teacher: "This class doesn't have any modules yet. Add some in the class settings to get started."

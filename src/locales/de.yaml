@@ -469,6 +469,8 @@ modules:
   loading: "Module werden geladen…"
   expand: "Modul vergrößern"
   collapse: "Vollbild verlassen"
+  minimize: "Modul minimieren"
+  restore: "Modul wiederherstellen"
   noModulesInRoom: "Keines der Module dieser Klasse ist für diesen Raum konfiguriert."
   noModules:
     teacher: "Diese Klasse hat noch keine Module. Fügen Sie einige in den Klasseneinstellungen hinzu, um loszulegen."

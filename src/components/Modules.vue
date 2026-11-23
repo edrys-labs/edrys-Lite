@@ -56,6 +56,8 @@ export default {
       fullscreenKey: null as string | null,
       // itemKey of the module filling the window, where elements can't go full screen (iPhone)
       expandedKey: null as string | null,
+      // itemKeys of the modules folded down to their header (this viewer only)
+      minimizedKeys: {} as Record<string, boolean>,
     };
   },
 
@@ -220,6 +222,12 @@ export default {
       const element = target?.closest?.(".item") as HTMLElement;
       if (!element) return;
 
+      // A minimized module is all header: anywhere on it moves it.
+      if (this.minimizedKeys[element.dataset.itemKey ?? ""]) {
+        this.isMoving = true;
+        return;
+      }
+
       const rect = element.getBoundingClientRect();
       const nearBottom = rect.bottom - event.clientY < 16;
       const nearRight = rect.right - event.clientX < 16;
@@ -258,6 +266,8 @@ export default {
     // Shows the module (header and frame) full screen, or leaves it.
     toggleFullscreen(event: MouseEvent) {
       const item = (event.currentTarget as HTMLElement).closest(".item") as HTMLElement;
+      const key = item?.dataset.itemKey;
+      if (key && this.minimizedKeys[key]) this.toggleMinimized(key);
       if (document.fullscreenElement) {
         document.exitFullscreen?.();
       } else if (this.expandedKey) {
@@ -267,6 +277,15 @@ export default {
       } else {
         this.expandedKey = item?.dataset.itemKey ?? null;
       }
+    },
+
+    // Folds the module to its header or opens it again. The frame stays
+    // loaded (only hidden), so a terminal, a station link or unsaved text
+    // survive; the grid then moves the other modules into the free space.
+    toggleMinimized(key: string) {
+      if (this.minimizedKeys[key]) delete this.minimizedKeys[key];
+      else this.minimizedKeys[key] = true;
+      this.$nextTick(() => this.grid?.refreshItems().layout());
     },
 
     isExpanded(key: string): boolean {
@@ -526,7 +545,10 @@ export default {
         :class="[
           size(m.height, m.width),
           'item--head-' + ((Number(i) % 4) + 1),
-          { 'item--expanded': expandedKey === itemKey(m, i) },
+          {
+            'item--expanded': expandedKey === itemKey(m, i),
+            'item--minimized': minimizedKeys[itemKey(m, i)],
+          },
         ]"
         :width="width(m.width)"
         :height="height(m.height)"
@@ -534,6 +556,19 @@ export default {
       >
         <div class="item-header">
           <span class="item-title">{{ m.name }}</span>
+          <button
+            v-if="!isExpanded(itemKey(m, i))"
+            type="button"
+            class="item-minimize"
+            :aria-label="minimizedKeys[itemKey(m, i)] ? t('modules.restore') : t('modules.minimize')"
+            :aria-expanded="!minimizedKeys[itemKey(m, i)]"
+            @click="toggleMinimized(itemKey(m, i))"
+          >
+            <v-icon
+              :icon="minimizedKeys[itemKey(m, i)] ? 'mdi-window-restore' : 'mdi-window-minimize'"
+              size="16"
+            ></v-icon>
+          </button>
           <button
             type="button"
             class="item-expand"
@@ -674,7 +709,8 @@ export default {
   color: rgb(var(--v-theme-muted));
 }
 
-.item-expand {
+.item-expand,
+.item-minimize {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -685,11 +721,13 @@ export default {
   cursor: pointer;
 }
 
-.item-expand:hover {
+.item-expand:hover,
+.item-minimize:hover {
   background: rgb(var(--v-theme-module-line));
 }
 
-.item-expand:focus-visible {
+.item-expand:focus-visible,
+.item-minimize:focus-visible {
   outline: 2px solid rgb(var(--v-theme-focus));
   outline-offset: 2px;
 }
@@ -699,6 +737,20 @@ export default {
 .item--expanded {
   border-radius: 0;
   resize: none;
+}
+
+/* minimized: only the header shows; the frame stays loaded, just hidden */
+.grid .item.item--minimized {
+  height: auto !important;
+  resize: none;
+}
+
+.item--minimized .item-header {
+  border-bottom: none;
+}
+
+.item--minimized .item-content {
+  display: none;
 }
 
 /* phones: one module under the other, full width, at most 70% of the screen tall */
@@ -724,7 +776,8 @@ export default {
   cursor: default;
 }
 
-.grid--stacked .item-expand {
+.grid--stacked .item-expand,
+.grid--stacked .item-minimize {
   width: 40px;
   height: 40px;
   border-radius: var(--v-radius-control);

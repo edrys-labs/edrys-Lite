@@ -539,6 +539,69 @@ describe('Modules Component', () => {
 
       delete (document as any).fullscreenElement;
     });
+
+    test('minimize folds the module to its header and keeps its frame', async () => {
+      wrapper = createWrapper({ scrapedModules_: everywhere });
+      const grid = wrapper.vm.grid;
+      const minimize = () => wrapper.find('.item-minimize');
+
+      expect(minimize().attributes('aria-label')).toBe('Minimize module');
+      await minimize().trigger('click');
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find('.item').classes()).toContain('item--minimized');
+      expect(minimize().attributes('aria-label')).toBe('Restore module');
+      expect(minimize().attributes('aria-expanded')).toBe('false');
+      // Still mounted (hidden by CSS), so the module's iframe isn't reloaded.
+      expect(wrapper.findAllComponents({ name: 'Module' }).length).toBe(1);
+      expect(grid.refreshItems).toHaveBeenCalled();
+      expect(grid.layout).toHaveBeenCalled();
+
+      await minimize().trigger('click');
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find('.item').classes()).not.toContain('item--minimized');
+      expect(minimize().attributes('aria-label')).toBe('Minimize module');
+    });
+
+    test('minimized is kept per room', async () => {
+      const inRoom = (room: string) => ({ users: { 'test-user': { room } } });
+      wrapper = createWrapper({ scrapedModules_: everywhere, liveClassProxy: inRoom('Room 1') });
+
+      await wrapper.find('.item-minimize').trigger('click');
+      await wrapper.setProps({ liveClassProxy: inRoom('Room 2') });
+      expect(wrapper.find('.item').classes()).not.toContain('item--minimized');
+
+      await wrapper.setProps({ liveClassProxy: inRoom('Room 1') });
+      expect(wrapper.find('.item').classes()).toContain('item--minimized');
+    });
+
+    test('a minimized module moves from anywhere on it, it has no resize edge', async () => {
+      wrapper = createWrapper({ scrapedModules_: everywhere });
+      await wrapper.find('.item-minimize').trigger('click');
+      const item = wrapper.find('.item').element as HTMLElement;
+      item.getBoundingClientRect = () =>
+        ({ top: 0, left: 0, bottom: 40, right: 250, width: 250, height: 40 }) as DOMRect;
+
+      item.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 245, clientY: 35 }));
+      expect(wrapper.vm.isResizing).toBe(false);
+      expect(wrapper.vm.isMoving).toBe(true);
+      window.dispatchEvent(new MouseEvent('mouseup'));
+    });
+
+    test('expanding a minimized module restores it, and minimize hides while expanded', async () => {
+      wrapper = createWrapper({ scrapedModules_: everywhere });
+      // No Fullscreen API: falls back to filling the window.
+      (wrapper.find('.item').element as any).requestFullscreen = undefined;
+
+      await wrapper.find('.item-minimize').trigger('click');
+      await wrapper.find('.item-expand').trigger('click');
+      await wrapper.vm.$nextTick();
+
+      const item = wrapper.find('.item');
+      expect(item.classes()).toContain('item--expanded');
+      expect(item.classes()).not.toContain('item--minimized');
+      expect(wrapper.find('.item-minimize').exists()).toBe(false);
+    });
   });
 
   describe('showIn room names', () => {
