@@ -19,6 +19,7 @@
     "test:e2e": "playwright test tests/e2e-tests/comm tests/e2e-tests/app --project=${E2E_BROWSER:-chromium} --workers=1",
     "test:e2e:ws": "E2E_TRANSPORT=ws npm run test:e2e --",
     "test:e2e:load": "playwright test tests/e2e-tests/load --project=chromium --workers=1",
+    "test:e2e:scale": "CLASS_SIZES=${CLASS_SIZES:-5,10,20} playwright test tests/e2e-tests/load/class-scale.spec.ts --project=chromium --workers=1",
     "build": "rm -rf .parcel-cache && rm -rf dist && npm run build:edrys && npx parcel build src/index.html --log-level verbose  --no-scope-hoist --no-source-maps --public-url ./ && cp -r public/* dist/",
     "watch": "rm -rf dist && npm run watch:edrys && npx parcel serve src/*.html --no-cache --open --port 6999",
     "minify:js": "find dist -name \"*.js\" -print0 | xargs -0 -P 4 -I {} sh -c 'before=$(wc -c < {}); npx minify --js {} > {}.min && after=$(wc -c < {}.min); if [ ${after} -lt ${before} ]; then mv {}.min {}; reduction=$((${before}-${after})); percent=$(awk \"BEGIN {printf \\\"%.2f\\\", ${reduction}/${before}*100}\"); echo \"{} reduced from ${before} to ${after} bytes (${percent}% reduction)\"; else rm {}.min; echo \"{} no reduction achieved, file size unchanged\"; fi'",

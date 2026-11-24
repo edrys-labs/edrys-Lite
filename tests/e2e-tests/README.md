@@ -15,7 +15,7 @@ the Peer last handed to the UI, the chat it shows and the setup it applied.
 | ---------------- | ------------------------------------------------------------------------------ |
 | [`comm/`](comm)  | the transports: shared state, module messages, awareness, leave/reload, stations, republish |
 | [`app/`](app)    | app surfaces: modules in real iframes via `$Edrys`, the owner's Settings → share → join flow |
-| [`load/`](load)  | one station with 5 peers on mixed browsers and throttled networks              |
+| [`load/`](load)  | one station with 5 peers on mixed browsers and throttled networks; class-size scaling (opt-in) |
 
 ## Setup
 
@@ -33,6 +33,7 @@ npm run test:e2e:ws                       # over the WebSocket relay
 E2E_BROWSER=firefox npm run test:e2e      # another browser (firefox, webkit)
 npm run test:e2e -- --repeat-each=5       # extra Playwright flags go after --
 npm run test:e2e:load                     # load/ (chromium only, see below)
+npm run test:e2e:scale                    # class-size scaling, 5/10/20 students (opt-in, see below)
 ```
 
 Running Playwright directly, always pass one `--project` (browser) and
@@ -136,3 +137,43 @@ one-time convergence). It checks presence only, not module interaction.
 Kept to 5 peers on purpose: each is a full browser process, and an earlier
 10-peer version exhausted a developer machine. Raise `PEER_COUNT` /
 `NETWORK_PROFILES` only on a machine provisioned for it (e.g. CI).
+
+## `load/class-scale` — class-size scaling (opt-in)
+
+[`class-scale.spec.ts`](load/class-scale.spec.ts) measures how long a class
+of N students takes to come together and whether it stays together. For each
+N, the owner creates a class and imports a real lab, then all N students open
+the join link at the same moment (start of class). From that moment it
+records when the slowest page booted, when every student had the lab config,
+when the owner saw all students, when every student saw the owner and
+everyone else, then chat latency to all students and whether presence stays
+complete for `HOLD_MS` (longer than the 30s awareness timeout). A class that
+doesn't converge gets a per-student `diag` of its transport state
+(`maxConns`, open vs. pending connections, signaling).
+
+```bash
+npm run test:e2e:scale                         # 5, 10, 20 students over WebRTC
+CLASS_SIZES=5,10,20,30 npm run test:e2e:scale  # other class sizes
+E2E_TRANSPORT=ws npm run test:e2e:scale        # over the WebSocket relay
+```
+
+Skipped unless `CLASS_SIZES` is set, so `test:e2e:load` doesn't run it. Each
+class size takes 1-5 minutes. Results are printed and written to
+`test-results/class-scale-<transport>.json`.
+
+| Variable      | Default | Meaning                                                    |
+| ------------- | ------- | ---------------------------------------------------------- |
+| `CLASS_SIZES` | (unset: skipped; the npm script sets `5,10,20`) | student counts to run |
+| `HOLD_MS`     | `60000` | how long presence must stay complete per class             |
+| `LAB_DIR`     | sibling `Edrys_Laboratories/lab-tubaf-embedded-systems/laboratory/de` | lab folder, served locally; if missing, the published copy on GitHub is used |
+| `LAB_FILE`    | `task-1.yaml` | lab file in `LAB_DIR`                                 |
+
+Students are separate contexts (separate identities) in one chromium
+process, with module iframes blocked: each page runs the full app and sync
+layer with the lab's config, but not the modules. **All peers share one
+machine:** WebRTC connections never leave it (no TURN, no real network), and
+CPU becomes the limit before edrys does. On an 8-core laptop, 30 students
+pushed the load average to ~14, so check the `load1` column before reading a
+failure as an edrys problem. It measures how sync and presence scale with
+class size, not real network conditions.
+
