@@ -10,19 +10,26 @@
 import { debug } from './debugHandler'
 import { Peer } from 'peerjs'
 
-// 64-bit FNV-1a as 16 hex chars: synchronous, and unique enough for peer IDs.
-function fnv1a64(text: string): string {
-  let hash = 0xcbf29ce484222325n
-  for (const byte of new TextEncoder().encode(text)) {
-    hash ^= BigInt(byte)
-    hash = (hash * 0x100000001b3n) & 0xffffffffffffffffn
-  }
-  return hash.toString(16).padStart(16, '0')
+function toHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-// Hashed, not truncated: two streams of one station whose names differ only late.
-function generateStreamPeerID(context: any, streamName: string): string {
-  return `stream_${fnv1a64(`${context.class_id}/${context.liveUser.room}/${streamName}`)}`
+function randomHex(bytes = 16): string {
+  return toHex(crypto.getRandomValues(new Uint8Array(bytes)))
+}
+
+async function sha256Hex(text: string): Promise<string> {
+  return toHex(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))))
+}
+
+// Viewers take a stream's whereabouts (PeerJS id, relay room) only from a
+// station or a teacher. `from` can be trusted: edrys delivers a message only
+// if it is signed for its `from`, and roles come from the signed presence and
+// setup. Anyone else in the room could otherwise announce a stream of their
+// own.
+function fromStreamSource(context: any, from: string): boolean {
+  const role = context.liveClass?.users?.[from]?.role
+  return role === 'station' || role === 'teacher'
 }
 
 // Namespaced handshake subjects (won't collide with module messages).
@@ -53,10 +60,10 @@ export class StreamServer {
   private streamName: string
   private calls: Map<string, any> = new Map()
   private unsubscribeMessage: (() => void) | null = null
-  // Anyone can work out this stream's peer ID, so a viewer is only called
-  // back once it asked for the stream with its PeerJS id in a STREAM_REQUEST:
-  // edrys delivers that message only if it is signed by a member in this
-  // room. A connection that comes first waits for its request.
+  // A viewer is only called back once it asked for the stream with its
+  // PeerJS id in a STREAM_REQUEST: edrys delivers that message only if it is
+  // signed by a member in this room. A connection that comes first waits for
+  // its request.
   private viewers: Set<string> = new Set()
   private waiting: Map<string, any> = new Map()
 
@@ -71,9 +78,10 @@ export class StreamServer {
     this.stream = stream
     this.streamName = streamName || `${this.context.username}-stream`
 
-    const peerId = generateStreamPeerID(context, this.streamName)
+    // Random, and handed to viewers in STREAM_READY: an id they could work out
+    // could also be taken on the PeerJS server before the station takes it.
     const peerOptions = getPeerOptions(rtcConfig, peerServerConfig)
-    this.peer = new Peer(peerId, peerOptions)
+    this.peer = new Peer(`stream_${randomHex()}`, peerOptions)
     this.setupPeerEvents()
   }
 
@@ -127,7 +135,9 @@ export class StreamServer {
   }
 
   private announceReady() {
-    this.context.sendMessage(STREAM_READY, { streamName: this.streamName })
+    // Before the id is registered, viewers would only get `peer-unavailable`.
+    if (!this.peer.open) return
+    this.context.sendMessage(STREAM_READY, { streamName: this.streamName, peerId: this.peer.id })
   }
 
   private callClient(clientPeerId: string) {
@@ -222,6 +232,8 @@ export class StreamClient {
   // Media is coming in: only then stop asking, since the server holds a
   // connection until a request from us reaches it.
   private receiving: boolean = false
+  // The station's PeerJS id, as it announced it in STREAM_READY.
+  private stationId: string | null = null
 
   constructor(
     context: any,
@@ -240,14 +252,18 @@ export class StreamClient {
   }
 
   private setupPeerEvents() {
-    // Connect when the server announces it's ready.
-    this.unsubscribeMessage = this.context.onMessage(({ subject, body }: any) => {
+    // Connect when the server announces it's ready, to the id it names. A new
+    // id means the station restarted.
+    this.unsubscribeMessage = this.context.onMessage(({ from, subject, body }: any) => {
       if (
         subject === STREAM_READY &&
         body?.streamName === this.defaultStreamName &&
-        !this.currentConnection
+        typeof body.peerId === 'string' &&
+        fromStreamSource(this.context, from) &&
+        (body.peerId !== this.stationId || !this.currentConnection)
       ) {
-        this.selectStream(this.defaultStreamName!)
+        this.reconnectAttempts = 0
+        this.connectTo(body.peerId)
       }
     })
 
@@ -263,7 +279,14 @@ export class StreamClient {
       }
     })
 
+    // Our PeerJS id is in every STREAM_REQUEST, so anyone in the room can
+    // call us: take media only from the station we connected to.
     this.peer.on('call', (call) => {
+      if (!this.stationId || call.peer !== this.stationId) {
+        debug.api.general('StreamClient rejected a call from:', call.peer)
+        call.close()
+        return
+      }
       call.answer()
 
       call.on('close', () => {
@@ -273,7 +296,7 @@ export class StreamClient {
       call.on('stream', (remoteStream) => {
         this.receiving = true
         const metadata = {
-          streamName: this.currentStreamName || 'unknown',
+          streamName: this.defaultStreamName || 'unknown',
           room: this.context.liveUser?.room
         }
         this.handler(remoteStream, this.context.module.stationConfig || {}, metadata)
@@ -286,11 +309,11 @@ export class StreamClient {
       // Safety net only: if a connect attempt raced the server registration,
       // retry briefly. The handshake is the primary connection path.
       if (err.type === 'peer-unavailable' || err.message?.includes('Could not connect to peer')) {
-        if (this.currentStreamName && this.reconnectAttempts < this.maxReconnectAttempts) {
+        if (this.stationId && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++
           this.connectionTimeout = setTimeout(() => {
-            if (!this.peer.destroyed && this.currentStreamName) {
-              this.selectStream(this.currentStreamName!)
+            if (!this.peer.destroyed && this.stationId) {
+              this.connectTo(this.stationId)
             }
           }, this.reconnectDelay)
         }
@@ -304,8 +327,6 @@ export class StreamClient {
     })
   }
 
-  private currentStreamName?: string
-
   // Our PeerJS id tells the server whom to call back.
   private requestStream() {
     this.context.sendMessage(STREAM_REQUEST, {
@@ -314,15 +335,15 @@ export class StreamClient {
     })
   }
 
-  public selectStream(streamName: string) {
+  private connectTo(streamPeerID: string) {
     // Clear any pending connection attempts
     if (this.connectionTimeout) {
       clearTimeout(this.connectionTimeout)
       this.connectionTimeout = null
     }
 
-    const streamPeerID = generateStreamPeerID(this.context, streamName)
-    this.currentStreamName = streamName
+    if (streamPeerID !== this.stationId) this.receiving = false
+    this.stationId = streamPeerID
 
     // Close existing connection if any
     if (this.currentConnection) {
@@ -372,14 +393,14 @@ export class StreamClient {
   }
 
   private handleConnectionFailure() {
-    if (this.currentStreamName && this.reconnectAttempts < this.maxReconnectAttempts) {
+    if (this.stationId && this.reconnectAttempts < this.maxReconnectAttempts) {
       const baseDelay = this.isInitialConnection ? this.reconnectDelay * 2 : this.reconnectDelay
       const delay = baseDelay * Math.pow(2, this.reconnectAttempts)
       this.reconnectAttempts++
 
       this.connectionTimeout = setTimeout(() => {
-        if (!this.peer.destroyed && this.currentStreamName) {
-          this.selectStream(this.currentStreamName)
+        if (!this.peer.destroyed && this.stationId) {
+          this.connectTo(this.stationId)
         }
       }, delay)
     } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
@@ -434,14 +455,6 @@ const WS_RECONNECT_MAX_MS = 15000
 const WS_STREAM_READY = '__edrys_ws_stream_ready'
 const WS_STREAM_REQUEST = '__edrys_ws_stream_request'
 
-// The relay lets anyone join a room, or take over its source, so the room id
-// is the key: random per stream, and handed out only in edrys messages, which
-// reach members in the station's room only.
-function randomRoomId(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(16))
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-}
-
 abstract class WebSocketStreamBase {
   protected context: any
   protected wsConnection: WebSocket | null = null
@@ -451,7 +464,7 @@ abstract class WebSocketStreamBase {
   private label: string
   private reconnectDelay = WS_RECONNECT_BASE_MS
   private reconnectTimer: any = null
-  private stopped = false
+  protected stopped = false
 
   constructor(context: any, options: any, label: string) {
     this.context = context
@@ -513,18 +526,34 @@ export class WebSocketStreamServer extends WebSocketStreamBase {
   private recorder: MediaRecorder | null = null
   private restartTimer: any = null
   private unsubscribeMessage: (() => void) | null = null
+  // Only the holder of this key can be the source of its relay room: the room
+  // id is its SHA-256, which the relay checks. Viewers learn the room id from
+  // edrys messages; the key never leaves the station.
+  private sourceKey = randomHex(32)
 
   constructor(context: any, stream: MediaStream, options: any = {}) {
     super(context, options, 'WebSocketStreamServer')
     this.stream = stream
-    this.roomId = randomRoomId()
     // Tell viewers that ask (late joiners) which relay room to join.
     this.unsubscribeMessage = context.onMessage(({ subject, body }: any) => {
       if (subject === WS_STREAM_REQUEST && body?.streamName === this.streamName) {
         this.announce()
       }
     })
-    this.connect()
+    sha256Hex(this.sourceKey)
+      .then((roomId) => {
+        if (this.stopped) return
+        this.roomId = roomId
+        this.connect()
+      })
+      .catch((error: any) =>
+        // not a debug log: without it, a module on plain http just never streams
+        console.warn(
+          '[Edrys] sendStream with method "websocket" needs the module served over https or from localhost ' +
+            '(crypto.subtle is missing here):',
+          error?.message || error
+        )
+      )
   }
 
   protected onOpen() {
@@ -534,6 +563,7 @@ export class WebSocketStreamServer extends WebSocketStreamBase {
   }
 
   private announce() {
+    if (!this.roomId) return
     this.context.sendMessage(WS_STREAM_READY, { streamName: this.streamName, roomId: this.roomId })
   }
 
@@ -543,6 +573,7 @@ export class WebSocketStreamServer extends WebSocketStreamBase {
     this.send({
       type: 'register-source',
       roomId: this.roomId,
+      sourceKey: this.sourceKey,
       streamName: this.streamName,
       mimeType: this.mimeType,
     })
@@ -640,9 +671,9 @@ export class WebSocketStreamClient extends WebSocketStreamBase {
     this.handler = handler
 
     // The station names its relay room in an edrys message; join only that.
-    this.unsubscribeMessage = context.onMessage(({ subject, body }: any) => {
+    this.unsubscribeMessage = context.onMessage(({ from, subject, body }: any) => {
       if (subject !== WS_STREAM_READY || body?.streamName !== this.streamName) return
-      if (typeof body.roomId !== 'string') return
+      if (typeof body.roomId !== 'string' || !fromStreamSource(this.context, from)) return
       this.asking = false
       if (body.roomId === this.roomId) return
       this.roomId = body.roomId

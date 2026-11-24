@@ -56,10 +56,17 @@ import {
   WebSocketStreamClient,
 } from '../../../src/api/streamHandler';
 
+// Roles as edrys builds them from the signed presence and setup.
+const USERS = {
+  station: { role: 'station' },
+  teacher: { role: 'teacher' },
+  student: { role: 'student' },
+};
+
 function makeContext(overrides: any = {}) {
   return {
-    class_id: 'class1',
     liveUser: { room: 'Room A' },
+    liveClass: { users: USERS },
     username: 'alice',
     module: { stationConfig: {} },
     sendMessage: () => {},
@@ -69,6 +76,7 @@ function makeContext(overrides: any = {}) {
 }
 
 const STREAM_REQUEST = '__edrys_stream_request';
+const STREAM_READY = '__edrys_stream_ready';
 
 // A DataConnection from `peer` that the test can close.
 function fakeConnection(peer: string) {
@@ -126,34 +134,106 @@ describe('who a station streams to', () => {
   });
 });
 
+// A media call from `peer`: whether it was answered or closed, and its handlers.
+function fakeCall(peer: string) {
+  const call = {
+    peer,
+    answered: false,
+    closed: false,
+    handlers: {} as Record<string, Function>,
+    answer() { call.answered = true; },
+    close() { call.closed = true; },
+    on(e: string, cb: Function) { call.handlers[e] = cb; },
+  };
+  return call;
+}
+
 describe('a viewer asking for a stream', () => {
+  let onMessage: Function;
+  let sent: any[];
+  let connected: string[];
+  let streams: any[];
+  let client: StreamClient;
+
   beforeEach(() => {
     instances = [];
+    sent = [];
+    connected = [];
+    streams = [];
     vi.useFakeTimers();
+    const context = makeContext({
+      sendMessage: (subject: string, body: any) => sent.push([subject, body]),
+      onMessage: (h: Function) => { onMessage = h; return () => {}; },
+    });
+    client = new StreamClient(context, (s) => streams.push(s), {}, 'Camera 1');
+    (instances[0] as any).connect = (id: string) => { connected.push(id); return fakeConnection(id); };
+    instances[0].emit('open');
   });
 
+  afterEach(() => {
+    client.stop();
+    vi.useRealTimers();
+  });
+
+  const ready = (from: string, peerId: string, streamName = 'Camera 1') =>
+    onMessage({ from, subject: STREAM_READY, body: { streamName, peerId } });
+
   test('names its PeerJS id, and keeps asking until media arrives', () => {
-    const sent: any[] = [];
-    const context = makeContext({ sendMessage: (subject: string, body: any) => sent.push([subject, body]) });
-    const client = new StreamClient(context, () => {}, {}, 'Camera 1');
-    const peer = instances[0];
-    peer.emit('open');
     expect(sent).toEqual([[STREAM_REQUEST, { streamName: 'Camera 1', peerId: 'auto-id' }]]);
 
     // Connected, but the station hasn't called back yet
-    (peer as any).connect = () => fakeConnection('station');
-    client.selectStream('Camera 1');
+    ready('station', 'stream_abc');
     vi.advanceTimersByTime(3000);
     expect(sent.length).toBe(2);
 
-    const callHandlers: Record<string, Function> = {};
-    peer.emit('call', { answer: () => {}, on: (e: string, cb: Function) => { callHandlers[e] = cb; } });
-    callHandlers.stream({});
+    const call = fakeCall('stream_abc');
+    instances[0].emit('call', call);
+    call.handlers.stream({});
     vi.advanceTimersByTime(6000);
     expect(sent.length).toBe(2);
+  });
 
-    client.stop();
-    vi.useRealTimers();
+  test('connects to the id a station or teacher announces', () => {
+    ready('station', 'stream_station');
+    ready('teacher', 'stream_teacher');
+    expect(connected).toEqual(['stream_station', 'stream_teacher']);
+  });
+
+  test('ignores an announcement from a student, an unknown sender, or without an id', () => {
+    ready('student', 'stream_student');
+    ready('nobody', 'stream_nobody');
+    onMessage({ from: 'station', subject: STREAM_READY, body: { streamName: 'Camera 1' } });
+    ready('station', 'stream_other', 'Camera 2');
+    expect(connected).toEqual([]);
+  });
+
+  test('answers only calls from the station it connected to', () => {
+    const before = fakeCall('stream_abc');
+    instances[0].emit('call', before);
+    expect(before.closed).toBe(true);
+
+    ready('station', 'stream_abc');
+    const rogue = fakeCall('someone-else');
+    instances[0].emit('call', rogue);
+    expect(rogue.answered).toBe(false);
+    expect(rogue.closed).toBe(true);
+
+    const station = fakeCall('stream_abc');
+    instances[0].emit('call', station);
+    expect(station.answered).toBe(true);
+    station.handlers.stream('media');
+    expect(streams).toEqual(['media']);
+  });
+
+  test('follows a restarted station to its new id', () => {
+    ready('station', 'stream_old');
+    ready('station', 'stream_old');
+    ready('station', 'stream_new');
+    expect(connected).toEqual(['stream_old', 'stream_new']);
+
+    const old = fakeCall('stream_old');
+    instances[0].emit('call', old);
+    expect(old.answered).toBe(false);
   });
 });
 
@@ -176,17 +256,21 @@ describe('websocket streams: the relay room is handed out through edrys', () => 
 
   class FakeMediaSource { addEventListener() {} static isTypeSupported() { return true; } }
 
-  // Edrys messages between one station and its viewers, as the host delivers them.
+  // Edrys messages in one room, as the host delivers them; `from` names the
+  // sender (a key of USERS).
   function room() {
     const listeners: Function[] = [];
-    const context = (overrides: any = {}) =>
+    const context = (from = 'station') =>
       makeContext({
-        sendMessage: (subject: string, body: any) => listeners.forEach((l) => l({ subject, body })),
+        sendMessage: (subject: string, body: any) => listeners.forEach((l) => l({ from, subject, body })),
         onMessage: (h: Function) => { listeners.push(h); return () => listeners.splice(listeners.indexOf(h), 1); },
-        ...overrides,
       });
     return { context };
   }
+
+  // A station connects once its room id is hashed from its key (async).
+  const sockets = (n: number) => vi.waitFor(() => expect(FakeSocket.all.length).toBe(n));
+  const registration = (s: FakeSocket) => s.sent.find((m) => m.type === 'register-source');
 
   const camera = { getVideoTracks: () => [{}], getAudioTracks: () => [] } as unknown as MediaStream;
 
@@ -205,24 +289,56 @@ describe('websocket streams: the relay room is handed out through edrys', () => 
 
   const options = { websocketUrl: 'wss://relay.example/stream', streamName: 'Camera 1' };
 
-  test('a station registers under a random room, not one derived from the class', () => {
+  test('a station registers with a random key, under the room id that is its SHA-256', async () => {
     const { context } = room();
     new WebSocketStreamServer(context(), camera, options);
     new WebSocketStreamServer(context(), camera, options);
+    await sockets(2);
     FakeSocket.all.forEach((s) => s.open());
 
-    const rooms = FakeSocket.all.map((s) => s.sent.find((m) => m.type === 'register-source').roomId);
-    for (const id of rooms) expect(id).toMatch(/^[0-9a-f]{32}$/);
-    expect(rooms[0]).not.toBe(rooms[1]);
+    const regs = FakeSocket.all.map(registration);
+    for (const { roomId, sourceKey } of regs) {
+      expect(sourceKey).toMatch(/^[0-9a-f]{64}$/);
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sourceKey));
+      expect(roomId).toBe(Buffer.from(digest).toString('hex'));
+    }
+    expect(regs[0].roomId).not.toBe(regs[1].roomId);
   });
 
-  test('a viewer joins only the room the station names, also when it asks late', () => {
+  test('a station hands out the room id, never its key', async () => {
+    const sent: any[] = [];
+    new WebSocketStreamServer(makeContext({ sendMessage: (s: string, b: any) => sent.push([s, b]) }), camera, options);
+    await sockets(1);
+    FakeSocket.all[0].open();
+    const { roomId } = registration(FakeSocket.all[0]);
+    expect(sent).toEqual([[WS_READY, { streamName: 'Camera 1', roomId }]]);
+  });
+
+  test('a station without crypto.subtle (plain http) warns in the console and never connects', async () => {
+    const real = globalThis.crypto;
+    vi.stubGlobal('crypto', { getRandomValues: (a: Uint8Array<ArrayBuffer>) => real.getRandomValues(a) });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    new WebSocketStreamServer(makeContext(), camera, options);
+    await vi.waitFor(() => expect(warn).toHaveBeenCalledWith(expect.stringContaining('https or from localhost'), expect.anything()));
+    expect(FakeSocket.all).toEqual([]);
+    warn.mockRestore();
+  });
+
+  test('a station stopped before its room id is ready never connects', async () => {
+    const station = new WebSocketStreamServer(makeContext(), camera, options);
+    station.stop();
+    await new Promise((r) => setTimeout(r, 100));
+    expect(FakeSocket.all).toEqual([]);
+  });
+
+  test('a viewer joins only the room the station names, also when it asks late', async () => {
     const { context } = room();
     const station = new WebSocketStreamServer(context(), camera, options);
+    await sockets(1);
     FakeSocket.all[0].open(); // announced before any viewer listens
-    const roomId = FakeSocket.all[0].sent.find((m) => m.type === 'register-source').roomId;
+    const roomId = registration(FakeSocket.all[0]).roomId;
 
-    const viewer = new WebSocketStreamClient(context(), () => {}, options);
+    const viewer = new WebSocketStreamClient(context('student'), () => {}, options);
     const socket = FakeSocket.all[1];
     socket.open();
 
@@ -259,69 +375,75 @@ describe('websocket streams: the relay room is handed out through edrys', () => 
       options
     );
     FakeSocket.all[0].open();
-    listeners.forEach((l) => l({ subject: WS_READY, body: { streamName: 'Camera 2', roomId: 'abc' } }));
+    listeners.forEach((l) => l({ from: 'station', subject: WS_READY, body: { streamName: 'Camera 2', roomId: 'abc' } }));
 
     expect(FakeSocket.all[0].sent).toEqual([]);
     viewer.stop();
   });
+
+  test('a viewer takes a room only from a station or teacher', () => {
+    const listeners: Function[] = [];
+    const viewer = new WebSocketStreamClient(
+      makeContext({ onMessage: (h: Function) => { listeners.push(h); return () => {}; } }),
+      () => {},
+      options
+    );
+    FakeSocket.all[0].open();
+    const ready = (from: string, roomId: string) =>
+      listeners.forEach((l) => l({ from, subject: WS_READY, body: { streamName: 'Camera 1', roomId } }));
+
+    ready('student', 'from-student');
+    ready('nobody', 'from-nobody');
+    expect(FakeSocket.all[0].sent).toEqual([]);
+
+    ready('station', 'from-station');
+    ready('student', 'from-student');
+    ready('teacher', 'from-teacher');
+    expect(FakeSocket.all[0].sent).toEqual([
+      { type: 'join-room', roomId: 'from-station' },
+      { type: 'join-room', roomId: 'from-teacher' },
+    ]);
+    viewer.stop();
+  });
 });
 
-// Regression guard for the peer-ID generator: PeerJS IDs must be
-// alphanumeric/dash/underscore only, and are capped at 50 chars.
-describe('generated stream peer IDs', () => {
+describe('a station\'s PeerJS id', () => {
   beforeEach(() => {
     instances = [];
   });
 
-  test('StreamServer sanitizes and truncates the generated peer ID', () => {
-    const context = makeContext({
-      class_id: 'class/with spaces?',
-      liveUser: { room: 'Room A!!' },
-    });
-
-    new StreamServer(context, {} as MediaStream, {}, 'my stream #1');
-
-    const peer = instances[0];
-    expect(peer.id).toMatch(/^stream_[a-zA-Z0-9_-]+$/);
-    expect(peer.id.length).toBeLessThanOrEqual(50);
-  });
-
-  test('StreamClient generates the same sanitized peer ID format when connecting', () => {
-    const context = makeContext({
-      class_id: 'class/with spaces?',
-      liveUser: { room: 'Room A!!' },
-    });
-    const client = new StreamClient(context, () => {}, {}, undefined);
-    instances[0].emit('open');
-
-    let connectedId = '';
-    instances[0].connect = (peerId: string) => {
-      connectedId = peerId;
-      return null;
-    };
-
-    client.selectStream('my stream #1');
-
-    expect(connectedId).toMatch(/^stream_[a-zA-Z0-9_-]+$/);
-    expect(connectedId.length).toBeLessThanOrEqual(50);
-    // server and client derive the same ID
-    new StreamServer(context, {} as MediaStream, {}, 'my stream #1');
-    expect(instances.at(-1)!.id).toBe(connectedId);
-  });
-
-  test('streams whose names differ only late get different IDs', () => {
-    // with truncation to 50 chars these collided
-    const context = makeContext({
-      class_id: 'SfqYE9JhJnYpaB5p',
-      liveUser: { room: 'Station wxkWGd with a long name' },
-    });
-
-    new StreamServer(context, {} as MediaStream, {}, 'Microscope left');
-    new StreamServer(context, {} as MediaStream, {}, 'Microscope right');
-    new StreamServer(makeContext({ liveUser: { room: 'Room B' } }), {} as MediaStream, {}, 'Microscope left');
+  test('is random, a valid PeerJS id, and not derived from class, room or stream', () => {
+    new StreamServer(makeContext(), {} as MediaStream, {}, 'Camera 1');
+    new StreamServer(makeContext(), {} as MediaStream, {}, 'Camera 1');
 
     const ids = instances.map((p) => p.id);
-    expect(new Set(ids).size).toBe(3);
-    for (const id of ids) expect(id).toMatch(/^stream_[0-9a-f]{16}$/);
+    expect(ids[0]).not.toBe(ids[1]);
+    for (const id of ids) {
+      // PeerJS ids: alphanumeric/dash/underscore, at most 50 chars
+      expect(id).toMatch(/^stream_[0-9a-f]{32}$/);
+      expect(id.length).toBeLessThanOrEqual(50);
+    }
+  });
+
+  test('is announced once registered, also to a viewer that asks', () => {
+    const sent: any[] = [];
+    let onMessage: Function = () => {};
+    new StreamServer(
+      makeContext({
+        sendMessage: (s: string, b: any) => sent.push([s, b]),
+        onMessage: (h: Function) => { onMessage = h; return () => {}; },
+      }),
+      {} as MediaStream,
+      {},
+      'Camera 1'
+    );
+    const peer = instances[0];
+    onMessage({ subject: STREAM_REQUEST, body: { streamName: 'Camera 1', peerId: 'viewer' } });
+    expect(sent).toEqual([]);
+
+    peer.emit('open');
+    onMessage({ subject: STREAM_REQUEST, body: { streamName: 'Camera 1', peerId: 'viewer' } });
+    const announced = [STREAM_READY, { streamName: 'Camera 1', peerId: peer.id }];
+    expect(sent).toEqual([announced, announced]);
   });
 });
