@@ -192,7 +192,6 @@ describe('Peer Class', () => {
         expect.anything(),
         expect.objectContaining({
           signaling: expect.any(Array),
-          password: 'password',
           userid: peer['peerID'],
           peerOpts: expect.any(Object),
         })

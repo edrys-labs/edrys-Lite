@@ -301,7 +301,7 @@ describe('EdrysSimplePeerTransport data gate', () => {
     verifyImpl = () => Promise.resolve(true)
   })
 
-  // A data frame as the base transport sends it without a password: [0x00][payload].
+  // A data frame as the base transport sends it: [0x00][payload].
   const dataFrame = (b: number) => new Uint8Array([0x00, b])
 
   test('data from a peer reaches the provider only after its handshake verifies', async () => {

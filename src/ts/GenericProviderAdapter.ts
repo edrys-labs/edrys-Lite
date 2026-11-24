@@ -35,7 +35,6 @@ export class GenericWebrtcProviderAdapter {
     this.transport = new EdrysSimplePeerTransport({
       peer: Peer,
       signaling: options.signaling,
-      password: options.password || 'password',
       classroomId: options.classroomId || room,
       peerOpts: options.peerOpts,
     })

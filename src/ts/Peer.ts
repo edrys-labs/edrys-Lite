@@ -337,7 +337,6 @@ export default class Peer {
 
         const webrtcOptions = {
           signaling: this.signalingServer,
-          password: password || 'password',
           userid: this.peerID,
           classroomId: room,
           peerOpts: {
