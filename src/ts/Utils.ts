@@ -440,7 +440,7 @@ export function initCryptoIdentity(): Promise<void> {
 
 /**
  * Sign `classroomId:userid:30s-window`: proves we hold the key behind `userid`
- * in this class right now. Valid for the current and the previous window.
+ * in this class right now. Valid for the current window and both neighbours.
  */
 export async function signChallenge(classroomId: string, userid: string): Promise<string> {
   await initCryptoIdentity()
@@ -471,8 +471,8 @@ export async function verifyChallenge(
     const sig = Uint8Array.from(atob(signatureBase64), (c) => c.charCodeAt(0))
     const now = Math.floor(Date.now() / 30000)
 
-    // Accept current or previous 30-second window to tolerate clock skew
-    for (const ts of [now, now - 1]) {
+    // Accept the neighbouring 30-second windows: a signer's clock may run fast or slow.
+    for (const ts of [now, now - 1, now + 1]) {
       const payload = new TextEncoder().encode(`${classroomId}:${userid}:${ts}`)
       const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pubKey, sig, payload)
       if (ok) return true

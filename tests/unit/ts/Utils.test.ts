@@ -556,6 +556,27 @@ describe('Crypto Identity', () => {
     }
   });
 
+  // A fast clock must not fail heartbeats, or WS peers time out and rejoin.
+  test('a challenge signed by a clock 20 s ahead still verifies', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const { initCryptoIdentity, signChallenge, verifyChallenge, getPeerID } = await freshUtils();
+      await initCryptoIdentity();
+      const pubKey = getPeerID(false);
+
+      vi.setSystemTime(1000 * 30000 + 10_000 + 20_000); // signer: next window
+      const signature = await signChallenge('room-A', 'pub_s1');
+
+      vi.setSystemTime(1000 * 30000 + 10_000); // verifier: 20 s behind
+      expect(await verifyChallenge('room-A', 'pub_s1', pubKey, signature)).toBe(true);
+
+      vi.setSystemTime(999 * 30000); // two windows behind
+      expect(await verifyChallenge('room-A', 'pub_s1', pubKey, signature)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test('signSetup and verifySetup round-trip', async () => {
     const { initCryptoIdentity, signSetup, verifySetup, getPeerID } = await freshUtils();
     await initCryptoIdentity();
