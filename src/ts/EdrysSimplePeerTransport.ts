@@ -2,11 +2,36 @@ import { SimplePeerTransport } from '@edryslabs/genericprovider/providers/simple
 import type { SimplePeerTransportOptions } from '@edryslabs/genericprovider/providers/simple-peer'
 import { encoding, decoding } from 'lib0'
 import { debug } from '../api/debugHandler'
-import { signChallenge, verifyChallenge, getPeerID } from './Utils'
+import { signHandshake, verifyHandshake, getPeerID } from './Utils'
 
-// Control-frame types (ride MSG_TYPE_CONTROL, not the CRC-verified data pipe).
+// Control-frame types (ride MSG_TYPE_CONTROL, beside the data frames).
 const CTRL_ID = 1
 const CTRL_HANDSHAKE = 2
+
+/**
+ * What a peer signs to prove its identity on one connection: both transport
+ * peer ids and both DTLS certificate fingerprints. The verifier takes the
+ * signer's fingerprint from its own connection, which DTLS has checked
+ * against the certificate the other side actually holds, so a signature
+ * replayed on any other connection doesn't match.
+ * Both sides build it with signer fields first.
+ */
+function handshakePayload(
+  classroomId: string,
+  signerPeerId: string,
+  verifierPeerId: string,
+  signerFingerprint: string,
+  verifierFingerprint: string
+): string {
+  return JSON.stringify([
+    'edrys-handshake-v2',
+    classroomId,
+    signerPeerId,
+    verifierPeerId,
+    signerFingerprint,
+    verifierFingerprint,
+  ])
+}
 
 // Drop a peer that hasn't completed its signed handshake within this window.
 const HANDSHAKE_TIMEOUT = 30000
@@ -18,9 +43,12 @@ interface PendingPeer {
 
 /**
  * edrys WebRTC transport: stock SimplePeerTransport + a crypto identity gate.
- * Each peer sends its `userid` (pubkey + session) plus a signature over the
- * classroom nonce; the userid is registered only after verifyChallenge()
- * passes, so a peer can't claim an identity it lacks the private key for.
+ * On every new connection each side sends its `userid` (pubkey + session) and
+ * a signature over both peer ids and both DTLS fingerprints (handshakePayload);
+ * the userid is registered only after that signature verifies. So a peer can't
+ * claim an identity it lacks the private key for, and a signature seen on one
+ * connection is worthless on any other. A connection without fingerprints is
+ * refused rather than checked with less.
  * Data frames (Yjs sync, awareness, pubsub) from a peer are held by the base
  * transport (`requireTrust`) until that verification passes, so an unverified
  * peer can't inject document or presence changes.
@@ -81,7 +109,12 @@ export class EdrysSimplePeerTransport extends SimplePeerTransport {
     encoding.writeVarString(idEnc, getPeerID(true))
     this.sendControl(peerId, encoding.toUint8Array(idEnc))
 
-    signChallenge(this._classroomId)
+    const fp = this.getPeerFingerprints(peerId)
+    if (!fp?.local || !fp?.remote) {
+      debug.ts.edrysSimplePeerTransport(`No DTLS fingerprints for ${peerId} — not signing`)
+      return
+    }
+    signHandshake(handshakePayload(this._classroomId, this.localPeerId, peerId, fp.local, fp.remote))
       .then((signature) => {
         const hsEnc = encoding.createEncoder()
         encoding.writeVarUint(hsEnc, CTRL_HANDSHAKE)
@@ -117,7 +150,20 @@ export class EdrysSimplePeerTransport extends SimplePeerTransport {
           return
         }
 
-        verifyChallenge(this._classroomId, publicKeyBase64, signature)
+        const fp = this.getPeerFingerprints(peerId)
+        if (!fp?.local || !fp?.remote) {
+          debug.ts.edrysSimplePeerTransport(`No DTLS fingerprints for ${peerId} — rejecting`)
+          this._rejectPeer(peerId)
+          return
+        }
+        const payload = handshakePayload(
+          this._classroomId,
+          peerId,
+          this.localPeerId,
+          fp.remote,
+          fp.local
+        )
+        verifyHandshake(publicKeyBase64, signature, payload)
           .then((valid) => {
             const stillPending = this._pending.get(peerId)
             if (!stillPending || stillPending.userid !== pending.userid) return

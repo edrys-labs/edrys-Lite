@@ -75,16 +75,26 @@ vi.mock('@edryslabs/genericprovider/providers/websocket', () => ({
   WebSocketTransport: vi.fn().mockImplementation(() => ({})),
 }))
 
-// Deterministic crypto: sign returns a fixed token; verify passes only for a
-// pubkey the test whitelists.
+// Deterministic crypto: sign returns a fixed token; verify passes only for the
+// token 'sig' and a pubkey the test whitelists.
 const verifiablePubkeys = new Set<string>()
-vi.mock('./../../../src/ts/Utils', () => ({
-  signChallenge: vi.fn().mockResolvedValue('sig'),
-  verifyChallenge: vi.fn((_room: string, publicKey: string) =>
-    Promise.resolve(verifiablePubkeys.has(publicKey))
-  ),
-  getPeerID: vi.fn(() => 'mypubkey'),
-}))
+vi.mock('./../../../src/ts/Utils', async () => {
+  const actual = await vi.importActual<any>('./../../../src/ts/Utils')
+  return {
+    signChallenge: vi.fn().mockResolvedValue('sig'),
+    verifyChallenge: vi.fn((_room: string, _userid: string, publicKey: string, sig: string) =>
+      Promise.resolve(verifiablePubkeys.has(publicKey) && sig === 'sig')
+    ),
+    getPeerID: vi.fn(() => 'mypubkey'),
+    getBasePeerID: actual.getBasePeerID,
+  }
+})
+
+import { signChallenge, verifyChallenge } from '../../../src/ts/Utils'
+
+async function flush() {
+  for (let i = 0; i < 8; i++) await Promise.resolve()
+}
 
 import { GenericWebsocketProviderAdapter } from '../../../src/ts/GenericWebsocketProviderAdapter'
 
@@ -118,7 +128,7 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
   async function seatVerified(pubkey: string, userid: string, clientId: number) {
     verifiablePubkeys.add(pubkey)
     fakeAwareness.seat(clientId, { user: { id: userid, publicKey: pubkey, signature: 'sig' } })
-    await Promise.resolve()
+    await flush()
   }
 
   // --- messaging (pubsub; identity/liveness still ride awareness) ---
@@ -151,10 +161,10 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
     adapter.onMessage((m) => received.push(m))
 
     // Verification still rides awareness; only the message itself is pubsub.
-    await seatVerified('bobkey', 'bob', 2)
-    fakePubSub.emit('edrys', { id: 'm1', sender: 'bob', text: 'hey' })
+    await seatVerified('bobkey', 'bobkey_s1', 2)
+    fakePubSub.emit('edrys', { id: 'm1', sender: 'bobkey_s1', text: 'hey' })
 
-    expect(received).toEqual([{ id: 'm1', sender: 'bob', text: 'hey' }])
+    expect(received).toEqual([{ id: 'm1', sender: 'bobkey_s1', text: 'hey' }])
     adapter.destroy()
   })
 
@@ -163,8 +173,8 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
     const received: any[] = []
     adapter.onMessage((m) => received.push(m))
 
-    await seatVerified('bobkey', 'bob', 2)
-    const msg = { id: 'm1', sender: 'bob', text: 'hey' }
+    await seatVerified('bobkey', 'bobkey_s1', 2)
+    const msg = { id: 'm1', sender: 'bobkey_s1', text: 'hey' }
     fakePubSub.emit('edrys', msg)
     fakePubSub.emit('edrys', msg)
 
@@ -188,16 +198,94 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
 
   test('a peer with a valid signed challenge becomes verified', async () => {
     const adapter = makeAdapter()
-    await seatVerified('bobkey', 'bob', 2)
-    expect((adapter as any)._verifiedUsers.has('bob')).toBe(true)
+    await seatVerified('bobkey', 'bobkey_s1', 2)
+    expect((adapter as any)._verifiedUsers.has('bobkey_s1')).toBe(true)
     adapter.destroy()
   })
 
   test('a peer whose signature fails verification is not trusted', async () => {
     const adapter = makeAdapter()
-    fakeAwareness.seat(3, { user: { id: 'mallory', publicKey: 'malkey', signature: 'sig' } })
-    await Promise.resolve()
-    expect((adapter as any)._verifiedUsers.has('mallory')).toBe(false)
+    fakeAwareness.seat(3, { user: { id: 'malkey_s1', publicKey: 'malkey', signature: 'sig' } })
+    await flush()
+    expect((adapter as any)._verifiedUsers.has('malkey_s1')).toBe(false)
+    expect((adapter as any)._lastHeartbeats.has('malkey_s1')).toBe(false)
+    adapter.destroy()
+  })
+
+  test('an id of another key is not trusted, even with a valid signature of the sender', async () => {
+    const adapter = makeAdapter()
+    verifiablePubkeys.add('malkey')
+    fakeAwareness.seat(3, { user: { id: 'bobkey_s1', publicKey: 'malkey', signature: 'sig' } })
+    await flush()
+    expect((adapter as any)._verifiedUsers.has('bobkey_s1')).toBe(false)
+    expect((adapter as any)._lastHeartbeats.has('bobkey_s1')).toBe(false)
+    expect(verifyChallenge).not.toHaveBeenCalledWith('room1', 'bobkey_s1', 'malkey', 'sig')
+    adapter.destroy()
+  })
+
+  test('the signature is checked against the full id it is presented for', async () => {
+    const adapter = makeAdapter()
+    await seatVerified('bobkey', 'bobkey_s1', 2)
+    expect(verifyChallenge).toHaveBeenLastCalledWith('room1', 'bobkey_s1', 'bobkey', 'sig')
+    adapter.destroy()
+  })
+
+  test('a station (named, not keyed) is verified by its signature', async () => {
+    const adapter = makeAdapter()
+    await seatVerified('ownerkey', 'Station lab-1', 4)
+    expect((adapter as any)._verifiedUsers.has('Station lab-1')).toBe(true)
+    adapter.destroy()
+  })
+
+  test('an entry without a valid signature does not keep a leave timer alive', async () => {
+    const adapter = makeAdapter()
+    const left: string[] = []
+    adapter.onLeave((id) => left.push(id))
+    await seatVerified('bobkey', 'bobkey_s1', 2)
+
+    // Bob is gone; someone keeps publishing his id with a stale or missing signature.
+    ;(adapter as any)._lastHeartbeats.set('bobkey_s1', Date.now() - 60000)
+    fakeAwareness.seat(5, { user: { id: 'bobkey_s1', publicKey: 'bobkey', signature: 'stale' } })
+    fakeAwareness.seat(6, { user: { id: 'bobkey_s1', heartbeat: Date.now() } })
+    await flush()
+    ;(adapter as any)._checkHeartbeats()
+
+    expect(left).toEqual(['bobkey_s1'])
+    adapter.destroy()
+  })
+
+  test('repeated updates with an already verified entry are not verified again', async () => {
+    const adapter = makeAdapter()
+    await seatVerified('bobkey', 'bobkey_s1', 2)
+    vi.mocked(verifyChallenge).mockClear()
+
+    // Cursor moves etc.: same signed entry, many updates.
+    ;(adapter as any)._lastHeartbeats.set('bobkey_s1', 0)
+    for (let i = 0; i < 5; i++) {
+      fakeAwareness.seat(2, { user: { id: 'bobkey_s1', publicKey: 'bobkey', signature: 'sig' } }, 'updated')
+    }
+    await flush()
+
+    expect(verifyChallenge).not.toHaveBeenCalled()
+    expect((adapter as any)._lastHeartbeats.get('bobkey_s1')).toBeGreaterThan(0)
+    adapter.destroy()
+  })
+
+  test('a verified entry is checked again once its window has passed', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(10 * 30000 + 1000)
+    const adapter = makeAdapter()
+    await seatVerified('bobkey', 'bobkey_s1', 2)
+    vi.mocked(verifyChallenge).mockClear()
+
+    vi.setSystemTime(11 * 30000)
+    verifiablePubkeys.delete('bobkey') // the old signature no longer verifies
+    ;(adapter as any)._lastHeartbeats.set('bobkey_s1', 0)
+    fakeAwareness.seat(2, { user: { id: 'bobkey_s1', publicKey: 'bobkey', signature: 'sig' } }, 'updated')
+    await flush()
+
+    expect(verifyChallenge).toHaveBeenCalledTimes(1)
+    expect((adapter as any)._lastHeartbeats.get('bobkey_s1')).toBe(0)
     adapter.destroy()
   })
 
@@ -223,6 +311,7 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
     expect(local.user.publicKey).toBe('mypubkey')
     expect(local.user.signature).toBe('sig')
     expect(local.user.heartbeat).toBeTruthy()
+    expect(signChallenge).toHaveBeenLastCalledWith('room1', 'alice')
     adapter.destroy()
   })
 
@@ -231,14 +320,14 @@ describe('GenericWebsocketProviderAdapter (E2)', () => {
     const left: string[] = []
     adapter.onLeave((id) => left.push(id))
 
-    await seatVerified('bobkey', 'bob', 2)
-    expect((adapter as any)._verifiedUsers.has('bob')).toBe(true)
+    await seatVerified('bobkey', 'bobkey_s1', 2)
+    expect((adapter as any)._verifiedUsers.has('bobkey_s1')).toBe(true)
 
-    ;(adapter as any)._lastHeartbeats.set('bob', Date.now() - 60000)
+    ;(adapter as any)._lastHeartbeats.set('bobkey_s1', Date.now() - 60000)
     ;(adapter as any)._checkHeartbeats()
 
-    expect(left).toEqual(['bob'])
-    expect((adapter as any)._verifiedUsers.has('bob')).toBe(false)
+    expect(left).toEqual(['bobkey_s1'])
+    expect((adapter as any)._verifiedUsers.has('bobkey_s1')).toBe(false)
     adapter.destroy()
   })
 

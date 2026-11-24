@@ -2,10 +2,10 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { encoding } from 'lib0'
 import { EdrysSimplePeerTransport } from '../../../src/ts/EdrysSimplePeerTransport'
 
-// verifyChallenge is driven per-test; sign/getPeerID are stubbed but the
+// verifyHandshake is driven per-test; sign/getPeerID are stubbed but the
 // receiver-side gate (the security-critical half) is exercised by injecting
 // control frames directly, so it does not depend on announce-time identity.
-let verifyImpl: (c: string, pk: string, sig: string) => Promise<boolean> = () =>
+let verifyImpl: (pk: string, sig: string, payload: string) => Promise<boolean> = () =>
   Promise.resolve(true)
 
 vi.mock('../../../src/ts/Utils', async () => {
@@ -13,8 +13,8 @@ vi.mock('../../../src/ts/Utils', async () => {
   return {
     ...actual,
     getPeerID: vi.fn((withSession = true) => (withSession ? 'self_s0' : 'self')),
-    signChallenge: vi.fn(() => Promise.resolve('self-sig')),
-    verifyChallenge: vi.fn((c: string, pk: string, sig: string) => verifyImpl(c, pk, sig)),
+    signHandshake: vi.fn(() => Promise.resolve('self-sig')),
+    verifyHandshake: vi.fn((pk: string, sig: string, payload: string) => verifyImpl(pk, sig, payload)),
   }
 })
 
@@ -35,8 +35,14 @@ function hsFrame(pubkey: string, sig: string): Uint8Array {
   return encoding.toUint8Array(e)
 }
 
-// Fake RTCPeerConnection: `on*` properties plus addEventListener, like the real one.
+// Fake RTCPeerConnection: `on*` properties plus addEventListener, like the real
+// one. Each connection gets its own DTLS fingerprints, as in a browser.
+let pcCount = 0
+const sdpWith = (fp: string) => ({ sdp: `v=0\r\na=fingerprint:${fp}\r\n` })
 class FakePC {
+  n = ++pcCount
+  localDescription: { sdp: string } | null = sdpWith(`sha-256 LOCAL:${this.n}`)
+  remoteDescription: { sdp: string } | null = sdpWith(`sha-256 REMOTE:${this.n}`)
   iceConnectionState = 'new'
   connectionState = 'new'
   oniceconnectionstatechange: (() => void) | null = null
@@ -183,6 +189,106 @@ describe('EdrysSimplePeerTransport identity gate', () => {
 
     expect(t.peerIdForUser('pubX_s1')).toBeUndefined()
     expect(verifySpy).not.toHaveBeenCalled()
+    expect(peer.destroyed).toBe(true)
+  })
+
+  test('a handshake replayed on another connection is rejected', async () => {
+    // The victim signs the payload of its own connection.
+    const payloads: string[] = []
+    let victimPayload = ''
+    verifyImpl = (pk, sig, payload) => {
+      payloads.push(payload)
+      if (!victimPayload) victimPayload = payload
+      return Promise.resolve(pk === 'pubV' && sig === 'victim-sig' && payload === victimPayload)
+    }
+    const t = makeTransport()
+    await t.connect({ room: 'room-1' })
+
+    await attachPeer(t, 'victim-conn')
+    deliverControl(t, 'victim-conn', idFrame('pubV_s1'))
+    deliverControl(t, 'victim-conn', hsFrame('pubV', 'victim-sig'))
+    await flush()
+    expect(t.peerIdForUser('pubV_s1')).toBe('victim-conn')
+
+    // Another peer that received the victim's frames sends them again.
+    const other = await attachPeer(t, 'other-conn')
+    deliverControl(t, 'other-conn', idFrame('pubV_s1'))
+    deliverControl(t, 'other-conn', hsFrame('pubV', 'victim-sig'))
+    await flush()
+
+    // Each connection asks for a signature over different data...
+    expect(payloads).toHaveLength(2)
+    expect(payloads[1]).not.toBe(payloads[0])
+    // ...so the replay fails and the victim keeps its connection.
+    expect(other.destroyed).toBe(true)
+    expect(t.peerIdForUser('pubV_s1')).toBe('victim-conn')
+  })
+
+  test('the signed payload holds both peer ids and both fingerprints', async () => {
+    let seen = ''
+    verifyImpl = (_pk, _sig, payload) => {
+      seen = payload
+      return Promise.resolve(true)
+    }
+    const t = makeTransport()
+    await t.connect({ room: 'room-1' })
+    const peer = await attachPeer(t, 'peer-fp')
+    peer._pc.localDescription = sdpWith('sha-256 LO:CA:L')
+    peer._pc.remoteDescription = sdpWith('sha-256 RE:MO:TE')
+
+    deliverControl(t, 'peer-fp', idFrame('pubA_s1'))
+    deliverControl(t, 'peer-fp', hsFrame('pubA', 'sig'))
+    await flush()
+
+    // Signer (the remote) first, verifier (us) second.
+    expect(JSON.parse(seen)).toEqual([
+      'edrys-handshake-v2',
+      'room-1',
+      'peer-fp',
+      t.localPeerId,
+      'sha-256 RE:MO:TE',
+      'sha-256 LO:CA:L',
+    ])
+  })
+
+  test('on connect we send our ID, then a handshake signed for this connection', async () => {
+    const utils = await import('../../../src/ts/Utils')
+    const t = makeTransport()
+    await t.connect({ room: 'room-1' })
+    ;(t as any).handlePeerSignal('peer-out', { type: 'offer' })
+    const peer: FakePeer = (t as any).peers.get('peer-out').peer
+    const sent = vi.spyOn(t, 'sendControl')
+
+    peer.open()
+    await flush()
+
+    expect(utils.signHandshake).toHaveBeenLastCalledWith(
+      JSON.stringify([
+        'edrys-handshake-v2',
+        'room-1',
+        t.localPeerId,
+        'peer-out',
+        `sha-256 LOCAL:${peer._pc.n}`,
+        `sha-256 REMOTE:${peer._pc.n}`,
+      ])
+    )
+    expect(sent.mock.calls.map(([, frame]) => frame[0])).toEqual([CTRL_ID, CTRL_HANDSHAKE])
+  })
+
+  test('a connection without fingerprints is rejected without calling verify', async () => {
+    const verifySpy = vi.fn(() => Promise.resolve(true))
+    verifyImpl = verifySpy
+    const t = makeTransport()
+    await t.connect({ room: 'room-1' })
+    const peer = await attachPeer(t, 'peer-nofp')
+    peer._pc.remoteDescription = null
+
+    deliverControl(t, 'peer-nofp', idFrame('pubA_s1'))
+    deliverControl(t, 'peer-nofp', hsFrame('pubA', 'sig'))
+    await flush()
+
+    expect(verifySpy).not.toHaveBeenCalled()
+    expect(t.peerIdForUser('pubA_s1')).toBeUndefined()
     expect(peer.destroyed).toBe(true)
   })
 

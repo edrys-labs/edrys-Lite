@@ -438,18 +438,23 @@ export function initCryptoIdentity(): Promise<void> {
   return _cryptoReady
 }
 
-export async function signChallenge(classroomId: string): Promise<string> {
+/**
+ * Sign `classroomId:userid:30s-window`: proves we hold the key behind `userid`
+ * in this class right now. Valid for the current and the previous window.
+ */
+export async function signChallenge(classroomId: string, userid: string): Promise<string> {
   await initCryptoIdentity()
   if (!_privateKey) throw new Error('Crypto identity not initialized')
 
   const timestamp = Math.floor(Date.now() / 30000) // 30-second window
-  const payload = new TextEncoder().encode(`${classroomId}:${timestamp}`)
+  const payload = new TextEncoder().encode(`${classroomId}:${userid}:${timestamp}`)
   const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, _privateKey, payload)
   return btoa(String.fromCharCode(...new Uint8Array(sig)))
 }
 
 export async function verifyChallenge(
   classroomId: string,
+  userid: string,
   publicKeyBase64: string,
   signatureBase64: string
 ): Promise<boolean> {
@@ -468,11 +473,43 @@ export async function verifyChallenge(
 
     // Accept current or previous 30-second window to tolerate clock skew
     for (const ts of [now, now - 1]) {
-      const payload = new TextEncoder().encode(`${classroomId}:${ts}`)
+      const payload = new TextEncoder().encode(`${classroomId}:${userid}:${ts}`)
       const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pubKey, sig, payload)
       if (ok) return true
     }
     return false
+  } catch {
+    return false
+  }
+}
+
+/** Sign `payload` with our identity key (base64 ECDSA P-256 / SHA-256). */
+export async function signHandshake(payload: string): Promise<string> {
+  await initCryptoIdentity()
+  if (!_privateKey) throw new Error('Crypto identity not initialized')
+  const data = new TextEncoder().encode(payload)
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, _privateKey, data)
+  return btoa(String.fromCharCode(...new Uint8Array(sig)))
+}
+
+/** Check a signHandshake() signature over exactly `payload`. */
+export async function verifyHandshake(
+  publicKeyBase64: string,
+  signatureBase64: string,
+  payload: string
+): Promise<boolean> {
+  try {
+    const pubRaw = Uint8Array.from(atob(publicKeyBase64), (c) => c.charCodeAt(0))
+    const pubKey = await crypto.subtle.importKey(
+      'raw',
+      pubRaw,
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['verify']
+    )
+    const sig = Uint8Array.from(atob(signatureBase64), (c) => c.charCodeAt(0))
+    const data = new TextEncoder().encode(payload)
+    return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pubKey, sig, data)
   } catch {
     return false
   }

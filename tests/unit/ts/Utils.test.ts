@@ -481,10 +481,10 @@ describe('Crypto Identity', () => {
     await initCryptoIdentity();
 
     const classroomId = 'test-classroom-123';
-    const signature = await signChallenge(classroomId);
+    const signature = await signChallenge(classroomId, 'pub_s1');
     const pubKey = getPeerID(false);
 
-    const valid = await verifyChallenge(classroomId, pubKey, signature);
+    const valid = await verifyChallenge(classroomId, 'pub_s1', pubKey, signature);
     expect(valid).toBe(true);
   });
 
@@ -492,10 +492,10 @@ describe('Crypto Identity', () => {
     const { initCryptoIdentity, signChallenge, verifyChallenge, getPeerID } = await freshUtils();
     await initCryptoIdentity();
 
-    const signature = await signChallenge('room-A');
+    const signature = await signChallenge('room-A', 'pub_s1');
     const pubKey = getPeerID(false);
 
-    const valid = await verifyChallenge('room-B', pubKey, signature);
+    const valid = await verifyChallenge('room-B', 'pub_s1', pubKey, signature);
     expect(valid).toBe(false);
   });
 
@@ -503,12 +503,57 @@ describe('Crypto Identity', () => {
     const { initCryptoIdentity, signChallenge, verifyChallenge, getPeerID } = await freshUtils();
     await initCryptoIdentity();
 
-    const signature = await signChallenge('room-A');
+    const signature = await signChallenge('room-A', 'pub_s1');
     const pubKey = getPeerID(false);
     const tampered = signature.slice(0, -4) + 'AAAA';
 
-    const valid = await verifyChallenge('room-A', pubKey, tampered);
+    const valid = await verifyChallenge('room-A', 'pub_s1', pubKey, tampered);
     expect(valid).toBe(false);
+  });
+
+  test('signHandshake verifies only for the exact payload it signed', async () => {
+    const { initCryptoIdentity, signHandshake, verifyHandshake, getPeerID } = await freshUtils();
+    await initCryptoIdentity();
+    const pubKey = getPeerID(false);
+
+    const payload = JSON.stringify(['edrys-handshake-v2', 'room-A', 'nonce-1', 'a', 'b', 'fa', 'fb']);
+    const signature = await signHandshake(payload);
+
+    expect(await verifyHandshake(pubKey, signature, payload)).toBe(true);
+    expect(await verifyHandshake(pubKey, signature, payload.replace('nonce-1', 'nonce-2'))).toBe(false);
+    expect(await verifyHandshake(pubKey, signature.slice(0, -4) + 'AAAA', payload)).toBe(false);
+    expect(await verifyHandshake('not base64!', signature, payload)).toBe(false);
+  });
+
+  test('verifyChallenge rejects a signature presented for another userid', async () => {
+    const { initCryptoIdentity, signChallenge, verifyChallenge, getPeerID } = await freshUtils();
+    await initCryptoIdentity();
+    const pubKey = getPeerID(false);
+
+    const signature = await signChallenge('room-A', `${pubKey}_s1`);
+    expect(await verifyChallenge('room-A', `${pubKey}_s1`, pubKey, signature)).toBe(true);
+    expect(await verifyChallenge('room-A', `${pubKey}_other`, pubKey, signature)).toBe(false);
+  });
+
+  // The WebSocket adapter publishes this signature in awareness.
+  test('a challenge signature stays valid for up to 60 s', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const { initCryptoIdentity, signChallenge, verifyChallenge, getPeerID } = await freshUtils();
+      await initCryptoIdentity();
+      const pubKey = getPeerID(false);
+
+      vi.setSystemTime(1000 * 30000); // start of a 30 s window
+      const signature = await signChallenge('room-A', 'pub_s1');
+
+      vi.setSystemTime(1000 * 30000 + 59_999);
+      expect(await verifyChallenge('room-A', 'pub_s1', pubKey, signature)).toBe(true);
+
+      vi.setSystemTime(1002 * 30000);
+      expect(await verifyChallenge('room-A', 'pub_s1', pubKey, signature)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   test('signSetup and verifySetup round-trip', async () => {

@@ -2,7 +2,7 @@ import * as Y from 'yjs'
 import { GenericProvider } from '@edryslabs/genericprovider'
 import { WebSocketTransport } from '@edryslabs/genericprovider/providers/websocket'
 import { debug } from '../api/debugHandler'
-import { signChallenge, verifyChallenge, getPeerID } from './Utils'
+import { signChallenge, verifyChallenge, getPeerID, getBasePeerID } from './Utils'
 
 // Pubsub topic for edrys custom messages (matches the WebRTC adapter).
 const EDRYS_MSG_TOPIC = 'edrys'
@@ -13,6 +13,19 @@ const MESSAGE_EXPIRATION_TIME = 10000
 // Heartbeat cadence; window after which a silent peer counts as gone.
 const HEARTBEAT_INTERVAL = 5000
 const PEER_TIMEOUT = 15000
+
+// signChallenge's time window (Utils.ts).
+const SIGNATURE_WINDOW = 30000
+
+/**
+ * Whether `userid` may be claimed with `publicKey`: a user's id is
+ * `<pubkey>_<session>`. Stations are named (`Station <name>`), not keyed;
+ * Peer.ts accepts them only from the owner's or a teacher's signature.
+ */
+function idMatchesKey(userid: string, publicKey: string): boolean {
+  if (userid.startsWith('Station ')) return true
+  return getBasePeerID(userid) === publicKey
+}
 
 function generateUniqueId(): string {
   return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 11)
@@ -31,8 +44,10 @@ function generateUniqueId(): string {
  * messages are silently dropped.
  *
  * Identity: each client publishes {id, publicKey, signature, heartbeat} into
- * awareness; a peer is trusted only after verifyChallenge() passes, and a stale
- * heartbeat counts as a leave (WS has no per-peer disconnect). Custom messages
+ * awareness. The signature covers the class, the full id and a 30 s window,
+ * and the id must belong to the key. A peer is trusted, and its leave timer
+ * refreshed, only by an entry that verifies; a stale heartbeat counts as a
+ * leave (WS has no per-peer disconnect). Custom messages
  * ride pubsub (one frame each, order preserved) and are accepted only from
  * verified peers.
  */
@@ -52,6 +67,9 @@ export class GenericWebsocketProviderAdapter {
   private _verifiedUsers = new Set<string>()
   // userid -> last heartbeat timestamp, for leave-by-timeout detection.
   private _lastHeartbeats = new Map<string, number>()
+  // userid -> the last entry that verified, so the many awareness updates
+  // between two heartbeats don't each cost an ECDSA verify.
+  private _verifiedEntries = new Map<string, { key: string; until: number }>()
 
   private _processedMessages = new Map<string, number>()
   private _cleanupInterval: ReturnType<typeof setInterval> | null = null
@@ -162,24 +180,42 @@ export class GenericWebsocketProviderAdapter {
       if (!user || !user.id || user.id === this.userid) continue
 
       this._verifyPeer(user)
-      this._lastHeartbeats.set(user.id, Date.now())
     }
   }
 
-  /** Verify a remote peer's signed challenge once; trust it only if it passes. */
+  /**
+   * Check a remote entry's signed identity; if it verifies, trust the id and
+   * count it as a heartbeat. Checked on every update, so an entry without a
+   * current signature can't keep someone's leave timer alive. An entry that
+   * already verified counts again without a new check until the end of the
+   * window it verified in, which never outlasts the signature itself.
+   */
   private _verifyPeer(user: any) {
     const { id: remoteId, publicKey, signature } = user
-    if (publicKey && signature && !this._verifiedUsers.has(remoteId)) {
-      verifyChallenge(this._classroomId, publicKey, signature)
-        .then((valid) => {
-          if (valid) {
-            this._verifiedUsers.add(remoteId)
-          } else {
-            debug.ts.edrysWebsocketProvider(`Peer ${remoteId} failed handshake — ignoring`)
-          }
-        })
-        .catch((e) => console.error('WebSocket handshake verification error:', e))
+    if (typeof publicKey !== 'string' || typeof signature !== 'string') return
+    if (!idMatchesKey(remoteId, publicKey)) {
+      debug.ts.edrysWebsocketProvider(`Peer ${remoteId} claims an id of another key — ignoring`)
+      return
     }
+    const key = `${publicKey}:${signature}`
+    const cached = this._verifiedEntries.get(remoteId)
+    if (cached && cached.key === key && Date.now() < cached.until) {
+      this._lastHeartbeats.set(remoteId, Date.now())
+      return
+    }
+    verifyChallenge(this._classroomId, remoteId, publicKey, signature)
+      .then((valid) => {
+        if (valid) {
+          const now = Date.now()
+          const until = (Math.floor(now / SIGNATURE_WINDOW) + 1) * SIGNATURE_WINDOW
+          this._verifiedEntries.set(remoteId, { key, until })
+          this._verifiedUsers.add(remoteId)
+          this._lastHeartbeats.set(remoteId, now)
+        } else {
+          debug.ts.edrysWebsocketProvider(`Peer ${remoteId} failed handshake — ignoring`)
+        }
+      })
+      .catch((e) => console.error('WebSocket handshake verification error:', e))
   }
 
   /**
@@ -188,7 +224,7 @@ export class GenericWebsocketProviderAdapter {
    * isn't clobbered by a stale snapshot.
    */
   private _sendHeartbeat() {
-    signChallenge(this._classroomId)
+    signChallenge(this._classroomId, this.userid)
       .then((signature) => {
         const local = this.awareness.getLocalState() || {}
         this.awareness.setLocalState({
@@ -218,6 +254,7 @@ export class GenericWebsocketProviderAdapter {
       if (now - last > PEER_TIMEOUT) {
         this._lastHeartbeats.delete(userid)
         this._verifiedUsers.delete(userid)
+        this._verifiedEntries.delete(userid)
         if (userid !== this.userid && this._leaveListener) this._leaveListener(userid)
       }
     }
@@ -257,6 +294,7 @@ export class GenericWebsocketProviderAdapter {
     this._processedMessages.clear()
     this._verifiedUsers.clear()
     this._lastHeartbeats.clear()
+    this._verifiedEntries.clear()
     this.provider.destroy()
   }
 }
