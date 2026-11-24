@@ -296,6 +296,51 @@ describe('EdrysSimplePeerTransport identity gate', () => {
   })
 })
 
+describe('EdrysSimplePeerTransport data gate', () => {
+  beforeEach(() => {
+    verifyImpl = () => Promise.resolve(true)
+  })
+
+  // A data frame as the base transport sends it without a password: [0x00][payload].
+  const dataFrame = (b: number) => new Uint8Array([0x00, b])
+
+  test('data from a peer reaches the provider only after its handshake verifies', async () => {
+    const t = makeTransport()
+    await t.connect({ room: 'room-1' })
+    const got: number[] = []
+    t.onMessage((d) => got.push(d[0]))
+    const peerId = 'peer-data'
+    const peer = await attachPeer(t, peerId)
+
+    peer.emit('data', dataFrame(1))
+    expect(got).toEqual([])
+
+    deliverControl(t, peerId, idFrame('pubA_s1'))
+    deliverControl(t, peerId, hsFrame('pubA', 'good-sig'))
+    await flush()
+    expect(got).toEqual([1])
+    peer.emit('data', dataFrame(2))
+    expect(got).toEqual([1, 2])
+  })
+
+  test('data from a peer that fails the handshake never reaches the provider', async () => {
+    verifyImpl = () => Promise.resolve(false)
+    const t = makeTransport()
+    await t.connect({ room: 'room-1' })
+    const got: number[] = []
+    t.onMessage((d) => got.push(d[0]))
+    const peerId = 'peer-forged'
+    const peer = await attachPeer(t, peerId)
+
+    peer.emit('data', dataFrame(1))
+    deliverControl(t, peerId, idFrame('pubS_s9'))
+    deliverControl(t, peerId, hsFrame('pubS', 'forged-sig'))
+    await flush()
+    peer.emit('data', dataFrame(2))
+    expect(got).toEqual([])
+  })
+})
+
 async function flush() {
   for (let i = 0; i < 8; i++) {
     await Promise.resolve()

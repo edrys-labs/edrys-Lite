@@ -21,6 +21,9 @@ interface PendingPeer {
  * Each peer sends its `userid` (pubkey + session) plus a signature over the
  * classroom nonce; the userid is registered only after verifyChallenge()
  * passes, so a peer can't claim an identity it lacks the private key for.
+ * Data frames (Yjs sync, awareness, pubsub) from a peer are held by the base
+ * transport (`requireTrust`) until that verification passes, so an unverified
+ * peer can't inject document or presence changes.
  * (RE_ANNOUNCE_INTERVAL wasn't re-ported — the stock 5s re-announce subsumes it.)
  */
 export class EdrysSimplePeerTransport extends SimplePeerTransport {
@@ -34,7 +37,7 @@ export class EdrysSimplePeerTransport extends SimplePeerTransport {
   private _timeoutSweep: ReturnType<typeof setInterval> | null = null
 
   constructor(options: SimplePeerTransportOptions & { classroomId: string }) {
-    super(options)
+    super({ ...options, requireTrust: true })
     this._classroomId = options.classroomId
 
     // Incoming control frames: ID announcement + signed handshake.
@@ -128,6 +131,8 @@ export class EdrysSimplePeerTransport extends SimplePeerTransport {
             this._peerUserIds.set(peerId, pending.userid)
             this._userIdToPeer.set(pending.userid, peerId)
             this._pending.delete(peerId)
+            // Release the data frames held while the handshake ran.
+            this.trustPeer(peerId)
             debug.ts.edrysSimplePeerTransport(
               `Peer ${peerId} verified as ${pending.userid}`
             )
