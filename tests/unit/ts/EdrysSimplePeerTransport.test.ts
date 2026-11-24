@@ -1,7 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import * as Y from 'yjs'
 import { encoding } from 'lib0'
-import { GenericProvider } from '@edryslabs/genericprovider'
 import { EdrysSimplePeerTransport } from '../../../src/ts/EdrysSimplePeerTransport'
 
 // verifyChallenge is driven per-test; sign/getPeerID are stubbed but the
@@ -295,85 +293,6 @@ describe('EdrysSimplePeerTransport identity gate', () => {
     const sendSpy = vi.spyOn(peer, 'send')
     t.sendTo('unknown_user', new Uint8Array([9]))
     expect(sendSpy).toHaveBeenCalled()
-  })
-})
-
-// Paired in-memory transport: send() on one side is delivered to the other's
-// onMessage on a microtask, so two GenericProviders can sync end-to-end.
-function makePairedTransports() {
-  const cbs: Array<((d: Uint8Array) => void) | null> = [null, null]
-  const make = (self: number, other: number): any => ({
-    get isConnected() {
-      return true
-    },
-    connect: () => Promise.resolve(),
-    disconnect: () => {},
-    send: (d: Uint8Array) => {
-      const copy = d.slice()
-      queueMicrotask(() => cbs[other]?.(copy))
-    },
-    onMessage: (cb: (d: Uint8Array) => void) => {
-      cbs[self] = cb
-      return () => {
-        cbs[self] = null
-      }
-    },
-  })
-  return [make(0, 1), make(1, 0)]
-}
-
-describe('computeDocHash convergence (verifyUpdates)', () => {
-  test('two convergent docs reach synced without a hash-mismatch loop', async () => {
-    const warnings: string[] = []
-    const spy = vi.spyOn(console, 'warn').mockImplementation((...a) => {
-      warnings.push(a.join(' '))
-    })
-
-    const docA = new Y.Doc()
-    const docB = new Y.Doc()
-    // Pre-connect offline edits on both sides, so initial sync must merge two
-    // divergent histories — the exact case where encodeStateAsUpdate hashes
-    // differed between the (now convergent) replicas.
-    docA.getMap('m').set('a', 1)
-    docB.getMap('m').set('b', 2)
-
-    const [tA, tB] = makePairedTransports()
-
-    // verifyUpdates ON — the path that hashed encodeStateAsUpdate and looped.
-    const pA = new GenericProvider(docA, tA, { verifyUpdates: true, disableBc: true })
-    const pB = new GenericProvider(docB, tB, { verifyUpdates: true, disableBc: true })
-
-    let aSynced = false
-    let bSynced = false
-    pA.on('synced', () => (aSynced = true))
-    pB.on('synced', () => (bSynced = true))
-
-    await pA.connect({ room: 'r' })
-    await pB.connect({ room: 'r' })
-    await flush()
-
-    // More interleaved edits after connect (delivered as verified updates).
-    docA.getMap('m').set('a2', 3)
-    docB.getMap('m').set('b2', 4)
-    // Both docs converge to the same content, and synced fires (only emitted
-    // when localHash === expectedHash).
-    await vi.waitFor(() => {
-      expect(docA.getMap('m').toJSON()).toEqual(docB.getMap('m').toJSON())
-      expect(docA.getMap('m').size).toBe(4)
-      expect(aSynced && bSynced).toBe(true)
-    })
-
-    // Once converged, a convergence-invariant hash must NOT keep detecting
-    // mismatches (the pre-fix bug looped here forever). Absence needs a window.
-    warnings.length = 0
-    await new Promise((r) => setTimeout(r, 50))
-    await flush()
-    const mismatchAfterConverge = warnings.filter((w) => w.includes('Hash mismatch'))
-    expect(mismatchAfterConverge).toEqual([])
-
-    spy.mockRestore()
-    pA.destroy()
-    pB.destroy()
   })
 })
 

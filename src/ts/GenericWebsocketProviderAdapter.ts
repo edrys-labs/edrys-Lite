@@ -23,8 +23,9 @@ function generateUniqueId(): string {
  * provider API Peer.ts consumes.
  *
  * PROTOCOL CONSTRAINT (why it diverges from the WebRTC adapter): the server
- * relays sync (0), awareness (1) and pubsub (2/4), but verified-sync (3) is
- * still dropped — hence verifyUpdates:false and syncMode:'pull' below.
+ * relays sync (0), awareness (1) and pubsub (2/4), but not verified-sync (3).
+ * genericprovider no longer sends 3 (it did by default up to 2.0.3), so only
+ * syncMode:'pull' below differs.
  * REQUIRES a server that relays opcodes 2/4 verbatim (edrys websocket-server
  * >= "relay pubsub frames"); against a stock y-websocket server custom
  * messages are silently dropped.
@@ -64,8 +65,6 @@ export class GenericWebsocketProviderAdapter {
     this.transport = new WebSocketTransport()
 
     this.provider = new GenericProvider(doc, this.transport, {
-      // Use plain sync opcode (0), relayed; verified-sync (3) would be dropped.
-      verifyUpdates: false,
       // Pull-only on connect: adopt the server's authoritative doc instead of
       // pushing our pre-seeded local copy (else signed-state revert can't
       // reconcile over the relay → self-only divergence on reload).
