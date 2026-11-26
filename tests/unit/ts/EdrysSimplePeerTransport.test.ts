@@ -292,16 +292,17 @@ describe('EdrysSimplePeerTransport identity gate', () => {
     expect(peer.destroyed).toBe(true)
   })
 
-  test('a handshake frame with no prior ID frame is ignored', async () => {
+  test('a handshake frame with no prior ID frame is rejected', async () => {
     const t = makeTransport()
     await t.connect({ room: 'room-1' })
     const peerId = 'peer-x'
-    await attachPeer(t, peerId)
+    const peer = await attachPeer(t, peerId)
 
     deliverControl(t, peerId, hsFrame('pubA', 'sig'))
     await flush()
 
     expect(t.peerIdForUser('pubA_s1')).toBeUndefined()
+    expect(peer.destroyed).toBe(true)
   })
 
   test('onLeave fires with the userid when a verified peer disconnects', async () => {
@@ -367,6 +368,28 @@ describe('EdrysSimplePeerTransport identity gate', () => {
       expect(stalled.destroyed).toBe(true)
       expect(verified.destroyed).toBe(false)
       expect(t.peerIdForUser('pubA_s1')).toBe('peer-ok')
+      t.disconnect()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('a silent peer and one that keeps re-announcing are dropped after the deadline', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+    try {
+      const t = makeTransport()
+      await t.connect({ room: 'room-1' })
+      const silent = await attachPeer(t, 'peer-silent') // never sends anything
+      const chatty = await attachPeer(t, 'peer-chatty')
+
+      deliverControl(t, 'peer-chatty', idFrame('pubC_s1'))
+      vi.advanceTimersByTime(30000) // first sweep: not expired yet
+      deliverControl(t, 'peer-chatty', idFrame('pubC_s1')) // must not reset the deadline
+      expect(silent.destroyed).toBe(false)
+
+      vi.advanceTimersByTime(30000)
+      expect(silent.destroyed).toBe(true)
+      expect(chatty.destroyed).toBe(true)
       t.disconnect()
     } finally {
       vi.useRealTimers()

@@ -2,7 +2,7 @@ import { SimplePeerTransport } from '@edryslabs/genericprovider/providers/simple
 import type { SimplePeerTransportOptions } from '@edryslabs/genericprovider/providers/simple-peer'
 import { encoding, decoding } from 'lib0'
 import { debug } from '../api/debugHandler'
-import { signHandshake, verifyHandshake, getPeerID } from './Utils'
+import { signHandshake, verifyHandshake, getPeerID, getBasePeerID } from './Utils'
 
 // Control-frame types (ride MSG_TYPE_CONTROL, beside the data frames).
 const CTRL_ID = 1
@@ -103,6 +103,12 @@ export class EdrysSimplePeerTransport extends SimplePeerTransport {
   }
 
   private _sendOwnIdentity(peerId: string): void {
+    // The handshake deadline starts at connect, so a peer that never announces
+    // itself doesn't hold a connection slot forever.
+    if (!this._pending.has(peerId)) {
+      this._pending.set(peerId, { userid: '', expiresAt: Date.now() + HANDSHAKE_TIMEOUT })
+    }
+
     // Announce userid; the receiver holds it pending until the handshake verifies.
     const idEnc = encoding.createEncoder()
     encoding.writeVarUint(idEnc, CTRL_ID)
@@ -132,8 +138,10 @@ export class EdrysSimplePeerTransport extends SimplePeerTransport {
 
       if (type === CTRL_ID) {
         const userid = decoding.readVarString(decoder)
-        // Hold pending until the handshake signature verifies it.
-        this._pending.set(peerId, { userid, expiresAt: Date.now() + HANDSHAKE_TIMEOUT })
+        // Hold pending until the handshake signature verifies it. Re-announcing
+        // keeps the original deadline.
+        const expiresAt = this._pending.get(peerId)?.expiresAt ?? Date.now() + HANDSHAKE_TIMEOUT
+        this._pending.set(peerId, { userid, expiresAt })
       } else if (type === CTRL_HANDSHAKE) {
         const publicKeyBase64 = decoding.readVarString(decoder)
         const signature = decoding.readVarString(decoder)
@@ -141,8 +149,7 @@ export class EdrysSimplePeerTransport extends SimplePeerTransport {
         if (!pending) return
 
         // userid is `<pubkey>_<session>`; its base must equal the signing key.
-        const claimedBase = pending.userid.split('_')[0]
-        if (claimedBase !== publicKeyBase64) {
+        if (getBasePeerID(pending.userid) !== publicKeyBase64) {
           debug.ts.edrysSimplePeerTransport(
             `Peer ${peerId} userid/pubkey mismatch — rejecting`
           )

@@ -219,7 +219,6 @@ export default class Peer {
     setup: { id: string; data: any; timestamp: number },
     stationID?: string,
     t?: (key: string) => string,
-    password?: string,
     expectedOwner?: string
   ) {
     const doc = new Y.Doc()
@@ -290,7 +289,7 @@ export default class Peer {
       }
     }
 
-    this.connectProvider(this.lab.id, password)
+    this.connectProvider(this.lab.id)
 
     // Leave on page unload. beforeunload, while the connections still carry
     // our signed leave (by pagehide they no longer do); pagehide where
@@ -302,9 +301,8 @@ export default class Peer {
   /**
    * Establishes the provider connection based on the selected type (WebRTC or Websocket).
    * @param room The room identifier.
-   * @param password The password for the room.
    */
-  private connectProvider(room: string, password?: string) {
+  private connectProvider(room: string) {
     initCryptoIdentity().then(() => {
       if (this.role !== 'station') {
         this.peerID = getPeerID()
@@ -319,12 +317,12 @@ export default class Peer {
       }, 'initialization')
       this._observeRooms()
 
-      this._connectProviderWithIdentity(room, password)
+      this._connectProviderWithIdentity(room)
       this.initUser(this.role)
     }).catch((e) => console.error('Crypto identity init failed:', e))
   }
 
-  private _connectProviderWithIdentity(room: string, password?: string) {
+  private _connectProviderWithIdentity(room: string) {
     try {
       // Disconnect existing provider if it exists
       if (this.provider) {

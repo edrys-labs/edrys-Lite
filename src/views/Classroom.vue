@@ -428,7 +428,6 @@ export default {
           configurationCopy,
           this.stationName,
           this.t,
-          null, // password
           this.owner || undefined
         ));
         this.communication.setUsername(loadUsername());

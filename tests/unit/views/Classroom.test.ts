@@ -209,7 +209,7 @@ describe('Classroom View', () => {
     await wrapper.vm.init();
 
     expect(PeerMock).toHaveBeenCalledTimes(1);
-    expect(PeerMock.mock.calls[0][4]).toBe('owner-hash-123');
+    expect(PeerMock.mock.calls[0][3]).toBe('owner-hash-123');
   });
 
   test('handles room management', async () => {
